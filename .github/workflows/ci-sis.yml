@@ -1,0 +1,254 @@
+name: CI - SIS Apps
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'sis_apps/**'
+      - '.github/workflows/ci-sis.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'sis_apps/**'
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  # ==========================================================================
+  # LINT - Vérification du code
+  # ==========================================================================
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install linting tools
+        run: |
+          pip install flake8 isort black
+      
+      - name: Run flake8 on SIS Secondaire
+        run: |
+          flake8 sis_apps/sis_secondaire/apps/ --max-line-length=120 --exclude=migrations
+      
+      - name: Run flake8 on SIS Supérieur
+        run: |
+          flake8 sis_apps/sis_superieur/apps/ --max-line-length=120 --exclude=migrations
+      
+      - name: Check imports with isort
+        run: |
+          isort --check-only --diff sis_apps/
+
+  # ==========================================================================
+  # TEST SIS SECONDAIRE
+  # ==========================================================================
+  test-sis-secondaire:
+    name: Test SIS Secondaire
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_sis_secondaire
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    env:
+      DJANGO_SECRET_KEY: 'test-secret-key-for-ci'
+      DJANGO_DEBUG: 'True'
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: test_sis_secondaire
+      DB_USER: test
+      DB_PASSWORD: test
+      REDIS_URL: redis://localhost:6379/1
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'sis_apps/sis_secondaire/requirements/base.txt'
+      
+      - name: Install dependencies
+        run: |
+          cd sis_apps/sis_secondaire
+          pip install -r requirements/base.txt
+          pip install pytest pytest-django pytest-cov
+      
+      - name: Run migrations
+        run: |
+          cd sis_apps/sis_secondaire
+          python manage.py migrate --run-syncdb
+      
+      - name: Run tests with coverage
+        run: |
+          cd sis_apps/sis_secondaire
+          pytest --cov=apps --cov-report=xml --cov-report=term-missing -v
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: sis_apps/sis_secondaire/coverage.xml
+          flags: sis-secondaire
+          name: sis-secondaire-coverage
+        continue-on-error: true
+
+  # ==========================================================================
+  # TEST SIS SUPÉRIEUR
+  # ==========================================================================
+  test-sis-superieur:
+    name: Test SIS Supérieur
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_sis_superieur
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    env:
+      DJANGO_SECRET_KEY: 'test-secret-key-for-ci'
+      DJANGO_DEBUG: 'True'
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: test_sis_superieur
+      DB_USER: test
+      DB_PASSWORD: test
+      REDIS_URL: redis://localhost:6379/1
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'sis_apps/sis_superieur/requirements/base.txt'
+      
+      - name: Install dependencies
+        run: |
+          cd sis_apps/sis_superieur
+          pip install -r requirements/base.txt
+          pip install pytest pytest-django pytest-cov
+      
+      - name: Run migrations
+        run: |
+          cd sis_apps/sis_superieur
+          python manage.py migrate --run-syncdb
+      
+      - name: Run tests with coverage
+        run: |
+          cd sis_apps/sis_superieur
+          pytest --cov=apps --cov-report=xml --cov-report=term-missing -v
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: sis_apps/sis_superieur/coverage.xml
+          flags: sis-superieur
+          name: sis-superieur-coverage
+        continue-on-error: true
+
+  # ==========================================================================
+  # SECURITY CHECK
+  # ==========================================================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: [test-sis-secondaire, test-sis-superieur]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install safety
+        run: pip install safety bandit
+      
+      - name: Check dependencies for vulnerabilities (SIS Secondaire)
+        run: |
+          cd sis_apps/sis_secondaire
+          safety check -r requirements/base.txt --continue-on-error || true
+      
+      - name: Check dependencies for vulnerabilities (SIS Supérieur)
+        run: |
+          cd sis_apps/sis_superieur
+          safety check -r requirements/base.txt --continue-on-error || true
+      
+      - name: Run bandit security linter
+        run: |
+          bandit -r sis_apps/ -x '*/tests/*,*/migrations/*' -ll || true
+
+  # ==========================================================================
+  # BUILD STATUS
+  # ==========================================================================
+  build-status:
+    name: Build Status
+    runs-on: ubuntu-latest
+    needs: [test-sis-secondaire, test-sis-superieur, security]
+    if: always()
+    
+    steps:
+      - name: Check build status
+        run: |
+          if [ "${{ needs.test-sis-secondaire.result }}" == "success" ] && \
+             [ "${{ needs.test-sis-superieur.result }}" == "success" ]; then
+            echo "✅ All tests passed!"
+            exit 0
+          else
+            echo "❌ Some tests failed"
+            exit 1
+          fi
