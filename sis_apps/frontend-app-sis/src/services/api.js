@@ -1,0 +1,442 @@
+import { getConfig } from '@edx/frontend-platform';
+import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { mockFetch, mockPost, mockPut, mockDelete, isMockMode } from './mockApi';
+
+/**
+ * Get the base URL for SIS Supérieur API
+ */
+export const getSuperieurApiUrl = () => {
+  try {
+    return getConfig().SIS_SUPERIEUR_API_URL || 'http://localhost:8000/api/sis-superieur';
+  } catch {
+    return 'http://localhost:8000/api/sis-superieur';
+  }
+};
+
+/**
+ * Get the base URL for SIS Secondaire API
+ */
+export const getSecondaireApiUrl = () => {
+  try {
+    return getConfig().SIS_SECONDAIRE_API_URL || 'http://localhost:8000/api/sis-secondaire';
+  } catch {
+    return 'http://localhost:8000/api/sis-secondaire';
+  }
+};
+
+/**
+ * Generic API fetch function
+ */
+export const fetchApi = async (url, options = {}) => {
+  // Use mock data in development mode
+  if (isMockMode()) {
+    return mockFetch(url);
+  }
+  
+  const client = getAuthenticatedHttpClient();
+  const response = await client.get(url, options);
+  return response.data;
+};
+
+/**
+ * Generic API post function
+ */
+export const postApi = async (url, data, options = {}) => {
+  if (isMockMode()) {
+    return mockPost(url, data);
+  }
+  
+  const client = getAuthenticatedHttpClient();
+  const response = await client.post(url, data, options);
+  return response.data;
+};
+
+/**
+ * Generic API put function
+ */
+export const putApi = async (url, data, options = {}) => {
+  if (isMockMode()) {
+    return mockPut(url, data);
+  }
+  
+  const client = getAuthenticatedHttpClient();
+  const response = await client.put(url, data, options);
+  return response.data;
+};
+
+/**
+ * Generic API patch function
+ */
+export const patchApi = async (url, data, options = {}) => {
+  if (isMockMode()) {
+    return mockPut(url, data);
+  }
+  
+  const client = getAuthenticatedHttpClient();
+  const response = await client.patch(url, data, options);
+  return response.data;
+};
+
+/**
+ * Generic API delete function
+ */
+export const deleteApi = async (url, options = {}) => {
+  if (isMockMode()) {
+    return mockDelete(url);
+  }
+  
+  const client = getAuthenticatedHttpClient();
+  const response = await client.delete(url, options);
+  return response.data;
+};
+
+/**
+ * Factory function to create CRUD hooks for a resource
+ * @param {string} resourceName - Name of the resource (e.g., 'etudiants')
+ * @param {string} apiType - 'superieur' or 'secondaire'
+ */
+export const createResourceHooks = (resourceName, apiType = 'superieur') => {
+  const getBaseUrl = () => {
+    const baseUrl = apiType === 'superieur' ? getSuperieurApiUrl() : getSecondaireApiUrl();
+    return `${baseUrl}/${resourceName}`;
+  };
+
+  return {
+    // List hook - normalizes paginated and non-paginated responses to array
+    useList: (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      const url = queryString ? `${getBaseUrl()}/?${queryString}` : `${getBaseUrl()}/`;
+      
+      return useQuery({
+        queryKey: [resourceName, 'list', params],
+        queryFn: () => fetchApi(url),
+        select: (data) => {
+          // Handle paginated response { results: [...] } or direct array
+          if (Array.isArray(data)) return data;
+          if (data?.results && Array.isArray(data.results)) return data.results;
+          return [];
+        },
+      });
+    },
+
+    // Detail hook
+    useDetail: (id, enabled = true) => useQuery({
+      queryKey: [resourceName, 'detail', id],
+      queryFn: () => fetchApi(`${getBaseUrl()}/${id}/`),
+      enabled: enabled && !!id,
+    }),
+
+    // Create hook
+    useCreate: () => {
+      const queryClient = useQueryClient();
+      return useMutation({
+        mutationFn: (data) => postApi(`${getBaseUrl()}/`, data),
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: [resourceName] });
+        },
+      });
+    },
+
+    // Update hook
+    useUpdate: () => {
+      const queryClient = useQueryClient();
+      return useMutation({
+        mutationFn: ({ id, data }) => putApi(`${getBaseUrl()}/${id}/`, data),
+        onSuccess: (_, { id }) => {
+          queryClient.invalidateQueries({ queryKey: [resourceName] });
+        },
+      });
+    },
+
+    // Partial update hook
+    usePatch: () => {
+      const queryClient = useQueryClient();
+      return useMutation({
+        mutationFn: ({ id, data }) => patchApi(`${getBaseUrl()}/${id}/`, data),
+        onSuccess: (_, { id }) => {
+          queryClient.invalidateQueries({ queryKey: [resourceName] });
+        },
+      });
+    },
+
+    // Delete hook
+    useDelete: () => {
+      const queryClient = useQueryClient();
+      return useMutation({
+        mutationFn: (id) => deleteApi(`${getBaseUrl()}/${id}/`),
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: [resourceName] });
+        },
+      });
+    },
+
+    // Custom action hook
+    useAction: (actionName, method = 'post') => {
+      const queryClient = useQueryClient();
+      return useMutation({
+        mutationFn: ({ id, data }) => {
+          const url = `${getBaseUrl()}/${id}/${actionName}/`;
+          switch (method) {
+            case 'get':
+              return fetchApi(url);
+            case 'post':
+              return postApi(url, data);
+            case 'put':
+              return putApi(url, data);
+            case 'patch':
+              return patchApi(url, data);
+            case 'delete':
+              return deleteApi(url);
+            default:
+              return postApi(url, data);
+          }
+        },
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: [resourceName] });
+        },
+      });
+    },
+  };
+};
+
+// ============ SIS SUPÉRIEUR HOOKS ============
+
+// Étudiants
+export const etudiantHooks = createResourceHooks('etudiants', 'superieur');
+export const useEtudiants = etudiantHooks.useList;
+export const useEtudiant = etudiantHooks.useDetail;
+export const useCreateEtudiant = etudiantHooks.useCreate;
+export const useUpdateEtudiant = etudiantHooks.useUpdate;
+export const useDeleteEtudiant = etudiantHooks.useDelete;
+
+// Formations
+export const formationHooks = createResourceHooks('formations', 'superieur');
+export const useFormations = formationHooks.useList;
+export const useFormation = formationHooks.useDetail;
+
+// Inscriptions
+export const inscriptionHooks = createResourceHooks('inscriptions', 'superieur');
+export const useInscriptions = inscriptionHooks.useList;
+export const useInscription = inscriptionHooks.useDetail;
+
+// Notes
+export const noteHooks = createResourceHooks('notes', 'superieur');
+export const useNotes = noteHooks.useList;
+
+// Examens
+export const examenHooks = createResourceHooks('examens', 'superieur');
+export const useExamens = examenHooks.useList;
+export const useExamen = examenHooks.useDetail;
+
+// Bourses
+export const typeBourseHooks = createResourceHooks('types-bourses', 'superieur');
+export const demandeBourseHooks = createResourceHooks('demandes-bourses', 'superieur');
+export const attributionBourseHooks = createResourceHooks('attributions-bourses', 'superieur');
+export const useTypesBourses = typeBourseHooks.useList;
+export const useDemandesBourses = demandeBourseHooks.useList;
+export const useDemandeBourse = demandeBourseHooks.useDetail;
+export const useCreateDemandeBourse = demandeBourseHooks.useCreate;
+
+// Emploi du temps
+export const creneauCoursHooks = createResourceHooks('creneaux-cours', 'superieur');
+export const salleHooks = createResourceHooks('salles', 'superieur');
+export const reservationHooks = createResourceHooks('reservations', 'superieur');
+export const useCreneauxCours = creneauCoursHooks.useList;
+export const useSalles = salleHooks.useList;
+export const useReservations = reservationHooks.useList;
+
+// Enseignants
+export const enseignantHooks = createResourceHooks('enseignants', 'superieur');
+export const useEnseignants = enseignantHooks.useList;
+export const useEnseignant = enseignantHooks.useDetail;
+
+// Stages
+export const stageHooks = createResourceHooks('stages', 'superieur');
+export const useStages = stageHooks.useList;
+
+// Mémoires
+export const memoireHooks = createResourceHooks('memoires', 'superieur');
+export const useMemoires = memoireHooks.useList;
+
+// Recherche
+export const labHooks = createResourceHooks('laboratoires', 'superieur');
+export const projetRechercheHooks = createResourceHooks('projets-recherche', 'superieur');
+export const useLaboratoires = labHooks.useList;
+export const useProjetsRecherche = projetRechercheHooks.useList;
+
+// Diplômes
+export const diplomeHooks = createResourceHooks('diplomes', 'superieur');
+export const useDiplomes = diplomeHooks.useList;
+
+// Paiements
+export const paiementHooks = createResourceHooks('paiements', 'superieur');
+export const usePaiements = paiementHooks.useList;
+
+// Jurys
+export const juryHooks = createResourceHooks('jurys', 'superieur');
+export const useJurys = juryHooks.useList;
+
+// Relevés
+export const releveHooks = createResourceHooks('releves', 'superieur');
+export const useReleves = releveHooks.useList;
+
+// Mobilité
+export const mobiliteHooks = createResourceHooks('mobilites', 'superieur');
+export const useMobilites = mobiliteHooks.useList;
+
+// Bibliothèque
+export const empruntHooks = createResourceHooks('emprunts', 'superieur');
+export const useEmprunts = empruntHooks.useList;
+
+// ============ SIS SECONDAIRE HOOKS ============
+
+// Élèves
+export const eleveHooks = createResourceHooks('eleves', 'secondaire');
+export const useEleves = eleveHooks.useList;
+export const useEleve = eleveHooks.useDetail;
+export const useCreateEleve = eleveHooks.useCreate;
+
+// Classes
+export const classeHooks = createResourceHooks('classes', 'secondaire');
+export const useClasses = classeHooks.useList;
+export const useClasse = classeHooks.useDetail;
+
+// Évaluations
+export const evaluationHooks = createResourceHooks('evaluations', 'secondaire');
+export const useEvaluations = evaluationHooks.useList;
+
+// Bulletins
+export const bulletinHooks = createResourceHooks('bulletins', 'secondaire');
+export const useBulletins = bulletinHooks.useList;
+
+// Présences
+export const presenceHooks = createResourceHooks('presences', 'secondaire');
+export const usePresences = presenceHooks.useList;
+
+// Discipline
+export const incidentHooks = createResourceHooks('incidents', 'secondaire');
+export const sanctionHooks = createResourceHooks('sanctions', 'secondaire');
+export const useIncidents = incidentHooks.useList;
+export const useSanctions = sanctionHooks.useList;
+
+// Cantine
+export const cantineHooks = createResourceHooks('inscriptions-cantine', 'secondaire');
+export const useCantine = cantineHooks.useList;
+
+// Transport
+export const transportHooks = createResourceHooks('lignes-transport', 'secondaire');
+export const useTransport = transportHooks.useList;
+
+// Infirmerie
+export const infirmerieHooks = createResourceHooks('visites-infirmerie', 'secondaire');
+export const useInfirmerie = infirmerieHooks.useList;
+
+// Internat
+export const internatHooks = createResourceHooks('chambres', 'secondaire');
+export const useInternat = internatHooks.useList;
+
+// Clubs
+export const clubHooks = createResourceHooks('clubs', 'secondaire');
+export const useClubs = clubHooks.useList;
+
+// Conseil de classe
+export const conseilClasseHooks = createResourceHooks('conseils-classe', 'secondaire');
+export const useConseilsClasse = conseilClasseHooks.useList;
+
+// Additional hooks for specific views
+export const useEleveDetail = (id) => eleveHooks.useDetail(id);
+export const useNotesByEleve = (eleveId) => useQuery({
+  queryKey: ['notes-eleve', eleveId],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/eleves/${eleveId}/notes/`),
+  enabled: !!eleveId,
+});
+export const usePresencesByEleve = (eleveId) => useQuery({
+  queryKey: ['presences-eleve', eleveId],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/eleves/${eleveId}/presences/`),
+  enabled: !!eleveId,
+});
+
+// Cantine extended
+export const useInscritsCantin = () => useQuery({
+  queryKey: ['inscrits-cantine'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/inscriptions-cantine/`),
+});
+export const useRepas = () => useQuery({
+  queryKey: ['repas'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/repas/`),
+});
+export const useMenus = () => useQuery({
+  queryKey: ['menus'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/menus/`),
+});
+
+// Transport extended
+export const useInscritsTransport = () => useQuery({
+  queryKey: ['inscrits-transport'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/inscriptions-transport/`),
+});
+export const useCircuits = () => useQuery({
+  queryKey: ['circuits'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/circuits/`),
+});
+export const useVehicules = () => useQuery({
+  queryKey: ['vehicules'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/vehicules/`),
+});
+
+// Infirmerie extended
+export const useVisitesInfirmerie = () => useQuery({
+  queryKey: ['visites-infirmerie'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/visites-infirmerie/`),
+});
+export const useDossiersMediaux = () => useQuery({
+  queryKey: ['dossiers-medicaux'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/dossiers-medicaux/`),
+});
+
+// Internat extended
+export const useInternes = () => useQuery({
+  queryKey: ['internes'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/internes/`),
+});
+export const useChambres = () => useQuery({
+  queryKey: ['chambres'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/chambres/`),
+});
+
+// Clubs extended
+export const useMembresClub = (clubId) => useQuery({
+  queryKey: ['membres-club', clubId],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/clubs/${clubId}/membres/`),
+  enabled: !!clubId,
+});
+export const useActivitesClub = () => useQuery({
+  queryKey: ['activites-club'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/activites-clubs/`),
+});
+
+// ============ ADMIN HOOKS ============
+
+export const getAdminApiUrl = () => getConfig().SIS_ADMIN_API_URL || getConfig().LMS_BASE_URL + '/api/sis/admin';
+
+// Utilisateurs
+export const utilisateurHooks = createResourceHooks('utilisateurs', 'admin');
+export const useUtilisateurs = () => useQuery({
+  queryKey: ['utilisateurs'],
+  queryFn: () => fetchApi(`${getAdminApiUrl()}/utilisateurs/`),
+});
+
+// Structure pédagogique
+export const useDepartements = () => useQuery({
+  queryKey: ['departements'],
+  queryFn: () => fetchApi(`${getAdminApiUrl()}/departements/`),
+});
+export const useNiveaux = () => useQuery({
+  queryKey: ['niveaux'],
+  queryFn: () => fetchApi(`${getAdminApiUrl()}/niveaux/`),
+});
+export const useMatieres = () => useQuery({
+  queryKey: ['matieres'],
+  queryFn: () => fetchApi(`${getAdminApiUrl()}/matieres/`),
+});

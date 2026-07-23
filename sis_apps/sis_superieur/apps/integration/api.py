@@ -1,0 +1,184 @@
+"""API views for Open edX integration (SIS Supérieur)."""
+import hmac
+import hashlib
+import logging
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Count
+from .models import EdxUserMapping, EdxCourseMapping, EdxEnrollment, OutboxEvent
+from .edx_client import get_edx_client
+from .sync_service import SyncService
+
+logger = logging.getLogger(__name__)
+
+
+def _verify_hmac(request) -> bool:
+    signature = request.headers.get("X-Signature", "")
+    secret = getattr(settings, "WEBHOOK_SECRET", "dev-secret")
+    expected = hmac.new(secret.encode(), request.body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature.replace("sha256=", ""))
+
+
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def webhook_lms(request):
+    if not _verify_hmac(request):
+        return Response({"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED)
+    event_type = request.headers.get("X-Event-Type", "")
+    payload = request.data
+    from .tasks import (
+        process_user_webhook, process_enrollment_webhook,
+        process_grade_webhook, process_certificate_webhook,
+    )
+    if "user" in event_type:
+        process_user_webhook.delay(payload)
+    elif "enrollment" in event_type:
+        process_enrollment_webhook.delay(payload)
+    elif "grade" in event_type:
+        process_grade_webhook.delay(payload)
+    elif "certificate" in event_type:
+        process_certificate_webhook.delay(payload)
+    return Response({"status": "queued", "event": event_type})
+
+
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def webhook_cms(request):
+    if not _verify_hmac(request):
+        return Response({"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED)
+    event_type = request.headers.get("X-Event-Type", "")
+    payload = request.data
+    from .tasks import process_xblock_published, process_course_published
+    if "xblock" in event_type:
+        process_xblock_published.delay(payload)
+    elif "course.published" in event_type:
+        process_course_published.delay(payload)
+    return Response({"status": "queued", "event": event_type})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def sync_status(request):
+    outbox_counts = OutboxEvent.objects.values("statut").annotate(n=Count("id"))
+    return Response({
+        "outbox": {c["statut"]: c["n"] for c in outbox_counts},
+        "enrollments_active": EdxEnrollment.objects.filter(is_active=True).count(),
+        "users_mapped": EdxUserMapping.objects.filter(actif=True).count(),
+        "courses_mapped": EdxCourseMapping.objects.filter(actif=True).count(),
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def sync_user(request, user_id):
+    from apps.utilisateurs.models import Utilisateur
+    try:
+        user = Utilisateur.objects.get(pk=user_id)
+    except Utilisateur.DoesNotExist:
+        return Response({"error": "User not found"}, status=404)
+    service = SyncService()
+    role = request.data.get("role", "student")
+    try:
+        mapping = service.sync_user_to_lms(user, role=role)
+        return Response({
+            "status": "ok",
+            "username_edx": mapping.username_edx,
+            "user_id_edx": mapping.user_id_edx,
+        })
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def sync_course(request):
+    from apps.ue_ecue.models import ECUE
+    from apps.etablissement.models import AnneeUniversitaire
+    ecue_id = request.data.get("ecue_id")
+    annee_id = request.data.get("annee_id")
+    try:
+        ecue = ECUE.objects.get(pk=ecue_id)
+        annee = AnneeUniversitaire.objects.get(pk=annee_id)
+    except (ECUE.DoesNotExist, AnneeUniversitaire.DoesNotExist):
+        return Response({"error": "Not found"}, status=404)
+    display_name = request.data.get("display_name", f"{ecue.nom} - {annee.libelle}")
+    service = SyncService()
+    try:
+        mapping = service.sync_course_to_cms(ecue, annee, display_name)
+        return Response({"status": "ok", "course_id": mapping.course_id})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def sync_enroll(request):
+    from apps.etudiants.models import Etudiant
+    etudiant_id = request.data.get("etudiant_id")
+    course_mapping_id = request.data.get("course_mapping_id")
+    mode = request.data.get("mode", "audit")
+    try:
+        etudiant = Etudiant.objects.get(pk=etudiant_id)
+        course_mapping = EdxCourseMapping.objects.get(pk=course_mapping_id)
+    except (Etudiant.DoesNotExist, EdxCourseMapping.DoesNotExist):
+        return Response({"error": "Not found"}, status=404)
+    service = SyncService()
+    try:
+        enrollment = service.sync_enrollment_to_lms(etudiant, course_mapping, mode=mode)
+        return Response({"status": "ok", "enrollment_id": enrollment.enrollment_id})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def sync_grade(request):
+    from apps.etudiants.models import Etudiant
+    etudiant_id = request.data.get("etudiant_id")
+    course_mapping_id = request.data.get("course_mapping_id")
+    subsection_id = request.data.get("subsection_id")
+    score = request.data.get("score")
+    max_score = request.data.get("max_score", 20.0)
+    try:
+        etudiant = Etudiant.objects.get(pk=etudiant_id)
+        course_mapping = EdxCourseMapping.objects.get(pk=course_mapping_id)
+    except (Etudiant.DoesNotExist, EdxCourseMapping.DoesNotExist):
+        return Response({"error": "Not found"}, status=404)
+    service = SyncService()
+    try:
+        result = service.sync_grade_to_lms(etudiant, course_mapping, subsection_id, score, max_score)
+        return Response({"status": "ok", "result": result})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def sync_certificate(request):
+    from apps.etudiants.models import Etudiant
+    etudiant_id = request.data.get("etudiant_id")
+    course_mapping_id = request.data.get("course_mapping_id")
+    cert_type = request.data.get("certificate_type", "honor")
+    try:
+        etudiant = Etudiant.objects.get(pk=etudiant_id)
+        course_mapping = EdxCourseMapping.objects.get(pk=course_mapping_id)
+    except (Etudiant.DoesNotExist, EdxCourseMapping.DoesNotExist):
+        return Response({"error": "Not found"}, status=404)
+    service = SyncService()
+    try:
+        result = service.sync_certificate_to_lms(etudiant, course_mapping, cert_type)
+        return Response({"status": "ok", "result": result})
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def health(request):
+    return Response(get_edx_client().health_check())
