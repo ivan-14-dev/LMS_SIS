@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<testsuite name="Firefox 155.0 (Linux 0.0.0)" package="javascript" timestamp="2026-09-19T15:48:49" id="0" hostname="runnervmlun5p" tests="35" errors="0" failures="0" time="1.005">
+  <properties>
+    <property name="browser.fullName" value="Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0"/>
+  </properties>
+  <testcase name="Asset view: should render properly" time="0.033" classname="Javascript.Firefox"/>
+  <testcase name="Asset view: should pop a delete confirmation when the delete button is clicked" time="0.03" classname="Javascript.Firefox"/>
+  <testcase name="Asset view: should destroy itself on confirmation" time="0.031" classname="Javascript.Firefox"/>
+  <testcase name="Asset view: should not destroy itself if server errors" time="0.027" classname="Javascript.Firefox"/>
+  <testcase name="Asset view: should lock the asset on confirmation" time="0.023" classname="Javascript.Firefox"/>
+  <testcase name="Asset view: should not lock the asset if server errors" time="0.024" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: should show upload modal on clicking upload asset button" time="0.061" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: should show file selection menu on choose file button" time="0.052" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: should hide upload modal on clicking close button" time="0.053" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: should show a status indicator while loading" time="0.058" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: should hide the status indicator if an error occurs while loading" time="0.041" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: should render both assets" time="0.042" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: should remove the deleted asset from the view" time="0.054" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: does not remove asset if deletion failed" time="0.047" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: adds an asset if asset does not already exist" time="0.046" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: does not add an asset if asset already exists" time="0.045" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: should have the correct default sort order" time="0.042" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: should toggle the sort order when clicking on the currently sorted column" time="0.049" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: should switch the sort order when clicking on a different column" time="0.049" classname="Javascript.Firefox"/>
+  <testcase name="Assets view: should switch sort to most recent date added when a new asset is added" time="0.054" classname="Javascript.Firefox"/>
+  <testcase name="VideoTranslations: returns the initial value upon initialization" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="VideoTranslations: updates its value correctly" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="VideoTranslations: upload works correctly" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="VideoTranslations: has a clear method to revert to the model default" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="VideoTranslations: has an update model method" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="VideoTranslations: can add an entry" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="VideoTranslations: can remove an entry" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="VideoTranslations: only allows one blank entry at a time" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="VideoTranslations: only allows unique keys" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="VideoTranslations: re-enables the add setting button after entering a new value" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="FileUploader: returns the initial value upon initialization" time="0.032" classname="Javascript.Firefox"/>
+  <testcase name="FileUploader: updates its value correctly" time="0.028" classname="Javascript.Firefox"/>
+  <testcase name="FileUploader: upload works correctly" time="0.028" classname="Javascript.Firefox"/>
+  <testcase name="FileUploader: has a clear method to revert to the model default" time="0.028" classname="Javascript.Firefox"/>
+  <testcase name="FileUploader: has an update model method" time="0.028" classname="Javascript.Firefox"/>
+  <system-out>
+    <![CDATA[
+]]>
+  </system-out>
+  <system-err/>
+</testsuite>

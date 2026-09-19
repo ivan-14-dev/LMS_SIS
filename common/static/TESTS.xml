@@ -1,0 +1,149 @@
+<?xml version="1.0"?>
+<testsuite name="Firefox 155.0 (Linux 0.0.0)" package="javascript" timestamp="2026-09-19T15:48:55" id="0" hostname="runnervmlun5p" tests="100" errors="0" failures="0" time="0.356">
+  <properties>
+    <property name="browser.fullName" value="Mozilla/5.0 (X11; Linux x86_64; rv:155.0) Gecko/20100101 Firefox/155.0"/>
+  </properties>
+  <testcase name="TabbedView component: can render itself" time="0.003" classname="Javascript.Firefox"/>
+  <testcase name="TabbedView component: shows its first tab by default" time="0.004" classname="Javascript.Firefox"/>
+  <testcase name="TabbedView component: displays titles for each tab" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="TabbedView component: can switch tabs" time="0.003" classname="Javascript.Firefox"/>
+  <testcase name="TabbedView component: marks the active tab as selected using aria attributes" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="TabbedView component: works with keyboard navigation RIGHT and ENTER" time="0.003" classname="Javascript.Firefox"/>
+  <testcase name="TabbedView component: works with keyboard navigation DOWN and ENTER" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="TabbedView component: works with keyboard navigation LEFT and ENTER" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="TabbedView component: works with keyboard navigation UP and ENTER" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="SystemFeedback: requires a type and an intent" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="SystemFeedback: does not show on initialize" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="SystemFeedback: renders the template" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="SystemFeedback: close button sends a .hide() message" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="PromptView: is focused on show" time="0.062" classname="Javascript.Firefox"/>
+  <testcase name="PromptView: is not focused on hide" time="0.055" classname="Javascript.Firefox"/>
+  <testcase name="PromptView: traps keyboard focus when moving forward" time="0.054" classname="Javascript.Firefox"/>
+  <testcase name="PromptView: traps keyboard focus when moving backward" time="0.052" classname="Javascript.Firefox"/>
+  <testcase name="PromptView: changes class on body" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="NotificationView.Mini: should have minShown set to 1250 by default" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="NotificationView.Mini: should have closeIcon set to false by default" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="SystemFeedback click events: should trigger the primary event on a primary click" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="SystemFeedback click events: should trigger the secondary event on a secondary click" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="SystemFeedback click events: should apply class to primary action" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="SystemFeedback click events: should apply class to secondary action" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="SystemFeedback click events: should preventDefault on primary action" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="SystemFeedback click events: should preventDefault on secondary action" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="SystemFeedback not preventing events: should not preventDefault" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="SystemFeedback multiple secondary actions: should render both" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="SystemFeedback multiple secondary actions: should differentiate clicks (1)" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="SystemFeedback multiple secondary actions: should differentiate clicks (2)" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="NotificationView minShown and maxShown: should not have minShown or maxShown by default" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="NotificationView minShown and maxShown: a minShown view should not hide too quickly" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="NotificationView minShown and maxShown: a maxShown view should hide by itself" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="NotificationView minShown and maxShown: a minShown view can stay visible longer" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="NotificationView minShown and maxShown: a maxShown view can hide early" time="0" classname="Javascript.Firefox">
+    <skipped/>
+  </testcase>
+  <testcase name="NotificationView minShown and maxShown: a view can have both maxShown and minShown" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="ListView: renders itself" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="ListView: does not render subviews for an empty collection" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="ListView: re-renders itself when the collection changes" time="0.003" classname="Javascript.Firefox"/>
+  <testcase name="ListView: re-renders itself when items are added to the collection" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="ListView: re-renders itself when items are removed from the collection" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="ListView: removes old views" time="0" classname="Javascript.Firefox"/>
+  <testcase name="PaginatedView: can render the first of many pages" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="PaginatedView: can render the only page" time="0.006" classname="Javascript.Firefox"/>
+  <testcase name="PaginatedView: can change to the next page" time="0.007" classname="Javascript.Firefox"/>
+  <testcase name="PaginatedView: can change to the previous page" time="0.009" classname="Javascript.Firefox"/>
+  <testcase name="PaginatedView: sets focus for screen readers" time="0.003" classname="Javascript.Firefox"/>
+  <testcase name="PaginatedView: does not change on server error" time="0.004" classname="Javascript.Firefox"/>
+  <testcase name="PagingHeader: correctly displays which items are being viewed" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="PagingHeader: reports that all items are on the current page" time="0" classname="Javascript.Firefox"/>
+  <testcase name="PagingHeader: reports that the page contains a single item" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="PagingHeader: optionally shows sorting controls" time="0" classname="Javascript.Firefox"/>
+  <testcase name="PagingHeader: does not show sorting controls if the `showSortControls` option is not passed" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should not render itself for an empty collection" time="0.003" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should not render itself for a dataset with just one page" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should render itself for an empty collection" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should render itself for a dataset with just one page" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: does not move forward if a server error occurs" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: can move to the next page" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should be enabled when there is at least one more page" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should be disabled on the final page" time="0.003" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: does not move back if a server error occurs" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: can go back a page" time="0.003" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should be disabled on the first page" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should be enabled on the second page" time="0.003" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should show 1 on the first page" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should show 2 on the second page" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should show the correct value with more than one page" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should initially have a blank page input" time="0" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should handle invalid page requests" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should switch pages via the input field" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="PagingFooter: should handle AJAX failures when switching pages via the input field" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="SearchFieldView: correctly displays itself" time="0.011" classname="Javascript.Firefox"/>
+  <testcase name="SearchFieldView: can display with an initial search string" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="SearchFieldView: refreshes the collection when performing a search" time="0.004" classname="Javascript.Firefox"/>
+  <testcase name="SearchFieldView: can clear the search" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="ViewUtils: adds 'is-disabled' class to element while action is running and removes it after" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="ViewUtils: disables elements within withDisabledElement" time="0" classname="Javascript.Firefox"/>
+  <testcase name="ViewUtils: shows progress notification and removes it upon success" time="0" classname="Javascript.Firefox"/>
+  <testcase name="ViewUtils: shows progress notification and leaves it showing upon failure" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="ViewUtils: validates presence of field" time="0" classname="Javascript.Firefox"/>
+  <testcase name="ViewUtils: checks for presence of special characters in the field" time="0" classname="Javascript.Firefox"/>
+  <testcase name="ViewUtils: does not allow unicode characters" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="ViewUtils: validates presence of field" time="0" classname="Javascript.Firefox"/>
+  <testcase name="ViewUtils: checks for presence of spaces" time="0" classname="Javascript.Firefox"/>
+  <testcase name="ViewUtils: allows unicode characters" time="0" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: succeeds if an optional field is left blank" time="0" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: succeeds if a required field is provided a valid value" time="0" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: fails if a required field is left blank" time="0.002" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: fails if a field is provided a value below its minimum character limit" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: succeeds if a field with no minimum character limit is provided a value below its maximum character limit" time="0" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: fails if a required field with no minimum character limit is left blank" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: fails if a field is provided a value above its maximum character limit" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: succeeds if a field with no maximum character limit is provided a value above its minimum character limit" time="0" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: succeeds if a field with no character limits is provided a value" time="0" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: fails if an email field is provided an invalid address" time="0" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: succeeds if an email field is provided a valid address" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: succeeds if a checkbox is optional, or required and checked, but fails if a required checkbox is unchecked" time="0.001" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: succeeds if a select is optional, or required and default is selected, but fails if a required select has the default option selected" time="0" classname="Javascript.Firefox"/>
+  <testcase name="EdxUtilsValidate: returns a custom error message if an invalid field has one attached" time="0.001" classname="Javascript.Firefox"/>
+  <system-out>
+    <![CDATA[
+]]>
+  </system-out>
+  <system-err/>
+</testsuite>
