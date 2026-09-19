@@ -4,7 +4,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from apps.core.healthcheck import health_check, readiness_check, metrics
+from apps.core.healthcheck import health as health_check, ready as readiness_check, metrics
 
 urlpatterns = [
     # Healthcheck endpoints (public, no auth)
@@ -18,8 +18,8 @@ urlpatterns = [
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger"),
     # Portails
     path("", include("apps.portail_etudiant.urls")),
-    path("comptes/", include("apps.utilisateurs.urls_auth")),
-    path("admin-portail/", include("apps.etablissement.urls_admin")),
+    path("comptes/", include("apps.utilisateurs.urls")),
+    path("admin-portail/", include("apps.etablissement.urls")),
 ]
 
 if settings.DEBUG:

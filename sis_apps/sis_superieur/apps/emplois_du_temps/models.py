@@ -170,7 +170,7 @@ class Reservation(models.Model):
         Salle, on_delete=models.CASCADE, related_name="reservations"
     )
     demandeur = models.ForeignKey(
-        Utilisateur, on_delete=models.CASCADE, related_name="reservations_salles"
+        Utilisateur, on_delete=models.CASCADE, related_name="reservations_locaux"
     )
     date = models.DateField()
     heure_debut = models.TimeField()

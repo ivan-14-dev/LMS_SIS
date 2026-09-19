@@ -3,10 +3,12 @@ import os
 import sys
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 SIS_APPS_DIR = BASE_DIR.parent
 if str(SIS_APPS_DIR) not in sys.path:
     sys.path.insert(0, str(SIS_APPS_DIR))
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 from sis_common.config import (
     get_allowed_hosts,
@@ -41,7 +43,7 @@ THIRD_PARTY_APPS = [
     "drf_spectacular",
     "corsheaders",
     "django_filters",
-    "django_auditlog",
+    "auditlog",
     "simple_history",
     "import_export",
     "guardian",
@@ -97,6 +99,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "axes.middleware.AxesMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.core.middleware.RequestIdMiddleware",
@@ -149,7 +152,7 @@ SHARED_APPS = (
 )
 TENANT_APPS = tuple(
     app for app in LOCAL_APPS if app not in ("apps.core", "apps.etablissement")
-) + THIRD_PARTY_APPS
+) + tuple(THIRD_PARTY_APPS)
 
 # Cache
 CACHES = {
@@ -179,6 +182,7 @@ LOGIN_REDIRECT_URL = "/tableau-de-bord/"
 LOGOUT_REDIRECT_URL = "/comptes/connexion/"
 
 AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
     "django.contrib.auth.backends.ModelBackend",
     "guardian.backends.ObjectPermissionBackend",
 ]
@@ -215,7 +219,7 @@ LANGUAGES = [
 # Static
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Media
@@ -271,8 +275,7 @@ CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:
 CORS_ALLOW_CREDENTIALS = True
 
 # Audit
-AUDITLOG_INCLUDE_TRACKING_MODELS = True
-AUDITLOG_TRACKING_MODELS = [
+AUDITLOG_INCLUDE_TRACKING_MODELS = [
     "eleves.Eleve",
     "notes.Note",
     "notes.Bulletin",
@@ -307,7 +310,7 @@ LOGGING = {
         "file": {
             "level": "INFO",
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": BASE_DIR / "logs" / "sis.log",
+            "filename": LOG_DIR / "sis.log",
             "maxBytes": 1024 * 1024 * 10,
             "backupCount": 5,
             "formatter": "json",

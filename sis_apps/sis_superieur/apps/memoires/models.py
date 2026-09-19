@@ -2,9 +2,8 @@
 from django.db import models
 from apps.formations.models import Formation
 from apps.etudiants.models import Etudiant
-from apps.enseignants.models import Personnel  # enseignant universitaire
+from apps.enseignants.models import EnseignantChercheur
 from apps.utilisateurs.models import Utilisateur
-from apps.structure.models import Laboratoire
 
 
 class SujetMemoire(models.Model):
@@ -24,14 +23,14 @@ class SujetMemoire(models.Model):
     description = models.TextField()
     mots_cles = models.JSONField(default=list, blank=True)
     encadreur = models.ForeignKey(
-        Personnel, on_delete=models.PROTECT, related_name="memoires_encadres"
+        EnseignantChercheur, on_delete=models.PROTECT, related_name="memoires_encadres"
     )
     co_encadreur = models.ForeignKey(
-        Personnel, on_delete=models.SET_NULL, null=True, blank=True,
+        EnseignantChercheur, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="memoires_co_encadres",
     )
     laboratoire = models.ForeignKey(
-        Laboratoire, on_delete=models.SET_NULL, null=True, blank=True,
+        "recherche.Laboratoire", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="sujets_memoire",
     )
     nb_etudiants_max = models.PositiveSmallIntegerField(default=1)
