@@ -14,6 +14,7 @@ sessions. Assumes structure:
 
 
 import logging  # noqa: I001 - suppresses linting for this whole block, sort imports manually as needed
+import os
 from collections import OrderedDict
 
 from edx_django_utils.plugins import add_plugins
