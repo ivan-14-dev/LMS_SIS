@@ -67,6 +67,8 @@ conf/locale/fake*/LC_MESSAGES/*.mo
 conf/locale/messages.mo
 conf/plugins-locale/
 conf/locale/*/LC_MESSAGES/
+# Keep the dummy-language catalog used by translation tests.
+!conf/locale/eo/LC_MESSAGES/
 /*/static/js/i18n/
 /*/static/js/xblock.v1-i18n/
 
