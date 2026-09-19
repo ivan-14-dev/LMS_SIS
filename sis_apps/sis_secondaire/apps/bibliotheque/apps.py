@@ -1,4 +1,5 @@
 """App config for bibliotheque."""
+
 from django.apps import AppConfig
 
 

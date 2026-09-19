@@ -1,4 +1,5 @@
 """API tests for classes."""
+
 from django.test import TestCase
 
 

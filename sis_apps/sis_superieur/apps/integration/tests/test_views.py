@@ -1,4 +1,5 @@
 """View tests for integration."""
+
 from django.test import TestCase
 
 

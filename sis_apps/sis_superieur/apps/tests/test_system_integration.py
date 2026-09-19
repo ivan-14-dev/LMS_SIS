@@ -1,4 +1,5 @@
 """System-level integration checks for the SIS Supérieur service."""
+
 import hashlib
 import hmac
 import json

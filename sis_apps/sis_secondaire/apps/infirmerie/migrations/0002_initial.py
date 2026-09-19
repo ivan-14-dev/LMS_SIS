@@ -10,14 +10,19 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('infirmerie', '0001_initial'),
+        ("infirmerie", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='visiteinfirmerie',
-            name='infirmier',
-            field=models.ForeignKey(limit_choices_to={'role': 'infirmier'}, on_delete=django.db.models.deletion.PROTECT, related_name='visites_infirmerie', to=settings.AUTH_USER_MODEL),
+            model_name="visiteinfirmerie",
+            name="infirmier",
+            field=models.ForeignKey(
+                limit_choices_to={"role": "infirmier"},
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="visites_infirmerie",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
     ]

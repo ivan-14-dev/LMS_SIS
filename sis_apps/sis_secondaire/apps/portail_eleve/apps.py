@@ -1,4 +1,5 @@
 """App config for portail_eleve."""
+
 from django.apps import AppConfig
 
 

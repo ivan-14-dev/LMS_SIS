@@ -7,24 +7,41 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='AppreciationMatiere',
+            name="AppreciationMatiere",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('appreciation', models.TextField()),
-                ('moyenne_matiere', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('moyenne_classe', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('rang', models.PositiveIntegerField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("appreciation", models.TextField()),
+                (
+                    "moyenne_matiere",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                (
+                    "moyenne_classe",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                ("rang", models.PositiveIntegerField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'verbose_name': 'Appréciation par matière',
-                'verbose_name_plural': 'Appréciations par matière',
+                "verbose_name": "Appréciation par matière",
+                "verbose_name_plural": "Appréciations par matière",
             },
         ),
     ]

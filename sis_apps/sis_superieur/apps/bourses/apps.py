@@ -1,4 +1,5 @@
 """App config for bourses."""
+
 from django.apps import AppConfig
 
 

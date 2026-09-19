@@ -9,14 +9,20 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('integration', '0001_initial'),
-        ('notes', '0001_initial'),
+        ("integration", "0001_initial"),
+        ("notes", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='edxgradelog',
-            name='note_sis',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='sources_lms', to='notes.note'),
+            model_name="edxgradelog",
+            name="note_sis",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="sources_lms",
+                to="notes.note",
+            ),
         ),
     ]

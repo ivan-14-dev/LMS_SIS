@@ -1,19 +1,23 @@
 """Models for rattrapages (SIS Supérieur)."""
-from django.db import models
+
 from apps.etudiants.models import Etudiant
-from apps.ue_ecue.models import ECUE
 from apps.examens.models import SessionExamen
+from apps.ue_ecue.models import ECUE
+from django.db import models
 
 
 class InscriptionRattrapage(models.Model):
     """Inscription d'un étudiant à un rattrapage."""
+
     STATUT_CHOICES = [
         ("inscrit", "Inscrit"),
         ("desiste", "Désisté"),
         ("passe", "Passé"),
         ("absent", "Absent"),
     ]
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="inscriptions_rattrapage")
+    etudiant = models.ForeignKey(
+        Etudiant, on_delete=models.CASCADE, related_name="inscriptions_rattrapage"
+    )
     ecue = models.ForeignKey(ECUE, on_delete=models.CASCADE, related_name="rattrapages")
     session_rattrapage = models.ForeignKey(
         SessionExamen, on_delete=models.CASCADE, related_name="inscriptions_rattrapage"

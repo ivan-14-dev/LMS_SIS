@@ -1,4 +1,5 @@
 """App config for mobilite."""
+
 from django.apps import AppConfig
 
 

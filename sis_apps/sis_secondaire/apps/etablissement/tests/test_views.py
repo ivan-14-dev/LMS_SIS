@@ -1,4 +1,5 @@
 """View tests for etablissement."""
+
 from django.test import TestCase
 
 

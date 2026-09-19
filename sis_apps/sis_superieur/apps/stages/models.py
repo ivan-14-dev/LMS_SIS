@@ -1,14 +1,15 @@
 """Models for stages (SIS Supérieur)."""
-from django.db import models
-from apps.etudiants.models import Etudiant
-from apps.entreprises.models import Entreprise
-from apps.utilisateurs.models import Utilisateur
+
 from apps.enseignants.models import EnseignantChercheur
+from apps.entreprises.models import Entreprise
+from apps.etudiants.models import Etudiant
 from apps.formations.models import Formation
+from django.db import models
 
 
 class OffreStage(models.Model):
     """Offre de stage."""
+
     TYPE_CHOICES = [
         ("observation", "Stage d'observation (L1)"),
         ("application", "Stage d'application (L2-L3)"),
@@ -23,10 +24,15 @@ class OffreStage(models.Model):
         ("annulee", "Annulée"),
     ]
     formation = models.ForeignKey(
-        Formation, on_delete=models.CASCADE, related_name="offres_stage",
-        null=True, blank=True,
+        Formation,
+        on_delete=models.CASCADE,
+        related_name="offres_stage",
+        null=True,
+        blank=True,
     )
-    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name="offres_stage")
+    entreprise = models.ForeignKey(
+        Entreprise, on_delete=models.CASCADE, related_name="offres_stage"
+    )
     titre = models.CharField(max_length=200)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     description = models.TextField()
@@ -56,6 +62,7 @@ class OffreStage(models.Model):
 
 class CandidatureStage(models.Model):
     """Candidature à une offre de stage."""
+
     STATUT_CHOICES = [
         ("soumise", "Soumise"),
         ("preselectionne", "Présélectionnée"),
@@ -64,8 +71,12 @@ class CandidatureStage(models.Model):
         ("refusee", "Refusée"),
         ("annulee", "Annulée"),
     ]
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="candidatures_stage")
-    offre = models.ForeignKey(OffreStage, on_delete=models.CASCADE, related_name="candidatures")
+    etudiant = models.ForeignKey(
+        Etudiant, on_delete=models.CASCADE, related_name="candidatures_stage"
+    )
+    offre = models.ForeignKey(
+        OffreStage, on_delete=models.CASCADE, related_name="candidatures"
+    )
     lettre_motivation = models.TextField()
     cv = models.FileField(upload_to="stages/cv/")
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="soumise")
@@ -84,6 +95,7 @@ class CandidatureStage(models.Model):
 
 class ConventionStage(models.Model):
     """Convention de stage tripartite."""
+
     STATUT_CHOICES = [
         ("brouillon", "Brouillon"),
         ("signee_etudiant", "Signée par l'étudiant"),
@@ -92,11 +104,19 @@ class ConventionStage(models.Model):
         ("complete", "Complète"),
         ("annulee", "Annulée"),
     ]
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="conventions_stage")
-    offre = models.OneToOneField(OffreStage, on_delete=models.PROTECT, related_name="convention")
-    entreprise = models.ForeignKey(Entreprise, on_delete=models.PROTECT, related_name="conventions")
+    etudiant = models.ForeignKey(
+        Etudiant, on_delete=models.CASCADE, related_name="conventions_stage"
+    )
+    offre = models.OneToOneField(
+        OffreStage, on_delete=models.PROTECT, related_name="convention"
+    )
+    entreprise = models.ForeignKey(
+        Entreprise, on_delete=models.PROTECT, related_name="conventions"
+    )
     maitre_stage = models.ForeignKey(
-        "entreprises.ContactEntreprise", on_delete=models.PROTECT, related_name="stages_encadres"
+        "entreprises.ContactEntreprise",
+        on_delete=models.PROTECT,
+        related_name="stages_encadres",
     )
     tuteur_pedagogique = models.ForeignKey(
         EnseignantChercheur, on_delete=models.PROTECT, related_name="stages_tutelles"
@@ -107,7 +127,9 @@ class ConventionStage(models.Model):
     horaires = models.CharField(max_length=200, blank=True)
     missions = models.TextField()
     pdf_path = models.CharField(max_length=500)
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="brouillon")
+    statut = models.CharField(
+        max_length=20, choices=STATUT_CHOICES, default="brouillon"
+    )
     date_signature_complete = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -121,13 +143,16 @@ class ConventionStage(models.Model):
 
 class SuiviStage(models.Model):
     """Suivi de stage par le tuteur pédagogique."""
+
     TYPE_CHOICES = [
         ("visite", "Visite sur site"),
         ("entretien_tel", "Entretien téléphonique"),
         ("point_ecrit", "Point écrit"),
         ("evaluation_mi_parcours", "Évaluation mi-parcours"),
     ]
-    convention = models.ForeignKey(ConventionStage, on_delete=models.CASCADE, related_name="suivis")
+    convention = models.ForeignKey(
+        ConventionStage, on_delete=models.CASCADE, related_name="suivis"
+    )
     type = models.CharField(max_length=30, choices=TYPE_CHOICES)
     date = models.DateField()
     commentaires = models.TextField()
@@ -144,11 +169,22 @@ class SuiviStage(models.Model):
 
 class EvaluationTuteur(models.Model):
     """Évaluation finale par le tuteur entreprise."""
-    convention = models.OneToOneField(ConventionStage, on_delete=models.CASCADE, related_name="evaluation_tuteur")
-    note_globale = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    competences_techniques = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    competences_relationnelles = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    autonomie = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+
+    convention = models.OneToOneField(
+        ConventionStage, on_delete=models.CASCADE, related_name="evaluation_tuteur"
+    )
+    note_globale = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    competences_techniques = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    competences_relationnelles = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    autonomie = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
     commentaires = models.TextField(blank=True)
     date_evaluation = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -163,18 +199,25 @@ class EvaluationTuteur(models.Model):
 
 class RapportStage(models.Model):
     """Rapport de stage rendu par l'étudiant."""
+
     STATUT_CHOICES = [
         ("brouillon", "Brouillon"),
         ("soumis", "Soumis"),
         ("accepte", "Accepté"),
         ("refuse", "Refusé"),
     ]
-    convention = models.OneToOneField(ConventionStage, on_delete=models.CASCADE, related_name="rapport")
+    convention = models.OneToOneField(
+        ConventionStage, on_delete=models.CASCADE, related_name="rapport"
+    )
     fichier = models.FileField(upload_to="stages/rapports/")
     date_soumission = models.DateTimeField(null=True, blank=True)
-    note_finale = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    note_finale = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
     appreciation = models.TextField(blank=True)
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="brouillon")
+    statut = models.CharField(
+        max_length=20, choices=STATUT_CHOICES, default="brouillon"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

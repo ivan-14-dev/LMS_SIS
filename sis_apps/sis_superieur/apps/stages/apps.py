@@ -1,4 +1,5 @@
 """App config for stages."""
+
 from django.apps import AppConfig
 
 

@@ -1,16 +1,19 @@
 """API views for Open edX integration (SIS Supérieur)."""
+
 import logging
+
+from django.conf import settings
+from django.db.models import Count
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-from django.conf import settings
-from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Count
-from .models import EdxUserMapping, EdxCourseMapping, EdxEnrollment, OutboxEvent
-from .edx_client import get_edx_client
-from .sync_service import SyncService
 from sis_common.webhooks import verify_hmac_signature
+
+from .edx_client import get_edx_client
+from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
+from .sync_service import SyncService
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +28,18 @@ def _verify_hmac(request) -> bool:
 @permission_classes([AllowAny])
 def webhook_lms(request):
     if not _verify_hmac(request):
-        return Response({"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED
+        )
     event_type = request.headers.get("X-Event-Type", "")
     payload = request.data
     from .tasks import (
-        process_user_webhook, process_enrollment_webhook,
-        process_grade_webhook, process_certificate_webhook,
+        process_certificate_webhook,
+        process_enrollment_webhook,
+        process_grade_webhook,
+        process_user_webhook,
     )
+
     if "user" in event_type:
         process_user_webhook.delay(payload)
     elif "enrollment" in event_type:
@@ -48,10 +56,13 @@ def webhook_lms(request):
 @permission_classes([AllowAny])
 def webhook_cms(request):
     if not _verify_hmac(request):
-        return Response({"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED
+        )
     event_type = request.headers.get("X-Event-Type", "")
     payload = request.data
-    from .tasks import process_xblock_published, process_course_published
+    from .tasks import process_course_published, process_xblock_published
+
     if "xblock" in event_type:
         process_xblock_published.delay(payload)
     elif "course.published" in event_type:
@@ -63,18 +74,21 @@ def webhook_cms(request):
 @permission_classes([IsAuthenticated])
 def sync_status(request):
     outbox_counts = OutboxEvent.objects.values("statut").annotate(n=Count("id"))
-    return Response({
-        "outbox": {c["statut"]: c["n"] for c in outbox_counts},
-        "enrollments_active": EdxEnrollment.objects.filter(is_active=True).count(),
-        "users_mapped": EdxUserMapping.objects.filter(actif=True).count(),
-        "courses_mapped": EdxCourseMapping.objects.filter(actif=True).count(),
-    })
+    return Response(
+        {
+            "outbox": {c["statut"]: c["n"] for c in outbox_counts},
+            "enrollments_active": EdxEnrollment.objects.filter(is_active=True).count(),
+            "users_mapped": EdxUserMapping.objects.filter(actif=True).count(),
+            "courses_mapped": EdxCourseMapping.objects.filter(actif=True).count(),
+        }
+    )
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def sync_user(request, user_id):
     from apps.utilisateurs.models import Utilisateur
+
     try:
         user = Utilisateur.objects.get(pk=user_id)
     except Utilisateur.DoesNotExist:
@@ -83,11 +97,13 @@ def sync_user(request, user_id):
     role = request.data.get("role", "student")
     try:
         mapping = service.sync_user_to_lms(user, role=role)
-        return Response({
-            "status": "ok",
-            "username_edx": mapping.username_edx,
-            "user_id_edx": mapping.user_id_edx,
-        })
+        return Response(
+            {
+                "status": "ok",
+                "username_edx": mapping.username_edx,
+                "user_id_edx": mapping.user_id_edx,
+            }
+        )
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
@@ -95,8 +111,9 @@ def sync_user(request, user_id):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def sync_course(request):
-    from apps.ue_ecue.models import ECUE
     from apps.etablissement.models import AnneeUniversitaire
+    from apps.ue_ecue.models import ECUE
+
     ecue_id = request.data.get("ecue_id")
     annee_id = request.data.get("annee_id")
     try:
@@ -117,6 +134,7 @@ def sync_course(request):
 @permission_classes([IsAuthenticated])
 def sync_enroll(request):
     from apps.etudiants.models import Etudiant
+
     etudiant_id = request.data.get("etudiant_id")
     course_mapping_id = request.data.get("course_mapping_id")
     mode = request.data.get("mode", "audit")
@@ -137,6 +155,7 @@ def sync_enroll(request):
 @permission_classes([IsAuthenticated])
 def sync_grade(request):
     from apps.etudiants.models import Etudiant
+
     etudiant_id = request.data.get("etudiant_id")
     course_mapping_id = request.data.get("course_mapping_id")
     subsection_id = request.data.get("subsection_id")
@@ -149,7 +168,9 @@ def sync_grade(request):
         return Response({"error": "Not found"}, status=404)
     service = SyncService()
     try:
-        result = service.sync_grade_to_lms(etudiant, course_mapping, subsection_id, score, max_score)
+        result = service.sync_grade_to_lms(
+            etudiant, course_mapping, subsection_id, score, max_score
+        )
         return Response({"status": "ok", "result": result})
     except Exception as e:
         return Response({"error": str(e)}, status=500)
@@ -159,6 +180,7 @@ def sync_grade(request):
 @permission_classes([IsAuthenticated])
 def sync_certificate(request):
     from apps.etudiants.models import Etudiant
+
     etudiant_id = request.data.get("etudiant_id")
     course_mapping_id = request.data.get("course_mapping_id")
     cert_type = request.data.get("certificate_type", "honor")

@@ -1,11 +1,13 @@
 """Models for utilisateurs (SIS Secondaire)."""
+
+from apps.etablissement.models import Etablissement
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from apps.etablissement.models import Etablissement
 
 
 class Utilisateur(AbstractUser):
     """Utilisateur de la plateforme (élève, parent, enseignant, personnel)."""
+
     ROLE_CHOICES = [
         ("super_admin", "Super administrateur"),
         ("direction", "Direction"),
@@ -21,8 +23,11 @@ class Utilisateur(AbstractUser):
         ("parent", "Parent"),
     ]
     etablissement = models.ForeignKey(
-        Etablissement, on_delete=models.CASCADE, related_name="utilisateurs",
-        null=True, blank=True,
+        Etablissement,
+        on_delete=models.CASCADE,
+        related_name="utilisateurs",
+        null=True,
+        blank=True,
     )
     role = models.CharField(max_length=40, choices=ROLE_CHOICES, default="eleve")
     telephone = models.CharField(max_length=20, blank=True)

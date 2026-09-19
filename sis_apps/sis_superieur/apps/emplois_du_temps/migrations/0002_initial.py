@@ -9,51 +9,83 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('emplois_du_temps', '0001_initial'),
-        ('enseignants', '0001_initial'),
-        ('etablissement', '0001_initial'),
-        ('formations', '0001_initial'),
-        ('ue_ecue', '0001_initial'),
+        ("emplois_du_temps", "0001_initial"),
+        ("enseignants", "0001_initial"),
+        ("etablissement", "0001_initial"),
+        ("formations", "0001_initial"),
+        ("ue_ecue", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='creneaucours',
-            name='ecue',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='creneaux', to='ue_ecue.ecue'),
+            model_name="creneaucours",
+            name="ecue",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="creneaux",
+                to="ue_ecue.ecue",
+            ),
         ),
         migrations.AddField(
-            model_name='creneaucours',
-            name='enseignant',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='creneaux_cours', to='enseignants.enseignantchercheur'),
+            model_name="creneaucours",
+            name="enseignant",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="creneaux_cours",
+                to="enseignants.enseignantchercheur",
+            ),
         ),
         migrations.AddField(
-            model_name='creneaucours',
-            name='formation',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='creneaux_cours', to='formations.formation'),
+            model_name="creneaucours",
+            name="formation",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="creneaux_cours",
+                to="formations.formation",
+            ),
         ),
         migrations.AddField(
-            model_name='creneaucours',
-            name='semestre',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='creneaux_cours', to='etablissement.semestre'),
+            model_name="creneaucours",
+            name="semestre",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="creneaux_cours",
+                to="etablissement.semestre",
+            ),
         ),
         migrations.AddField(
-            model_name='conflithoraire',
-            name='creneau_1',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='conflits_1', to='emplois_du_temps.creneaucours'),
+            model_name="conflithoraire",
+            name="creneau_1",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="conflits_1",
+                to="emplois_du_temps.creneaucours",
+            ),
         ),
         migrations.AddField(
-            model_name='conflithoraire',
-            name='creneau_2',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='conflits_2', to='emplois_du_temps.creneaucours'),
+            model_name="conflithoraire",
+            name="creneau_2",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="conflits_2",
+                to="emplois_du_temps.creneaucours",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='creneauhoraire',
-            unique_together={('heure_debut', 'heure_fin')},
+            name="creneauhoraire",
+            unique_together={("heure_debut", "heure_fin")},
         ),
         migrations.AddField(
-            model_name='creneaucours',
-            name='creneau_horaire',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='creneaux_cours', to='emplois_du_temps.creneauhoraire'),
+            model_name="creneaucours",
+            name="creneau_horaire",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="creneaux_cours",
+                to="emplois_du_temps.creneauhoraire",
+            ),
         ),
     ]

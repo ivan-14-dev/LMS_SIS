@@ -1,4 +1,5 @@
 """App config for integration."""
+
 from django.apps import AppConfig
 
 

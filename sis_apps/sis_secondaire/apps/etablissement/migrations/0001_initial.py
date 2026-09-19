@@ -9,97 +9,222 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Etablissement',
+            name="Etablissement",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('schema_name', models.CharField(db_index=True, max_length=63, unique=True, validators=[django_tenants.postgresql_backend.base._check_schema_name])),
-                ('nom', models.CharField(max_length=200)),
-                ('type', models.CharField(choices=[('college', 'Collège'), ('lycee', 'Lycée'), ('lycee_technique', 'Lycée technique'), ('lycee_professionnel', 'Lycée professionnel')], max_length=30)),
-                ('uai', models.CharField(blank=True, help_text='Identifiant national', max_length=20)),
-                ('adresse', models.TextField()),
-                ('code_postal', models.CharField(max_length=10)),
-                ('ville', models.CharField(max_length=100)),
-                ('pays', models.CharField(default='France', max_length=100)),
-                ('telephone', models.CharField(max_length=20)),
-                ('email', models.EmailField(max_length=254)),
-                ('site_web', models.URLField(blank=True)),
-                ('logo', models.ImageField(blank=True, null=True, upload_to='logos/')),
-                ('devise', models.CharField(blank=True, max_length=200)),
-                ('ministere_tutelle', models.CharField(blank=True, max_length=200)),
-                ('systeme_periodes', models.CharField(choices=[('trimestre', 'Trimestre'), ('semestre', 'Semestre'), ('quadrimestre', 'Quadrimestre')], default='trimestre', max_length=20)),
-                ('date_creation', models.DateTimeField(auto_now_add=True)),
-                ('actif', models.BooleanField(default=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "schema_name",
+                    models.CharField(
+                        db_index=True,
+                        max_length=63,
+                        unique=True,
+                        validators=[
+                            django_tenants.postgresql_backend.base._check_schema_name
+                        ],
+                    ),
+                ),
+                ("nom", models.CharField(max_length=200)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("college", "Collège"),
+                            ("lycee", "Lycée"),
+                            ("lycee_technique", "Lycée technique"),
+                            ("lycee_professionnel", "Lycée professionnel"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                (
+                    "uai",
+                    models.CharField(
+                        blank=True, help_text="Identifiant national", max_length=20
+                    ),
+                ),
+                ("adresse", models.TextField()),
+                ("code_postal", models.CharField(max_length=10)),
+                ("ville", models.CharField(max_length=100)),
+                ("pays", models.CharField(default="France", max_length=100)),
+                ("telephone", models.CharField(max_length=20)),
+                ("email", models.EmailField(max_length=254)),
+                ("site_web", models.URLField(blank=True)),
+                ("logo", models.ImageField(blank=True, null=True, upload_to="logos/")),
+                ("devise", models.CharField(blank=True, max_length=200)),
+                ("ministere_tutelle", models.CharField(blank=True, max_length=200)),
+                (
+                    "systeme_periodes",
+                    models.CharField(
+                        choices=[
+                            ("trimestre", "Trimestre"),
+                            ("semestre", "Semestre"),
+                            ("quadrimestre", "Quadrimestre"),
+                        ],
+                        default="trimestre",
+                        max_length=20,
+                    ),
+                ),
+                ("date_creation", models.DateTimeField(auto_now_add=True)),
+                ("actif", models.BooleanField(default=True)),
             ],
             options={
-                'verbose_name': 'Établissement',
-                'verbose_name_plural': 'Établissements',
+                "verbose_name": "Établissement",
+                "verbose_name_plural": "Établissements",
             },
         ),
         migrations.CreateModel(
-            name='Domain',
+            name="Domain",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('domain', models.CharField(db_index=True, max_length=253, unique=True)),
-                ('is_primary', models.BooleanField(db_index=True, default=True)),
-                ('tenant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='domains', to='etablissement.etablissement')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "domain",
+                    models.CharField(db_index=True, max_length=253, unique=True),
+                ),
+                ("is_primary", models.BooleanField(db_index=True, default=True)),
+                (
+                    "tenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="domains",
+                        to="etablissement.etablissement",
+                    ),
+                ),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='AnneeScolaire',
+            name="AnneeScolaire",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('libelle', models.CharField(help_text='Ex: 2026-2027', max_length=50)),
-                ('date_debut', models.DateField()),
-                ('date_fin', models.DateField()),
-                ('en_cours', models.BooleanField(default=False)),
-                ('cloturee', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('etablissement', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='annees_scolaires', to='etablissement.etablissement')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("libelle", models.CharField(help_text="Ex: 2026-2027", max_length=50)),
+                ("date_debut", models.DateField()),
+                ("date_fin", models.DateField()),
+                ("en_cours", models.BooleanField(default=False)),
+                ("cloturee", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "etablissement",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="annees_scolaires",
+                        to="etablissement.etablissement",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-date_debut'],
-                'unique_together': {('etablissement', 'libelle')},
+                "ordering": ["-date_debut"],
+                "unique_together": {("etablissement", "libelle")},
             },
         ),
         migrations.CreateModel(
-            name='Niveau',
+            name="Niveau",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code', models.CharField(max_length=20)),
-                ('libelle', models.CharField(max_length=100)),
-                ('ordre', models.PositiveSmallIntegerField(default=0)),
-                ('cycle', models.CharField(blank=True, choices=[('college', 'Collège'), ('lycee', 'Lycée')], max_length=20)),
-                ('etablissement', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='niveaux', to='etablissement.etablissement')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("code", models.CharField(max_length=20)),
+                ("libelle", models.CharField(max_length=100)),
+                ("ordre", models.PositiveSmallIntegerField(default=0)),
+                (
+                    "cycle",
+                    models.CharField(
+                        blank=True,
+                        choices=[("college", "Collège"), ("lycee", "Lycée")],
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "etablissement",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="niveaux",
+                        to="etablissement.etablissement",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['ordre'],
-                'unique_together': {('etablissement', 'code')},
+                "ordering": ["ordre"],
+                "unique_together": {("etablissement", "code")},
             },
         ),
         migrations.CreateModel(
-            name='Periode',
+            name="Periode",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.CharField(choices=[('trimestre', 'Trimestre'), ('semestre', 'Semestre'), ('quadrimestre', 'Quadrimestre'), ('sequence', 'Séquence')], max_length=20)),
-                ('numero', models.PositiveSmallIntegerField()),
-                ('libelle', models.CharField(blank=True, max_length=50)),
-                ('date_debut', models.DateField()),
-                ('date_fin', models.DateField()),
-                ('cloturee', models.BooleanField(default=False)),
-                ('annee_scolaire', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='periodes', to='etablissement.anneescolaire')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("trimestre", "Trimestre"),
+                            ("semestre", "Semestre"),
+                            ("quadrimestre", "Quadrimestre"),
+                            ("sequence", "Séquence"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("numero", models.PositiveSmallIntegerField()),
+                ("libelle", models.CharField(blank=True, max_length=50)),
+                ("date_debut", models.DateField()),
+                ("date_fin", models.DateField()),
+                ("cloturee", models.BooleanField(default=False)),
+                (
+                    "annee_scolaire",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="periodes",
+                        to="etablissement.anneescolaire",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['annee_scolaire', 'numero'],
-                'unique_together': {('annee_scolaire', 'type', 'numero')},
+                "ordering": ["annee_scolaire", "numero"],
+                "unique_together": {("annee_scolaire", "type", "numero")},
             },
         ),
     ]

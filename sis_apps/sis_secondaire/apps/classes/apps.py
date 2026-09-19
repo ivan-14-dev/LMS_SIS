@@ -1,4 +1,5 @@
 """App config for classes."""
+
 from django.apps import AppConfig
 
 

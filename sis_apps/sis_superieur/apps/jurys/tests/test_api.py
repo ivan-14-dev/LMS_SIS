@@ -1,4 +1,5 @@
 """API tests for jurys."""
+
 from django.test import TestCase
 
 

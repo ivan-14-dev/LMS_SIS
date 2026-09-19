@@ -6,33 +6,37 @@ Ce client permet au SIS de :
 - Recevoir des webhooks LMS.
 - Recevoir des webhooks CMS (modifications de contenu).
 """
-import requests
-import logging
-import hmac
+
 import hashlib
+import hmac
+import logging
 import time
-import json
+from collections.abc import Callable
 from functools import wraps
-from typing import Optional, Dict, List, Any, Callable
+from typing import Any
+
+import requests
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 
 class EdxClientError(Exception):
     """Exception de base pour les erreurs du client EdX."""
+
     pass
 
 
 class EdxAuthenticationError(EdxClientError):
     """Erreur d'authentification OAuth."""
+
     pass
 
 
 class EdxApiError(EdxClientError):
     """Erreur lors d'un appel API."""
+
     def __init__(self, message: str, status_code: int = None, response: dict = None):
         super().__init__(message)
         self.status_code = status_code
@@ -41,6 +45,7 @@ class EdxApiError(EdxClientError):
 
 def retry_on_failure(max_retries: int = 3, backoff_factor: float = 0.5):
     """Décorateur pour retry avec backoff exponentiel."""
+
     def decorator(func: Callable):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -51,14 +56,16 @@ def retry_on_failure(max_retries: int = 3, backoff_factor: float = 0.5):
                 except (requests.RequestException, EdxApiError) as e:
                     last_exception = e
                     if attempt < max_retries - 1:
-                        wait_time = backoff_factor * (2 ** attempt)
+                        wait_time = backoff_factor * (2**attempt)
                         logger.warning(
                             f"Tentative {attempt + 1}/{max_retries} échouée pour {func.__name__}, "
                             f"retry dans {wait_time}s: {e}"
                         )
                         time.sleep(wait_time)
             raise last_exception
+
         return wrapper
+
     return decorator
 
 
@@ -76,16 +83,20 @@ class EdxClient:
     ):
         self.lms_url = lms_url or getattr(settings, "EDX_LMS_URL", None)
         self.cms_url = cms_url or getattr(settings, "EDX_CMS_URL", None)
-        self.oauth_client_id = oauth_client_id or getattr(settings, "EDX_OAUTH_CLIENT_ID", None)
-        self.oauth_client_secret = oauth_client_secret or getattr(settings, "EDX_OAUTH_CLIENT_SECRET", None)
+        self.oauth_client_id = oauth_client_id or getattr(
+            settings, "EDX_OAUTH_CLIENT_ID", None
+        )
+        self.oauth_client_secret = oauth_client_secret or getattr(
+            settings, "EDX_OAUTH_CLIENT_SECRET", None
+        )
         self.timeout = timeout
         self.verify_ssl = verify_ssl
-        self._access_token: Optional[str] = None
+        self._access_token: str | None = None
         self._token_expires_at: float = 0
-        
+
         # Validation des paramètres obligatoires
         self._validate_configuration()
-        
+
         # Normalisation des URLs
         if self.lms_url:
             self.lms_url = self.lms_url.rstrip("/")
@@ -101,7 +112,7 @@ class EdxClient:
             missing.append("EDX_OAUTH_CLIENT_ID")
         if not self.oauth_client_secret:
             missing.append("EDX_OAUTH_CLIENT_SECRET")
-        
+
         if missing:
             raise ImproperlyConfigured(
                 f"Configuration EdX incomplète. Variables manquantes: {', '.join(missing)}. "
@@ -133,7 +144,7 @@ class EdxClient:
             logger.error(f"Failed to get OAuth token: {e}")
             raise
 
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         return {
             "Authorization": f"JWT {self._get_access_token()}",
             "Content-Type": "application/json",
@@ -151,8 +162,8 @@ class EdxClient:
         is_staff: bool = False,
         is_superuser: bool = False,
         role: str = "student",
-        extra: Optional[Dict] = None,
-    ) -> Dict:
+        extra: dict | None = None,
+    ) -> dict:
         """Crée un utilisateur dans le LMS."""
         url = f"{self.lms_url}/api/user/v1/accounts"
         data = {
@@ -169,10 +180,12 @@ class EdxClient:
         r.raise_for_status()
         return r.json()
 
-    def update_user(self, username: str, data: Dict) -> Dict:
+    def update_user(self, username: str, data: dict) -> dict:
         """Met à jour un utilisateur."""
         url = f"{self.lms_url}/api/user/v1/accounts/{username}"
-        r = requests.patch(url, json=data, headers=self._headers(), timeout=self.timeout)
+        r = requests.patch(
+            url, json=data, headers=self._headers(), timeout=self.timeout
+        )
         r.raise_for_status()
         return r.json()
 
@@ -181,7 +194,7 @@ class EdxClient:
         r = requests.post(url, headers=self._headers(), timeout=self.timeout)
         return r.status_code == 200
 
-    def get_user(self, username: str) -> Optional[Dict]:
+    def get_user(self, username: str) -> dict | None:
         url = f"{self.lms_url}/api/user/v1/accounts/{username}"
         r = requests.get(url, headers=self._headers(), timeout=self.timeout)
         if r.status_code == 404:
@@ -197,8 +210,8 @@ class EdxClient:
         number: str,
         run: str,
         display_name: str,
-        course_data: Optional[Dict] = None,
-    ) -> Dict:
+        course_data: dict | None = None,
+    ) -> dict:
         """Crée un cours dans Studio (CMS)."""
         url = f"{self.cms_url}/api/courses/v1/courses/"
         data = {
@@ -213,7 +226,7 @@ class EdxClient:
         r.raise_for_status()
         return r.json()
 
-    def get_course(self, course_key: str) -> Optional[Dict]:
+    def get_course(self, course_key: str) -> dict | None:
         """Récupère un cours par course_key (ex: course-v1:Org+Num+Run)."""
         url = f"{self.cms_url}/api/courses/v1/courses/{course_key}"
         r = requests.get(url, headers=self._headers(), timeout=self.timeout)
@@ -222,14 +235,16 @@ class EdxClient:
         r.raise_for_status()
         return r.json()
 
-    def update_course(self, course_key: str, data: Dict) -> Dict:
+    def update_course(self, course_key: str, data: dict) -> dict:
         """Met à jour les métadonnées d'un cours."""
         url = f"{self.cms_url}/api/courses/v1/courses/{course_key}"
-        r = requests.patch(url, json=data, headers=self._headers(), timeout=self.timeout)
+        r = requests.patch(
+            url, json=data, headers=self._headers(), timeout=self.timeout
+        )
         r.raise_for_status()
         return r.json()
 
-    def publish_course(self, course_key: str) -> Dict:
+    def publish_course(self, course_key: str) -> dict:
         """Publie un cours dans Studio."""
         url = f"{self.cms_url}/api/courses/v1/courses/{course_key}/publish"
         r = requests.post(url, headers=self._headers(), timeout=self.timeout)
@@ -243,8 +258,8 @@ class EdxClient:
         block_type: str,
         display_name: str,
         category: str = "vertical",
-        metadata: Optional[Dict] = None,
-    ) -> Dict:
+        metadata: dict | None = None,
+    ) -> dict:
         """Crée un bloc (XBlock) dans Studio."""
         url = f"{self.cms_url}/api/xblock/v1/xblocks/"
         data = {
@@ -260,9 +275,11 @@ class EdxClient:
         r.raise_for_status()
         return r.json()
 
-    def update_block(self, block_id: str, data: Dict) -> Dict:
+    def update_block(self, block_id: str, data: dict) -> dict:
         url = f"{self.cms_url}/api/xblock/v1/xblocks/{block_id}"
-        r = requests.patch(url, json=data, headers=self._headers(), timeout=self.timeout)
+        r = requests.patch(
+            url, json=data, headers=self._headers(), timeout=self.timeout
+        )
         r.raise_for_status()
         return r.json()
 
@@ -273,7 +290,7 @@ class EdxClient:
 
     # ---------- ENROLLMENTS (LMS) ----------
 
-    def enroll_user(self, course_key: str, username: str, mode: str = "audit") -> Dict:
+    def enroll_user(self, course_key: str, username: str, mode: str = "audit") -> dict:
         """Inscrit un utilisateur à un cours LMS."""
         url = f"{self.lms_url}/api/enrollment/v1/enrollment"
         data = {
@@ -282,20 +299,27 @@ class EdxClient:
             "mode": mode,
             "is_active": True,
         }
-        r = requests.post(url, json=[data], headers=self._headers(), timeout=self.timeout)
+        r = requests.post(
+            url, json=[data], headers=self._headers(), timeout=self.timeout
+        )
         r.raise_for_status()
         return r.json()[0] if isinstance(r.json(), list) else r.json()
 
     def unenroll_user(self, course_key: str, username: str) -> bool:
         url = f"{self.lms_url}/api/enrollment/v1/enrollment"
         data = {"course_id": course_key, "username": username}
-        r = requests.delete(url, json=data, headers=self._headers(), timeout=self.timeout)
+        r = requests.delete(
+            url, json=data, headers=self._headers(), timeout=self.timeout
+        )
         return r.status_code in (200, 204)
 
-    def get_enrollments(self, course_key: str) -> List[Dict]:
+    def get_enrollments(self, course_key: str) -> list[dict]:
         url = f"{self.lms_url}/api/enrollment/v1/enrollment"
         r = requests.get(
-            url, params={"course_id": course_key}, headers=self._headers(), timeout=self.timeout
+            url,
+            params={"course_id": course_key},
+            headers=self._headers(),
+            timeout=self.timeout,
         )
         r.raise_for_status()
         return r.json()
@@ -309,7 +333,7 @@ class EdxClient:
         subsection_id: str,
         score: float,
         max_score: float = 100.0,
-    ) -> Dict:
+    ) -> dict:
         """Envoie une note LMS → force override côté LMS."""
         url = f"{self.lms_url}/api/grades/v1/grade_override/{course_key}/{username}/"
         data = {
@@ -321,7 +345,7 @@ class EdxClient:
         r.raise_for_status()
         return r.json()
 
-    def get_grades(self, course_key: str, username: str) -> Dict:
+    def get_grades(self, course_key: str, username: str) -> dict:
         url = f"{self.lms_url}/api/grades/v1/grades/{course_key}/{username}/"
         r = requests.get(url, headers=self._headers(), timeout=self.timeout)
         r.raise_for_status()
@@ -329,7 +353,7 @@ class EdxClient:
 
     # ---------- COHORTS (LMS) ----------
 
-    def add_to_cohort(self, course_key: str, username: str, cohort_name: str) -> Dict:
+    def add_to_cohort(self, course_key: str, username: str, cohort_name: str) -> dict:
         url = f"{self.lms_url}/api/cohorts/v1/courses/{course_key}/cohorts/{cohort_name}/add/"
         data = {"users": [username]}
         r = requests.post(url, json=data, headers=self._headers(), timeout=self.timeout)
@@ -340,7 +364,7 @@ class EdxClient:
 
     def issue_certificate(
         self, course_key: str, username: str, certificate_type: str = "honor"
-    ) -> Dict:
+    ) -> dict:
         url = f"{self.lms_url}/api/certificates/v1/certificates"
         data = {
             "course_id": course_key,
@@ -353,9 +377,7 @@ class EdxClient:
 
     # ---------- WEBHOOKS OUT (LMS) ----------
 
-    def register_webhook(
-        self, target_url: str, event_type: str, secret: str
-    ) -> Dict:
+    def register_webhook(self, target_url: str, event_type: str, secret: str) -> dict:
         url = f"{self.lms_url}/api/webhooks/v1/webhooks/"
         data = {
             "url": target_url,
@@ -380,7 +402,7 @@ class EdxClient:
         expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature.replace("sha256=", ""))
 
-    def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> dict[str, Any]:
         """Vérifie la connectivité LMS + CMS."""
         results = {}
         for name, base in [("lms", self.lms_url), ("cms", self.cms_url)]:
@@ -393,7 +415,7 @@ class EdxClient:
 
 
 # Singleton
-_client: Optional[EdxClient] = None
+_client: EdxClient | None = None
 
 
 def get_edx_client() -> EdxClient:

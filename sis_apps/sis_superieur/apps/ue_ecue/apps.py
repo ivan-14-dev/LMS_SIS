@@ -1,4 +1,5 @@
 """App config for ue_ecue."""
+
 from django.apps import AppConfig
 
 

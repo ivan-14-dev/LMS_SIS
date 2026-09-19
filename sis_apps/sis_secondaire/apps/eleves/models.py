@@ -1,12 +1,14 @@
 """Models for eleves (SIS Secondaire)."""
-from django.db import models
-from apps.etablissement.models import Etablissement, AnneeScolaire, Niveau
+
 from apps.classes.models import Classe
+from apps.etablissement.models import AnneeScolaire, Etablissement
 from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class Eleve(models.Model):
     """Élève inscrit dans l'établissement."""
+
     STATUT_CHOICES = [
         ("inscrit", "Inscrit"),
         ("redoublant", "Redoublant"),
@@ -17,19 +19,29 @@ class Eleve(models.Model):
     ]
     SEXE_CHOICES = [("M", "Masculin"), ("F", "Féminin")]
 
-    etablissement = models.ForeignKey(Etablissement, on_delete=models.CASCADE, related_name="eleves")
-    user = models.OneToOneField(Utilisateur, on_delete=models.CASCADE, related_name="eleve_profile")
+    etablissement = models.ForeignKey(
+        Etablissement, on_delete=models.CASCADE, related_name="eleves"
+    )
+    user = models.OneToOneField(
+        Utilisateur, on_delete=models.CASCADE, related_name="eleve_profile"
+    )
     matricule = models.CharField(max_length=50, unique=True)
     date_naissance = models.DateField()
     lieu_naissance = models.CharField(max_length=200)
     sexe = models.CharField(max_length=1, choices=SEXE_CHOICES)
     nationalite = models.CharField(max_length=100, default="Française")
-    ine = models.CharField(max_length=20, blank=True, help_text="Identifiant National Élève")
+    ine = models.CharField(
+        max_length=20, blank=True, help_text="Identifiant National Élève"
+    )
     adresse = models.TextField(blank=True)
     code_postal = models.CharField(max_length=10, blank=True)
     ville = models.CharField(max_length=100, blank=True)
     classe_actuelle = models.ForeignKey(
-        Classe, on_delete=models.SET_NULL, null=True, blank=True, related_name="eleves_actuels"
+        Classe,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="eleves_actuels",
     )
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="inscrit")
     date_inscription = models.DateField()
@@ -60,6 +72,7 @@ class Eleve(models.Model):
 
 class Inscription(models.Model):
     """Inscription annuelle d'un élève dans une classe."""
+
     STATUT_CHOICES = [
         ("en_cours", "En cours"),
         ("validee", "Validée"),
@@ -67,9 +80,15 @@ class Inscription(models.Model):
         ("annulee", "Annulée"),
     ]
 
-    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="inscriptions")
-    classe = models.ForeignKey(Classe, on_delete=models.PROTECT, related_name="inscriptions")
-    annee_scolaire = models.ForeignKey(AnneeScolaire, on_delete=models.PROTECT, related_name="inscriptions")
+    eleve = models.ForeignKey(
+        Eleve, on_delete=models.CASCADE, related_name="inscriptions"
+    )
+    classe = models.ForeignKey(
+        Classe, on_delete=models.PROTECT, related_name="inscriptions"
+    )
+    annee_scolaire = models.ForeignKey(
+        AnneeScolaire, on_delete=models.PROTECT, related_name="inscriptions"
+    )
     date_inscription = models.DateField()
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="en_cours")
     motif = models.TextField(blank=True)
@@ -85,6 +104,7 @@ class Inscription(models.Model):
 
 class Tuteur(models.Model):
     """Parent ou tuteur d'un élève."""
+
     LIEN_CHOICES = [
         ("pere", "Père"),
         ("mere", "Mère"),
@@ -93,8 +113,16 @@ class Tuteur(models.Model):
         ("autre", "Autre"),
     ]
 
-    etablissement = models.ForeignKey(Etablissement, on_delete=models.CASCADE, related_name="tuteurs")
-    user = models.OneToOneField(Utilisateur, on_delete=models.CASCADE, related_name="tuteur_profile", null=True, blank=True)
+    etablissement = models.ForeignKey(
+        Etablissement, on_delete=models.CASCADE, related_name="tuteurs"
+    )
+    user = models.OneToOneField(
+        Utilisateur,
+        on_delete=models.CASCADE,
+        related_name="tuteur_profile",
+        null=True,
+        blank=True,
+    )
     nom = models.CharField(max_length=200)
     prenom = models.CharField(max_length=200)
     lien_parente = models.CharField(max_length=20, choices=LIEN_CHOICES)
@@ -113,8 +141,13 @@ class Tuteur(models.Model):
 
 class EleveTuteur(models.Model):
     """Lien entre un élève et ses tuteurs."""
-    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="tuteurs_lies")
-    tuteur = models.ForeignKey(Tuteur, on_delete=models.CASCADE, related_name="enfants_lies")
+
+    eleve = models.ForeignKey(
+        Eleve, on_delete=models.CASCADE, related_name="tuteurs_lies"
+    )
+    tuteur = models.ForeignKey(
+        Tuteur, on_delete=models.CASCADE, related_name="enfants_lies"
+    )
     est_payeur = models.BooleanField(default=False)
     est_contact_urgence = models.BooleanField(default=True)
     autorise_acces_portail = models.BooleanField(default=True)

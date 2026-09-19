@@ -1,14 +1,16 @@
 """Models for mobilite internationale (SIS Supérieur)."""
-from django.db import models
-from apps.etudiants.models import Etudiant
-from apps.ue_ecue.models import UE
-from apps.formations.models import Formation
-from apps.utilisateurs.models import Utilisateur
+
 from apps.etablissement.models import AnneeUniversitaire
+from apps.etudiants.models import Etudiant
+from apps.formations.models import Formation
+from apps.ue_ecue.models import UE
+from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class ProgrammeMobilite(models.Model):
     """Programme de mobilité (ERASMUS+, etc.)."""
+
     TYPE_CHOICES = [
         ("erasmus", "ERASMUS+"),
         ("erasmus_mundus", "ERASMUS Mundus"),
@@ -46,6 +48,7 @@ class ProgrammeMobilite(models.Model):
 
 class CandidatureMobilite(models.Model):
     """Candidature d'un étudiant à un programme de mobilité."""
+
     STATUT_CHOICES = [
         ("brouillon", "Brouillon"),
         ("soumise", "Soumise"),
@@ -56,18 +59,31 @@ class CandidatureMobilite(models.Model):
         ("en_mobilite", "En mobilité"),
         ("terminee", "Terminée"),
     ]
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="candidatures_mobilite")
-    programme = models.ForeignKey(ProgrammeMobilite, on_delete=models.CASCADE, related_name="candidatures")
+    etudiant = models.ForeignKey(
+        Etudiant, on_delete=models.CASCADE, related_name="candidatures_mobilite"
+    )
+    programme = models.ForeignKey(
+        ProgrammeMobilite, on_delete=models.CASCADE, related_name="candidatures"
+    )
     lettre_motivation = models.TextField()
     cv = models.FileField(upload_to="mobilite/cv/")
     releve_notes = models.FileField(upload_to="mobilite/releves/")
-    certificat_langue = models.FileField(upload_to="mobilite/langues/", null=True, blank=True)
+    certificat_langue = models.FileField(
+        upload_to="mobilite/langues/", null=True, blank=True
+    )
     projet_personnel = models.TextField()
-    moyenne_ponderee = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="brouillon")
+    moyenne_ponderee = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    statut = models.CharField(
+        max_length=20, choices=STATUT_CHOICES, default="brouillon"
+    )
     date_soumission = models.DateTimeField(null=True, blank=True)
     decision_par = models.ForeignKey(
-        Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="decisions_mobilite",
     )
     motif_refus = models.TextField(blank=True)
@@ -83,6 +99,7 @@ class CandidatureMobilite(models.Model):
 
 class AccordEtudes(models.Model):
     """Accord d'études / Learning Agreement."""
+
     STATUT_CHOICES = [
         ("brouillon", "Brouillon"),
         ("soumis", "Soumis"),
@@ -94,12 +111,19 @@ class AccordEtudes(models.Model):
     candidature = models.OneToOneField(
         CandidatureMobilite, on_delete=models.CASCADE, related_name="accord_etudes"
     )
-    pdf_signe = models.FileField(upload_to="mobilite/learning_agreements/", null=True, blank=True)
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="brouillon")
+    pdf_signe = models.FileField(
+        upload_to="mobilite/learning_agreements/", null=True, blank=True
+    )
+    statut = models.CharField(
+        max_length=20, choices=STATUT_CHOICES, default="brouillon"
+    )
     date_validation_origine = models.DateTimeField(null=True, blank=True)
     date_validation_accueil = models.DateTimeField(null=True, blank=True)
     valide_par_origine = models.ForeignKey(
-        Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="la_valides_origine",
     )
     valide_par_accueil = models.CharField(max_length=200, blank=True)
@@ -115,13 +139,16 @@ class AccordEtudes(models.Model):
 
 class UEAccordEtudes(models.Model):
     """UE dans l'accord d'études (équivalence)."""
+
     VALIDATION_CHOICES = [
         ("OK", "Équivalence totale"),
         ("PARTIEL", "Équivalence partielle"),
         ("REFUS", "Refusé"),
         ("EN_ATTENTE", "En attente"),
     ]
-    accord = models.ForeignKey(AccordEtudes, on_delete=models.CASCADE, related_name="ues")
+    accord = models.ForeignKey(
+        AccordEtudes, on_delete=models.CASCADE, related_name="ues"
+    )
     ue_origine = models.ForeignKey(
         UE, on_delete=models.CASCADE, related_name="accords_origine"
     )
@@ -129,9 +156,15 @@ class UEAccordEtudes(models.Model):
     intitule_accueil = models.CharField(max_length=200)
     credits_accueil = models.DecimalField(max_digits=4, decimal_places=2)
     credits_origine = models.DecimalField(max_digits=4, decimal_places=2)
-    validation = models.CharField(max_length=20, choices=VALIDATION_CHOICES, default="EN_ATTENTE")
-    note_obtenue_accueil = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
-    note_echelle_ects = models.CharField(max_length=2, blank=True, help_text="A, B, C, D, E, F")
+    validation = models.CharField(
+        max_length=20, choices=VALIDATION_CHOICES, default="EN_ATTENTE"
+    )
+    note_obtenue_accueil = models.DecimalField(
+        max_digits=4, decimal_places=2, null=True, blank=True
+    )
+    note_echelle_ects = models.CharField(
+        max_length=2, blank=True, help_text="A, B, C, D, E, F"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

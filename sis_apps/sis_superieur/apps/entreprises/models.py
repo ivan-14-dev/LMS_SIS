@@ -1,10 +1,12 @@
 """Models for entreprises (SIS Supérieur)."""
-from django.db import models
+
 from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class Entreprise(models.Model):
     """Entreprise / Organisation d'accueil (stages, alternance)."""
+
     TYPE_CHOICES = [
         ("SA", "SA"),
         ("SARL", "SARL"),
@@ -58,6 +60,7 @@ class Entreprise(models.Model):
 
 class ContactEntreprise(models.Model):
     """Contact dans une entreprise (RH, tuteur, etc.)."""
+
     ROLE_CHOICES = [
         ("rh", "RH"),
         ("tuteur", "Tuteur de stage"),
@@ -65,7 +68,9 @@ class ContactEntreprise(models.Model):
         ("dirigeant", "Dirigeant"),
         ("autre", "Autre"),
     ]
-    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name="contacts")
+    entreprise = models.ForeignKey(
+        Entreprise, on_delete=models.CASCADE, related_name="contacts"
+    )
     nom = models.CharField(max_length=200)
     prenom = models.CharField(max_length=200)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="tuteur")
@@ -73,7 +78,10 @@ class ContactEntreprise(models.Model):
     email = models.EmailField()
     telephone = models.CharField(max_length=20)
     user = models.OneToOneField(
-        Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="contact_entreprise_profile",
     )
     actif = models.BooleanField(default=True)

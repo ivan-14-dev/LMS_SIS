@@ -9,139 +9,379 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('enseignants', '0001_initial'),
-        ('entreprises', '0001_initial'),
-        ('etudiants', '0001_initial'),
-        ('formations', '0001_initial'),
+        ("enseignants", "0001_initial"),
+        ("entreprises", "0001_initial"),
+        ("etudiants", "0001_initial"),
+        ("formations", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ConventionStage',
+            name="ConventionStage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date_debut', models.DateField()),
-                ('date_fin', models.DateField()),
-                ('gratification', models.DecimalField(decimal_places=2, default=0, max_digits=10)),
-                ('horaires', models.CharField(blank=True, max_length=200)),
-                ('missions', models.TextField()),
-                ('pdf_path', models.CharField(max_length=500)),
-                ('statut', models.CharField(choices=[('brouillon', 'Brouillon'), ('signee_etudiant', "Signée par l'étudiant"), ('signee_entreprise', "Signée par l'entreprise"), ('signee_ecole', "Signée par l'école"), ('complete', 'Complète'), ('annulee', 'Annulée')], default='brouillon', max_length=20)),
-                ('date_signature_complete', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('entreprise', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='conventions', to='entreprises.entreprise')),
-                ('etudiant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='conventions_stage', to='etudiants.etudiant')),
-                ('maitre_stage', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='stages_encadres', to='entreprises.contactentreprise')),
-                ('tuteur_pedagogique', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='stages_tutelles', to='enseignants.enseignantchercheur')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date_debut", models.DateField()),
+                ("date_fin", models.DateField()),
+                (
+                    "gratification",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=10),
+                ),
+                ("horaires", models.CharField(blank=True, max_length=200)),
+                ("missions", models.TextField()),
+                ("pdf_path", models.CharField(max_length=500)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("brouillon", "Brouillon"),
+                            ("signee_etudiant", "Signée par l'étudiant"),
+                            ("signee_entreprise", "Signée par l'entreprise"),
+                            ("signee_ecole", "Signée par l'école"),
+                            ("complete", "Complète"),
+                            ("annulee", "Annulée"),
+                        ],
+                        default="brouillon",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "date_signature_complete",
+                    models.DateTimeField(blank=True, null=True),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "entreprise",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="conventions",
+                        to="entreprises.entreprise",
+                    ),
+                ),
+                (
+                    "etudiant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="conventions_stage",
+                        to="etudiants.etudiant",
+                    ),
+                ),
+                (
+                    "maitre_stage",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="stages_encadres",
+                        to="entreprises.contactentreprise",
+                    ),
+                ),
+                (
+                    "tuteur_pedagogique",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="stages_tutelles",
+                        to="enseignants.enseignantchercheur",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Convention de stage',
-                'verbose_name_plural': 'Conventions de stage',
+                "verbose_name": "Convention de stage",
+                "verbose_name_plural": "Conventions de stage",
             },
         ),
         migrations.CreateModel(
-            name='EvaluationTuteur',
+            name="EvaluationTuteur",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('note_globale', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('competences_techniques', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('competences_relationnelles', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('autonomie', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('commentaires', models.TextField(blank=True)),
-                ('date_evaluation', models.DateField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('convention', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='evaluation_tuteur', to='stages.conventionstage')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "note_globale",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                (
+                    "competences_techniques",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                (
+                    "competences_relationnelles",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                (
+                    "autonomie",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                ("commentaires", models.TextField(blank=True)),
+                ("date_evaluation", models.DateField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "convention",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="evaluation_tuteur",
+                        to="stages.conventionstage",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Évaluation tuteur',
-                'verbose_name_plural': 'Évaluations tuteurs',
+                "verbose_name": "Évaluation tuteur",
+                "verbose_name_plural": "Évaluations tuteurs",
             },
         ),
         migrations.CreateModel(
-            name='OffreStage',
+            name="OffreStage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('titre', models.CharField(max_length=200)),
-                ('type', models.CharField(choices=[('observation', "Stage d'observation (L1)"), ('application', "Stage d'application (L2-L3)"), ('fin_etudes', "Stage de fin d'études (M1/M2)"), ('alternance', 'Alternance'), ('recherche', 'Stage de recherche')], max_length=20)),
-                ('description', models.TextField()),
-                ('missions', models.JSONField(blank=True, default=list)),
-                ('competences_requises', models.JSONField(blank=True, default=list)),
-                ('duree_mois', models.DecimalField(decimal_places=1, max_digits=4)),
-                ('date_debut', models.DateField()),
-                ('date_fin', models.DateField()),
-                ('remuneration', models.DecimalField(decimal_places=2, default=0, max_digits=10)),
-                ('devise', models.CharField(default='EUR', max_length=3)),
-                ('nb_places', models.PositiveSmallIntegerField(default=1)),
-                ('lieu', models.CharField(max_length=200)),
-                ('pays', models.CharField(default='France', max_length=100)),
-                ('reference', models.CharField(blank=True, max_length=50)),
-                ('statut', models.CharField(choices=[('ouverte', 'Ouverte'), ('fermee', 'Fermée'), ('pourvue', 'Pourvue'), ('annulee', 'Annulée')], default='ouverte', max_length=20)),
-                ('date_limite_candidature', models.DateField()),
-                ('publiee', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('entreprise', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='offres_stage', to='entreprises.entreprise')),
-                ('formation', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='offres_stage', to='formations.formation')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("titre", models.CharField(max_length=200)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("observation", "Stage d'observation (L1)"),
+                            ("application", "Stage d'application (L2-L3)"),
+                            ("fin_etudes", "Stage de fin d'études (M1/M2)"),
+                            ("alternance", "Alternance"),
+                            ("recherche", "Stage de recherche"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("description", models.TextField()),
+                ("missions", models.JSONField(blank=True, default=list)),
+                ("competences_requises", models.JSONField(blank=True, default=list)),
+                ("duree_mois", models.DecimalField(decimal_places=1, max_digits=4)),
+                ("date_debut", models.DateField()),
+                ("date_fin", models.DateField()),
+                (
+                    "remuneration",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=10),
+                ),
+                ("devise", models.CharField(default="EUR", max_length=3)),
+                ("nb_places", models.PositiveSmallIntegerField(default=1)),
+                ("lieu", models.CharField(max_length=200)),
+                ("pays", models.CharField(default="France", max_length=100)),
+                ("reference", models.CharField(blank=True, max_length=50)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("ouverte", "Ouverte"),
+                            ("fermee", "Fermée"),
+                            ("pourvue", "Pourvue"),
+                            ("annulee", "Annulée"),
+                        ],
+                        default="ouverte",
+                        max_length=20,
+                    ),
+                ),
+                ("date_limite_candidature", models.DateField()),
+                ("publiee", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "entreprise",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="offres_stage",
+                        to="entreprises.entreprise",
+                    ),
+                ),
+                (
+                    "formation",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="offres_stage",
+                        to="formations.formation",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Offre de stage',
-                'verbose_name_plural': 'Offres de stage',
+                "verbose_name": "Offre de stage",
+                "verbose_name_plural": "Offres de stage",
             },
         ),
         migrations.AddField(
-            model_name='conventionstage',
-            name='offre',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.PROTECT, related_name='convention', to='stages.offrestage'),
+            model_name="conventionstage",
+            name="offre",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="convention",
+                to="stages.offrestage",
+            ),
         ),
         migrations.CreateModel(
-            name='CandidatureStage',
+            name="CandidatureStage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('lettre_motivation', models.TextField()),
-                ('cv', models.FileField(upload_to='stages/cv/')),
-                ('statut', models.CharField(choices=[('soumise', 'Soumise'), ('preselectionne', 'Présélectionnée'), ('entretien', 'Entretien planifié'), ('acceptee', 'Acceptée'), ('refusee', 'Refusée'), ('annulee', 'Annulée')], default='soumise', max_length=20)),
-                ('date_soumission', models.DateTimeField(auto_now_add=True)),
-                ('date_reponse', models.DateTimeField(blank=True, null=True)),
-                ('motif_refus', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('etudiant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='candidatures_stage', to='etudiants.etudiant')),
-                ('offre', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='candidatures', to='stages.offrestage')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("lettre_motivation", models.TextField()),
+                ("cv", models.FileField(upload_to="stages/cv/")),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("soumise", "Soumise"),
+                            ("preselectionne", "Présélectionnée"),
+                            ("entretien", "Entretien planifié"),
+                            ("acceptee", "Acceptée"),
+                            ("refusee", "Refusée"),
+                            ("annulee", "Annulée"),
+                        ],
+                        default="soumise",
+                        max_length=20,
+                    ),
+                ),
+                ("date_soumission", models.DateTimeField(auto_now_add=True)),
+                ("date_reponse", models.DateTimeField(blank=True, null=True)),
+                ("motif_refus", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "etudiant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="candidatures_stage",
+                        to="etudiants.etudiant",
+                    ),
+                ),
+                (
+                    "offre",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="candidatures",
+                        to="stages.offrestage",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Candidature stage',
-                'verbose_name_plural': 'Candidatures stage',
+                "verbose_name": "Candidature stage",
+                "verbose_name_plural": "Candidatures stage",
             },
         ),
         migrations.CreateModel(
-            name='RapportStage',
+            name="RapportStage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('fichier', models.FileField(upload_to='stages/rapports/')),
-                ('date_soumission', models.DateTimeField(blank=True, null=True)),
-                ('note_finale', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('appreciation', models.TextField(blank=True)),
-                ('statut', models.CharField(choices=[('brouillon', 'Brouillon'), ('soumis', 'Soumis'), ('accepte', 'Accepté'), ('refuse', 'Refusé')], default='brouillon', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('convention', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='rapport', to='stages.conventionstage')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("fichier", models.FileField(upload_to="stages/rapports/")),
+                ("date_soumission", models.DateTimeField(blank=True, null=True)),
+                (
+                    "note_finale",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                ("appreciation", models.TextField(blank=True)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("brouillon", "Brouillon"),
+                            ("soumis", "Soumis"),
+                            ("accepte", "Accepté"),
+                            ("refuse", "Refusé"),
+                        ],
+                        default="brouillon",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "convention",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="rapport",
+                        to="stages.conventionstage",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Rapport de stage',
-                'verbose_name_plural': 'Rapports de stage',
+                "verbose_name": "Rapport de stage",
+                "verbose_name_plural": "Rapports de stage",
             },
         ),
         migrations.CreateModel(
-            name='SuiviStage',
+            name="SuiviStage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.CharField(choices=[('visite', 'Visite sur site'), ('entretien_tel', 'Entretien téléphonique'), ('point_ecrit', 'Point écrit'), ('evaluation_mi_parcours', 'Évaluation mi-parcours')], max_length=30)),
-                ('date', models.DateField()),
-                ('commentaires', models.TextField()),
-                ('appreciation', models.CharField(blank=True, max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('convention', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='suivis', to='stages.conventionstage')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("visite", "Visite sur site"),
+                            ("entretien_tel", "Entretien téléphonique"),
+                            ("point_ecrit", "Point écrit"),
+                            ("evaluation_mi_parcours", "Évaluation mi-parcours"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                ("date", models.DateField()),
+                ("commentaires", models.TextField()),
+                ("appreciation", models.CharField(blank=True, max_length=20)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "convention",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="suivis",
+                        to="stages.conventionstage",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Suivi de stage',
-                'verbose_name_plural': 'Suivis de stage',
+                "verbose_name": "Suivi de stage",
+                "verbose_name_plural": "Suivis de stage",
             },
         ),
     ]

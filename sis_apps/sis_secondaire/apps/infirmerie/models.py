@@ -1,12 +1,16 @@
 """Models for infirmerie (SIS Secondaire)."""
-from django.db import models
+
 from apps.eleves.models import Eleve
 from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class DossierMedical(models.Model):
     """Dossier médical d'un élève (accès restreint)."""
-    eleve = models.OneToOneField(Eleve, on_delete=models.CASCADE, related_name="dossier_medical")
+
+    eleve = models.OneToOneField(
+        Eleve, on_delete=models.CASCADE, related_name="dossier_medical"
+    )
     groupe_sanguin = models.CharField(max_length=5, blank=True)
     allergies = models.JSONField(default=list, blank=True)
     maladies_chroniques = models.JSONField(default=list, blank=True)
@@ -29,6 +33,7 @@ class DossierMedical(models.Model):
 
 class VisiteInfirmerie(models.Model):
     """Visite d'un élève à l'infirmerie."""
+
     ORIENTATION_CHOICES = [
         ("retour_cours", "Retour en cours"),
         ("sortie", "Sortie autorisée"),
@@ -36,7 +41,9 @@ class VisiteInfirmerie(models.Model):
         ("parents", "Parents appelés"),
         ("hospitalisation", "Hospitalisation"),
     ]
-    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="visites_infirmerie")
+    eleve = models.ForeignKey(
+        Eleve, on_delete=models.CASCADE, related_name="visites_infirmerie"
+    )
     date = models.DateTimeField()
     heure_arrivee = models.TimeField()
     heure_sortie = models.TimeField(null=True, blank=True)
@@ -44,9 +51,13 @@ class VisiteInfirmerie(models.Model):
     symptomes = models.TextField(blank=True)
     soins = models.TextField(blank=True)
     traitement_administre = models.TextField(blank=True)
-    orientation = models.CharField(max_length=30, choices=ORIENTATION_CHOICES, default="retour_cours")
+    orientation = models.CharField(
+        max_length=30, choices=ORIENTATION_CHOICES, default="retour_cours"
+    )
     infirmier = models.ForeignKey(
-        Utilisateur, on_delete=models.PROTECT, related_name="visites_infirmerie",
+        Utilisateur,
+        on_delete=models.PROTECT,
+        related_name="visites_infirmerie",
         limit_choices_to={"role": "infirmier"},
     )
     parents_prevenus = models.BooleanField(default=False)
@@ -63,6 +74,7 @@ class VisiteInfirmerie(models.Model):
 
 class StockMedicament(models.Model):
     """Stock de médicaments et matériel."""
+
     nom = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     quantite = models.PositiveIntegerField(default=0)

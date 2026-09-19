@@ -1,4 +1,5 @@
 """Views for portail_scolarite portal (placeholder)."""
+
 from django.shortcuts import render
 
 

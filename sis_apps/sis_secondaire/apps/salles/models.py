@@ -1,10 +1,12 @@
 """Models for salles (SIS Secondaire)."""
-from django.db import models
+
 from apps.etablissement.models import Etablissement
+from django.db import models
 
 
 class Salle(models.Model):
     """Salle de classe / laboratoire / gymnase."""
+
     TYPE_CHOICES = [
         ("salle_classique", "Salle de classe"),
         ("laboratoire", "Laboratoire"),
@@ -23,10 +25,18 @@ class Salle(models.Model):
     batiment = models.CharField(max_length=100, blank=True)
     etage = models.CharField(max_length=20, blank=True)
     capacite = models.PositiveIntegerField(default=30)
-    type = models.CharField(max_length=30, choices=TYPE_CHOICES, default="salle_classique")
-    equipements = models.JSONField(default=list, blank=True, help_text='["projecteur", "tableau_interactif"]')
-    accessible_pm = models.BooleanField(default=True, help_text="Accessible personne mobilité réduite")
-    surface_m2 = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    type = models.CharField(
+        max_length=30, choices=TYPE_CHOICES, default="salle_classique"
+    )
+    equipements = models.JSONField(
+        default=list, blank=True, help_text='["projecteur", "tableau_interactif"]'
+    )
+    accessible_pm = models.BooleanField(
+        default=True, help_text="Accessible personne mobilité réduite"
+    )
+    surface_m2 = models.DecimalField(
+        max_digits=6, decimal_places=2, null=True, blank=True
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

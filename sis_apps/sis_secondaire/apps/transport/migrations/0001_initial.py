@@ -9,84 +9,180 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('eleves', '0001_initial'),
-        ('etablissement', '0001_initial'),
+        ("eleves", "0001_initial"),
+        ("etablissement", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='LigneTransport',
+            name="LigneTransport",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nom', models.CharField(max_length=200)),
-                ('itineraire', models.TextField()),
-                ('distance_km', models.DecimalField(decimal_places=2, default=0, max_digits=6)),
-                ('duree_estimee_min', models.PositiveIntegerField(default=0)),
-                ('couleur', models.CharField(default='#3B82F6', max_length=7)),
-                ('actif', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nom", models.CharField(max_length=200)),
+                ("itineraire", models.TextField()),
+                (
+                    "distance_km",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=6),
+                ),
+                ("duree_estimee_min", models.PositiveIntegerField(default=0)),
+                ("couleur", models.CharField(default="#3B82F6", max_length=7)),
+                ("actif", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Ligne de transport',
-                'verbose_name_plural': 'Lignes de transport',
-                'ordering': ['nom'],
+                "verbose_name": "Ligne de transport",
+                "verbose_name_plural": "Lignes de transport",
+                "ordering": ["nom"],
             },
         ),
         migrations.CreateModel(
-            name='Arret',
+            name="Arret",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nom', models.CharField(max_length=200)),
-                ('heure_passage', models.TimeField()),
-                ('ordre', models.PositiveIntegerField()),
-                ('adresse', models.TextField(blank=True)),
-                ('latitude', models.DecimalField(blank=True, decimal_places=7, max_digits=10, null=True)),
-                ('longitude', models.DecimalField(blank=True, decimal_places=7, max_digits=10, null=True)),
-                ('ligne', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='arrets', to='transport.lignetransport')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nom", models.CharField(max_length=200)),
+                ("heure_passage", models.TimeField()),
+                ("ordre", models.PositiveIntegerField()),
+                ("adresse", models.TextField(blank=True)),
+                (
+                    "latitude",
+                    models.DecimalField(
+                        blank=True, decimal_places=7, max_digits=10, null=True
+                    ),
+                ),
+                (
+                    "longitude",
+                    models.DecimalField(
+                        blank=True, decimal_places=7, max_digits=10, null=True
+                    ),
+                ),
+                (
+                    "ligne",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="arrets",
+                        to="transport.lignetransport",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Arrêt',
-                'verbose_name_plural': 'Arrêts',
-                'ordering': ['ligne', 'ordre'],
-                'unique_together': {('ligne', 'ordre')},
+                "verbose_name": "Arrêt",
+                "verbose_name_plural": "Arrêts",
+                "ordering": ["ligne", "ordre"],
+                "unique_together": {("ligne", "ordre")},
             },
         ),
         migrations.CreateModel(
-            name='Vehicule',
+            name="Vehicule",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('immatriculation', models.CharField(max_length=20, unique=True)),
-                ('modele', models.CharField(blank=True, max_length=100)),
-                ('marque', models.CharField(blank=True, max_length=100)),
-                ('annee', models.PositiveSmallIntegerField(blank=True, null=True)),
-                ('capacite', models.PositiveIntegerField(default=50)),
-                ('chauffeur', models.CharField(blank=True, max_length=200)),
-                ('telephone_chauffeur', models.CharField(blank=True, max_length=20)),
-                ('gps_actif', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('ligne', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='vehicules', to='transport.lignetransport')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("immatriculation", models.CharField(max_length=20, unique=True)),
+                ("modele", models.CharField(blank=True, max_length=100)),
+                ("marque", models.CharField(blank=True, max_length=100)),
+                ("annee", models.PositiveSmallIntegerField(blank=True, null=True)),
+                ("capacite", models.PositiveIntegerField(default=50)),
+                ("chauffeur", models.CharField(blank=True, max_length=200)),
+                ("telephone_chauffeur", models.CharField(blank=True, max_length=20)),
+                ("gps_actif", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "ligne",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="vehicules",
+                        to="transport.lignetransport",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Véhicule',
-                'verbose_name_plural': 'Véhicules',
+                "verbose_name": "Véhicule",
+                "verbose_name_plural": "Véhicules",
             },
         ),
         migrations.CreateModel(
-            name='InscriptionTransport',
+            name="InscriptionTransport",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('actif', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('annee_scolaire', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='inscriptions_transport', to='etablissement.anneescolaire')),
-                ('arret_descente', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='descentes', to='transport.arret')),
-                ('arret_montee', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='montées', to='transport.arret')),
-                ('eleve', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='inscriptions_transport', to='eleves.eleve')),
-                ('ligne', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='inscriptions', to='transport.lignetransport')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("actif", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "annee_scolaire",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="inscriptions_transport",
+                        to="etablissement.anneescolaire",
+                    ),
+                ),
+                (
+                    "arret_descente",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="descentes",
+                        to="transport.arret",
+                    ),
+                ),
+                (
+                    "arret_montee",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="montées",
+                        to="transport.arret",
+                    ),
+                ),
+                (
+                    "eleve",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="inscriptions_transport",
+                        to="eleves.eleve",
+                    ),
+                ),
+                (
+                    "ligne",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="inscriptions",
+                        to="transport.lignetransport",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Inscription transport',
-                'verbose_name_plural': 'Inscriptions transport',
-                'unique_together': {('eleve', 'annee_scolaire')},
+                "verbose_name": "Inscription transport",
+                "verbose_name_plural": "Inscriptions transport",
+                "unique_together": {("eleve", "annee_scolaire")},
             },
         ),
     ]

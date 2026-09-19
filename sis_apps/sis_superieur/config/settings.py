@@ -10,17 +10,15 @@ if str(SIS_APPS_DIR) not in sys.path:
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-from sis_common.config import (
-    get_allowed_hosts,
-    get_bool_environment,
-    get_required_secret,
-)
+from sis_common.config import get_allowed_hosts, get_bool_environment, get_required_secret
 
 # =============================================================================
 # SECURITY - Configuration obligatoire
 # =============================================================================
 
-SECRET_KEY = get_required_secret("DJANGO_SECRET_KEY", test_value="test-secret-key-for-testing-only")
+SECRET_KEY = get_required_secret(
+    "DJANGO_SECRET_KEY", test_value="test-secret-key-for-testing-only"
+)
 DEBUG = get_bool_environment("DJANGO_DEBUG")
 ALLOWED_HOSTS = get_allowed_hosts()
 
@@ -199,9 +197,13 @@ PASSWORD_HASHERS = [
 ]
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-     "OPTIONS": {"min_length": 12}},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 12},
+    },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
@@ -274,7 +276,9 @@ SPECTACULAR_SETTINGS = {
 }
 
 # CORS
-CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    "CORS_ALLOWED_ORIGINS", "http://localhost:3000"
+).split(",")
 CORS_ALLOW_CREDENTIALS = True
 
 # Audit
@@ -334,7 +338,11 @@ LOGGING = {
 # ====================== Open edX Integration ======================
 EDX_LMS_URL = os.environ.get("EDX_LMS_URL", "http://localhost:8000")
 EDX_CMS_URL = os.environ.get("EDX_CMS_URL", "http://localhost:8001")
-EDX_OAUTH_CLIENT_ID = get_required_secret("EDX_OAUTH_CLIENT_ID", test_value="sis-superieur-test-client")
-EDX_OAUTH_CLIENT_SECRET = get_required_secret("EDX_OAUTH_CLIENT_SECRET", test_value="test-oauth-secret")
+EDX_OAUTH_CLIENT_ID = get_required_secret(
+    "EDX_OAUTH_CLIENT_ID", test_value="sis-superieur-test-client"
+)
+EDX_OAUTH_CLIENT_SECRET = get_required_secret(
+    "EDX_OAUTH_CLIENT_SECRET", test_value="test-oauth-secret"
+)
 WEBHOOK_SECRET = get_required_secret("WEBHOOK_SECRET", test_value="test-webhook-secret")
 SIS_WEBHOOK_LMS_URL = f"{EDX_LMS_URL}/api/webhooks/v1/webhooks/"

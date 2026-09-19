@@ -10,42 +10,63 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etablissement', '0001_initial'),
-        ('examens', '0002_initial'),
+        ("etablissement", "0001_initial"),
+        ("examens", "0002_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='epreuveexamen',
-            name='surveillants',
-            field=models.ManyToManyField(blank=True, limit_choices_to={'role__in': ['enseignant', 'personnel_administratif']}, related_name='surveillances', to=settings.AUTH_USER_MODEL),
+            model_name="epreuveexamen",
+            name="surveillants",
+            field=models.ManyToManyField(
+                blank=True,
+                limit_choices_to={
+                    "role__in": ["enseignant", "personnel_administratif"]
+                },
+                related_name="surveillances",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='convocationexamen',
-            name='epreuve',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='convocations', to='examens.epreuveexamen'),
+            model_name="convocationexamen",
+            name="epreuve",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="convocations",
+                to="examens.epreuveexamen",
+            ),
         ),
         migrations.AddField(
-            model_name='sessionexamen',
-            name='semestre',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sessions_examens', to='etablissement.semestre'),
+            model_name="sessionexamen",
+            name="semestre",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="sessions_examens",
+                to="etablissement.semestre",
+            ),
         ),
         migrations.AddField(
-            model_name='epreuveexamen',
-            name='session',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='epreuves', to='examens.sessionexamen'),
+            model_name="epreuveexamen",
+            name="session",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="epreuves",
+                to="examens.sessionexamen",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='convocationexamen',
-            unique_together={('epreuve', 'etudiant')},
+            name="convocationexamen",
+            unique_together={("epreuve", "etudiant")},
         ),
         migrations.AlterUniqueTogether(
-            name='sessionexamen',
-            unique_together={('semestre', 'numero')},
+            name="sessionexamen",
+            unique_together={("semestre", "numero")},
         ),
         migrations.AddIndex(
-            model_name='epreuveexamen',
-            index=models.Index(fields=['session', 'date'], name='examens_epr_session_f35459_idx'),
+            model_name="epreuveexamen",
+            index=models.Index(
+                fields=["session", "date"], name="examens_epr_session_f35459_idx"
+            ),
         ),
     ]

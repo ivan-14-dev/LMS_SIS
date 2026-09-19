@@ -1,4 +1,5 @@
 """App config for portail_parent."""
+
 from django.apps import AppConfig
 
 

@@ -1,4 +1,5 @@
 """Model tests for eleves."""
+
 from django.test import TestCase
 
 

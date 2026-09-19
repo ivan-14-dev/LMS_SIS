@@ -1,4 +1,5 @@
 """App config for portail_scolarite."""
+
 from django.apps import AppConfig
 
 

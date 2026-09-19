@@ -1,4 +1,5 @@
 """App config for inscriptions."""
+
 from django.apps import AppConfig
 
 

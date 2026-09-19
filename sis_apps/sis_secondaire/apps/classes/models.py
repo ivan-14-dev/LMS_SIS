@@ -1,14 +1,19 @@
 """Models for classes (SIS Secondaire)."""
-from django.db import models
-from apps.etablissement.models import Etablissement, AnneeScolaire, Niveau
+
+from apps.etablissement.models import AnneeScolaire, Etablissement, Niveau
 from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class Classe(models.Model):
     """Classe d'un établissement (ex: 6e A, Terminale C)."""
+
     etablissement = models.ForeignKey(
-        Etablissement, on_delete=models.CASCADE, related_name="classes",
-        null=True, blank=True,
+        Etablissement,
+        on_delete=models.CASCADE,
+        related_name="classes",
+        null=True,
+        blank=True,
     )
     annee_scolaire = models.ForeignKey(
         AnneeScolaire, on_delete=models.CASCADE, related_name="classes"
@@ -17,11 +22,17 @@ class Classe(models.Model):
     nom = models.CharField(max_length=50, help_text="Ex: 6e A, Terminale C")
     effectif_max = models.PositiveIntegerField(default=40)
     salle_principale = models.ForeignKey(
-        "salles.Salle", on_delete=models.SET_NULL, null=True, blank=True,
+        "salles.Salle",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="classes_principales",
     )
     prof_principal = models.ForeignKey(
-        Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="classes_principales",
         limit_choices_to={"role": "enseignant"},
     )
@@ -43,6 +54,7 @@ class Classe(models.Model):
 
 class Groupe(models.Model):
     """Sous-groupe d'élèves (TD, TP, options, langue)."""
+
     TYPE_CHOICES = [
         ("langue", "Langue"),
         ("option", "Option"),
@@ -52,10 +64,15 @@ class Groupe(models.Model):
         ("approfondissement", "Approfondissement"),
     ]
     etablissement = models.ForeignKey(
-        Etablissement, on_delete=models.CASCADE, related_name="groupes",
-        null=True, blank=True,
+        Etablissement,
+        on_delete=models.CASCADE,
+        related_name="groupes",
+        null=True,
+        blank=True,
     )
-    annee_scolaire = models.ForeignKey(AnneeScolaire, on_delete=models.CASCADE, related_name="groupes")
+    annee_scolaire = models.ForeignKey(
+        AnneeScolaire, on_delete=models.CASCADE, related_name="groupes"
+    )
     classes = models.ManyToManyField(Classe, related_name="groupes")
     nom = models.CharField(max_length=100)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
@@ -72,6 +89,7 @@ class Groupe(models.Model):
 
 class Matiere(models.Model):
     """Matière enseignée (math, français...)."""
+
     TYPE_CHOICES = [
         ("fondamentale", "Fondamentale"),
         ("optionnelle", "Optionnelle"),
@@ -80,8 +98,11 @@ class Matiere(models.Model):
         ("langues", "Langues"),
     ]
     etablissement = models.ForeignKey(
-        Etablissement, on_delete=models.CASCADE, related_name="matieres",
-        null=True, blank=True,
+        Etablissement,
+        on_delete=models.CASCADE,
+        related_name="matieres",
+        null=True,
+        blank=True,
     )
     code = models.CharField(max_length=20)
     nom = models.CharField(max_length=100)
@@ -101,13 +122,21 @@ class Matiere(models.Model):
 
 class ProgrammeMatiere(models.Model):
     """Affectation d'une matière à une classe avec coefficient et horaires."""
-    classe = models.ForeignKey(Classe, on_delete=models.CASCADE, related_name="programmes")
-    matiere = models.ForeignKey(Matiere, on_delete=models.CASCADE, related_name="programmes")
+
+    classe = models.ForeignKey(
+        Classe, on_delete=models.CASCADE, related_name="programmes"
+    )
+    matiere = models.ForeignKey(
+        Matiere, on_delete=models.CASCADE, related_name="programmes"
+    )
     coefficient = models.DecimalField(max_digits=4, decimal_places=2, default=1)
     heures_semaine = models.DecimalField(max_digits=4, decimal_places=2, default=0)
     obligatoire = models.BooleanField(default=True)
     enseignant_principal = models.ForeignKey(
-        Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="programmes_principaux",
         limit_choices_to={"role": "enseignant"},
     )
@@ -124,8 +153,13 @@ class ProgrammeMatiere(models.Model):
 
 class Chapitre(models.Model):
     """Chapitre d'un programme d'enseignement."""
-    matiere = models.ForeignKey(Matiere, on_delete=models.CASCADE, related_name="chapitres")
-    niveau = models.ForeignKey(Niveau, on_delete=models.CASCADE, related_name="chapitres")
+
+    matiere = models.ForeignKey(
+        Matiere, on_delete=models.CASCADE, related_name="chapitres"
+    )
+    niveau = models.ForeignKey(
+        Niveau, on_delete=models.CASCADE, related_name="chapitres"
+    )
     ordre = models.PositiveIntegerField()
     titre = models.CharField(max_length=200)
     description = models.TextField(blank=True)

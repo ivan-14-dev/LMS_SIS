@@ -10,87 +10,133 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etablissement', '0001_initial'),
-        ('etudiants', '0002_initial'),
-        ('formations', '0002_initial'),
-        ('ue_ecue', '0001_initial'),
+        ("etablissement", "0001_initial"),
+        ("etudiants", "0002_initial"),
+        ("formations", "0002_initial"),
+        ("ue_ecue", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='etudiant',
-            name='user',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='etudiant_profile', to=settings.AUTH_USER_MODEL),
+            model_name="etudiant",
+            name="user",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="etudiant_profile",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='acquisitionects',
-            name='etudiant',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='acquisitions_ects', to='etudiants.etudiant'),
+            model_name="acquisitionects",
+            name="etudiant",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="acquisitions_ects",
+                to="etudiants.etudiant",
+            ),
         ),
         migrations.AddField(
-            model_name='inscriptionadministrative',
-            name='annee_universitaire',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='inscriptions_admin', to='etablissement.anneeuniversitaire'),
+            model_name="inscriptionadministrative",
+            name="annee_universitaire",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="inscriptions_admin",
+                to="etablissement.anneeuniversitaire",
+            ),
         ),
         migrations.AddField(
-            model_name='inscriptionadministrative',
-            name='etudiant',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='inscriptions_admin', to='etudiants.etudiant'),
+            model_name="inscriptionadministrative",
+            name="etudiant",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="inscriptions_admin",
+                to="etudiants.etudiant",
+            ),
         ),
         migrations.AddField(
-            model_name='inscriptionadministrative',
-            name='formation',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='inscriptions_admin', to='formations.formation'),
+            model_name="inscriptionadministrative",
+            name="formation",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="inscriptions_admin",
+                to="formations.formation",
+            ),
         ),
         migrations.AddField(
-            model_name='inscriptionadministrative',
-            name='parcours',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='inscriptions_admin', to='formations.parcours'),
+            model_name="inscriptionadministrative",
+            name="parcours",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="inscriptions_admin",
+                to="formations.parcours",
+            ),
         ),
         migrations.AddField(
-            model_name='inscriptionpedagogique',
-            name='ecues',
-            field=models.ManyToManyField(blank=True, related_name='inscriptions_peda', to='ue_ecue.ecue'),
+            model_name="inscriptionpedagogique",
+            name="ecues",
+            field=models.ManyToManyField(
+                blank=True, related_name="inscriptions_peda", to="ue_ecue.ecue"
+            ),
         ),
         migrations.AddField(
-            model_name='inscriptionpedagogique',
-            name='inscription_admin',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='inscriptions_peda', to='etudiants.inscriptionadministrative'),
+            model_name="inscriptionpedagogique",
+            name="inscription_admin",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="inscriptions_peda",
+                to="etudiants.inscriptionadministrative",
+            ),
         ),
         migrations.AddField(
-            model_name='inscriptionpedagogique',
-            name='semestre',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='inscriptions_peda', to='etablissement.semestre'),
+            model_name="inscriptionpedagogique",
+            name="semestre",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="inscriptions_peda",
+                to="etablissement.semestre",
+            ),
         ),
         migrations.AddField(
-            model_name='inscriptionpedagogique',
-            name='ues',
-            field=models.ManyToManyField(related_name='inscriptions_peda', to='ue_ecue.ue'),
+            model_name="inscriptionpedagogique",
+            name="ues",
+            field=models.ManyToManyField(
+                related_name="inscriptions_peda", to="ue_ecue.ue"
+            ),
         ),
         migrations.AddField(
-            model_name='inscriptionpedagogique',
-            name='validee_par',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='ips_validees', to=settings.AUTH_USER_MODEL),
+            model_name="inscriptionpedagogique",
+            name="validee_par",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="ips_validees",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddIndex(
-            model_name='etudiant',
-            index=models.Index(fields=['matricule'], name='etudiants_e_matricu_da9e6a_idx'),
+            model_name="etudiant",
+            index=models.Index(
+                fields=["matricule"], name="etudiants_e_matricu_da9e6a_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='etudiant',
-            index=models.Index(fields=['statut'], name='etudiants_e_statut_a3ba7a_idx'),
+            model_name="etudiant",
+            index=models.Index(fields=["statut"], name="etudiants_e_statut_a3ba7a_idx"),
         ),
         migrations.AlterUniqueTogether(
-            name='acquisitionects',
-            unique_together={('etudiant', 'ue', 'annee_universitaire')},
+            name="acquisitionects",
+            unique_together={("etudiant", "ue", "annee_universitaire")},
         ),
         migrations.AlterUniqueTogether(
-            name='inscriptionadministrative',
-            unique_together={('etudiant', 'annee_universitaire')},
+            name="inscriptionadministrative",
+            unique_together={("etudiant", "annee_universitaire")},
         ),
         migrations.AlterUniqueTogether(
-            name='inscriptionpedagogique',
-            unique_together={('inscription_admin', 'semestre')},
+            name="inscriptionpedagogique",
+            unique_together={("inscription_admin", "semestre")},
         ),
     ]

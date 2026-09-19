@@ -1,4 +1,5 @@
 """Views for portail_eleve portal (placeholder)."""
+
 from django.shortcuts import render
 
 

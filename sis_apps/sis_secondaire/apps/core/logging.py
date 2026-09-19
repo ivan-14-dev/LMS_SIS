@@ -1,8 +1,7 @@
 """Core utilities et middleware."""
-import logging
+
 import json
-import time
-import uuid
+import logging
 
 
 class JsonFormatter(logging.Formatter):

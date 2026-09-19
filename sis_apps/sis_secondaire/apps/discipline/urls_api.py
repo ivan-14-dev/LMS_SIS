@@ -1,6 +1,4 @@
 """URLs API for discipline."""
-from django.urls import path
-from . import api
 
 app_name = "discipline_api"
 

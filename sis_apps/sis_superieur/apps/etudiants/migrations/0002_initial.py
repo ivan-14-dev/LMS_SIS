@@ -9,25 +9,39 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etablissement', '0001_initial'),
-        ('etudiants', '0001_initial'),
-        ('ue_ecue', '0001_initial'),
+        ("etablissement", "0001_initial"),
+        ("etudiants", "0001_initial"),
+        ("ue_ecue", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='acquisitionects',
-            name='ue',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='acquisitions', to='ue_ecue.ue'),
+            model_name="acquisitionects",
+            name="ue",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="acquisitions",
+                to="ue_ecue.ue",
+            ),
         ),
         migrations.AddField(
-            model_name='etudiant',
-            name='annee_universitaire_actuelle',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='etudiants_actuels', to='etablissement.anneeuniversitaire'),
+            model_name="etudiant",
+            name="annee_universitaire_actuelle",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="etudiants_actuels",
+                to="etablissement.anneeuniversitaire",
+            ),
         ),
         migrations.AddField(
-            model_name='etudiant',
-            name='universite',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='etudiants', to='etablissement.universite'),
+            model_name="etudiant",
+            name="universite",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="etudiants",
+                to="etablissement.universite",
+            ),
         ),
     ]

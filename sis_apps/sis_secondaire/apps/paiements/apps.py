@@ -1,4 +1,5 @@
 """App config for paiements."""
+
 from django.apps import AppConfig
 
 

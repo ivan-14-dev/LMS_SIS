@@ -10,58 +10,88 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('conseil_classe', '0002_initial'),
-        ('eleves', '0001_initial'),
-        ('etablissement', '0001_initial'),
+        ("conseil_classe", "0002_initial"),
+        ("eleves", "0001_initial"),
+        ("etablissement", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='conseilclasse',
-            name='participants',
-            field=models.ManyToManyField(blank=True, related_name='conseils_participes', to=settings.AUTH_USER_MODEL),
+            model_name="conseilclasse",
+            name="participants",
+            field=models.ManyToManyField(
+                blank=True,
+                related_name="conseils_participes",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='conseilclasse',
-            name='periode',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='conseils', to='etablissement.periode'),
+            model_name="conseilclasse",
+            name="periode",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="conseils",
+                to="etablissement.periode",
+            ),
         ),
         migrations.AddField(
-            model_name='conseilclasse',
-            name='president',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='conseils_presides', to=settings.AUTH_USER_MODEL),
+            model_name="conseilclasse",
+            name="president",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="conseils_presides",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='conseilclasse',
-            name='secretaire',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='conseils_secretaires', to=settings.AUTH_USER_MODEL),
+            model_name="conseilclasse",
+            name="secretaire",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="conseils_secretaires",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='appreciationconseil',
-            name='conseil',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='appreciations', to='conseil_classe.conseilclasse'),
+            model_name="appreciationconseil",
+            name="conseil",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="appreciations",
+                to="conseil_classe.conseilclasse",
+            ),
         ),
         migrations.AddField(
-            model_name='decisionconseil',
-            name='conseil',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='decisions', to='conseil_classe.conseilclasse'),
+            model_name="decisionconseil",
+            name="conseil",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="decisions",
+                to="conseil_classe.conseilclasse",
+            ),
         ),
         migrations.AddField(
-            model_name='decisionconseil',
-            name='eleve',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='decisions_conseil', to='eleves.eleve'),
+            model_name="decisionconseil",
+            name="eleve",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="decisions_conseil",
+                to="eleves.eleve",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='conseilclasse',
-            unique_together={('classe', 'periode')},
+            name="conseilclasse",
+            unique_together={("classe", "periode")},
         ),
         migrations.AlterUniqueTogether(
-            name='appreciationconseil',
-            unique_together={('conseil', 'eleve')},
+            name="appreciationconseil",
+            unique_together={("conseil", "eleve")},
         ),
         migrations.AlterUniqueTogether(
-            name='decisionconseil',
-            unique_together={('conseil', 'eleve')},
+            name="decisionconseil",
+            unique_together={("conseil", "eleve")},
         ),
     ]

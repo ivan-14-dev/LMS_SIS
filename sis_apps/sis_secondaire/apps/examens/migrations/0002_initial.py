@@ -10,53 +10,79 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('eleves', '0002_initial'),
-        ('etablissement', '0001_initial'),
-        ('examens', '0001_initial'),
+        ("eleves", "0002_initial"),
+        ("etablissement", "0001_initial"),
+        ("examens", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='epreuveexamen',
-            name='surveillants',
-            field=models.ManyToManyField(blank=True, related_name='surveillances_examen', to=settings.AUTH_USER_MODEL),
+            model_name="epreuveexamen",
+            name="surveillants",
+            field=models.ManyToManyField(
+                blank=True,
+                related_name="surveillances_examen",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='convocationexamen',
-            name='epreuve',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='convocations', to='examens.epreuveexamen'),
+            model_name="convocationexamen",
+            name="epreuve",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="convocations",
+                to="examens.epreuveexamen",
+            ),
         ),
         migrations.AddField(
-            model_name='resultatexamen',
-            name='eleve',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='resultats_examen', to='eleves.eleve'),
+            model_name="resultatexamen",
+            name="eleve",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="resultats_examen",
+                to="eleves.eleve",
+            ),
         ),
         migrations.AddField(
-            model_name='resultatexamen',
-            name='epreuve',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='resultats', to='examens.epreuveexamen'),
+            model_name="resultatexamen",
+            name="epreuve",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="resultats",
+                to="examens.epreuveexamen",
+            ),
         ),
         migrations.AddField(
-            model_name='sessionexamen',
-            name='annee_scolaire',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sessions_examens', to='etablissement.anneescolaire'),
+            model_name="sessionexamen",
+            name="annee_scolaire",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="sessions_examens",
+                to="etablissement.anneescolaire",
+            ),
         ),
         migrations.AddField(
-            model_name='epreuveexamen',
-            name='session',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='epreuves', to='examens.sessionexamen'),
+            model_name="epreuveexamen",
+            name="session",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="epreuves",
+                to="examens.sessionexamen",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='convocationexamen',
-            unique_together={('epreuve', 'eleve')},
+            name="convocationexamen",
+            unique_together={("epreuve", "eleve")},
         ),
         migrations.AlterUniqueTogether(
-            name='resultatexamen',
-            unique_together={('epreuve', 'eleve')},
+            name="resultatexamen",
+            unique_together={("epreuve", "eleve")},
         ),
         migrations.AddIndex(
-            model_name='epreuveexamen',
-            index=models.Index(fields=['session', 'date'], name='examens_epr_session_f35459_idx'),
+            model_name="epreuveexamen",
+            index=models.Index(
+                fields=["session", "date"], name="examens_epr_session_f35459_idx"
+            ),
         ),
     ]

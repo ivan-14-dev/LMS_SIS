@@ -1,6 +1,8 @@
 """Middleware pour audit, tenant context, request_id."""
-import uuid
+
 import threading
+import time
+import uuid
 
 _local = threading.local()
 
@@ -47,7 +49,9 @@ class AuditLogMiddleware:
                     "path": request.path,
                     "status": response.status_code,
                     "duration_ms": int(duration),
-                    "user_id": request.user.id if request.user.is_authenticated else None,
+                    "user_id": (
+                        request.user.id if request.user.is_authenticated else None
+                    ),
                     "ip": request.META.get("REMOTE_ADDR"),
                 },
             )
@@ -64,6 +68,3 @@ class TenantContextMiddleware:
         tenant = getattr(request, "tenant", None)
         _local.tenant_id = tenant.id if tenant else None
         return self.get_response(request)
-
-
-import time

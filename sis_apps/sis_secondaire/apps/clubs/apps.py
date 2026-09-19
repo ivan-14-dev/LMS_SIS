@@ -1,4 +1,5 @@
 """App config for clubs."""
+
 from django.apps import AppConfig
 
 

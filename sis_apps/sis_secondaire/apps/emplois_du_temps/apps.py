@@ -1,4 +1,5 @@
 """App config for emplois_du_temps."""
+
 from django.apps import AppConfig
 
 

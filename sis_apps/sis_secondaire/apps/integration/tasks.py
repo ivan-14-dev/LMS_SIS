@@ -1,41 +1,54 @@
 """Tâches Celery d'intégration LMS + CMS - SIS Secondaire."""
+
 import logging
+
 from celery import shared_task
-from .models import OutboxEvent, EdxEnrollment, EdxCourseMapping, EdxUserMapping
-from .sync_service import SyncService
-from .edx_client import get_edx_client
 from django.utils import timezone
+
+from .edx_client import get_edx_client
+from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
+from .sync_service import SyncService
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task
 def process_user_webhook(payload):
-    from .webhook_handlers import WebhookHandler
     from apps.eleves.models import Eleve
-    from apps.utilisateurs.models import Utilisateur
     from apps.notes.models import Note
-    handler = WebhookHandler(EdxUserMapping, EdxCourseMapping, EdxEnrollment, None, Eleve, Note)
+
+    from .webhook_handlers import WebhookHandler
+
+    handler = WebhookHandler(
+        EdxUserMapping, EdxCourseMapping, EdxEnrollment, None, Eleve, Note
+    )
     return handler.handle_user_created(payload)
 
 
 @shared_task
 def process_enrollment_webhook(payload):
-    from .webhook_handlers import WebhookHandler
     from apps.eleves.models import Eleve
-    from apps.utilisateurs.models import Utilisateur
     from apps.notes.models import Note
-    handler = WebhookHandler(EdxUserMapping, EdxCourseMapping, EdxEnrollment, None, Eleve, Note)
+
+    from .webhook_handlers import WebhookHandler
+
+    handler = WebhookHandler(
+        EdxUserMapping, EdxCourseMapping, EdxEnrollment, None, Eleve, Note
+    )
     return handler.handle_enrollment_created(payload)
 
 
 @shared_task
 def process_grade_webhook(payload):
-    from .webhook_handlers import WebhookHandler
     from apps.eleves.models import Eleve
     from apps.notes.models import Note
+
     from .models import EdxGradeLog
-    handler = WebhookHandler(EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Eleve, Note)
+    from .webhook_handlers import WebhookHandler
+
+    handler = WebhookHandler(
+        EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Eleve, Note
+    )
     return handler.handle_grade_updated(payload)
 
 
@@ -58,11 +71,12 @@ def process_course_published(payload):
 
 # ============== Outbox publisher ==============
 
+
 @shared_task
 def publish_outbox_events():
     """Publie les événements en attente."""
     pending = OutboxEvent.objects.filter(statut="pending")[:100]
-    client = get_edx_client()
+    get_edx_client()
     for event in pending:
         try:
             event.statut = "processing"
@@ -86,6 +100,7 @@ def publish_outbox_events():
 
 # ============== Réconciliation ==============
 
+
 @shared_task
 def reconcile_lms():
     """Réconciliation quotidienne LMS ↔ SIS."""
@@ -107,10 +122,11 @@ def reconcile_lms():
 def sync_all_pending_eleves():
     """Synchronise tous les élèves qui n'ont pas encore de mapping LMS."""
     from apps.eleves.models import Eleve
+
     service = SyncService()
-    pending = Eleve.objects.exclude(
-        user__edx_mapping__isnull=False
-    ).select_related("user")[:200]
+    pending = Eleve.objects.exclude(user__edx_mapping__isnull=False).select_related(
+        "user"
+    )[:200]
     count = 0
     for eleve in pending:
         try:

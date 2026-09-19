@@ -1,4 +1,5 @@
 """App config for releves."""
+
 from django.apps import AppConfig
 
 

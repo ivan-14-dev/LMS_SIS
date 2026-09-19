@@ -9,19 +9,31 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('enseignants', '0001_initial'),
-        ('ue_ecue', '0001_initial'),
+        ("enseignants", "0001_initial"),
+        ("ue_ecue", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='affectationenseignement',
-            name='ecue',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='affectations', to='ue_ecue.ecue'),
+            model_name="affectationenseignement",
+            name="ecue",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="affectations",
+                to="ue_ecue.ecue",
+            ),
         ),
         migrations.AddField(
-            model_name='affectationenseignement',
-            name='ue',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='affectations', to='ue_ecue.ue'),
+            model_name="affectationenseignement",
+            name="ue",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="affectations",
+                to="ue_ecue.ue",
+            ),
         ),
     ]

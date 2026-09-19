@@ -10,26 +10,32 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('integration', '0001_initial'),
+        ("integration", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='edxusermapping',
-            name='user_sis',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='edx_mapping', to=settings.AUTH_USER_MODEL),
+            model_name="edxusermapping",
+            name="user_sis",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="edx_mapping",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddIndex(
-            model_name='outboxevent',
-            index=models.Index(fields=['statut', 'created_at'], name='integration_statut_111b39_idx'),
+            model_name="outboxevent",
+            index=models.Index(
+                fields=["statut", "created_at"], name="integration_statut_111b39_idx"
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='edxcoursemapping',
-            unique_together={('matiere', 'classe')},
+            name="edxcoursemapping",
+            unique_together={("matiere", "classe")},
         ),
         migrations.AlterUniqueTogether(
-            name='edxenrollment',
-            unique_together={('eleve', 'course')},
+            name="edxenrollment",
+            unique_together={("eleve", "course")},
         ),
     ]

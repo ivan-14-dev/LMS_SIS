@@ -1,13 +1,15 @@
 """Models for evaluations et notes (SIS Secondaire)."""
-from django.db import models
+
 from apps.classes.models import Classe, Matiere
 from apps.eleves.models import Eleve
 from apps.enseignants.models import Personnel
 from apps.etablissement.models import Periode
+from django.db import models
 
 
 class Evaluation(models.Model):
     """Évaluation (DS, interro, oral, etc.)."""
+
     TYPE_CHOICES = [
         ("interrogation", "Interrogation"),
         ("ds", "Devoir surveillé"),
@@ -18,8 +20,12 @@ class Evaluation(models.Model):
         ("examen_final", "Examen final"),
         ("projet", "Projet"),
     ]
-    matiere = models.ForeignKey(Matiere, on_delete=models.CASCADE, related_name="evaluations")
-    classe = models.ForeignKey(Classe, on_delete=models.CASCADE, related_name="evaluations")
+    matiere = models.ForeignKey(
+        Matiere, on_delete=models.CASCADE, related_name="evaluations"
+    )
+    classe = models.ForeignKey(
+        Classe, on_delete=models.CASCADE, related_name="evaluations"
+    )
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="ds")
     titre = models.CharField(max_length=200)
     description = models.TextField(blank=True)
@@ -50,6 +56,7 @@ class Evaluation(models.Model):
 
 class Note(models.Model):
     """Note d'un élève à une évaluation."""
+
     STATUT_CHOICES = [
         ("presente", "Présentée"),
         ("absente", "Absent"),
@@ -57,18 +64,28 @@ class Note(models.Model):
         ("non_rendue", "Non rendue"),
         ("triche", "Triche"),
     ]
-    evaluation = models.ForeignKey(Evaluation, on_delete=models.CASCADE, related_name="notes")
+    evaluation = models.ForeignKey(
+        Evaluation, on_delete=models.CASCADE, related_name="notes"
+    )
     eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="notes")
     valeur = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     appreciation = models.TextField(blank=True)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="presente")
     date_saisie = models.DateTimeField(auto_now_add=True)
     saisi_par = models.ForeignKey(
-        Personnel, on_delete=models.SET_NULL, null=True, blank=True, related_name="notes_saisies"
+        Personnel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notes_saisies",
     )
     modifie_le = models.DateTimeField(null=True, blank=True)
     modifie_par = models.ForeignKey(
-        Personnel, on_delete=models.SET_NULL, null=True, blank=True, related_name="notes_modifiees"
+        Personnel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notes_modifiees",
     )
     motif_modification = models.TextField(blank=True)
 
@@ -85,14 +102,25 @@ class Note(models.Model):
 
 class Bulletin(models.Model):
     """Bulletin périodique d'un élève."""
+
     eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="bulletins")
-    classe = models.ForeignKey(Classe, on_delete=models.PROTECT, related_name="bulletins")
-    periode = models.ForeignKey(Periode, on_delete=models.PROTECT, related_name="bulletins")
-    moyenne_generale = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    classe = models.ForeignKey(
+        Classe, on_delete=models.PROTECT, related_name="bulletins"
+    )
+    periode = models.ForeignKey(
+        Periode, on_delete=models.PROTECT, related_name="bulletins"
+    )
+    moyenne_generale = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
     rang = models.PositiveIntegerField(null=True, blank=True)
     effectif_classe = models.PositiveIntegerField(null=True, blank=True)
     appreciation_conseil = models.TextField(blank=True)
-    decision = models.CharField(max_length=50, blank=True, help_text="passage, redoublement, encouragement, etc.")
+    decision = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="passage, redoublement, encouragement, etc.",
+    )
     pdf_path = models.CharField(max_length=500, blank=True)
     signe = models.BooleanField(default=False)
     date_signature = models.DateTimeField(null=True, blank=True)

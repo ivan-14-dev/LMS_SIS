@@ -10,34 +10,54 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('bibliotheque', '0001_initial'),
+        ("bibliotheque", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='emprunt',
-            name='emprunteur',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='emprunts', to=settings.AUTH_USER_MODEL),
+            model_name="emprunt",
+            name="emprunteur",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="emprunts",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='emprunt',
-            name='exemplaire',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='emprunts', to='bibliotheque.exemplaire'),
+            model_name="emprunt",
+            name="exemplaire",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="emprunts",
+                to="bibliotheque.exemplaire",
+            ),
         ),
         migrations.AddField(
-            model_name='exemplaire',
-            name='livre',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='exemplaires', to='bibliotheque.livre'),
+            model_name="exemplaire",
+            name="livre",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="exemplaires",
+                to="bibliotheque.livre",
+            ),
         ),
         migrations.AddField(
-            model_name='reservation',
-            name='livre',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='reservations', to='bibliotheque.livre'),
+            model_name="reservation",
+            name="livre",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="reservations",
+                to="bibliotheque.livre",
+            ),
         ),
         migrations.AddField(
-            model_name='reservation',
-            name='utilisateur',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='reservations_biblio', to=settings.AUTH_USER_MODEL),
+            model_name="reservation",
+            name="utilisateur",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="reservations_biblio",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
     ]

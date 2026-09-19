@@ -1,4 +1,5 @@
 """API tests for paiements."""
+
 from django.test import TestCase
 
 

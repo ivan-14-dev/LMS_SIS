@@ -1,13 +1,15 @@
 """Models for memoires (SIS Supérieur)."""
-from django.db import models
-from apps.formations.models import Formation
-from apps.etudiants.models import Etudiant
+
 from apps.enseignants.models import EnseignantChercheur
+from apps.etudiants.models import Etudiant
+from apps.formations.models import Formation
 from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class SujetMemoire(models.Model):
     """Sujet de mémoire proposé par un enseignant."""
+
     STATUT_CHOICES = [
         ("propose", "Proposé"),
         ("attribue", "Attribué"),
@@ -15,9 +17,13 @@ class SujetMemoire(models.Model):
         ("soutenu", "Soutenu"),
         ("annule", "Annulé"),
     ]
-    formation = models.ForeignKey(Formation, on_delete=models.CASCADE, related_name="sujets_memoire")
+    formation = models.ForeignKey(
+        Formation, on_delete=models.CASCADE, related_name="sujets_memoire"
+    )
     annee_universitaire = models.ForeignKey(
-        "etablissement.AnneeUniversitaire", on_delete=models.CASCADE, related_name="sujets_memoire"
+        "etablissement.AnneeUniversitaire",
+        on_delete=models.CASCADE,
+        related_name="sujets_memoire",
     )
     titre = models.CharField(max_length=300)
     description = models.TextField()
@@ -26,11 +32,17 @@ class SujetMemoire(models.Model):
         EnseignantChercheur, on_delete=models.PROTECT, related_name="memoires_encadres"
     )
     co_encadreur = models.ForeignKey(
-        EnseignantChercheur, on_delete=models.SET_NULL, null=True, blank=True,
+        EnseignantChercheur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="memoires_co_encadres",
     )
     laboratoire = models.ForeignKey(
-        "recherche.Laboratoire", on_delete=models.SET_NULL, null=True, blank=True,
+        "recherche.Laboratoire",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="sujets_memoire",
     )
     nb_etudiants_max = models.PositiveSmallIntegerField(default=1)
@@ -51,6 +63,7 @@ class SujetMemoire(models.Model):
 
 class Memoire(models.Model):
     """Mémoire d'un étudiant."""
+
     STATUT_CHOICES = [
         ("brouillon", "Brouillon"),
         ("soumis", "Soumis"),
@@ -60,14 +73,20 @@ class Memoire(models.Model):
         ("refuse", "Refusé"),
         ("soutenu", "Soutenu"),
     ]
-    sujet = models.ForeignKey(SujetMemoire, on_delete=models.CASCADE, related_name="memoires")
-    etudiant = models.OneToOneField(Etudiant, on_delete=models.CASCADE, related_name="memoire")
+    sujet = models.ForeignKey(
+        SujetMemoire, on_delete=models.CASCADE, related_name="memoires"
+    )
+    etudiant = models.OneToOneField(
+        Etudiant, on_delete=models.CASCADE, related_name="memoire"
+    )
     fichier = models.FileField(upload_to="memoires/", null=True, blank=True)
     resume = models.TextField(blank=True)
     abstract = models.TextField(blank=True, help_text="Abstract en anglais")
     date_depot = models.DateTimeField(null=True, blank=True)
     rapport_similarite = models.FloatField(null=True, blank=True, help_text="% plagiat")
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="brouillon")
+    statut = models.CharField(
+        max_length=20, choices=STATUT_CHOICES, default="brouillon"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -81,13 +100,14 @@ class Memoire(models.Model):
 
 class JuryMemoire(models.Model):
     """Jury de soutenance."""
-    memoire = models.OneToOneField(Memoire, on_delete=models.CASCADE, related_name="jury")
+
+    memoire = models.OneToOneField(
+        Memoire, on_delete=models.CASCADE, related_name="jury"
+    )
     president = models.ForeignKey(
         Utilisateur, on_delete=models.PROTECT, related_name="jurys_memoire_presides"
     )
-    rapporteurs = models.ManyToManyField(
-        Utilisateur, related_name="rapports_memoire"
-    )
+    rapporteurs = models.ManyToManyField(Utilisateur, related_name="rapports_memoire")
     autres_membres = models.ManyToManyField(
         Utilisateur, blank=True, related_name="jurys_memoire_autres"
     )
@@ -99,6 +119,7 @@ class JuryMemoire(models.Model):
 
 class SoutenanceMemoire(models.Model):
     """Soutenance d'un mémoire."""
+
     STATUT_CHOICES = [
         ("planifiee", "Planifiée"),
         ("reporte", "Reportée"),
@@ -110,12 +131,16 @@ class SoutenanceMemoire(models.Model):
         ("accepte_reserve", "Accepté sous réserve"),
         ("refuse", "Refusé"),
     ]
-    jury = models.OneToOneField(JuryMemoire, on_delete=models.CASCADE, related_name="soutenance")
+    jury = models.OneToOneField(
+        JuryMemoire, on_delete=models.CASCADE, related_name="soutenance"
+    )
     date = models.DateTimeField()
     duree_minutes = models.PositiveIntegerField(default=60)
     lieu = models.CharField(max_length=200)
     public = models.BooleanField(default=True)
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="planifiee")
+    statut = models.CharField(
+        max_length=20, choices=STATUT_CHOICES, default="planifiee"
+    )
     decision = models.CharField(max_length=30, choices=DECISION_CHOICES, blank=True)
     mention = models.CharField(max_length=30, blank=True)
     pv_pdf = models.CharField(max_length=500, blank=True)

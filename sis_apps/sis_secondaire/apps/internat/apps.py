@@ -1,4 +1,5 @@
 """App config for internat."""
+
 from django.apps import AppConfig
 
 

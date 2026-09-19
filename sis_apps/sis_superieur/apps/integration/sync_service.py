@@ -1,9 +1,12 @@
 """Services de synchronisation SIS ↔ Open edX (LMS + CMS) - SIS Supérieur."""
+
 import logging
+
 from django.db import transaction
 from django.utils import timezone
+
 from .edx_client import get_edx_client
-from .models import EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, OutboxEvent
+from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
 
 logger = logging.getLogger(__name__)
 
@@ -45,17 +48,24 @@ class SyncService:
             mapping.save()
             return mapping
         except Exception as e:
-            self._enqueue_outbox("user.sync", "user", str(user_sis.id), {"error": str(e)})
+            self._enqueue_outbox(
+                "user.sync", "user", str(user_sis.id), {"error": str(e)}
+            )
             raise
 
-    def sync_course_to_cms(self, ecue, annee_universitaire, display_name: str) -> EdxCourseMapping:
+    def sync_course_to_cms(
+        self, ecue, annee_universitaire, display_name: str
+    ) -> EdxCourseMapping:
         org = "SIS-U"
         number = f"{ecue.code}".replace(" ", "")[:20]
         run = str(annee_universitaire.date_debut.year)
         course_key = f"course-v1:{org}+{number}+{run}"
         try:
-            course = self.client.create_course(
-                org=org, number=number, run=run, display_name=display_name,
+            self.client.create_course(
+                org=org,
+                number=number,
+                run=run,
+                display_name=display_name,
             )
             mapping, _ = EdxCourseMapping.objects.update_or_create(
                 ecue=ecue,
@@ -63,15 +73,22 @@ class SyncService:
             )
             return mapping
         except Exception as e:
-            self._enqueue_outbox("course.create", "ecue", str(ecue.id), {"error": str(e)})
+            self._enqueue_outbox(
+                "course.create", "ecue", str(ecue.id), {"error": str(e)}
+            )
             raise
 
-    def sync_enrollment_to_lms(self, etudiant, course_mapping, mode: str = "audit") -> EdxEnrollment:
+    def sync_enrollment_to_lms(
+        self, etudiant, course_mapping, mode: str = "audit"
+    ) -> EdxEnrollment:
         try:
             mapping = EdxUserMapping.objects.get(user_sis=etudiant.user)
-            result = self.client.enroll_user(course_mapping.course_id, mapping.username_edx, mode=mode)
+            result = self.client.enroll_user(
+                course_mapping.course_id, mapping.username_edx, mode=mode
+            )
             enrollment, _ = EdxEnrollment.objects.update_or_create(
-                etudiant=etudiant, course=course_mapping,
+                etudiant=etudiant,
+                course=course_mapping,
                 defaults={
                     "enrollment_id": result.get("id"),
                     "is_active": True,
@@ -81,7 +98,9 @@ class SyncService:
             return enrollment
         except Exception as e:
             self._enqueue_outbox(
-                "enrollment.create", "etudiant", str(etudiant.id),
+                "enrollment.create",
+                "etudiant",
+                str(etudiant.id),
                 {"course": course_mapping.course_id, "error": str(e)},
             )
             raise
@@ -98,11 +117,14 @@ class SyncService:
                 logger.warning(f"No LMS mapping for etudiant {etu.id}")
         if not usernames:
             return []
-        results = self.client.bulk_enroll(course_mapping.course_id, usernames, mode=mode)
+        results = self.client.bulk_enroll(
+            course_mapping.course_id, usernames, mode=mode
+        )
         out = []
-        for (etu, m), result in zip(enrollments, results):
+        for (etu, _mapping), result in zip(enrollments, results, strict=False):
             enrollment, _ = EdxEnrollment.objects.update_or_create(
-                etudiant=etu, course=course_mapping,
+                etudiant=etu,
+                course=course_mapping,
                 defaults={
                     "enrollment_id": result.get("id"),
                     "is_active": True,
@@ -112,10 +134,16 @@ class SyncService:
             out.append(enrollment)
         return out
 
-    def sync_grade_to_lms(self, etudiant, course_mapping, subsection_id, score, max_score=20.0):
+    def sync_grade_to_lms(
+        self, etudiant, course_mapping, subsection_id, score, max_score=20.0
+    ):
         mapping = EdxUserMapping.objects.get(user_sis=etudiant.user)
         return self.client.post_grade(
-            course_mapping.course_id, mapping.username_edx, subsection_id, score, max_score
+            course_mapping.course_id,
+            mapping.username_edx,
+            subsection_id,
+            score,
+            max_score,
         )
 
     def sync_certificate_to_lms(self, etudiant, course_mapping, cert_type="honor"):

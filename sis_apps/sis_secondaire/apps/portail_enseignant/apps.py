@@ -1,4 +1,5 @@
 """App config for portail_enseignant."""
+
 from django.apps import AppConfig
 
 

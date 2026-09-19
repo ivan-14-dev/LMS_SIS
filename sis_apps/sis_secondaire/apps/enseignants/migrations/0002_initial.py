@@ -10,28 +10,41 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('enseignants', '0001_initial'),
+        ("enseignants", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='personnel',
-            name='user',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='personnel_profile', to=settings.AUTH_USER_MODEL),
+            model_name="personnel",
+            name="user",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="personnel_profile",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='matiereenseignee',
-            name='enseignant',
-            field=models.ForeignKey(limit_choices_to={'user__role': 'enseignant'}, on_delete=django.db.models.deletion.CASCADE, related_name='matieres_enseignees', to='enseignants.personnel'),
+            model_name="matiereenseignee",
+            name="enseignant",
+            field=models.ForeignKey(
+                limit_choices_to={"user__role": "enseignant"},
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="matieres_enseignees",
+                to="enseignants.personnel",
+            ),
         ),
         migrations.AddField(
-            model_name='affectationenseignant',
-            name='enseignant',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='affectations', to='enseignants.personnel'),
+            model_name="affectationenseignant",
+            name="enseignant",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="affectations",
+                to="enseignants.personnel",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='matiereenseignee',
-            unique_together={('enseignant', 'matiere')},
+            name="matiereenseignee",
+            unique_together={("enseignant", "matiere")},
         ),
     ]

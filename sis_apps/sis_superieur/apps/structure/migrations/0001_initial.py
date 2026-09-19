@@ -7,54 +7,77 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Departement',
+            name="Departement",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nom', models.CharField(max_length=200)),
-                ('code', models.CharField(max_length=20)),
-                ('description', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nom", models.CharField(max_length=200)),
+                ("code", models.CharField(max_length=20)),
+                ("description", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'verbose_name': 'Département',
-                'verbose_name_plural': 'Départements',
+                "verbose_name": "Département",
+                "verbose_name_plural": "Départements",
             },
         ),
         migrations.CreateModel(
-            name='EcoleDoctorale',
+            name="EcoleDoctorale",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nom', models.CharField(max_length=200)),
-                ('code', models.CharField(max_length=20)),
-                ('domaines', models.JSONField(blank=True, default=list)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nom", models.CharField(max_length=200)),
+                ("code", models.CharField(max_length=20)),
+                ("domaines", models.JSONField(blank=True, default=list)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'École doctorale',
-                'verbose_name_plural': 'Écoles doctorales',
+                "verbose_name": "École doctorale",
+                "verbose_name_plural": "Écoles doctorales",
             },
         ),
         migrations.CreateModel(
-            name='Faculte',
+            name="Faculte",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nom', models.CharField(max_length=200)),
-                ('code', models.CharField(max_length=20)),
-                ('date_creation', models.DateField(blank=True, null=True)),
-                ('description', models.TextField(blank=True)),
-                ('actif', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nom", models.CharField(max_length=200)),
+                ("code", models.CharField(max_length=20)),
+                ("date_creation", models.DateField(blank=True, null=True)),
+                ("description", models.TextField(blank=True)),
+                ("actif", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'verbose_name': 'Faculté',
-                'verbose_name_plural': 'Facultés',
+                "verbose_name": "Faculté",
+                "verbose_name_plural": "Facultés",
             },
         ),
     ]

@@ -1,10 +1,12 @@
 """Models for internat (SIS Secondaire)."""
-from django.db import models
+
 from apps.eleves.models import Eleve
+from django.db import models
 
 
 class BatimentInternat(models.Model):
     """Bâtiment d'internat."""
+
     nom = models.CharField(max_length=100)
     adresse = models.CharField(max_length=200, blank=True)
     nb_etages = models.PositiveSmallIntegerField(default=1)
@@ -20,13 +22,16 @@ class BatimentInternat(models.Model):
 
 class Chambre(models.Model):
     """Chambre d'internat."""
+
     TYPE_CHOICES = [
         ("simple", "Simple"),
         ("double", "Double"),
         ("triple", "Triple"),
         ("quadruple", "Quadruple"),
     ]
-    batiment = models.ForeignKey(BatimentInternat, on_delete=models.CASCADE, related_name="chambres")
+    batiment = models.ForeignKey(
+        BatimentInternat, on_delete=models.CASCADE, related_name="chambres"
+    )
     numero = models.CharField(max_length=20)
     etage = models.PositiveSmallIntegerField(default=0)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="double")
@@ -45,8 +50,13 @@ class Chambre(models.Model):
 
 class OccupantChambre(models.Model):
     """Occupation d'une chambre par un élève."""
-    chambre = models.ForeignKey(Chambre, on_delete=models.CASCADE, related_name="occupants")
-    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="chambres_occupations")
+
+    chambre = models.ForeignKey(
+        Chambre, on_delete=models.CASCADE, related_name="occupants"
+    )
+    eleve = models.ForeignKey(
+        Eleve, on_delete=models.CASCADE, related_name="chambres_occupations"
+    )
     date_debut = models.DateField()
     date_fin = models.DateField(null=True, blank=True)
     motif_fin = models.CharField(max_length=200, blank=True)
@@ -62,7 +72,10 @@ class OccupantChambre(models.Model):
 
 class EtudeSurveillee(models.Model):
     """Séance d'étude du soir."""
-    batiment = models.ForeignKey(BatimentInternat, on_delete=models.CASCADE, related_name="etudes")
+
+    batiment = models.ForeignKey(
+        BatimentInternat, on_delete=models.CASCADE, related_name="etudes"
+    )
     salle = models.CharField(max_length=100)
     date = models.DateField()
     heure_debut = models.TimeField()

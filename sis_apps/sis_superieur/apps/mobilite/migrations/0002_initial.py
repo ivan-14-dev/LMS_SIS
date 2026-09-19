@@ -10,58 +10,98 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etablissement', '0001_initial'),
-        ('etudiants', '0003_initial'),
-        ('formations', '0003_initial'),
-        ('mobilite', '0001_initial'),
-        ('ue_ecue', '0001_initial'),
+        ("etablissement", "0001_initial"),
+        ("etudiants", "0003_initial"),
+        ("formations", "0003_initial"),
+        ("mobilite", "0001_initial"),
+        ("ue_ecue", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='accordetudes',
-            name='valide_par_origine',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='la_valides_origine', to=settings.AUTH_USER_MODEL),
+            model_name="accordetudes",
+            name="valide_par_origine",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="la_valides_origine",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='candidaturemobilite',
-            name='decision_par',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='decisions_mobilite', to=settings.AUTH_USER_MODEL),
+            model_name="candidaturemobilite",
+            name="decision_par",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="decisions_mobilite",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='candidaturemobilite',
-            name='etudiant',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='candidatures_mobilite', to='etudiants.etudiant'),
+            model_name="candidaturemobilite",
+            name="etudiant",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="candidatures_mobilite",
+                to="etudiants.etudiant",
+            ),
         ),
         migrations.AddField(
-            model_name='accordetudes',
-            name='candidature',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='accord_etudes', to='mobilite.candidaturemobilite'),
+            model_name="accordetudes",
+            name="candidature",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="accord_etudes",
+                to="mobilite.candidaturemobilite",
+            ),
         ),
         migrations.AddField(
-            model_name='programmemobilite',
-            name='annee_universitaire',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='programmes_mobilite', to='etablissement.anneeuniversitaire'),
+            model_name="programmemobilite",
+            name="annee_universitaire",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="programmes_mobilite",
+                to="etablissement.anneeuniversitaire",
+            ),
         ),
         migrations.AddField(
-            model_name='programmemobilite',
-            name='formation',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='programmes_mobilite', to='formations.formation'),
+            model_name="programmemobilite",
+            name="formation",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="programmes_mobilite",
+                to="formations.formation",
+            ),
         ),
         migrations.AddField(
-            model_name='candidaturemobilite',
-            name='programme',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='candidatures', to='mobilite.programmemobilite'),
+            model_name="candidaturemobilite",
+            name="programme",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="candidatures",
+                to="mobilite.programmemobilite",
+            ),
         ),
         migrations.AddField(
-            model_name='ueaccordetudes',
-            name='accord',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='ues', to='mobilite.accordetudes'),
+            model_name="ueaccordetudes",
+            name="accord",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="ues",
+                to="mobilite.accordetudes",
+            ),
         ),
         migrations.AddField(
-            model_name='ueaccordetudes',
-            name='ue_origine',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='accords_origine', to='ue_ecue.ue'),
+            model_name="ueaccordetudes",
+            name="ue_origine",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="accords_origine",
+                to="ue_ecue.ue",
+            ),
         ),
     ]

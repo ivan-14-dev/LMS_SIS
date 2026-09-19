@@ -9,55 +9,123 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etudiants', '0001_initial'),
+        ("etudiants", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='EpreuveExamen',
+            name="EpreuveExamen",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField()),
-                ('heure_debut', models.TimeField()),
-                ('duree_minutes', models.PositiveIntegerField()),
-                ('lieu', models.CharField(help_text='Bâtiment / amphithéâtre', max_length=200)),
-                ('places_totales', models.PositiveIntegerField(default=0)),
-                ('anonymat', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateField()),
+                ("heure_debut", models.TimeField()),
+                ("duree_minutes", models.PositiveIntegerField()),
+                (
+                    "lieu",
+                    models.CharField(
+                        help_text="Bâtiment / amphithéâtre", max_length=200
+                    ),
+                ),
+                ("places_totales", models.PositiveIntegerField(default=0)),
+                ("anonymat", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'ordering': ['date', 'heure_debut'],
+                "ordering": ["date", "heure_debut"],
             },
         ),
         migrations.CreateModel(
-            name='SessionExamen',
+            name="SessionExamen",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('numero', models.PositiveSmallIntegerField(choices=[(1, 'Session 1 (normale)'), (2, 'Session 2 (rattrapage)')])),
-                ('type', models.CharField(choices=[('normale', 'Normale'), ('rattrapage', 'Rattrapage'), ('exceptionnelle', 'Exceptionnelle')], default='normale', max_length=20)),
-                ('date_debut', models.DateField()),
-                ('date_fin', models.DateField()),
-                ('cloturee', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "numero",
+                    models.PositiveSmallIntegerField(
+                        choices=[
+                            (1, "Session 1 (normale)"),
+                            (2, "Session 2 (rattrapage)"),
+                        ]
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("normale", "Normale"),
+                            ("rattrapage", "Rattrapage"),
+                            ("exceptionnelle", "Exceptionnelle"),
+                        ],
+                        default="normale",
+                        max_length=20,
+                    ),
+                ),
+                ("date_debut", models.DateField()),
+                ("date_fin", models.DateField()),
+                ("cloturee", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'ordering': ['semestre', 'numero'],
+                "ordering": ["semestre", "numero"],
             },
         ),
         migrations.CreateModel(
-            name='ConvocationExamen',
+            name="ConvocationExamen",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('numero_place', models.CharField(blank=True, max_length=10)),
-                ('salle', models.CharField(blank=True, max_length=100)),
-                ('statut', models.CharField(choices=[('convoque', 'Convoqué'), ('present', 'Présent'), ('absent', 'Absent'), ('dispense', 'Dispensé'), ('annule', 'Annulé')], default='convoque', max_length=20)),
-                ('notifie', models.BooleanField(default=False)),
-                ('date_notification', models.DateTimeField(blank=True, null=True)),
-                ('etudiant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='convocations', to='etudiants.etudiant')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("numero_place", models.CharField(blank=True, max_length=10)),
+                ("salle", models.CharField(blank=True, max_length=100)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("convoque", "Convoqué"),
+                            ("present", "Présent"),
+                            ("absent", "Absent"),
+                            ("dispense", "Dispensé"),
+                            ("annule", "Annulé"),
+                        ],
+                        default="convoque",
+                        max_length=20,
+                    ),
+                ),
+                ("notifie", models.BooleanField(default=False)),
+                ("date_notification", models.DateTimeField(blank=True, null=True)),
+                (
+                    "etudiant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="convocations",
+                        to="etudiants.etudiant",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Convocation examen',
-                'verbose_name_plural': 'Convocations examen',
+                "verbose_name": "Convocation examen",
+                "verbose_name_plural": "Convocations examen",
             },
         ),
     ]

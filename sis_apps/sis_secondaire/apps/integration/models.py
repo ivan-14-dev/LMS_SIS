@@ -1,12 +1,13 @@
 """Models for Open edX integration (SIS Secondaire)."""
-from django.db import models
+
 from apps.classes.models import Classe, Matiere
 from apps.eleves.models import Eleve
-from apps.enseignants.models import Personnel
+from django.db import models
 
 
 class EdxUserMapping(models.Model):
     """Mapping entre utilisateur SIS et utilisateur LMS Open edX."""
+
     user_sis = models.OneToOneField(
         "utilisateurs.Utilisateur", on_delete=models.CASCADE, related_name="edx_mapping"
     )
@@ -27,8 +28,13 @@ class EdxUserMapping(models.Model):
 
 class EdxCourseMapping(models.Model):
     """Mapping entre matière/classe et cours LMS."""
-    matiere = models.ForeignKey(Matiere, on_delete=models.CASCADE, related_name="edx_courses")
-    classe = models.ForeignKey(Classe, on_delete=models.CASCADE, related_name="edx_courses")
+
+    matiere = models.ForeignKey(
+        Matiere, on_delete=models.CASCADE, related_name="edx_courses"
+    )
+    classe = models.ForeignKey(
+        Classe, on_delete=models.CASCADE, related_name="edx_courses"
+    )
     course_id = models.CharField(max_length=200, unique=True)
     course_name = models.CharField(max_length=300)
     date_creation = models.DateTimeField(auto_now_add=True)
@@ -45,8 +51,13 @@ class EdxCourseMapping(models.Model):
 
 class EdxEnrollment(models.Model):
     """Inscription d'un élève à un cours LMS."""
-    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="edx_enrollments")
-    course = models.ForeignKey(EdxCourseMapping, on_delete=models.CASCADE, related_name="enrollments")
+
+    eleve = models.ForeignKey(
+        Eleve, on_delete=models.CASCADE, related_name="edx_enrollments"
+    )
+    course = models.ForeignKey(
+        EdxCourseMapping, on_delete=models.CASCADE, related_name="enrollments"
+    )
     enrollment_id = models.PositiveBigIntegerField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     date_inscription = models.DateTimeField(auto_now_add=True)
@@ -65,7 +76,10 @@ class EdxEnrollment(models.Model):
 
 class EdxGradeLog(models.Model):
     """Log des notes synchronisées depuis LMS."""
-    enrollment = models.ForeignKey(EdxEnrollment, on_delete=models.CASCADE, related_name="grade_logs")
+
+    enrollment = models.ForeignKey(
+        EdxEnrollment, on_delete=models.CASCADE, related_name="grade_logs"
+    )
     subsection_id = models.CharField(max_length=200)
     score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     max_score = models.DecimalField(max_digits=5, decimal_places=2, default=20)
@@ -73,7 +87,10 @@ class EdxGradeLog(models.Model):
     timestamp_lms = models.DateTimeField()
     imported_to_sis = models.BooleanField(default=False)
     note_sis = models.ForeignKey(
-        "notes.Note", on_delete=models.SET_NULL, null=True, blank=True,
+        "notes.Note",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="sources_lms",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -89,6 +106,7 @@ class EdxGradeLog(models.Model):
 
 class OutboxEvent(models.Model):
     """Outbox pour événements à publier vers LMS ou autres services."""
+
     STATUT_CHOICES = [
         ("pending", "En attente"),
         ("processing", "En cours"),

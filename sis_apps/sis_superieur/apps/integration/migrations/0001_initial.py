@@ -9,90 +9,188 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etudiants', '0002_initial'),
-        ('ue_ecue', '0001_initial'),
+        ("etudiants", "0002_initial"),
+        ("ue_ecue", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='EdxUserMapping',
+            name="EdxUserMapping",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('username_edx', models.CharField(max_length=200, unique=True)),
-                ('user_id_edx', models.PositiveBigIntegerField(blank=True, null=True)),
-                ('date_sync', models.DateTimeField(blank=True, null=True)),
-                ('actif', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("username_edx", models.CharField(max_length=200, unique=True)),
+                ("user_id_edx", models.PositiveBigIntegerField(blank=True, null=True)),
+                ("date_sync", models.DateTimeField(blank=True, null=True)),
+                ("actif", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'verbose_name': 'Mapping utilisateur EdX',
-                'verbose_name_plural': 'Mappings utilisateurs EdX',
+                "verbose_name": "Mapping utilisateur EdX",
+                "verbose_name_plural": "Mappings utilisateurs EdX",
             },
         ),
         migrations.CreateModel(
-            name='OutboxEvent',
+            name="OutboxEvent",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('event_type', models.CharField(max_length=100)),
-                ('aggregate_type', models.CharField(max_length=100)),
-                ('aggregate_id', models.CharField(max_length=100)),
-                ('payload', models.JSONField()),
-                ('statut', models.CharField(choices=[('pending', 'En attente'), ('processing', 'En cours'), ('done', 'Traité'), ('failed', 'Échec'), ('dead', 'Dead letter')], default='pending', max_length=20)),
-                ('nb_tentatives', models.PositiveSmallIntegerField(default=0)),
-                ('derniere_tentative', models.DateTimeField(blank=True, null=True)),
-                ('erreur', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("event_type", models.CharField(max_length=100)),
+                ("aggregate_type", models.CharField(max_length=100)),
+                ("aggregate_id", models.CharField(max_length=100)),
+                ("payload", models.JSONField()),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("pending", "En attente"),
+                            ("processing", "En cours"),
+                            ("done", "Traité"),
+                            ("failed", "Échec"),
+                            ("dead", "Dead letter"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
+                ("nb_tentatives", models.PositiveSmallIntegerField(default=0)),
+                ("derniere_tentative", models.DateTimeField(blank=True, null=True)),
+                ("erreur", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'ordering': ['-created_at'],
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='EdxCourseMapping',
+            name="EdxCourseMapping",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('course_id', models.CharField(max_length=200, unique=True)),
-                ('course_name', models.CharField(max_length=300)),
-                ('date_creation', models.DateTimeField(auto_now_add=True)),
-                ('actif', models.BooleanField(default=True)),
-                ('ecue', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='edx_course', to='ue_ecue.ecue')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("course_id", models.CharField(max_length=200, unique=True)),
+                ("course_name", models.CharField(max_length=300)),
+                ("date_creation", models.DateTimeField(auto_now_add=True)),
+                ("actif", models.BooleanField(default=True)),
+                (
+                    "ecue",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="edx_course",
+                        to="ue_ecue.ecue",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Mapping cours EdX',
-                'verbose_name_plural': 'Mappings cours EdX',
+                "verbose_name": "Mapping cours EdX",
+                "verbose_name_plural": "Mappings cours EdX",
             },
         ),
         migrations.CreateModel(
-            name='EdxEnrollment',
+            name="EdxEnrollment",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('enrollment_id', models.PositiveBigIntegerField(blank=True, null=True)),
-                ('is_active', models.BooleanField(default=True)),
-                ('date_inscription', models.DateTimeField(auto_now_add=True)),
-                ('date_desinscription', models.DateTimeField(blank=True, null=True)),
-                ('progression', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
-                ('last_sync', models.DateTimeField(blank=True, null=True)),
-                ('course', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='enrollments', to='integration.edxcoursemapping')),
-                ('etudiant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='edx_enrollments', to='etudiants.etudiant')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "enrollment_id",
+                    models.PositiveBigIntegerField(blank=True, null=True),
+                ),
+                ("is_active", models.BooleanField(default=True)),
+                ("date_inscription", models.DateTimeField(auto_now_add=True)),
+                ("date_desinscription", models.DateTimeField(blank=True, null=True)),
+                (
+                    "progression",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=5),
+                ),
+                ("last_sync", models.DateTimeField(blank=True, null=True)),
+                (
+                    "course",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="enrollments",
+                        to="integration.edxcoursemapping",
+                    ),
+                ),
+                (
+                    "etudiant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="edx_enrollments",
+                        to="etudiants.etudiant",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='EdxGradeLog',
+            name="EdxGradeLog",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('subsection_id', models.CharField(max_length=200)),
-                ('score', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('max_score', models.DecimalField(decimal_places=2, default=20, max_digits=5)),
-                ('completion', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
-                ('timestamp_lms', models.DateTimeField()),
-                ('imported_to_sis', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('enrollment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='grade_logs', to='integration.edxenrollment')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("subsection_id", models.CharField(max_length=200)),
+                (
+                    "score",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                (
+                    "max_score",
+                    models.DecimalField(decimal_places=2, default=20, max_digits=5),
+                ),
+                (
+                    "completion",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=5),
+                ),
+                ("timestamp_lms", models.DateTimeField()),
+                ("imported_to_sis", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "enrollment",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="grade_logs",
+                        to="integration.edxenrollment",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-timestamp_lms'],
+                "ordering": ["-timestamp_lms"],
             },
         ),
     ]

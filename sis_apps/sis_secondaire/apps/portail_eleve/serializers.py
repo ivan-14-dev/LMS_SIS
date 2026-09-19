@@ -1,9 +1,11 @@
 """Serializers for portail élève (SIS Secondaire)."""
+
 from rest_framework import serializers
 
 
 class TableauBordEleveSerializer(serializers.Serializer):
     """Serializer pour le tableau de bord élève."""
+
     eleve = serializers.DictField()
     classe = serializers.DictField()
     statistiques = serializers.DictField()
@@ -13,6 +15,7 @@ class TableauBordEleveSerializer(serializers.Serializer):
 
 class ProfilEleveSerializer(serializers.Serializer):
     """Serializer pour le profil élève."""
+
     matricule = serializers.CharField()
     nom = serializers.CharField()
     classe = serializers.CharField()

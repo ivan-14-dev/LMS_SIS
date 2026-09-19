@@ -9,66 +9,114 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('enseignants', '0003_initial'),
-        ('etudiants', '0002_initial'),
-        ('recherche', '0001_initial'),
-        ('structure', '0001_initial'),
+        ("enseignants", "0003_initial"),
+        ("etudiants", "0002_initial"),
+        ("recherche", "0001_initial"),
+        ("structure", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='laboratoire',
-            name='faculte',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='laboratoires', to='structure.faculte'),
+            model_name="laboratoire",
+            name="faculte",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="laboratoires",
+                to="structure.faculte",
+            ),
         ),
         migrations.AddField(
-            model_name='productionscientifique',
-            name='auteurs',
-            field=models.ManyToManyField(related_name='productions', to='enseignants.enseignantchercheur'),
+            model_name="productionscientifique",
+            name="auteurs",
+            field=models.ManyToManyField(
+                related_name="productions", to="enseignants.enseignantchercheur"
+            ),
         ),
         migrations.AddField(
-            model_name='productionscientifique',
-            name='laboratoire',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='productions', to='recherche.laboratoire'),
+            model_name="productionscientifique",
+            name="laboratoire",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="productions",
+                to="recherche.laboratoire",
+            ),
         ),
         migrations.AddField(
-            model_name='projetrecherche',
-            name='laboratoire',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='projets', to='recherche.laboratoire'),
+            model_name="projetrecherche",
+            name="laboratoire",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="projets",
+                to="recherche.laboratoire",
+            ),
         ),
         migrations.AddField(
-            model_name='projetrecherche',
-            name='membres',
-            field=models.ManyToManyField(blank=True, related_name='projets_membre', to='enseignants.enseignantchercheur'),
+            model_name="projetrecherche",
+            name="membres",
+            field=models.ManyToManyField(
+                blank=True,
+                related_name="projets_membre",
+                to="enseignants.enseignantchercheur",
+            ),
         ),
         migrations.AddField(
-            model_name='projetrecherche',
-            name='responsable',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='projets_responsable', to='enseignants.enseignantchercheur'),
+            model_name="projetrecherche",
+            name="responsable",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="projets_responsable",
+                to="enseignants.enseignantchercheur",
+            ),
         ),
         migrations.AddField(
-            model_name='productionscientifique',
-            name='projet',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='productions', to='recherche.projetrecherche'),
+            model_name="productionscientifique",
+            name="projet",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="productions",
+                to="recherche.projetrecherche",
+            ),
         ),
         migrations.AddField(
-            model_name='these',
-            name='co_directeur',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='theses_co_dirigees', to='enseignants.enseignantchercheur'),
+            model_name="these",
+            name="co_directeur",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="theses_co_dirigees",
+                to="enseignants.enseignantchercheur",
+            ),
         ),
         migrations.AddField(
-            model_name='these',
-            name='directeur',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='theses_dirigees', to='enseignants.enseignantchercheur'),
+            model_name="these",
+            name="directeur",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="theses_dirigees",
+                to="enseignants.enseignantchercheur",
+            ),
         ),
         migrations.AddField(
-            model_name='these',
-            name='doctorant',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='these', to='etudiants.etudiant'),
+            model_name="these",
+            name="doctorant",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="these",
+                to="etudiants.etudiant",
+            ),
         ),
         migrations.AddField(
-            model_name='these',
-            name='laboratoire',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='theses', to='recherche.laboratoire'),
+            model_name="these",
+            name="laboratoire",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="theses",
+                to="recherche.laboratoire",
+            ),
         ),
     ]

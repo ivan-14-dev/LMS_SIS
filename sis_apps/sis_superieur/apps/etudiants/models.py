@@ -1,11 +1,13 @@
 """Models for etudiants (SIS Supérieur)."""
-from django.db import models
-from apps.etablissement.models import Universite, AnneeUniversitaire
+
+from apps.etablissement.models import AnneeUniversitaire, Universite
 from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class Etudiant(models.Model):
     """Étudiant inscrit dans l'université."""
+
     STATUT_CHOICES = [
         ("pre_inscrit", "Pré-inscrit"),
         ("inscrit", "Inscrit"),
@@ -27,7 +29,9 @@ class Etudiant(models.Model):
     universite = models.ForeignKey(
         Universite, on_delete=models.CASCADE, related_name="etudiants"
     )
-    user = models.OneToOneField(Utilisateur, on_delete=models.CASCADE, related_name="etudiant_profile")
+    user = models.OneToOneField(
+        Utilisateur, on_delete=models.CASCADE, related_name="etudiant_profile"
+    )
     matricule = models.CharField(max_length=50, unique=True)
     ine = models.CharField(max_length=20, blank=True)
     date_naissance = models.DateField()
@@ -40,12 +44,19 @@ class Etudiant(models.Model):
     pays = models.CharField(max_length=100, default="France")
     telephone = models.CharField(max_length=20)
     email_personnel = models.EmailField(blank=True)
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="pre_inscrit")
-    regime = models.CharField(max_length=30, choices=REGIME_CHOICES, default="formation_initiale")
+    statut = models.CharField(
+        max_length=20, choices=STATUT_CHOICES, default="pre_inscrit"
+    )
+    regime = models.CharField(
+        max_length=30, choices=REGIME_CHOICES, default="formation_initiale"
+    )
     boursier = models.BooleanField(default=False)
     date_premiere_inscription = models.DateField(null=True, blank=True)
     annee_universitaire_actuelle = models.ForeignKey(
-        AnneeUniversitaire, on_delete=models.SET_NULL, null=True, blank=True,
+        AnneeUniversitaire,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="etudiants_actuels",
     )
     photo = models.ImageField(upload_to="etudiants/", null=True, blank=True)
@@ -70,25 +81,35 @@ class Etudiant(models.Model):
 
 class InscriptionAdministrative(models.Model):
     """Inscription administrative (IA) d'un étudiant."""
+
     STATUT_CHOICES = [
         ("provisoire", "Provisoire"),
         ("validee", "Validée"),
         ("refusee", "Refusée"),
         ("annulee", "Annulée"),
     ]
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="inscriptions_admin")
+    etudiant = models.ForeignKey(
+        Etudiant, on_delete=models.CASCADE, related_name="inscriptions_admin"
+    )
     annee_universitaire = models.ForeignKey(
         AnneeUniversitaire, on_delete=models.PROTECT, related_name="inscriptions_admin"
     )
     formation = models.ForeignKey(
-        "formations.Formation", on_delete=models.PROTECT, related_name="inscriptions_admin"
+        "formations.Formation",
+        on_delete=models.PROTECT,
+        related_name="inscriptions_admin",
     )
     parcours = models.ForeignKey(
-        "formations.Parcours", on_delete=models.PROTECT, related_name="inscriptions_admin",
-        null=True, blank=True,
+        "formations.Parcours",
+        on_delete=models.PROTECT,
+        related_name="inscriptions_admin",
+        null=True,
+        blank=True,
     )
     date_inscription = models.DateField()
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="provisoire")
+    statut = models.CharField(
+        max_length=20, choices=STATUT_CHOICES, default="provisoire"
+    )
     regime = models.CharField(max_length=30, default="formation_initiale")
     bourse_id = models.CharField(max_length=50, blank=True, help_text="ID bourse CROUS")
     pieces_fournies = models.JSONField(default=list, blank=True)
@@ -107,6 +128,7 @@ class InscriptionAdministrative(models.Model):
 
 class InscriptionPedagogique(models.Model):
     """Inscription pédagogique (IP) : choix des UE par l'étudiant."""
+
     STATUT_CHOICES = [
         ("brouillon", "Brouillon"),
         ("soumise", "Soumise"),
@@ -115,20 +137,31 @@ class InscriptionPedagogique(models.Model):
         ("modifiee", "Modifiée par admin"),
     ]
     inscription_admin = models.ForeignKey(
-        InscriptionAdministrative, on_delete=models.CASCADE, related_name="inscriptions_peda"
+        InscriptionAdministrative,
+        on_delete=models.CASCADE,
+        related_name="inscriptions_peda",
     )
     semestre = models.ForeignKey(
-        "etablissement.Semestre", on_delete=models.PROTECT, related_name="inscriptions_peda"
+        "etablissement.Semestre",
+        on_delete=models.PROTECT,
+        related_name="inscriptions_peda",
     )
     ues = models.ManyToManyField("ue_ecue.UE", related_name="inscriptions_peda")
-    ecues = models.ManyToManyField("ue_ecue.ECUE", blank=True, related_name="inscriptions_peda")
+    ecues = models.ManyToManyField(
+        "ue_ecue.ECUE", blank=True, related_name="inscriptions_peda"
+    )
     groupe_td = models.CharField(max_length=20, blank=True)
     groupe_tp = models.CharField(max_length=20, blank=True)
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="brouillon")
+    statut = models.CharField(
+        max_length=20, choices=STATUT_CHOICES, default="brouillon"
+    )
     date_soumission = models.DateTimeField(null=True, blank=True)
     date_validation = models.DateTimeField(null=True, blank=True)
     validee_par = models.ForeignKey(
-        Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="ips_validees",
     )
     motif_refus = models.TextField(blank=True)
@@ -146,14 +179,19 @@ class InscriptionPedagogique(models.Model):
 
 class AcquisitionECTS(models.Model):
     """Acquisition des crédits ECTS pour un étudiant."""
+
     STATUT_CHOICES = [
         ("acquis", "Acquis"),
         ("en_cours", "En cours"),
         ("echec", "Échec"),
         ("dispense", "Dispensé"),
     ]
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="acquisitions_ects")
-    ue = models.ForeignKey("ue_ecue.UE", on_delete=models.PROTECT, related_name="acquisitions")
+    etudiant = models.ForeignKey(
+        Etudiant, on_delete=models.CASCADE, related_name="acquisitions_ects"
+    )
+    ue = models.ForeignKey(
+        "ue_ecue.UE", on_delete=models.PROTECT, related_name="acquisitions"
+    )
     annee_universitaire = models.ForeignKey(
         AnneeUniversitaire, on_delete=models.PROTECT, related_name="acquisitions_ects"
     )

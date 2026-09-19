@@ -1,13 +1,17 @@
 """Models for ECTS (SIS Supérieur)."""
-from django.db import models
+
+from apps.etablissement.models import AnneeUniversitaire
 from apps.etudiants.models import Etudiant, InscriptionAdministrative
 from apps.ue_ecue.models import UE
-from apps.etablissement.models import AnneeUniversitaire
+from django.db import models
 
 
 class BilanECTS(models.Model):
     """Bilan annuel ECTS d'un étudiant."""
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="bilans_ects")
+
+    etudiant = models.ForeignKey(
+        Etudiant, on_delete=models.CASCADE, related_name="bilans_ects"
+    )
     annee_universitaire = models.ForeignKey(
         AnneeUniversitaire, on_delete=models.CASCADE, related_name="bilans_ects"
     )
@@ -18,9 +22,15 @@ class BilanECTS(models.Model):
     credits_valides = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     credits_compenses = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     credits_echec = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    moyenne_ponderee = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    ues_validees = models.ManyToManyField(UE, blank=True, related_name="bilans_validees")
-    ues_compensees = models.ManyToManyField(UE, blank=True, related_name="bilans_compensees")
+    moyenne_ponderee = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    ues_validees = models.ManyToManyField(
+        UE, blank=True, related_name="bilans_validees"
+    )
+    ues_compensees = models.ManyToManyField(
+        UE, blank=True, related_name="bilans_compensees"
+    )
     ues_echec = models.ManyToManyField(UE, blank=True, related_name="bilans_echec")
     date_calcul = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)

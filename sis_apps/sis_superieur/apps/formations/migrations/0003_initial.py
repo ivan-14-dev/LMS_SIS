@@ -10,47 +10,71 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etablissement', '0001_initial'),
-        ('formations', '0002_initial'),
+        ("etablissement", "0001_initial"),
+        ("formations", "0002_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='formation',
-            name='responsable',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='formations_responsable', to=settings.AUTH_USER_MODEL),
+            model_name="formation",
+            name="responsable",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="formations_responsable",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='maquetteformation',
-            name='annee_universitaire',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='maquettes', to='etablissement.anneeuniversitaire'),
+            model_name="maquetteformation",
+            name="annee_universitaire",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="maquettes",
+                to="etablissement.anneeuniversitaire",
+            ),
         ),
         migrations.AddField(
-            model_name='maquetteformation',
-            name='formation',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='maquettes', to='formations.formation'),
+            model_name="maquetteformation",
+            name="formation",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="maquettes",
+                to="formations.formation",
+            ),
         ),
         migrations.AddField(
-            model_name='maquetteformation',
-            name='validee_par',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='maquettes_validees', to=settings.AUTH_USER_MODEL),
+            model_name="maquetteformation",
+            name="validee_par",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="maquettes_validees",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='parcours',
-            name='formation',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='parcours', to='formations.formation'),
+            model_name="parcours",
+            name="formation",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="parcours",
+                to="formations.formation",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='formation',
-            unique_together={('departement', 'code')},
+            name="formation",
+            unique_together={("departement", "code")},
         ),
         migrations.AlterUniqueTogether(
-            name='maquetteformation',
-            unique_together={('formation', 'annee_universitaire')},
+            name="maquetteformation",
+            unique_together={("formation", "annee_universitaire")},
         ),
         migrations.AlterUniqueTogether(
-            name='parcours',
-            unique_together={('formation', 'code')},
+            name="parcours",
+            unique_together={("formation", "code")},
         ),
     ]

@@ -9,58 +9,134 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('classes', '0001_initial'),
-        ('etablissement', '0001_initial'),
+        ("classes", "0001_initial"),
+        ("etablissement", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Personnel',
+            name="Personnel",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('matricule', models.CharField(max_length=50, unique=True)),
-                ('statut', models.CharField(choices=[('titulaire', 'Titulaire'), ('contractuel', 'Contractuel'), ('vacataire', 'Vacataire'), ('stagiaire', 'Stagiaire')], default='titulaire', max_length=20)),
-                ('date_embauche', models.DateField()),
-                ('corps', models.CharField(blank=True, help_text='Ex: Agrégé, Certifié', max_length=100)),
-                ('diplomes', models.JSONField(blank=True, default=list)),
-                ('heures_contractuelles', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
-                ('indice', models.PositiveIntegerField(blank=True, null=True)),
-                ('rib', models.CharField(blank=True, max_length=50)),
-                ('iban', models.CharField(blank=True, max_length=50)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("matricule", models.CharField(max_length=50, unique=True)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("titulaire", "Titulaire"),
+                            ("contractuel", "Contractuel"),
+                            ("vacataire", "Vacataire"),
+                            ("stagiaire", "Stagiaire"),
+                        ],
+                        default="titulaire",
+                        max_length=20,
+                    ),
+                ),
+                ("date_embauche", models.DateField()),
+                (
+                    "corps",
+                    models.CharField(
+                        blank=True, help_text="Ex: Agrégé, Certifié", max_length=100
+                    ),
+                ),
+                ("diplomes", models.JSONField(blank=True, default=list)),
+                (
+                    "heures_contractuelles",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=5),
+                ),
+                ("indice", models.PositiveIntegerField(blank=True, null=True)),
+                ("rib", models.CharField(blank=True, max_length=50)),
+                ("iban", models.CharField(blank=True, max_length=50)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'verbose_name': 'Personnel',
-                'verbose_name_plural': 'Personnels',
+                "verbose_name": "Personnel",
+                "verbose_name_plural": "Personnels",
             },
         ),
         migrations.CreateModel(
-            name='AffectationEnseignant',
+            name="AffectationEnseignant",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('heures_semaine', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('annee_scolaire', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='affectations_enseignant', to='etablissement.anneescolaire')),
-                ('classes', models.ManyToManyField(related_name='affectations_enseignant', to='classes.classe')),
-                ('matiere', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='affectations', to='classes.matiere')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "heures_semaine",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=5),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "annee_scolaire",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="affectations_enseignant",
+                        to="etablissement.anneescolaire",
+                    ),
+                ),
+                (
+                    "classes",
+                    models.ManyToManyField(
+                        related_name="affectations_enseignant", to="classes.classe"
+                    ),
+                ),
+                (
+                    "matiere",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="affectations",
+                        to="classes.matiere",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Affectation enseignant',
-                'verbose_name_plural': 'Affectations enseignants',
+                "verbose_name": "Affectation enseignant",
+                "verbose_name_plural": "Affectations enseignants",
             },
         ),
         migrations.CreateModel(
-            name='MatiereEnseignee',
+            name="MatiereEnseignee",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('niveau_competence', models.PositiveSmallIntegerField(default=3, help_text='1 à 5')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('matiere', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='enseignants_qualifies', to='classes.matiere')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "niveau_competence",
+                    models.PositiveSmallIntegerField(default=3, help_text="1 à 5"),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "matiere",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="enseignants_qualifies",
+                        to="classes.matiere",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Matière enseignée',
-                'verbose_name_plural': 'Matières enseignées',
+                "verbose_name": "Matière enseignée",
+                "verbose_name_plural": "Matières enseignées",
             },
         ),
     ]

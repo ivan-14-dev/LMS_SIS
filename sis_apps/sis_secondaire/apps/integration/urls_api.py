@@ -1,5 +1,7 @@
 """URLs API for integration (SIS Secondaire)."""
+
 from django.urls import path
+
 from . import api
 
 app_name = "integration_api"

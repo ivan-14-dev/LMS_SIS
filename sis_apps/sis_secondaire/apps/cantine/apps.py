@@ -1,4 +1,5 @@
 """App config for cantine."""
+
 from django.apps import AppConfig
 
 

@@ -9,20 +9,28 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('classes', '0001_initial'),
-        ('conseil_classe', '0001_initial'),
-        ('eleves', '0001_initial'),
+        ("classes", "0001_initial"),
+        ("conseil_classe", "0001_initial"),
+        ("eleves", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='appreciationconseil',
-            name='eleve',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='appreciations_conseil', to='eleves.eleve'),
+            model_name="appreciationconseil",
+            name="eleve",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="appreciations_conseil",
+                to="eleves.eleve",
+            ),
         ),
         migrations.AddField(
-            model_name='conseilclasse',
-            name='classe',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='conseils', to='classes.classe'),
+            model_name="conseilclasse",
+            name="classe",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="conseils",
+                to="classes.classe",
+            ),
         ),
     ]

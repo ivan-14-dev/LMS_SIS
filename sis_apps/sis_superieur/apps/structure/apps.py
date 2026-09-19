@@ -1,4 +1,5 @@
 """App config for structure."""
+
 from django.apps import AppConfig
 
 

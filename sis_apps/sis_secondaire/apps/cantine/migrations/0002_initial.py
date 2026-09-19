@@ -9,32 +9,44 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('cantine', '0001_initial'),
-        ('eleves', '0001_initial'),
+        ("cantine", "0001_initial"),
+        ("eleves", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='inscriptioncantine',
-            name='eleve',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='inscription_cantine', to='eleves.eleve'),
+            model_name="inscriptioncantine",
+            name="eleve",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="inscription_cantine",
+                to="eleves.eleve",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='menu',
-            unique_together={('date', 'regime')},
+            name="menu",
+            unique_together={("date", "regime")},
         ),
         migrations.AddField(
-            model_name='presencecantine',
-            name='eleve',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='presences_cantine', to='eleves.eleve'),
+            model_name="presencecantine",
+            name="eleve",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="presences_cantine",
+                to="eleves.eleve",
+            ),
         ),
         migrations.AddField(
-            model_name='presencecantine',
-            name='menu',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='presences', to='cantine.menu'),
+            model_name="presencecantine",
+            name="menu",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="presences",
+                to="cantine.menu",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='presencecantine',
-            unique_together={('menu', 'eleve')},
+            name="presencecantine",
+            unique_together={("menu", "eleve")},
         ),
     ]

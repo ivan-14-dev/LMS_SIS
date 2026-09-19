@@ -1,4 +1,5 @@
 """Core module (noyau) - SIS Secondaire."""
+
 from django.apps import AppConfig
 
 

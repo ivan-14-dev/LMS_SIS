@@ -1,10 +1,13 @@
 """Models for Open edX integration (SIS Supérieur)."""
+
 from django.db import models
 
 
 class EdxUserMapping(models.Model):
     user_sis = models.OneToOneField(
-        "utilisateurs.Utilisateur", on_delete=models.CASCADE, related_name="edx_mapping_u"
+        "utilisateurs.Utilisateur",
+        on_delete=models.CASCADE,
+        related_name="edx_mapping_u",
     )
     username_edx = models.CharField(max_length=200, unique=True)
     user_id_edx = models.PositiveBigIntegerField(null=True, blank=True)
@@ -23,6 +26,7 @@ class EdxUserMapping(models.Model):
 
 class EdxCourseMapping(models.Model):
     """Mapping entre ECUE et cours LMS."""
+
     ecue = models.OneToOneField(
         "ue_ecue.ECUE", on_delete=models.CASCADE, related_name="edx_course"
     )
@@ -43,7 +47,9 @@ class EdxEnrollment(models.Model):
     etudiant = models.ForeignKey(
         "etudiants.Etudiant", on_delete=models.CASCADE, related_name="edx_enrollments"
     )
-    course = models.ForeignKey(EdxCourseMapping, on_delete=models.CASCADE, related_name="enrollments")
+    course = models.ForeignKey(
+        EdxCourseMapping, on_delete=models.CASCADE, related_name="enrollments"
+    )
     enrollment_id = models.PositiveBigIntegerField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     date_inscription = models.DateTimeField(auto_now_add=True)
@@ -59,7 +65,9 @@ class EdxEnrollment(models.Model):
 
 
 class EdxGradeLog(models.Model):
-    enrollment = models.ForeignKey(EdxEnrollment, on_delete=models.CASCADE, related_name="grade_logs")
+    enrollment = models.ForeignKey(
+        EdxEnrollment, on_delete=models.CASCADE, related_name="grade_logs"
+    )
     subsection_id = models.CharField(max_length=200)
     score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     max_score = models.DecimalField(max_digits=5, decimal_places=2, default=20)
@@ -67,7 +75,10 @@ class EdxGradeLog(models.Model):
     timestamp_lms = models.DateTimeField()
     imported_to_sis = models.BooleanField(default=False)
     note_sis = models.ForeignKey(
-        "notes.Note", on_delete=models.SET_NULL, null=True, blank=True,
+        "notes.Note",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="sources_lms",
     )
     created_at = models.DateTimeField(auto_now_add=True)

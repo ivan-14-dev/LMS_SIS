@@ -1,10 +1,12 @@
 """Models for etablissement (SIS Supérieur)."""
+
 from django.db import models
-from django_tenants.models import TenantMixin, DomainMixin
+from django_tenants.models import DomainMixin, TenantMixin
 
 
 class Universite(TenantMixin):
     """Université / Grande école / Institut — base du multi-tenant."""
+
     TYPE_CHOICES = [
         ("universite_publique", "Université publique"),
         ("universite_privee", "Université privée"),
@@ -43,11 +45,13 @@ class Universite(TenantMixin):
 
 class Domain(DomainMixin):
     """Domaine de l'université."""
+
     pass
 
 
 class AnneeUniversitaire(models.Model):
     """Année universitaire."""
+
     universite = models.ForeignKey(
         Universite, on_delete=models.CASCADE, related_name="annees_universitaires"
     )
@@ -68,6 +72,7 @@ class AnneeUniversitaire(models.Model):
 
 class Semestre(models.Model):
     """Semestre universitaire."""
+
     TYPE_CHOICES = [
         ("impair", "Semestre impair (S1, S3, S5)"),
         ("pair", "Semestre pair (S2, S4, S6)"),

@@ -1,5 +1,6 @@
 """Context processors pour les templates - SIS Supérieur."""
-from .middleware import get_current_tenant_id, get_current_request_id
+
+from .middleware import get_current_request_id, get_current_tenant_id
 
 
 def tenant_context(request):
