@@ -1,4 +1,5 @@
 """API tests for mobilite."""
+
 from django.test import TestCase
 
 

@@ -10,29 +10,41 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('eleves', '0002_initial'),
-        ('internat', '0001_initial'),
+        ("eleves", "0002_initial"),
+        ("internat", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='etudesurveillee',
-            name='surveillant',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='etudes_surv', to=settings.AUTH_USER_MODEL),
+            model_name="etudesurveillee",
+            name="surveillant",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="etudes_surv",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='occupantchambre',
-            name='chambre',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='occupants', to='internat.chambre'),
+            model_name="occupantchambre",
+            name="chambre",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="occupants",
+                to="internat.chambre",
+            ),
         ),
         migrations.AddField(
-            model_name='occupantchambre',
-            name='eleve',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='chambres_occupations', to='eleves.eleve'),
+            model_name="occupantchambre",
+            name="eleve",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="chambres_occupations",
+                to="eleves.eleve",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='chambre',
-            unique_together={('batiment', 'numero')},
+            name="chambre",
+            unique_together={("batiment", "numero")},
         ),
     ]

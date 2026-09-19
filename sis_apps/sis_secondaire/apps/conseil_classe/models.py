@@ -1,27 +1,36 @@
 """Models for conseil de classe (SIS Secondaire)."""
-from django.db import models
+
 from apps.classes.models import Classe
 from apps.eleves.models import Eleve
 from apps.etablissement.models import Periode
 from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class ConseilClasse(models.Model):
     """Conseil de classe pour une classe et une période."""
+
     STATUT_CHOICES = [
         ("planifie", "Planifié"),
         ("tenu", "Tenu"),
         ("valide", "Validé"),
         ("annule", "Annulé"),
     ]
-    classe = models.ForeignKey(Classe, on_delete=models.CASCADE, related_name="conseils")
-    periode = models.ForeignKey(Periode, on_delete=models.CASCADE, related_name="conseils")
+    classe = models.ForeignKey(
+        Classe, on_delete=models.CASCADE, related_name="conseils"
+    )
+    periode = models.ForeignKey(
+        Periode, on_delete=models.CASCADE, related_name="conseils"
+    )
     date = models.DateTimeField()
     president = models.ForeignKey(
         Utilisateur, on_delete=models.PROTECT, related_name="conseils_presides"
     )
     secretaire = models.ForeignKey(
-        Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="conseils_secretaires",
     )
     participants = models.ManyToManyField(
@@ -44,6 +53,7 @@ class ConseilClasse(models.Model):
 
 class DecisionConseil(models.Model):
     """Décision du conseil pour un élève."""
+
     DECISION_CHOICES = [
         ("passage", "Passage en classe supérieure"),
         ("passage_conditionnel", "Passage conditionnel"),
@@ -55,10 +65,16 @@ class DecisionConseil(models.Model):
         ("avertissement_comportement", "Avertissement comportement"),
         ("blame", "Blâme"),
     ]
-    conseil = models.ForeignKey(ConseilClasse, on_delete=models.CASCADE, related_name="decisions")
-    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="decisions_conseil")
+    conseil = models.ForeignKey(
+        ConseilClasse, on_delete=models.CASCADE, related_name="decisions"
+    )
+    eleve = models.ForeignKey(
+        Eleve, on_delete=models.CASCADE, related_name="decisions_conseil"
+    )
     decision = models.CharField(max_length=30, choices=DECISION_CHOICES)
-    moyenne_generale = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    moyenne_generale = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
     rang = models.PositiveIntegerField(null=True, blank=True)
     motif = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -74,8 +90,13 @@ class DecisionConseil(models.Model):
 
 class AppreciationConseil(models.Model):
     """Appréciation générale du conseil pour un élève."""
-    conseil = models.ForeignKey(ConseilClasse, on_delete=models.CASCADE, related_name="appreciations")
-    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="appreciations_conseil")
+
+    conseil = models.ForeignKey(
+        ConseilClasse, on_delete=models.CASCADE, related_name="appreciations"
+    )
+    eleve = models.ForeignKey(
+        Eleve, on_delete=models.CASCADE, related_name="appreciations_conseil"
+    )
     appreciation = models.TextField()
     projet_orientation = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,10 +1,12 @@
 """Models for etablissement (SIS Secondaire)."""
+
 from django.db import models
-from django_tenants.models import TenantMixin, DomainMixin
+from django_tenants.models import DomainMixin, TenantMixin
 
 
 class Etablissement(TenantMixin):
     """Établissement scolaire (collège/lycée) — base du multi-tenant."""
+
     TYPE_CHOICES = [
         ("college", "Collège"),
         ("lycee", "Lycée"),
@@ -27,7 +29,11 @@ class Etablissement(TenantMixin):
     ministere_tutelle = models.CharField(max_length=200, blank=True)
     systeme_periodes = models.CharField(
         max_length=20,
-        choices=[("trimestre", "Trimestre"), ("semestre", "Semestre"), ("quadrimestre", "Quadrimestre")],
+        choices=[
+            ("trimestre", "Trimestre"),
+            ("semestre", "Semestre"),
+            ("quadrimestre", "Quadrimestre"),
+        ],
         default="trimestre",
     )
     date_creation = models.DateTimeField(auto_now_add=True)
@@ -44,11 +50,13 @@ class Etablissement(TenantMixin):
 
 class Domain(DomainMixin):
     """Domaine associé à un établissement."""
+
     pass
 
 
 class AnneeScolaire(models.Model):
     """Année scolaire d'un établissement."""
+
     etablissement = models.ForeignKey(
         Etablissement, on_delete=models.CASCADE, related_name="annees_scolaires"
     )
@@ -70,6 +78,7 @@ class AnneeScolaire(models.Model):
 
 class Periode(models.Model):
     """Période (trimestre, semestre, etc.)."""
+
     TYPE_CHOICES = [
         ("trimestre", "Trimestre"),
         ("semestre", "Semestre"),
@@ -91,15 +100,25 @@ class Periode(models.Model):
         ordering = ["annee_scolaire", "numero"]
 
     def __str__(self):
-        return f"{self.get_type_display()} {self.numero} - {self.annee_scolaire.libelle}"
+        return (
+            f"{self.get_type_display()} {self.numero} - {self.annee_scolaire.libelle}"
+        )
 
 
 class Niveau(models.Model):
     """Niveau scolaire (6e, 5e, 2nde, etc.)."""
+
     CODE_CHOICES = [
-        ("6e", "6ème"), ("5e", "5ème"), ("4e", "4ème"), ("3e", "3ème"),
-        ("2nde", "2nde"), ("1ere", "1ère"), ("tale", "Terminale"),
-        ("2nde_pro", "2nde Pro"), ("1ere_pro", "1ère Pro"), ("tale_pro", "Terminale Pro"),
+        ("6e", "6ème"),
+        ("5e", "5ème"),
+        ("4e", "4ème"),
+        ("3e", "3ème"),
+        ("2nde", "2nde"),
+        ("1ere", "1ère"),
+        ("tale", "Terminale"),
+        ("2nde_pro", "2nde Pro"),
+        ("1ere_pro", "1ère Pro"),
+        ("tale_pro", "Terminale Pro"),
     ]
     etablissement = models.ForeignKey(
         Etablissement, on_delete=models.CASCADE, related_name="niveaux"

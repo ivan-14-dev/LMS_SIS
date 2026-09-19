@@ -7,76 +7,146 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Emprunt',
+            name="Emprunt",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date_emprunt', models.DateField()),
-                ('date_retour_prevue', models.DateField()),
-                ('date_retour_reelle', models.DateField(blank=True, null=True)),
-                ('statut', models.CharField(choices=[('en_cours', 'En cours'), ('rendu', 'Rendu'), ('en_retard', 'En retard'), ('perdu', 'Perdu')], default='en_cours', max_length=20)),
-                ('nb_renouvellements', models.PositiveSmallIntegerField(default=0)),
-                ('penalite', models.DecimalField(decimal_places=2, default=0, max_digits=6)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date_emprunt", models.DateField()),
+                ("date_retour_prevue", models.DateField()),
+                ("date_retour_reelle", models.DateField(blank=True, null=True)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("en_cours", "En cours"),
+                            ("rendu", "Rendu"),
+                            ("en_retard", "En retard"),
+                            ("perdu", "Perdu"),
+                        ],
+                        default="en_cours",
+                        max_length=20,
+                    ),
+                ),
+                ("nb_renouvellements", models.PositiveSmallIntegerField(default=0)),
+                (
+                    "penalite",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=6),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Emprunt',
-                'verbose_name_plural': 'Emprunts',
-                'ordering': ['-date_emprunt'],
+                "verbose_name": "Emprunt",
+                "verbose_name_plural": "Emprunts",
+                "ordering": ["-date_emprunt"],
             },
         ),
         migrations.CreateModel(
-            name='Exemplaire',
+            name="Exemplaire",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code_barre', models.CharField(max_length=50, unique=True)),
-                ('etat', models.CharField(choices=[('neuf', 'Neuf'), ('bon', 'Bon'), ('use', 'Usé'), ('détérioré', 'Détérioré'), ('perdu', 'Perdu')], default='bon', max_length=20)),
-                ('localisation', models.CharField(blank=True, max_length=200)),
-                ('date_acquisition', models.DateField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("code_barre", models.CharField(max_length=50, unique=True)),
+                (
+                    "etat",
+                    models.CharField(
+                        choices=[
+                            ("neuf", "Neuf"),
+                            ("bon", "Bon"),
+                            ("use", "Usé"),
+                            ("détérioré", "Détérioré"),
+                            ("perdu", "Perdu"),
+                        ],
+                        default="bon",
+                        max_length=20,
+                    ),
+                ),
+                ("localisation", models.CharField(blank=True, max_length=200)),
+                ("date_acquisition", models.DateField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Exemplaire',
-                'verbose_name_plural': 'Exemplaires',
+                "verbose_name": "Exemplaire",
+                "verbose_name_plural": "Exemplaires",
             },
         ),
         migrations.CreateModel(
-            name='Livre',
+            name="Livre",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('isbn', models.CharField(blank=True, max_length=20)),
-                ('titre', models.CharField(max_length=300)),
-                ('auteurs', models.CharField(max_length=500)),
-                ('editeur', models.CharField(blank=True, max_length=200)),
-                ('annee', models.PositiveSmallIntegerField(blank=True, null=True)),
-                ('categorie', models.CharField(blank=True, max_length=100)),
-                ('mots_cles', models.JSONField(blank=True, default=list)),
-                ('resume', models.TextField(blank=True)),
-                ('image_couverture', models.URLField(blank=True)),
-                ('cote', models.CharField(blank=True, max_length=50)),
-                ('nombre_exemplaires', models.PositiveIntegerField(default=1)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("isbn", models.CharField(blank=True, max_length=20)),
+                ("titre", models.CharField(max_length=300)),
+                ("auteurs", models.CharField(max_length=500)),
+                ("editeur", models.CharField(blank=True, max_length=200)),
+                ("annee", models.PositiveSmallIntegerField(blank=True, null=True)),
+                ("categorie", models.CharField(blank=True, max_length=100)),
+                ("mots_cles", models.JSONField(blank=True, default=list)),
+                ("resume", models.TextField(blank=True)),
+                ("image_couverture", models.URLField(blank=True)),
+                ("cote", models.CharField(blank=True, max_length=50)),
+                ("nombre_exemplaires", models.PositiveIntegerField(default=1)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Livre',
-                'verbose_name_plural': 'Livres',
-                'ordering': ['titre'],
+                "verbose_name": "Livre",
+                "verbose_name_plural": "Livres",
+                "ordering": ["titre"],
             },
         ),
         migrations.CreateModel(
-            name='Reservation',
+            name="Reservation",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date_reservation', models.DateTimeField(auto_now_add=True)),
-                ('statut', models.CharField(choices=[('en_attente', 'En attente'), ('disponible', 'Disponible'), ('annulee', 'Annulée')], default='en_attente', max_length=20)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date_reservation", models.DateTimeField(auto_now_add=True)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("en_attente", "En attente"),
+                            ("disponible", "Disponible"),
+                            ("annulee", "Annulée"),
+                        ],
+                        default="en_attente",
+                        max_length=20,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Réservation',
-                'verbose_name_plural': 'Réservations',
+                "verbose_name": "Réservation",
+                "verbose_name_plural": "Réservations",
             },
         ),
     ]

@@ -9,53 +9,89 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('classes', '0001_initial'),
-        ('emplois_du_temps', '0001_initial'),
-        ('enseignants', '0001_initial'),
-        ('salles', '0001_initial'),
+        ("classes", "0001_initial"),
+        ("emplois_du_temps", "0001_initial"),
+        ("enseignants", "0001_initial"),
+        ("salles", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='contrainte',
-            name='enseignant',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='contraintes', to='enseignants.personnel'),
+            model_name="contrainte",
+            name="enseignant",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="contraintes",
+                to="enseignants.personnel",
+            ),
         ),
         migrations.AddField(
-            model_name='contrainte',
-            name='salle',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='contraintes', to='salles.salle'),
+            model_name="contrainte",
+            name="salle",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="contraintes",
+                to="salles.salle",
+            ),
         ),
         migrations.AddField(
-            model_name='creneau',
-            name='classe',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='creneaux', to='classes.classe'),
+            model_name="creneau",
+            name="classe",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="creneaux",
+                to="classes.classe",
+            ),
         ),
         migrations.AddField(
-            model_name='creneau',
-            name='enseignant',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='creneaux', to='enseignants.personnel'),
+            model_name="creneau",
+            name="enseignant",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="creneaux",
+                to="enseignants.personnel",
+            ),
         ),
         migrations.AddField(
-            model_name='creneau',
-            name='matiere',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='creneaux', to='classes.matiere'),
+            model_name="creneau",
+            name="matiere",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="creneaux",
+                to="classes.matiere",
+            ),
         ),
         migrations.AddField(
-            model_name='creneau',
-            name='salle',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='creneaux', to='salles.salle'),
+            model_name="creneau",
+            name="salle",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="creneaux",
+                to="salles.salle",
+            ),
         ),
         migrations.AddIndex(
-            model_name='creneau',
-            index=models.Index(fields=['classe', 'jour'], name='emplois_du__classe__66b5d8_idx'),
+            model_name="creneau",
+            index=models.Index(
+                fields=["classe", "jour"], name="emplois_du__classe__66b5d8_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='creneau',
-            index=models.Index(fields=['enseignant', 'jour'], name='emplois_du__enseign_09dc52_idx'),
+            model_name="creneau",
+            index=models.Index(
+                fields=["enseignant", "jour"], name="emplois_du__enseign_09dc52_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='creneau',
-            index=models.Index(fields=['salle', 'jour'], name='emplois_du__salle_i_0cd3b6_idx'),
+            model_name="creneau",
+            index=models.Index(
+                fields=["salle", "jour"], name="emplois_du__salle_i_0cd3b6_idx"
+            ),
         ),
     ]

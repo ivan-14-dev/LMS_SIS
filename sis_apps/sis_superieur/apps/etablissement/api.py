@@ -1,121 +1,122 @@
 """API views for etablissement (ViewSets DRF) - SIS Supérieur."""
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter, OrderingFilter
 
-from .models import Universite, AnneeUniversitaire, Semestre
-from .serializers import (
-    UniversiteSerializer,
-    AnneeUniversitaireSerializer,
-    SemestreSerializer,
-)
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from .models import AnneeUniversitaire, Semestre, Universite
+from .serializers import AnneeUniversitaireSerializer, SemestreSerializer, UniversiteSerializer
 
 
 class IsAdminOrReadOnly(IsAuthenticated):
     """Permission: admin pour écriture, authentifié pour lecture."""
+
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        if request.method in ('GET', 'HEAD', 'OPTIONS'):
+        if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
         return request.user.is_staff
 
 
 class UniversitesViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour universités."""
+
     permission_classes = [IsAdminOrReadOnly]
     serializer_class = UniversiteSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['type', 'pays', 'actif']
-    search_fields = ['nom', 'sigle', 'ville']
-    ordering = ['nom']
+    filterset_fields = ["type", "pays", "actif"]
+    search_fields = ["nom", "sigle", "ville"]
+    ordering = ["nom"]
 
     def get_queryset(self):
-        return Universite.objects.prefetch_related('facultes')
+        return Universite.objects.prefetch_related("facultes")
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=["get"])
     def annees(self, request, pk=None):
         """Liste les années universitaires."""
         universite = self.get_object()
-        annees = universite.annees_universitaires.all().order_by('-date_debut')
+        annees = universite.annees_universitaires.all().order_by("-date_debut")
         serializer = AnneeUniversitaireSerializer(annees, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=["get"])
     def facultes(self, request, pk=None):
         """Liste les facultés de l'université."""
         universite = self.get_object()
         from apps.structure.serializers import FaculteListSerializer
-        facultes = universite.facultes.select_related('doyen').order_by('code')
+
+        facultes = universite.facultes.select_related("doyen").order_by("code")
         serializer = FaculteListSerializer(facultes, many=True)
         return Response(serializer.data)
 
 
 class AnneesUniversitairesViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour années universitaires."""
+
     permission_classes = [IsAdminOrReadOnly]
     serializer_class = AnneeUniversitaireSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ['universite', 'en_cours', 'cloturee']
-    ordering = ['-date_debut']
+    filterset_fields = ["universite", "en_cours", "cloturee"]
+    ordering = ["-date_debut"]
 
     def get_queryset(self):
-        return AnneeUniversitaire.objects.select_related('universite')
+        return AnneeUniversitaire.objects.select_related("universite")
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=["get"])
     def semestres(self, request, pk=None):
         """Liste les semestres de l'année."""
         annee = self.get_object()
-        semestres = annee.semestres.all().order_by('numero')
+        semestres = annee.semestres.all().order_by("numero")
         serializer = SemestreSerializer(semestres, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def activer(self, request, pk=None):
         """Active l'année universitaire."""
         annee = self.get_object()
         # Désactiver les autres années de la même université
         AnneeUniversitaire.objects.filter(
-            universite=annee.universite,
-            en_cours=True
+            universite=annee.universite, en_cours=True
         ).exclude(pk=annee.pk).update(en_cours=False)
-        
-        annee.en_cours = True
-        annee.save(update_fields=['en_cours'])
-        return Response({'detail': "Année activée.", 'id': annee.id})
 
-    @action(detail=True, methods=['post'])
+        annee.en_cours = True
+        annee.save(update_fields=["en_cours"])
+        return Response({"detail": "Année activée.", "id": annee.id})
+
+    @action(detail=True, methods=["post"])
     def cloturer(self, request, pk=None):
         """Clôture l'année universitaire."""
         annee = self.get_object()
         if annee.cloturee:
-            return Response({'error': "Année déjà clôturée."}, status=400)
+            return Response({"error": "Année déjà clôturée."}, status=400)
         annee.cloturee = True
         annee.en_cours = False
-        annee.save(update_fields=['cloturee', 'en_cours'])
-        return Response({'detail': "Année clôturée.", 'id': annee.id})
+        annee.save(update_fields=["cloturee", "en_cours"])
+        return Response({"detail": "Année clôturée.", "id": annee.id})
 
 
 class SemestresViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour semestres."""
+
     permission_classes = [IsAdminOrReadOnly]
     serializer_class = SemestreSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ['annee_universitaire', 'type', 'cloture']
-    ordering = ['annee_universitaire', 'numero']
+    filterset_fields = ["annee_universitaire", "type", "cloture"]
+    ordering = ["annee_universitaire", "numero"]
 
     def get_queryset(self):
-        return Semestre.objects.select_related('annee_universitaire')
+        return Semestre.objects.select_related("annee_universitaire")
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=["post"])
     def cloturer(self, request, pk=None):
         """Clôture le semestre."""
         semestre = self.get_object()
         if semestre.cloture:
-            return Response({'error': "Semestre déjà clôturé."}, status=400)
+            return Response({"error": "Semestre déjà clôturé."}, status=400)
         semestre.cloture = True
-        semestre.save(update_fields=['cloture'])
-        return Response({'detail': "Semestre clôturé.", 'id': semestre.id})
+        semestre.save(update_fields=["cloture"])
+        return Response({"detail": "Semestre clôturé.", "id": semestre.id})

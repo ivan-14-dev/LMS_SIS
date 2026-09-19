@@ -9,65 +9,160 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('ue_ecue', '0001_initial'),
+        ("ue_ecue", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='MoyenneECUE',
+            name="MoyenneECUE",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('moyenne', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('valide', models.BooleanField(default=False)),
-                ('date_calcul', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "moyenne",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                ("valide", models.BooleanField(default=False)),
+                ("date_calcul", models.DateTimeField(auto_now=True)),
             ],
         ),
         migrations.CreateModel(
-            name='MoyenneUE',
+            name="MoyenneUE",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('moyenne', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('credits_obtenus', models.DecimalField(decimal_places=2, default=0, max_digits=4)),
-                ('capitalisee', models.BooleanField(default=False)),
-                ('date_calcul', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "moyenne",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                (
+                    "credits_obtenus",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=4),
+                ),
+                ("capitalisee", models.BooleanField(default=False)),
+                ("date_calcul", models.DateTimeField(auto_now=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Note',
+            name="Note",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('valeur', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('numero_anonyme', models.CharField(blank=True, max_length=20)),
-                ('appreciation', models.TextField(blank=True)),
-                ('statut', models.CharField(choices=[('presente', 'Présentée'), ('absente', 'Absent'), ('absent_justifie', 'Absent justifié'), ('dispense', 'Dispensé'), ('non_rendue', 'Non rendue'), ('triche', 'Triche'), ('en_attente', 'En attente')], default='en_attente', max_length=20)),
-                ('date_saisie', models.DateTimeField(auto_now_add=True)),
-                ('modifie_le', models.DateTimeField(blank=True, null=True)),
-                ('motif_modification', models.TextField(blank=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "valeur",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                ("numero_anonyme", models.CharField(blank=True, max_length=20)),
+                ("appreciation", models.TextField(blank=True)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("presente", "Présentée"),
+                            ("absente", "Absent"),
+                            ("absent_justifie", "Absent justifié"),
+                            ("dispense", "Dispensé"),
+                            ("non_rendue", "Non rendue"),
+                            ("triche", "Triche"),
+                            ("en_attente", "En attente"),
+                        ],
+                        default="en_attente",
+                        max_length=20,
+                    ),
+                ),
+                ("date_saisie", models.DateTimeField(auto_now_add=True)),
+                ("modifie_le", models.DateTimeField(blank=True, null=True)),
+                ("motif_modification", models.TextField(blank=True)),
             ],
             options={
-                'ordering': ['etudiant__user__last_name'],
+                "ordering": ["etudiant__user__last_name"],
             },
         ),
         migrations.CreateModel(
-            name='Evaluation',
+            name="Evaluation",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.CharField(default='cc', max_length=20)),
-                ('titre', models.CharField(max_length=200)),
-                ('description', models.TextField(blank=True)),
-                ('date', models.DateField()),
-                ('heure_debut', models.TimeField(blank=True, null=True)),
-                ('duree_minutes', models.PositiveIntegerField(blank=True, null=True)),
-                ('bareme', models.DecimalField(decimal_places=2, default=20, max_digits=5)),
-                ('coefficient', models.DecimalField(decimal_places=2, default=1, max_digits=4)),
-                ('modalite', models.CharField(choices=[('cc', 'Contrôle continu'), ('examen_ecrit', 'Examen écrit'), ('examen_oral', 'Examen oral'), ('tp', 'TP / Pratique'), ('projet', 'Projet'), ('rattrapage', 'Rattrapage')], default='cc', max_length=20)),
-                ('anonyme', models.BooleanField(default=False, help_text='Notation anonyme')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('ecue', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='evaluations', to='ue_ecue.ecue')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("type", models.CharField(default="cc", max_length=20)),
+                ("titre", models.CharField(max_length=200)),
+                ("description", models.TextField(blank=True)),
+                ("date", models.DateField()),
+                ("heure_debut", models.TimeField(blank=True, null=True)),
+                ("duree_minutes", models.PositiveIntegerField(blank=True, null=True)),
+                (
+                    "bareme",
+                    models.DecimalField(decimal_places=2, default=20, max_digits=5),
+                ),
+                (
+                    "coefficient",
+                    models.DecimalField(decimal_places=2, default=1, max_digits=4),
+                ),
+                (
+                    "modalite",
+                    models.CharField(
+                        choices=[
+                            ("cc", "Contrôle continu"),
+                            ("examen_ecrit", "Examen écrit"),
+                            ("examen_oral", "Examen oral"),
+                            ("tp", "TP / Pratique"),
+                            ("projet", "Projet"),
+                            ("rattrapage", "Rattrapage"),
+                        ],
+                        default="cc",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "anonyme",
+                    models.BooleanField(default=False, help_text="Notation anonyme"),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "ecue",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="evaluations",
+                        to="ue_ecue.ecue",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-date'],
+                "ordering": ["-date"],
             },
         ),
     ]

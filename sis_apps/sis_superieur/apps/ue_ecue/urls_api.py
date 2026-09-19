@@ -1,6 +1,4 @@
 """URLs API for ue_ecue."""
-from django.urls import path
-from . import api
 
 app_name = "ue_ecue_api"
 

@@ -9,19 +9,27 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('ects', '0001_initial'),
-        ('etudiants', '0001_initial'),
+        ("ects", "0001_initial"),
+        ("etudiants", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='bilanects',
-            name='etudiant',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='bilans_ects', to='etudiants.etudiant'),
+            model_name="bilanects",
+            name="etudiant",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="bilans_ects",
+                to="etudiants.etudiant",
+            ),
         ),
         migrations.AddField(
-            model_name='bilanects',
-            name='inscription_admin',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='bilans_ects', to='etudiants.inscriptionadministrative'),
+            model_name="bilanects",
+            name="inscription_admin",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="bilans_ects",
+                to="etudiants.inscriptionadministrative",
+            ),
         ),
     ]

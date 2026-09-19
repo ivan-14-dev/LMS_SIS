@@ -1,10 +1,12 @@
 """Models for utilisateurs (SIS Supérieur)."""
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
 class Utilisateur(AbstractUser):
     """Utilisateur de la plateforme universitaire."""
+
     ROLE_CHOICES = [
         ("super_admin", "Super administrateur"),
         ("president", "Président d'université"),
@@ -26,8 +28,11 @@ class Utilisateur(AbstractUser):
         ("parent", "Parent"),
     ]
     etablissement = models.ForeignKey(
-        "etablissement.Universite", on_delete=models.CASCADE,
-        related_name="utilisateurs", null=True, blank=True,
+        "etablissement.Universite",
+        on_delete=models.CASCADE,
+        related_name="utilisateurs",
+        null=True,
+        blank=True,
     )
     role = models.CharField(max_length=40, choices=ROLE_CHOICES, default="etudiant")
     numero_etudiant = models.CharField(max_length=50, blank=True)
@@ -59,4 +64,10 @@ class Utilisateur(AbstractUser):
 
     @property
     def is_admin(self):
-        return self.role in ("president", "vice_president", "doyen", "directeur_dept", "scolarite")
+        return self.role in (
+            "president",
+            "vice_president",
+            "doyen",
+            "directeur_dept",
+            "scolarite",
+        )

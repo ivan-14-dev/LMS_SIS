@@ -10,19 +10,27 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('enseignants', '0003_initial'),
+        ("enseignants", "0003_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='enseignantchercheur',
-            name='user',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='enseignant_profile', to=settings.AUTH_USER_MODEL),
+            model_name="enseignantchercheur",
+            name="user",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="enseignant_profile",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='affectationenseignement',
-            name='enseignant',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='affectations', to='enseignants.enseignantchercheur'),
+            model_name="affectationenseignement",
+            name="enseignant",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="affectations",
+                to="enseignants.enseignantchercheur",
+            ),
         ),
     ]

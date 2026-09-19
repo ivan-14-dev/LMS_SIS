@@ -9,30 +9,42 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('bulletins', '0001_initial'),
-        ('classes', '0001_initial'),
-        ('eleves', '0001_initial'),
-        ('etablissement', '0001_initial'),
+        ("bulletins", "0001_initial"),
+        ("classes", "0001_initial"),
+        ("eleves", "0001_initial"),
+        ("etablissement", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='appreciationmatiere',
-            name='eleve',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='appreciations_matiere', to='eleves.eleve'),
+            model_name="appreciationmatiere",
+            name="eleve",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="appreciations_matiere",
+                to="eleves.eleve",
+            ),
         ),
         migrations.AddField(
-            model_name='appreciationmatiere',
-            name='matiere',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='appreciations', to='classes.matiere'),
+            model_name="appreciationmatiere",
+            name="matiere",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="appreciations",
+                to="classes.matiere",
+            ),
         ),
         migrations.AddField(
-            model_name='appreciationmatiere',
-            name='periode',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='appreciations', to='etablissement.periode'),
+            model_name="appreciationmatiere",
+            name="periode",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="appreciations",
+                to="etablissement.periode",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='appreciationmatiere',
-            unique_together={('eleve', 'matiere', 'periode')},
+            name="appreciationmatiere",
+            unique_together={("eleve", "matiere", "periode")},
         ),
     ]

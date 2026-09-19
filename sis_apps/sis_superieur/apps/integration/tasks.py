@@ -1,41 +1,55 @@
 """Tâches Celery d'intégration LMS + CMS - SIS Supérieur."""
+
 import logging
+
 from celery import shared_task
-from .models import OutboxEvent, EdxEnrollment, EdxCourseMapping, EdxUserMapping
-from .sync_service import SyncService
-from .edx_client import get_edx_client
 from django.utils import timezone
+
+from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
+from .sync_service import SyncService
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task
 def process_user_webhook(payload):
-    from .webhook_handlers import WebhookHandler
     from apps.etudiants.models import Etudiant
     from apps.notes.models import Note
+
     from .models import EdxGradeLog
-    handler = WebhookHandler(EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Etudiant, Note)
+    from .webhook_handlers import WebhookHandler
+
+    handler = WebhookHandler(
+        EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Etudiant, Note
+    )
     return handler.handle_user_created(payload)
 
 
 @shared_task
 def process_enrollment_webhook(payload):
-    from .webhook_handlers import WebhookHandler
     from apps.etudiants.models import Etudiant
     from apps.notes.models import Note
+
     from .models import EdxGradeLog
-    handler = WebhookHandler(EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Etudiant, Note)
+    from .webhook_handlers import WebhookHandler
+
+    handler = WebhookHandler(
+        EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Etudiant, Note
+    )
     return handler.handle_enrollment_created(payload)
 
 
 @shared_task
 def process_grade_webhook(payload):
-    from .webhook_handlers import WebhookHandler
     from apps.etudiants.models import Etudiant
     from apps.notes.models import Note
+
     from .models import EdxGradeLog
-    handler = WebhookHandler(EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Etudiant, Note)
+    from .webhook_handlers import WebhookHandler
+
+    handler = WebhookHandler(
+        EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Etudiant, Note
+    )
     return handler.handle_grade_updated(payload)
 
 
@@ -95,6 +109,7 @@ def reconcile_lms():
 @shared_task
 def sync_all_pending_etudiants():
     from apps.etudiants.models import Etudiant
+
     service = SyncService()
     pending = Etudiant.objects.exclude(
         user__edx_mapping_u__isnull=False

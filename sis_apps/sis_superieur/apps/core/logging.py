@@ -1,6 +1,7 @@
 """Core utilities et middleware - SIS Supérieur."""
-import logging
+
 import json
+import logging
 
 
 class JsonFormatter(logging.Formatter):

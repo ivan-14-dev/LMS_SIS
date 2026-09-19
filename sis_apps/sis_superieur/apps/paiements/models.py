@@ -1,12 +1,14 @@
 """Models for paiements (SIS Supérieur)."""
-from django.db import models
-from apps.etudiants.models import Etudiant
+
 from apps.etablissement.models import AnneeUniversitaire
+from apps.etudiants.models import Etudiant
 from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class TypeFraisInscription(models.Model):
     """Type de frais d'inscription (scolarité, CVEC, etc.)."""
+
     PERIODE_CHOICES = [
         ("unique", "Unique"),
         ("semestriel", "Semestriel"),
@@ -18,9 +20,13 @@ class TypeFraisInscription(models.Model):
     code = models.CharField(max_length=50)
     libelle = models.CharField(max_length=200)
     montant = models.DecimalField(max_digits=10, decimal_places=2)
-    periodicite = models.CharField(max_length=20, choices=PERIODE_CHOICES, default="annuel")
+    periodicite = models.CharField(
+        max_length=20, choices=PERIODE_CHOICES, default="annuel"
+    )
     obligatoire = models.BooleanField(default=True)
-    formations = models.ManyToManyField("formations.Formation", blank=True, related_name="types_frais")
+    formations = models.ManyToManyField(
+        "formations.Formation", blank=True, related_name="types_frais"
+    )
     date_limite = models.DateField(null=True, blank=True)
     actif = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -36,6 +42,7 @@ class TypeFraisInscription(models.Model):
 
 class FactureFrais(models.Model):
     """Facture de frais d'inscription."""
+
     STATUT_CHOICES = [
         ("brouillon", "Brouillon"),
         ("emise", "Émise"),
@@ -44,7 +51,9 @@ class FactureFrais(models.Model):
         ("en_retard", "En retard"),
         ("annulee", "Annulée"),
     ]
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.PROTECT, related_name="factures")
+    etudiant = models.ForeignKey(
+        Etudiant, on_delete=models.PROTECT, related_name="factures"
+    )
     type_frais = models.ForeignKey(
         TypeFraisInscription, on_delete=models.PROTECT, related_name="factures"
     )
@@ -72,6 +81,7 @@ class FactureFrais(models.Model):
 
 class PaiementFrais(models.Model):
     """Paiement d'une facture."""
+
     MODE_CHOICES = [
         ("especes", "Espèces"),
         ("cheque", "Chèque"),
@@ -86,7 +96,9 @@ class PaiementFrais(models.Model):
         ("echec", "Échec"),
         ("rembourse", "Remboursé"),
     ]
-    facture = models.ForeignKey(FactureFrais, on_delete=models.CASCADE, related_name="paiements")
+    facture = models.ForeignKey(
+        FactureFrais, on_delete=models.CASCADE, related_name="paiements"
+    )
     numero = models.CharField(max_length=50, unique=True)
     date_paiement = models.DateField()
     montant = models.DecimalField(max_digits=10, decimal_places=2)
@@ -95,7 +107,10 @@ class PaiementFrais(models.Model):
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="valide")
     recu_pdf = models.CharField(max_length=500, blank=True)
     enregistre_par = models.ForeignKey(
-        Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="paiements_enregistres",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -109,6 +124,7 @@ class PaiementFrais(models.Model):
 
 class Bourse(models.Model):
     """Bourse et aide financière."""
+
     TYPE_CHOICES = [
         ("sociale", "Bourse sur critères sociaux"),
         ("merite", "Bourse au mérite"),
@@ -117,7 +133,9 @@ class Bourse(models.Model):
         ("urgence", "Aide d'urgence"),
         ("exoneration", "Exonération"),
     ]
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="bourses")
+    etudiant = models.ForeignKey(
+        Etudiant, on_delete=models.CASCADE, related_name="bourses"
+    )
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     montant_total = models.DecimalField(max_digits=10, decimal_places=2)
     montant_verse = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -127,7 +145,12 @@ class Bourse(models.Model):
     conditions = models.TextField(blank=True)
     statut = models.CharField(
         max_length=20,
-        choices=[("en_attente", "En attente"), ("accordee", "Accordée"), ("refusee", "Refusée"), ("suspendue", "Suspendue")],
+        choices=[
+            ("en_attente", "En attente"),
+            ("accordee", "Accordée"),
+            ("refusee", "Refusée"),
+            ("suspendue", "Suspendue"),
+        ],
         default="en_attente",
     )
     motif_refus = models.TextField(blank=True)
@@ -144,7 +167,10 @@ class Bourse(models.Model):
 
 class VersementBourse(models.Model):
     """Versement d'une bourse."""
-    bourse = models.ForeignKey(Bourse, on_delete=models.CASCADE, related_name="versements")
+
+    bourse = models.ForeignKey(
+        Bourse, on_delete=models.CASCADE, related_name="versements"
+    )
     date_versement = models.DateField()
     montant = models.DecimalField(max_digits=10, decimal_places=2)
     mode = models.CharField(max_length=20, default="virement")

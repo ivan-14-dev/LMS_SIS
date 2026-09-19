@@ -1,4 +1,5 @@
 """App config for etablissement."""
+
 from django.apps import AppConfig
 
 

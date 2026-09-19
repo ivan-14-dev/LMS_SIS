@@ -10,29 +10,45 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('stages', '0001_initial'),
+        ("stages", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='conventionstage',
-            name='maitre_stage_etablissement',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='stages_suivis', to=settings.AUTH_USER_MODEL),
+            model_name="conventionstage",
+            name="maitre_stage_etablissement",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="stages_suivis",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='conventionstage',
-            name='entreprise',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='conventions', to='stages.entreprise'),
+            model_name="conventionstage",
+            name="entreprise",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="conventions",
+                to="stages.entreprise",
+            ),
         ),
         migrations.AddField(
-            model_name='evaluationstage',
-            name='convention',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='evaluation', to='stages.conventionstage'),
+            model_name="evaluationstage",
+            name="convention",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="evaluation",
+                to="stages.conventionstage",
+            ),
         ),
         migrations.AddField(
-            model_name='suivistage',
-            name='convention',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='suivis', to='stages.conventionstage'),
+            model_name="suivistage",
+            name="convention",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="suivis",
+                to="stages.conventionstage",
+            ),
         ),
     ]

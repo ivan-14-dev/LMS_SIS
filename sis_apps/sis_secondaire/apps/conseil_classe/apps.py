@@ -1,4 +1,5 @@
 """App config for conseil_classe."""
+
 from django.apps import AppConfig
 
 

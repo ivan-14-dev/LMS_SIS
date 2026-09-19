@@ -1,4 +1,5 @@
 """View tests for notes."""
+
 from django.test import TestCase
 
 

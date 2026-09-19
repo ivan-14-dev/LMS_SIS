@@ -1,7 +1,5 @@
 """URLs for core."""
-from django.urls import path
 
 app_name = "core"
 
-urlpatterns = [
-]
+urlpatterns = []

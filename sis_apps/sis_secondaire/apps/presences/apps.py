@@ -1,4 +1,5 @@
 """App config for presences."""
+
 from django.apps import AppConfig
 
 

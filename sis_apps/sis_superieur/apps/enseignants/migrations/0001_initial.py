@@ -9,46 +9,106 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etablissement', '0001_initial'),
+        ("etablissement", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='EnseignantChercheur',
+            name="EnseignantChercheur",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('numero_harpe', models.CharField(blank=True, help_text='ID HARPEGE', max_length=20)),
-                ('corps', models.CharField(choices=[('PR', 'Professeur des universités'), ('MCF', 'Maître de conférences'), ('PRAG', 'PRAG'), ('PRCE', 'PRCE'), ('ATER', 'ATER'), ('Doctorant', 'Doctorant contractuel'), ('Vacataire', 'Vacataire'), ('Associé', 'Professeur associé'), ('Invite', 'Professeur invité')], default='MCF', max_length=30)),
-                ('specialite', models.CharField(max_length=200)),
-                ('h_index', models.PositiveSmallIntegerField(default=0)),
-                ('orcid', models.CharField(blank=True, help_text='0000-0000-0000-0000', max_length=20)),
-                ('id_hal', models.CharField(blank=True, max_length=20)),
-                ('id_ref', models.CharField(blank=True, max_length=20)),
-                ('bibliographie', models.JSONField(blank=True, default=list)),
-                ('annee_these', models.PositiveSmallIntegerField(blank=True, null=True)),
-                ('directeur_these', models.CharField(blank=True, max_length=200)),
-                ('rib_iban', models.CharField(blank=True, max_length=50)),
-                ('heures_service', models.DecimalField(decimal_places=2, default=192, max_digits=5)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "numero_harpe",
+                    models.CharField(blank=True, help_text="ID HARPEGE", max_length=20),
+                ),
+                (
+                    "corps",
+                    models.CharField(
+                        choices=[
+                            ("PR", "Professeur des universités"),
+                            ("MCF", "Maître de conférences"),
+                            ("PRAG", "PRAG"),
+                            ("PRCE", "PRCE"),
+                            ("ATER", "ATER"),
+                            ("Doctorant", "Doctorant contractuel"),
+                            ("Vacataire", "Vacataire"),
+                            ("Associé", "Professeur associé"),
+                            ("Invite", "Professeur invité"),
+                        ],
+                        default="MCF",
+                        max_length=30,
+                    ),
+                ),
+                ("specialite", models.CharField(max_length=200)),
+                ("h_index", models.PositiveSmallIntegerField(default=0)),
+                (
+                    "orcid",
+                    models.CharField(
+                        blank=True, help_text="0000-0000-0000-0000", max_length=20
+                    ),
+                ),
+                ("id_hal", models.CharField(blank=True, max_length=20)),
+                ("id_ref", models.CharField(blank=True, max_length=20)),
+                ("bibliographie", models.JSONField(blank=True, default=list)),
+                (
+                    "annee_these",
+                    models.PositiveSmallIntegerField(blank=True, null=True),
+                ),
+                ("directeur_these", models.CharField(blank=True, max_length=200)),
+                ("rib_iban", models.CharField(blank=True, max_length=50)),
+                (
+                    "heures_service",
+                    models.DecimalField(decimal_places=2, default=192, max_digits=5),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'verbose_name': 'Enseignant-chercheur',
-                'verbose_name_plural': 'Enseignants-chercheurs',
+                "verbose_name": "Enseignant-chercheur",
+                "verbose_name_plural": "Enseignants-chercheurs",
             },
         ),
         migrations.CreateModel(
-            name='AffectationEnseignement',
+            name="AffectationEnseignement",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type_enseignement', models.CharField(choices=[('CM', 'Cours magistral'), ('TD', 'TD'), ('TP', 'TP')], max_length=10)),
-                ('heures', models.DecimalField(decimal_places=2, max_digits=5)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('annee_universitaire', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='affectations_enseignant', to='etablissement.anneeuniversitaire')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type_enseignement",
+                    models.CharField(
+                        choices=[("CM", "Cours magistral"), ("TD", "TD"), ("TP", "TP")],
+                        max_length=10,
+                    ),
+                ),
+                ("heures", models.DecimalField(decimal_places=2, max_digits=5)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "annee_universitaire",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="affectations_enseignant",
+                        to="etablissement.anneeuniversitaire",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Affectation enseignement',
-                'verbose_name_plural': 'Affectations enseignements',
+                "verbose_name": "Affectation enseignement",
+                "verbose_name_plural": "Affectations enseignements",
             },
         ),
     ]

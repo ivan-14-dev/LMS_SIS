@@ -1,4 +1,5 @@
 """App config for ects."""
+
 from django.apps import AppConfig
 
 

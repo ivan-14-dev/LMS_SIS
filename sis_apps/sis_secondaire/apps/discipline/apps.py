@@ -1,4 +1,5 @@
 """App config for discipline."""
+
 from django.apps import AppConfig
 
 

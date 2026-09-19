@@ -9,85 +9,201 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etablissement', '0001_initial'),
+        ("etablissement", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Groupe',
+            name="Groupe",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nom', models.CharField(max_length=100)),
-                ('type', models.CharField(choices=[('langue', 'Langue'), ('option', 'Option'), ('td', 'TD'), ('tp', 'TP'), ('soutien', 'Soutien'), ('approfondissement', 'Approfondissement')], max_length=20)),
-                ('capacite', models.PositiveIntegerField(default=30)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nom", models.CharField(max_length=100)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("langue", "Langue"),
+                            ("option", "Option"),
+                            ("td", "TD"),
+                            ("tp", "TP"),
+                            ("soutien", "Soutien"),
+                            ("approfondissement", "Approfondissement"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("capacite", models.PositiveIntegerField(default=30)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Groupe',
-                'verbose_name_plural': 'Groupes',
+                "verbose_name": "Groupe",
+                "verbose_name_plural": "Groupes",
             },
         ),
         migrations.CreateModel(
-            name='Matiere',
+            name="Matiere",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code', models.CharField(max_length=20)),
-                ('nom', models.CharField(max_length=100)),
-                ('type', models.CharField(choices=[('fondamentale', 'Fondamentale'), ('optionnelle', 'Optionnelle'), ('transversale', 'Transversale'), ('eps', 'EPS'), ('langues', 'Langues')], default='fondamentale', max_length=20)),
-                ('couleur', models.CharField(default='#10B981', max_length=7)),
-                ('coefficient_defaut', models.DecimalField(decimal_places=2, default=1, max_digits=4)),
-                ('description', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("code", models.CharField(max_length=20)),
+                ("nom", models.CharField(max_length=100)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("fondamentale", "Fondamentale"),
+                            ("optionnelle", "Optionnelle"),
+                            ("transversale", "Transversale"),
+                            ("eps", "EPS"),
+                            ("langues", "Langues"),
+                        ],
+                        default="fondamentale",
+                        max_length=20,
+                    ),
+                ),
+                ("couleur", models.CharField(default="#10B981", max_length=7)),
+                (
+                    "coefficient_defaut",
+                    models.DecimalField(decimal_places=2, default=1, max_digits=4),
+                ),
+                ("description", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'ordering': ['nom'],
+                "ordering": ["nom"],
             },
         ),
         migrations.CreateModel(
-            name='ProgrammeMatiere',
+            name="ProgrammeMatiere",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('coefficient', models.DecimalField(decimal_places=2, default=1, max_digits=4)),
-                ('heures_semaine', models.DecimalField(decimal_places=2, default=0, max_digits=4)),
-                ('obligatoire', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "coefficient",
+                    models.DecimalField(decimal_places=2, default=1, max_digits=4),
+                ),
+                (
+                    "heures_semaine",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=4),
+                ),
+                ("obligatoire", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Programme de matière',
-                'verbose_name_plural': 'Programmes de matières',
+                "verbose_name": "Programme de matière",
+                "verbose_name_plural": "Programmes de matières",
             },
         ),
         migrations.CreateModel(
-            name='Chapitre',
+            name="Chapitre",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('ordre', models.PositiveIntegerField()),
-                ('titre', models.CharField(max_length=200)),
-                ('description', models.TextField(blank=True)),
-                ('objectifs', models.TextField(blank=True)),
-                ('progression', models.PositiveIntegerField(default=0, help_text='% progression')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('niveau', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='chapitres', to='etablissement.niveau')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("ordre", models.PositiveIntegerField()),
+                ("titre", models.CharField(max_length=200)),
+                ("description", models.TextField(blank=True)),
+                ("objectifs", models.TextField(blank=True)),
+                (
+                    "progression",
+                    models.PositiveIntegerField(default=0, help_text="% progression"),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "niveau",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="chapitres",
+                        to="etablissement.niveau",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['matiere', 'niveau', 'ordre'],
+                "ordering": ["matiere", "niveau", "ordre"],
             },
         ),
         migrations.CreateModel(
-            name='Classe',
+            name="Classe",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nom', models.CharField(help_text='Ex: 6e A, Terminale C', max_length=50)),
-                ('effectif_max', models.PositiveIntegerField(default=40)),
-                ('color', models.CharField(default='#3B82F6', help_text='Code couleur', max_length=7)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('annee_scolaire', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='classes', to='etablissement.anneescolaire')),
-                ('etablissement', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='classes', to='etablissement.etablissement')),
-                ('niveau', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='classes', to='etablissement.niveau')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "nom",
+                    models.CharField(help_text="Ex: 6e A, Terminale C", max_length=50),
+                ),
+                ("effectif_max", models.PositiveIntegerField(default=40)),
+                (
+                    "color",
+                    models.CharField(
+                        default="#3B82F6", help_text="Code couleur", max_length=7
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "annee_scolaire",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="classes",
+                        to="etablissement.anneescolaire",
+                    ),
+                ),
+                (
+                    "etablissement",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="classes",
+                        to="etablissement.etablissement",
+                    ),
+                ),
+                (
+                    "niveau",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="classes",
+                        to="etablissement.niveau",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['niveau__ordre', 'nom'],
+                "ordering": ["niveau__ordre", "nom"],
             },
         ),
     ]

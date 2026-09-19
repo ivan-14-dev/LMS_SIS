@@ -9,28 +9,74 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etudiants', '0001_initial'),
-        ('examens', '0001_initial'),
-        ('ue_ecue', '0001_initial'),
+        ("etudiants", "0001_initial"),
+        ("examens", "0001_initial"),
+        ("ue_ecue", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='InscriptionRattrapage',
+            name="InscriptionRattrapage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('statut', models.CharField(choices=[('inscrit', 'Inscrit'), ('desiste', 'Désisté'), ('passe', 'Passé'), ('absent', 'Absent')], default='inscrit', max_length=20)),
-                ('date_inscription', models.DateTimeField(auto_now_add=True)),
-                ('note', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('date_echeance_inscription', models.DateField()),
-                ('ecue', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='rattrapages', to='ue_ecue.ecue')),
-                ('etudiant', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='inscriptions_rattrapage', to='etudiants.etudiant')),
-                ('session_rattrapage', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='inscriptions_rattrapage', to='examens.sessionexamen')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("inscrit", "Inscrit"),
+                            ("desiste", "Désisté"),
+                            ("passe", "Passé"),
+                            ("absent", "Absent"),
+                        ],
+                        default="inscrit",
+                        max_length=20,
+                    ),
+                ),
+                ("date_inscription", models.DateTimeField(auto_now_add=True)),
+                (
+                    "note",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                ("date_echeance_inscription", models.DateField()),
+                (
+                    "ecue",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="rattrapages",
+                        to="ue_ecue.ecue",
+                    ),
+                ),
+                (
+                    "etudiant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="inscriptions_rattrapage",
+                        to="etudiants.etudiant",
+                    ),
+                ),
+                (
+                    "session_rattrapage",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="inscriptions_rattrapage",
+                        to="examens.sessionexamen",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Inscription rattrapage',
-                'verbose_name_plural': 'Inscriptions rattrapage',
-                'unique_together': {('etudiant', 'ecue', 'session_rattrapage')},
+                "verbose_name": "Inscription rattrapage",
+                "verbose_name_plural": "Inscriptions rattrapage",
+                "unique_together": {("etudiant", "ecue", "session_rattrapage")},
             },
         ),
     ]

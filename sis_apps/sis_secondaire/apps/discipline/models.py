@@ -1,11 +1,13 @@
 """Models for discipline (SIS Secondaire)."""
-from django.db import models
+
 from apps.eleves.models import Eleve
 from apps.enseignants.models import Personnel
+from django.db import models
 
 
 class Incident(models.Model):
     """Incident disciplinaire."""
+
     TYPE_CHOICES = [
         ("comportement", "Comportement"),
         ("violence", "Violence"),
@@ -33,7 +35,9 @@ class Incident(models.Model):
     gravite = models.PositiveSmallIntegerField(choices=GRAVITE_CHOICES, default=1)
     description = models.TextField()
     lieu = models.CharField(max_length=200, blank=True)
-    temoins = models.ManyToManyField(Personnel, blank=True, related_name="incidents_temoins")
+    temoins = models.ManyToManyField(
+        Personnel, blank=True, related_name="incidents_temoins"
+    )
     rapporteur = models.ForeignKey(
         Personnel, on_delete=models.PROTECT, related_name="incidents_rapportes"
     )
@@ -53,6 +57,7 @@ class Incident(models.Model):
 
 class Sanction(models.Model):
     """Sanction décidée suite à un incident."""
+
     TYPE_CHOICES = [
         ("avertissement", "Avertissement"),
         ("heures_colle", "Heures de colle"),
@@ -62,7 +67,9 @@ class Sanction(models.Model):
         ("travail_interet_general", "Travail d'intérêt général"),
         ("autre", "Autre"),
     ]
-    incident = models.ForeignKey(Incident, on_delete=models.CASCADE, related_name="sanctions")
+    incident = models.ForeignKey(
+        Incident, on_delete=models.CASCADE, related_name="sanctions"
+    )
     type = models.CharField(max_length=30, choices=TYPE_CHOICES)
     duree_jours = models.PositiveSmallIntegerField(null=True, blank=True)
     date_effet = models.DateField()
@@ -82,12 +89,15 @@ class Sanction(models.Model):
 
 class ConseilDiscipline(models.Model):
     """Conseil de discipline."""
+
     STATUT_CHOICES = [
         ("planifie", "Planifié"),
         ("tenu", "Tenu"),
         ("annule", "Annulé"),
     ]
-    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="conseils_discipline")
+    eleve = models.ForeignKey(
+        Eleve, on_delete=models.CASCADE, related_name="conseils_discipline"
+    )
     date = models.DateTimeField()
     president = models.ForeignKey(
         Personnel, on_delete=models.PROTECT, related_name="conseils_presides"
@@ -95,7 +105,11 @@ class ConseilDiscipline(models.Model):
     membres = models.ManyToManyField(Personnel, related_name="conseils_membre")
     incidents = models.ManyToManyField(Incident, related_name="conseils")
     sanction = models.ForeignKey(
-        Sanction, on_delete=models.SET_NULL, null=True, blank=True, related_name="conseils"
+        Sanction,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="conseils",
     )
     pv = models.TextField(blank=True)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="planifie")

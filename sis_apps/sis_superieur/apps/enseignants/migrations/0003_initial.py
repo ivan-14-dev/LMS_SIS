@@ -9,14 +9,20 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('enseignants', '0002_initial'),
-        ('recherche', '0001_initial'),
+        ("enseignants", "0002_initial"),
+        ("recherche", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='enseignantchercheur',
-            name='laboratoire',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='chercheurs', to='recherche.laboratoire'),
+            model_name="enseignantchercheur",
+            name="laboratoire",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="chercheurs",
+                to="recherche.laboratoire",
+            ),
         ),
     ]

@@ -1,4 +1,5 @@
 """API tests for inscriptions."""
+
 from django.test import TestCase
 
 

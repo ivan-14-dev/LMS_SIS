@@ -9,77 +9,172 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('classes', '0001_initial'),
-        ('eleves', '0001_initial'),
-        ('salles', '0001_initial'),
+        ("classes", "0001_initial"),
+        ("eleves", "0001_initial"),
+        ("salles", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ResultatExamen',
+            name="ResultatExamen",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('note', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('appreciation', models.TextField(blank=True)),
-                ('numero_anonyme', models.CharField(blank=True, max_length=20)),
-                ('admis', models.BooleanField(default=False)),
-                ('mention', models.CharField(blank=True, max_length=30)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "note",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                ("appreciation", models.TextField(blank=True)),
+                ("numero_anonyme", models.CharField(blank=True, max_length=20)),
+                ("admis", models.BooleanField(default=False)),
+                ("mention", models.CharField(blank=True, max_length=30)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': "Résultat d'examen",
-                'verbose_name_plural': "Résultats d'examen",
+                "verbose_name": "Résultat d'examen",
+                "verbose_name_plural": "Résultats d'examen",
             },
         ),
         migrations.CreateModel(
-            name='SessionExamen',
+            name="SessionExamen",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.CharField(choices=[('bac', 'Baccalauréat'), ('brevet', 'Brevet des collèges'), ('examen_blanc', 'Examen blanc'), ('controle', 'Contrôle'), ('concours', 'Concours')], max_length=20)),
-                ('nom', models.CharField(max_length=200)),
-                ('date_debut', models.DateField()),
-                ('date_fin', models.DateField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("bac", "Baccalauréat"),
+                            ("brevet", "Brevet des collèges"),
+                            ("examen_blanc", "Examen blanc"),
+                            ("controle", "Contrôle"),
+                            ("concours", "Concours"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("nom", models.CharField(max_length=200)),
+                ("date_debut", models.DateField()),
+                ("date_fin", models.DateField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': "Session d'examen",
-                'verbose_name_plural': "Sessions d'examens",
-                'ordering': ['-date_debut'],
+                "verbose_name": "Session d'examen",
+                "verbose_name_plural": "Sessions d'examens",
+                "ordering": ["-date_debut"],
             },
         ),
         migrations.CreateModel(
-            name='ConvocationExamen',
+            name="ConvocationExamen",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('numero_place', models.CharField(blank=True, max_length=10)),
-                ('salle', models.CharField(blank=True, max_length=100)),
-                ('statut', models.CharField(choices=[('convoque', 'Convoqué'), ('present', 'Présent'), ('absent', 'Absent'), ('dispense', 'Dispensé')], default='convoque', max_length=20)),
-                ('notifie_parents', models.BooleanField(default=False)),
-                ('date_notification', models.DateTimeField(blank=True, null=True)),
-                ('eleve', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='convocations', to='eleves.eleve')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("numero_place", models.CharField(blank=True, max_length=10)),
+                ("salle", models.CharField(blank=True, max_length=100)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("convoque", "Convoqué"),
+                            ("present", "Présent"),
+                            ("absent", "Absent"),
+                            ("dispense", "Dispensé"),
+                        ],
+                        default="convoque",
+                        max_length=20,
+                    ),
+                ),
+                ("notifie_parents", models.BooleanField(default=False)),
+                ("date_notification", models.DateTimeField(blank=True, null=True)),
+                (
+                    "eleve",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="convocations",
+                        to="eleves.eleve",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Convocation',
-                'verbose_name_plural': 'Convocations',
+                "verbose_name": "Convocation",
+                "verbose_name_plural": "Convocations",
             },
         ),
         migrations.CreateModel(
-            name='EpreuveExamen',
+            name="EpreuveExamen",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField()),
-                ('heure_debut', models.TimeField()),
-                ('duree_minutes', models.PositiveIntegerField()),
-                ('bareme', models.DecimalField(decimal_places=2, default=20, max_digits=5)),
-                ('coefficient', models.DecimalField(decimal_places=2, default=1, max_digits=4)),
-                ('anonymat', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('classes', models.ManyToManyField(related_name='epreuves', to='classes.classe')),
-                ('matiere', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='epreuves_examen', to='classes.matiere')),
-                ('salle_principale', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='epreuves_principales', to='salles.salle')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateField()),
+                ("heure_debut", models.TimeField()),
+                ("duree_minutes", models.PositiveIntegerField()),
+                (
+                    "bareme",
+                    models.DecimalField(decimal_places=2, default=20, max_digits=5),
+                ),
+                (
+                    "coefficient",
+                    models.DecimalField(decimal_places=2, default=1, max_digits=4),
+                ),
+                ("anonymat", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "classes",
+                    models.ManyToManyField(
+                        related_name="epreuves", to="classes.classe"
+                    ),
+                ),
+                (
+                    "matiere",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="epreuves_examen",
+                        to="classes.matiere",
+                    ),
+                ),
+                (
+                    "salle_principale",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="epreuves_principales",
+                        to="salles.salle",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['date', 'heure_debut'],
+                "ordering": ["date", "heure_debut"],
             },
         ),
     ]

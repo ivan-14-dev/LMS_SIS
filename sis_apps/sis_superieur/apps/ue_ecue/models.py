@@ -1,11 +1,13 @@
 """Models for UE et ECUE (SIS Supérieur)."""
-from django.db import models
-from apps.formations.models import MaquetteFormation, Parcours
+
 from apps.etablissement.models import Semestre
+from apps.formations.models import MaquetteFormation, Parcours
+from django.db import models
 
 
 class UE(models.Model):
     """Unité d'Enseignement."""
+
     TYPE_CHOICES = [
         ("F", "Fondamentale"),
         ("S", "Spécialité"),
@@ -28,11 +30,13 @@ class UE(models.Model):
     volume_horaire_cm = models.PositiveIntegerField(default=0, help_text="Heures CM")
     volume_horaire_td = models.PositiveIntegerField(default=0, help_text="Heures TD")
     volume_horaire_tp = models.PositiveIntegerField(default=0, help_text="Heures TP")
-    semestre = models.ForeignKey(
-        Semestre, on_delete=models.PROTECT, related_name="ues"
+    semestre = models.ForeignKey(Semestre, on_delete=models.PROTECT, related_name="ues")
+    mh_global = models.CharField(
+        max_length=30, choices=MH_GLOBAL_CHOICES, default="calculable_separement"
     )
-    mh_global = models.CharField(max_length=30, choices=MH_GLOBAL_CHOICES, default="calculable_separement")
-    parcours_autorises = models.ManyToManyField(Parcours, blank=True, related_name="ues")
+    parcours_autorises = models.ManyToManyField(
+        Parcours, blank=True, related_name="ues"
+    )
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -53,6 +57,7 @@ class UE(models.Model):
 
 class ECUE(models.Model):
     """Élément Constitutif d'UE."""
+
     ue = models.ForeignKey(UE, on_delete=models.CASCADE, related_name="ecues")
     code = models.CharField(max_length=30)
     nom = models.CharField(max_length=200)
@@ -79,6 +84,7 @@ class ECUE(models.Model):
 
 class Prerequis(models.Model):
     """UE prérequise pour s'inscrire à une autre."""
+
     TYPE_CHOICES = [
         ("capitalisee", "UE capitalisée"),
         ("moyenne_ue", "Moyenne UE"),
@@ -92,7 +98,10 @@ class Prerequis(models.Model):
     )
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="capitalisee")
     note_minimale = models.DecimalField(
-        max_digits=4, decimal_places=2, null=True, blank=True,
+        max_digits=4,
+        decimal_places=2,
+        null=True,
+        blank=True,
         help_text="Si type = note_minimale",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -108,12 +117,18 @@ class Prerequis(models.Model):
 
 class Capitalisation(models.Model):
     """Règle de capitalisation."""
+
     type = models.CharField(max_length=20, default="note_seuil")
     note_seuil = models.DecimalField(max_digits=4, decimal_places=2, default=10)
     compensation_autorisee = models.BooleanField(default=True)
-    note_seuil_compensation = models.DecimalField(max_digits=4, decimal_places=2, default=8)
+    note_seuil_compensation = models.DecimalField(
+        max_digits=4, decimal_places=2, default=8
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "Capitalisation"
         verbose_name_plural = "Capitalisations"
+
+    def __str__(self):
+        return f"{self.type} ({self.note_seuil})"

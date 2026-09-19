@@ -7,56 +7,119 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='InscriptionCantine',
+            name="InscriptionCantine",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('forfait', models.CharField(choices=[('annuel', 'Annuel'), ('trimestriel', 'Trimestriel'), ('mensuel', 'Mensuel'), ('unitaire', 'Unitaire')], default='annuel', max_length=20)),
-                ('date_debut', models.DateField()),
-                ('date_fin', models.DateField(blank=True, null=True)),
-                ('regime', models.CharField(choices=[('standard', 'Standard'), ('vegetarien', 'Végétarien'), ('sans_porc', 'Sans porc'), ('sans_gluten', 'Sans gluten')], default='standard', max_length=20)),
-                ('allergies', models.JSONField(blank=True, default=list)),
-                ('actif', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "forfait",
+                    models.CharField(
+                        choices=[
+                            ("annuel", "Annuel"),
+                            ("trimestriel", "Trimestriel"),
+                            ("mensuel", "Mensuel"),
+                            ("unitaire", "Unitaire"),
+                        ],
+                        default="annuel",
+                        max_length=20,
+                    ),
+                ),
+                ("date_debut", models.DateField()),
+                ("date_fin", models.DateField(blank=True, null=True)),
+                (
+                    "regime",
+                    models.CharField(
+                        choices=[
+                            ("standard", "Standard"),
+                            ("vegetarien", "Végétarien"),
+                            ("sans_porc", "Sans porc"),
+                            ("sans_gluten", "Sans gluten"),
+                        ],
+                        default="standard",
+                        max_length=20,
+                    ),
+                ),
+                ("allergies", models.JSONField(blank=True, default=list)),
+                ("actif", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Inscription cantine',
-                'verbose_name_plural': 'Inscriptions cantine',
+                "verbose_name": "Inscription cantine",
+                "verbose_name_plural": "Inscriptions cantine",
             },
         ),
         migrations.CreateModel(
-            name='Menu',
+            name="Menu",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField()),
-                ('entree', models.CharField(blank=True, max_length=200)),
-                ('plat', models.CharField(max_length=200)),
-                ('accompagnement', models.CharField(blank=True, max_length=200)),
-                ('dessert', models.CharField(blank=True, max_length=200)),
-                ('regime', models.CharField(choices=[('standard', 'Standard'), ('vegetarien', 'Végétarien'), ('sans_porc', 'Sans porc'), ('sans_gluten', 'Sans gluten'), ('autre', 'Autre')], default='standard', max_length=20)),
-                ('prix', models.DecimalField(decimal_places=2, default=0, max_digits=6)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateField()),
+                ("entree", models.CharField(blank=True, max_length=200)),
+                ("plat", models.CharField(max_length=200)),
+                ("accompagnement", models.CharField(blank=True, max_length=200)),
+                ("dessert", models.CharField(blank=True, max_length=200)),
+                (
+                    "regime",
+                    models.CharField(
+                        choices=[
+                            ("standard", "Standard"),
+                            ("vegetarien", "Végétarien"),
+                            ("sans_porc", "Sans porc"),
+                            ("sans_gluten", "Sans gluten"),
+                            ("autre", "Autre"),
+                        ],
+                        default="standard",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "prix",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=6),
+                ),
             ],
             options={
-                'verbose_name': 'Menu',
-                'verbose_name_plural': 'Menus',
-                'ordering': ['date'],
+                "verbose_name": "Menu",
+                "verbose_name_plural": "Menus",
+                "ordering": ["date"],
             },
         ),
         migrations.CreateModel(
-            name='PresenceCantine',
+            name="PresenceCantine",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('present', models.BooleanField(default=True)),
-                ('heure_pointage', models.TimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("present", models.BooleanField(default=True)),
+                ("heure_pointage", models.TimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Présence cantine',
-                'verbose_name_plural': 'Présences cantine',
+                "verbose_name": "Présence cantine",
+                "verbose_name_plural": "Présences cantine",
             },
         ),
     ]

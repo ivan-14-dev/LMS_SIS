@@ -10,39 +10,57 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('clubs', '0001_initial'),
-        ('eleves', '0001_initial'),
+        ("clubs", "0001_initial"),
+        ("eleves", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='club',
-            name='responsable',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='clubs_responsable', to=settings.AUTH_USER_MODEL),
+            model_name="club",
+            name="responsable",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="clubs_responsable",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='membreclub',
-            name='club',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='membres', to='clubs.club'),
+            model_name="membreclub",
+            name="club",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="membres",
+                to="clubs.club",
+            ),
         ),
         migrations.AddField(
-            model_name='membreclub',
-            name='eleve',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='clubs_membre', to='eleves.eleve'),
+            model_name="membreclub",
+            name="eleve",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="clubs_membre",
+                to="eleves.eleve",
+            ),
         ),
         migrations.AddField(
-            model_name='seanceclub',
-            name='club',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='seances', to='clubs.club'),
+            model_name="seanceclub",
+            name="club",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="seances",
+                to="clubs.club",
+            ),
         ),
         migrations.AddField(
-            model_name='seanceclub',
-            name='presents',
-            field=models.ManyToManyField(blank=True, related_name='seances_presence', to='eleves.eleve'),
+            model_name="seanceclub",
+            name="presents",
+            field=models.ManyToManyField(
+                blank=True, related_name="seances_presence", to="eleves.eleve"
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='membreclub',
-            unique_together={('club', 'eleve')},
+            name="membreclub",
+            unique_together={("club", "eleve")},
         ),
     ]

@@ -227,6 +227,10 @@ ignore = [
     "E721",  # use `isinstance()` for type comparisons
 ]
 
+[tool.isort]
+profile = "black"
+line_length = 120
+
 [tool.importlinter]
 root_packages = ["lms", "cms", "openedx", "openedx_content", "openedx_catalog"]
 include_external_packages = true

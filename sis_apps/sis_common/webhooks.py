@@ -1,4 +1,5 @@
 """Shared webhook validation utilities."""
+
 import hashlib
 import hmac
 

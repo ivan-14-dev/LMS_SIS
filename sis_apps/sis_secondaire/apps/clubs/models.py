@@ -1,11 +1,13 @@
 """Models for clubs (SIS Secondaire)."""
-from django.db import models
+
 from apps.eleves.models import Eleve
 from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class Club(models.Model):
     """Club / activité périscolaire."""
+
     TYPE_CHOICES = [
         ("sportif", "Sportif"),
         ("culturel", "Culturel"),
@@ -40,8 +42,11 @@ class Club(models.Model):
 
 class MembreClub(models.Model):
     """Membre d'un club."""
+
     club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name="membres")
-    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="clubs_membre")
+    eleve = models.ForeignKey(
+        Eleve, on_delete=models.CASCADE, related_name="clubs_membre"
+    )
     date_inscription = models.DateField(auto_now_add=True)
     statut = models.CharField(
         max_length=20,
@@ -60,12 +65,15 @@ class MembreClub(models.Model):
 
 class SeanceClub(models.Model):
     """Séance d'un club."""
+
     club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name="seances")
     date = models.DateField()
     heure_debut = models.TimeField()
     heure_fin = models.TimeField()
     activite = models.TextField()
-    presents = models.ManyToManyField(Eleve, related_name="seances_presence", blank=True)
+    presents = models.ManyToManyField(
+        Eleve, related_name="seances_presence", blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

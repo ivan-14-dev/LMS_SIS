@@ -1,4 +1,5 @@
 """App config for recherche."""
+
 from django.apps import AppConfig
 
 

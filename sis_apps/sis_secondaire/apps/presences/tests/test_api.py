@@ -1,4 +1,5 @@
 """API tests for presences."""
+
 from django.test import TestCase
 
 

@@ -1,4 +1,5 @@
 """App config for maquettes."""
+
 from django.apps import AppConfig
 
 

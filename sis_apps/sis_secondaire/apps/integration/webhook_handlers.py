@@ -1,5 +1,7 @@
 """Handlers de webhooks entrants (LMS + CMS) - SIS Secondaire."""
+
 import logging
+
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -8,8 +10,15 @@ logger = logging.getLogger(__name__)
 class WebhookHandler:
     """Traite les webhooks entrants LMS / CMS."""
 
-    def __init__(self, edx_user_mapping_model, edx_course_mapping_model,
-                 edx_enrollment_model, edx_grade_log_model, eleve_model, note_model):
+    def __init__(
+        self,
+        edx_user_mapping_model,
+        edx_course_mapping_model,
+        edx_enrollment_model,
+        edx_grade_log_model,
+        eleve_model,
+        note_model,
+    ):
         self.EdxUserMapping = edx_user_mapping_model
         self.EdxCourseMapping = edx_course_mapping_model
         self.EdxEnrollment = edx_enrollment_model

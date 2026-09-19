@@ -11,18 +11,20 @@ Endpoints :
 - POST /sync/certificate/   : délivre un certificat
 - GET  /health/             : santé LMS + CMS
 """
-import json
+
 import logging
+
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
-from django.conf import settings
-from django.views.decorators.csrf import csrf_exempt
-from .models import EdxUserMapping, EdxCourseMapping, EdxEnrollment, OutboxEvent
-from .edx_client import get_edx_client
-from .sync_service import SyncService
 from sis_common.webhooks import verify_hmac_signature
+
+from .edx_client import get_edx_client
+from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
+from .sync_service import SyncService
 
 logger = logging.getLogger(__name__)
 
@@ -34,19 +36,25 @@ def _verify_hmac(request) -> bool:
 
 # ============== WEBHOOKS ENTRANTS ==============
 
+
 @csrf_exempt
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def webhook_lms(request):
     """Webhook entrant depuis le LMS Open edX."""
     if not _verify_hmac(request):
-        return Response({"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED
+        )
     event_type = request.headers.get("X-Event-Type", "")
     payload = request.data
     from .tasks import (
-        process_user_webhook, process_enrollment_webhook,
-        process_grade_webhook, process_certificate_webhook,
+        process_certificate_webhook,
+        process_enrollment_webhook,
+        process_grade_webhook,
+        process_user_webhook,
     )
+
     if "user" in event_type:
         process_user_webhook.delay(payload)
     elif "enrollment" in event_type:
@@ -66,10 +74,13 @@ def webhook_lms(request):
 def webhook_cms(request):
     """Webhook entrant depuis le CMS Studio."""
     if not _verify_hmac(request):
-        return Response({"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED
+        )
     event_type = request.headers.get("X-Event-Type", "")
     payload = request.data
-    from .tasks import process_xblock_published, process_course_published
+    from .tasks import process_course_published, process_xblock_published
+
     if "xblock" in event_type:
         process_xblock_published.delay(payload)
     elif "course.published" in event_type:
@@ -81,20 +92,24 @@ def webhook_cms(request):
 
 # ============== SYNCHRONISATION ==============
 
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def sync_status(request):
     from django.db.models import Count
+
     outbox_counts = OutboxEvent.objects.values("statut").annotate(n=Count("id"))
     enrollments_count = EdxEnrollment.objects.filter(is_active=True).count()
     mappings_count = EdxUserMapping.objects.filter(actif=True).count()
     courses_count = EdxCourseMapping.objects.filter(actif=True).count()
-    return Response({
-        "outbox": {c["statut"]: c["n"] for c in outbox_counts},
-        "enrollments_active": enrollments_count,
-        "users_mapped": mappings_count,
-        "courses_mapped": courses_count,
-    })
+    return Response(
+        {
+            "outbox": {c["statut"]: c["n"] for c in outbox_counts},
+            "enrollments_active": enrollments_count,
+            "users_mapped": mappings_count,
+            "courses_mapped": courses_count,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -102,6 +117,7 @@ def sync_status(request):
 def sync_user(request, user_id):
     """Force la synchronisation d'un utilisateur vers le LMS."""
     from apps.utilisateurs.models import Utilisateur
+
     try:
         user = Utilisateur.objects.get(pk=user_id)
     except Utilisateur.DoesNotExist:
@@ -110,11 +126,13 @@ def sync_user(request, user_id):
     role = request.data.get("role", "student")
     try:
         mapping = service.sync_user_to_lms(user, role=role)
-        return Response({
-            "status": "ok",
-            "username_edx": mapping.username_edx,
-            "user_id_edx": mapping.user_id_edx,
-        })
+        return Response(
+            {
+                "status": "ok",
+                "username_edx": mapping.username_edx,
+                "user_id_edx": mapping.user_id_edx,
+            }
+        )
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
@@ -123,7 +141,8 @@ def sync_user(request, user_id):
 @permission_classes([IsAuthenticated])
 def sync_course(request):
     """Crée un cours dans le CMS Studio à partir d'une matière/classe."""
-    from apps.classes.models import Matiere, Classe
+    from apps.classes.models import Classe, Matiere
+
     matiere_id = request.data.get("matiere_id")
     classe_id = request.data.get("classe_id")
     try:
@@ -135,11 +154,13 @@ def sync_course(request):
     service = SyncService()
     try:
         mapping = service.sync_course_to_cms(matiere, classe, display_name)
-        return Response({
-            "status": "ok",
-            "course_id": mapping.course_id,
-            "course_name": mapping.course_name,
-        })
+        return Response(
+            {
+                "status": "ok",
+                "course_id": mapping.course_id,
+                "course_name": mapping.course_name,
+            }
+        )
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
@@ -149,6 +170,7 @@ def sync_course(request):
 def sync_enroll(request):
     """Inscrit un élève à un cours LMS."""
     from apps.eleves.models import Eleve
+
     eleve_id = request.data.get("eleve_id")
     course_mapping_id = request.data.get("course_mapping_id")
     mode = request.data.get("mode", "audit")
@@ -160,11 +182,13 @@ def sync_enroll(request):
     service = SyncService()
     try:
         enrollment = service.sync_enrollment_to_lms(eleve, course_mapping, mode=mode)
-        return Response({
-            "status": "ok",
-            "enrollment_id": enrollment.enrollment_id,
-            "is_active": enrollment.is_active,
-        })
+        return Response(
+            {
+                "status": "ok",
+                "enrollment_id": enrollment.enrollment_id,
+                "is_active": enrollment.is_active,
+            }
+        )
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
@@ -174,6 +198,7 @@ def sync_enroll(request):
 def sync_grade(request):
     """Pousse une note vers le LMS."""
     from apps.eleves.models import Eleve
+
     eleve_id = request.data.get("eleve_id")
     course_mapping_id = request.data.get("course_mapping_id")
     subsection_id = request.data.get("subsection_id")
@@ -186,7 +211,9 @@ def sync_grade(request):
         return Response({"error": "Eleve or Course not found"}, status=404)
     service = SyncService()
     try:
-        result = service.sync_grade_to_lms(eleve, course_mapping, subsection_id, score, max_score)
+        result = service.sync_grade_to_lms(
+            eleve, course_mapping, subsection_id, score, max_score
+        )
         return Response({"status": "ok", "result": result})
     except Exception as e:
         return Response({"error": str(e)}, status=500)
@@ -197,6 +224,7 @@ def sync_grade(request):
 def sync_certificate(request):
     """Délivre un certificat LMS."""
     from apps.eleves.models import Eleve
+
     eleve_id = request.data.get("eleve_id")
     course_mapping_id = request.data.get("course_mapping_id")
     cert_type = request.data.get("certificate_type", "honor")

@@ -10,71 +10,109 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('classes', '0002_initial'),
-        ('eleves', '0001_initial'),
-        ('etablissement', '0001_initial'),
+        ("classes", "0002_initial"),
+        ("eleves", "0001_initial"),
+        ("etablissement", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='eleve',
-            name='user',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='eleve_profile', to=settings.AUTH_USER_MODEL),
+            model_name="eleve",
+            name="user",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="eleve_profile",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='elevetuteur',
-            name='eleve',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tuteurs_lies', to='eleves.eleve'),
+            model_name="elevetuteur",
+            name="eleve",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="tuteurs_lies",
+                to="eleves.eleve",
+            ),
         ),
         migrations.AddField(
-            model_name='inscription',
-            name='annee_scolaire',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='inscriptions', to='etablissement.anneescolaire'),
+            model_name="inscription",
+            name="annee_scolaire",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="inscriptions",
+                to="etablissement.anneescolaire",
+            ),
         ),
         migrations.AddField(
-            model_name='inscription',
-            name='classe',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='inscriptions', to='classes.classe'),
+            model_name="inscription",
+            name="classe",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="inscriptions",
+                to="classes.classe",
+            ),
         ),
         migrations.AddField(
-            model_name='inscription',
-            name='eleve',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='inscriptions', to='eleves.eleve'),
+            model_name="inscription",
+            name="eleve",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="inscriptions",
+                to="eleves.eleve",
+            ),
         ),
         migrations.AddField(
-            model_name='tuteur',
-            name='etablissement',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tuteurs', to='etablissement.etablissement'),
+            model_name="tuteur",
+            name="etablissement",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="tuteurs",
+                to="etablissement.etablissement",
+            ),
         ),
         migrations.AddField(
-            model_name='tuteur',
-            name='user',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='tuteur_profile', to=settings.AUTH_USER_MODEL),
+            model_name="tuteur",
+            name="user",
+            field=models.OneToOneField(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="tuteur_profile",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='elevetuteur',
-            name='tuteur',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='enfants_lies', to='eleves.tuteur'),
+            model_name="elevetuteur",
+            name="tuteur",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="enfants_lies",
+                to="eleves.tuteur",
+            ),
         ),
         migrations.AddIndex(
-            model_name='eleve',
-            index=models.Index(fields=['matricule'], name='eleves_elev_matricu_a241b3_idx'),
+            model_name="eleve",
+            index=models.Index(
+                fields=["matricule"], name="eleves_elev_matricu_a241b3_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='eleve',
-            index=models.Index(fields=['statut'], name='eleves_elev_statut_e7b78e_idx'),
+            model_name="eleve",
+            index=models.Index(fields=["statut"], name="eleves_elev_statut_e7b78e_idx"),
         ),
         migrations.AddIndex(
-            model_name='eleve',
-            index=models.Index(fields=['classe_actuelle'], name='eleves_elev_classe__91168e_idx'),
+            model_name="eleve",
+            index=models.Index(
+                fields=["classe_actuelle"], name="eleves_elev_classe__91168e_idx"
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='inscription',
-            unique_together={('eleve', 'annee_scolaire')},
+            name="inscription",
+            unique_together={("eleve", "annee_scolaire")},
         ),
         migrations.AlterUniqueTogether(
-            name='elevetuteur',
-            unique_together={('eleve', 'tuteur')},
+            name="elevetuteur",
+            unique_together={("eleve", "tuteur")},
         ),
     ]

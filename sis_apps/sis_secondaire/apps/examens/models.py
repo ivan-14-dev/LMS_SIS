@@ -1,14 +1,16 @@
 """Models for examens (SIS Secondaire)."""
-from django.db import models
+
 from apps.classes.models import Classe, Matiere
 from apps.eleves.models import Eleve
-from apps.salles.models import Salle
 from apps.etablissement.models import AnneeScolaire
+from apps.salles.models import Salle
 from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class SessionExamen(models.Model):
     """Session d'examens (Brevet, Bac, examen blanc)."""
+
     TYPE_CHOICES = [
         ("bac", "Baccalauréat"),
         ("brevet", "Brevet des collèges"),
@@ -36,14 +38,23 @@ class SessionExamen(models.Model):
 
 class EpreuveExamen(models.Model):
     """Épreuve d'examen (1 matière à 1 date)."""
-    session = models.ForeignKey(SessionExamen, on_delete=models.CASCADE, related_name="epreuves")
-    matiere = models.ForeignKey(Matiere, on_delete=models.PROTECT, related_name="epreuves_examen")
+
+    session = models.ForeignKey(
+        SessionExamen, on_delete=models.CASCADE, related_name="epreuves"
+    )
+    matiere = models.ForeignKey(
+        Matiere, on_delete=models.PROTECT, related_name="epreuves_examen"
+    )
     classes = models.ManyToManyField(Classe, related_name="epreuves")
     date = models.DateField()
     heure_debut = models.TimeField()
     duree_minutes = models.PositiveIntegerField()
     salle_principale = models.ForeignKey(
-        Salle, on_delete=models.SET_NULL, null=True, blank=True, related_name="epreuves_principales"
+        Salle,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="epreuves_principales",
     )
     bareme = models.DecimalField(max_digits=5, decimal_places=2, default=20)
     coefficient = models.DecimalField(max_digits=4, decimal_places=2, default=1)
@@ -65,14 +76,19 @@ class EpreuveExamen(models.Model):
 
 class ConvocationExamen(models.Model):
     """Convocation individuelle."""
+
     STATUT_CHOICES = [
         ("convoque", "Convoqué"),
         ("present", "Présent"),
         ("absent", "Absent"),
         ("dispense", "Dispensé"),
     ]
-    epreuve = models.ForeignKey(EpreuveExamen, on_delete=models.CASCADE, related_name="convocations")
-    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="convocations")
+    epreuve = models.ForeignKey(
+        EpreuveExamen, on_delete=models.CASCADE, related_name="convocations"
+    )
+    eleve = models.ForeignKey(
+        Eleve, on_delete=models.CASCADE, related_name="convocations"
+    )
     numero_place = models.CharField(max_length=10, blank=True)
     salle = models.CharField(max_length=100, blank=True)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="convoque")
@@ -90,8 +106,13 @@ class ConvocationExamen(models.Model):
 
 class ResultatExamen(models.Model):
     """Résultat d'un élève à une épreuve."""
-    epreuve = models.ForeignKey(EpreuveExamen, on_delete=models.CASCADE, related_name="resultats")
-    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="resultats_examen")
+
+    epreuve = models.ForeignKey(
+        EpreuveExamen, on_delete=models.CASCADE, related_name="resultats"
+    )
+    eleve = models.ForeignKey(
+        Eleve, on_delete=models.CASCADE, related_name="resultats_examen"
+    )
     note = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     appreciation = models.TextField(blank=True)
     numero_anonyme = models.CharField(max_length=20, blank=True)

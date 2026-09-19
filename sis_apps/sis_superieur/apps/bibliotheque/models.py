@@ -1,10 +1,12 @@
 """Models for bibliotheque (SIS Supérieur)."""
-from django.db import models
+
 from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class Livre(models.Model):
     """Référence d'un livre / document."""
+
     isbn = models.CharField(max_length=20, blank=True)
     titre = models.CharField(max_length=300)
     sous_titre = models.CharField(max_length=300, blank=True)
@@ -18,9 +20,13 @@ class Livre(models.Model):
     image_couverture = models.URLField(blank=True)
     cote = models.CharField(max_length=50, blank=True, help_text="Ex: 004.123 DUP")
     nombre_exemplaires = models.PositiveIntegerField(default=1)
-    ressource_numerique = models.FileField(upload_to="bibliotheque/numerique/", null=True, blank=True)
+    ressource_numerique = models.FileField(
+        upload_to="bibliotheque/numerique/", null=True, blank=True
+    )
     url_externe = models.URLField(blank=True, help_text="Pour ebooks externes")
-    base_donnees = models.CharField(max_length=200, blank=True, help_text="Ex: ScienceDirect, JSTOR")
+    base_donnees = models.CharField(
+        max_length=200, blank=True, help_text="Ex: ScienceDirect, JSTOR"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -35,6 +41,7 @@ class Livre(models.Model):
 
 class Exemplaire(models.Model):
     """Exemplaire physique d'un livre."""
+
     ETAT_CHOICES = [
         ("neuf", "Neuf"),
         ("bon", "Bon état"),
@@ -42,10 +49,14 @@ class Exemplaire(models.Model):
         ("détérioré", "Détérioré"),
         ("perdu", "Perdu"),
     ]
-    livre = models.ForeignKey(Livre, on_delete=models.CASCADE, related_name="exemplaires")
+    livre = models.ForeignKey(
+        Livre, on_delete=models.CASCADE, related_name="exemplaires"
+    )
     code_barre = models.CharField(max_length=50, unique=True)
     etat = models.CharField(max_length=20, choices=ETAT_CHOICES, default="bon")
-    localisation = models.CharField(max_length=200, blank=True, help_text="Salle, rayon, étagère")
+    localisation = models.CharField(
+        max_length=200, blank=True, help_text="Salle, rayon, étagère"
+    )
     date_acquisition = models.DateField(null=True, blank=True)
     prix_acquisition = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -60,6 +71,7 @@ class Exemplaire(models.Model):
 
 class Emprunt(models.Model):
     """Emprunt d'un livre par un utilisateur."""
+
     STATUT_CHOICES = [
         ("en_cours", "En cours"),
         ("rendu", "Rendu"),
@@ -67,8 +79,12 @@ class Emprunt(models.Model):
         ("perdu", "Perdu"),
         ("renouvele", "Renouvelé"),
     ]
-    exemplaire = models.ForeignKey(Exemplaire, on_delete=models.PROTECT, related_name="emprunts")
-    emprunteur = models.ForeignKey(Utilisateur, on_delete=models.PROTECT, related_name="emprunts")
+    exemplaire = models.ForeignKey(
+        Exemplaire, on_delete=models.PROTECT, related_name="emprunts"
+    )
+    emprunteur = models.ForeignKey(
+        Utilisateur, on_delete=models.PROTECT, related_name="emprunts"
+    )
     date_emprunt = models.DateField()
     date_retour_prevue = models.DateField()
     date_retour_reelle = models.DateField(null=True, blank=True)
@@ -88,12 +104,22 @@ class Emprunt(models.Model):
 
 class Reservation(models.Model):
     """Réservation d'un livre."""
-    livre = models.ForeignKey(Livre, on_delete=models.CASCADE, related_name="reservations")
-    utilisateur = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name="reservations")
+
+    livre = models.ForeignKey(
+        Livre, on_delete=models.CASCADE, related_name="reservations"
+    )
+    utilisateur = models.ForeignKey(
+        Utilisateur, on_delete=models.CASCADE, related_name="reservations"
+    )
     date_reservation = models.DateTimeField(auto_now_add=True)
     statut = models.CharField(
         max_length=20,
-        choices=[("en_attente", "En attente"), ("disponible", "Disponible"), ("annulee", "Annulée"), ("recuperee", "Récupérée")],
+        choices=[
+            ("en_attente", "En attente"),
+            ("disponible", "Disponible"),
+            ("annulee", "Annulée"),
+            ("recuperee", "Récupérée"),
+        ],
         default="en_attente",
     )
     date_notification = models.DateTimeField(null=True, blank=True)
@@ -108,9 +134,12 @@ class Reservation(models.Model):
 
 class SalleTravail(models.Model):
     """Salle de travail en groupe à la BU."""
+
     nom = models.CharField(max_length=100)
     capacite = models.PositiveIntegerField(default=4)
-    equipements = models.JSONField(default=list, blank=True, help_text='["tableau", "ecran", "wifi"]')
+    equipements = models.JSONField(
+        default=list, blank=True, help_text='["tableau", "ecran", "wifi"]'
+    )
     disponible = models.BooleanField(default=True)
     batiment = models.CharField(max_length=100, blank=True)
     etage = models.CharField(max_length=20, blank=True)
@@ -126,8 +155,13 @@ class SalleTravail(models.Model):
 
 class ReservationSalle(models.Model):
     """Réservation d'une salle de travail BU."""
-    salle = models.ForeignKey(SalleTravail, on_delete=models.CASCADE, related_name="reservations")
-    utilisateur = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name="reservations_salles")
+
+    salle = models.ForeignKey(
+        SalleTravail, on_delete=models.CASCADE, related_name="reservations"
+    )
+    utilisateur = models.ForeignKey(
+        Utilisateur, on_delete=models.CASCADE, related_name="reservations_salles"
+    )
     date = models.DateField()
     heure_debut = models.TimeField()
     heure_fin = models.TimeField()

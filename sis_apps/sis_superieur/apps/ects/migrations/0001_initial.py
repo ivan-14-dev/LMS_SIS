@@ -9,26 +9,58 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etablissement', '0001_initial'),
+        ("etablissement", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='BilanECTS',
+            name="BilanECTS",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('credits_inscrits', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
-                ('credits_valides', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
-                ('credits_compenses', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
-                ('credits_echec', models.DecimalField(decimal_places=2, default=0, max_digits=5)),
-                ('moyenne_ponderee', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('date_calcul', models.DateTimeField(auto_now=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('annee_universitaire', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='bilans_ects', to='etablissement.anneeuniversitaire')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "credits_inscrits",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=5),
+                ),
+                (
+                    "credits_valides",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=5),
+                ),
+                (
+                    "credits_compenses",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=5),
+                ),
+                (
+                    "credits_echec",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=5),
+                ),
+                (
+                    "moyenne_ponderee",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                ("date_calcul", models.DateTimeField(auto_now=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "annee_universitaire",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="bilans_ects",
+                        to="etablissement.anneeuniversitaire",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Bilan ECTS',
-                'verbose_name_plural': 'Bilans ECTS',
+                "verbose_name": "Bilan ECTS",
+                "verbose_name_plural": "Bilans ECTS",
             },
         ),
     ]

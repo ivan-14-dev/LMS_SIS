@@ -1,9 +1,11 @@
 """Serializers for portail enseignant (SIS Supérieur)."""
+
 from rest_framework import serializers
 
 
 class TableauBordEnseignantSerializer(serializers.Serializer):
     """Serializer pour le tableau de bord enseignant."""
+
     enseignant = serializers.DictField()
     cours_semestre = serializers.ListField()
     notes_a_saisir = serializers.IntegerField()
@@ -13,6 +15,7 @@ class TableauBordEnseignantSerializer(serializers.Serializer):
 
 class CoursEnseignantSerializer(serializers.Serializer):
     """Serializer pour les cours de l'enseignant."""
+
     ecue_id = serializers.IntegerField()
     ecue_nom = serializers.CharField()
     ue_nom = serializers.CharField()

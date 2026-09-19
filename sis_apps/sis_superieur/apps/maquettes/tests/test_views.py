@@ -1,4 +1,5 @@
 """View tests for maquettes."""
+
 from django.test import TestCase
 
 

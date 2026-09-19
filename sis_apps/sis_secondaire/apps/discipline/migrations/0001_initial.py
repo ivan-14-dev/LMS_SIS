@@ -7,56 +7,144 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='ConseilDiscipline',
+            name="ConseilDiscipline",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateTimeField()),
-                ('pv', models.TextField(blank=True)),
-                ('statut', models.CharField(choices=[('planifie', 'Planifié'), ('tenu', 'Tenu'), ('annule', 'Annulé')], default='planifie', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateTimeField()),
+                ("pv", models.TextField(blank=True)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("planifie", "Planifié"),
+                            ("tenu", "Tenu"),
+                            ("annule", "Annulé"),
+                        ],
+                        default="planifie",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'ordering': ['-date'],
+                "ordering": ["-date"],
             },
         ),
         migrations.CreateModel(
-            name='Incident',
+            name="Incident",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date_incident', models.DateTimeField()),
-                ('type', models.CharField(choices=[('comportement', 'Comportement'), ('violence', 'Violence'), ('deffaillance', 'Défaillance travail'), ('fraude', 'Fraude / Triche'), ('manquement_respect', 'Manquement respect'), ('degradation', 'Dégradation'), ('autre', 'Autre')], max_length=30)),
-                ('gravite', models.PositiveSmallIntegerField(choices=[(1, 'Mineur'), (2, 'Modéré'), (3, 'Grave'), (4, 'Très grave')], default=1)),
-                ('description', models.TextField()),
-                ('lieu', models.CharField(blank=True, max_length=200)),
-                ('statut', models.CharField(choices=[('ouvert', 'Ouvert'), ('en_instruction', 'En instruction'), ('sanctionne', 'Sanctionné'), ('classe', 'Classé sans suite')], default='ouvert', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date_incident", models.DateTimeField()),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("comportement", "Comportement"),
+                            ("violence", "Violence"),
+                            ("deffaillance", "Défaillance travail"),
+                            ("fraude", "Fraude / Triche"),
+                            ("manquement_respect", "Manquement respect"),
+                            ("degradation", "Dégradation"),
+                            ("autre", "Autre"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                (
+                    "gravite",
+                    models.PositiveSmallIntegerField(
+                        choices=[
+                            (1, "Mineur"),
+                            (2, "Modéré"),
+                            (3, "Grave"),
+                            (4, "Très grave"),
+                        ],
+                        default=1,
+                    ),
+                ),
+                ("description", models.TextField()),
+                ("lieu", models.CharField(blank=True, max_length=200)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("ouvert", "Ouvert"),
+                            ("en_instruction", "En instruction"),
+                            ("sanctionne", "Sanctionné"),
+                            ("classe", "Classé sans suite"),
+                        ],
+                        default="ouvert",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'ordering': ['-date_incident'],
+                "ordering": ["-date_incident"],
             },
         ),
         migrations.CreateModel(
-            name='Sanction',
+            name="Sanction",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.CharField(choices=[('avertissement', 'Avertissement'), ('heures_colle', 'Heures de colle'), ('exclusion_cours', 'Exclusion de cours'), ('exclusion_temporaire', 'Exclusion temporaire'), ('exclusion_definitive', 'Exclusion définitive'), ('travail_interet_general', "Travail d'intérêt général"), ('autre', 'Autre')], max_length=30)),
-                ('duree_jours', models.PositiveSmallIntegerField(blank=True, null=True)),
-                ('date_effet', models.DateField()),
-                ('date_fin', models.DateField(blank=True, null=True)),
-                ('motif', models.TextField()),
-                ('notifiee_parents', models.BooleanField(default=False)),
-                ('date_notification', models.DateTimeField(blank=True, null=True)),
-                ('executee', models.BooleanField(default=False)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("avertissement", "Avertissement"),
+                            ("heures_colle", "Heures de colle"),
+                            ("exclusion_cours", "Exclusion de cours"),
+                            ("exclusion_temporaire", "Exclusion temporaire"),
+                            ("exclusion_definitive", "Exclusion définitive"),
+                            ("travail_interet_general", "Travail d'intérêt général"),
+                            ("autre", "Autre"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                (
+                    "duree_jours",
+                    models.PositiveSmallIntegerField(blank=True, null=True),
+                ),
+                ("date_effet", models.DateField()),
+                ("date_fin", models.DateField(blank=True, null=True)),
+                ("motif", models.TextField()),
+                ("notifiee_parents", models.BooleanField(default=False)),
+                ("date_notification", models.DateTimeField(blank=True, null=True)),
+                ("executee", models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'ordering': ['-date_effet'],
+                "ordering": ["-date_effet"],
             },
         ),
     ]

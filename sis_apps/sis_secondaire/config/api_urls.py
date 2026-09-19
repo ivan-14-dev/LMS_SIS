@@ -1,5 +1,6 @@
 """API URLs pour SIS Secondaire."""
-from django.urls import path, include
+
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()

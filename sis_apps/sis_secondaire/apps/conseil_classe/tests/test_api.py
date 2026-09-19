@@ -1,4 +1,5 @@
 """API tests for conseil_classe."""
+
 from django.test import TestCase
 
 

@@ -1,4 +1,5 @@
 """App config for bulletins."""
+
 from django.apps import AppConfig
 
 

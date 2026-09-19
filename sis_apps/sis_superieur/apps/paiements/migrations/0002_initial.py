@@ -10,49 +10,75 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etablissement', '0001_initial'),
-        ('formations', '0003_initial'),
-        ('paiements', '0001_initial'),
+        ("etablissement", "0001_initial"),
+        ("formations", "0003_initial"),
+        ("paiements", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='paiementfrais',
-            name='enregistre_par',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='paiements_enregistres', to=settings.AUTH_USER_MODEL),
+            model_name="paiementfrais",
+            name="enregistre_par",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="paiements_enregistres",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='paiementfrais',
-            name='facture',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='paiements', to='paiements.facturefrais'),
+            model_name="paiementfrais",
+            name="facture",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="paiements",
+                to="paiements.facturefrais",
+            ),
         ),
         migrations.AddField(
-            model_name='typefraisinscription',
-            name='annee_universitaire',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='types_frais', to='etablissement.anneeuniversitaire'),
+            model_name="typefraisinscription",
+            name="annee_universitaire",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="types_frais",
+                to="etablissement.anneeuniversitaire",
+            ),
         ),
         migrations.AddField(
-            model_name='typefraisinscription',
-            name='formations',
-            field=models.ManyToManyField(blank=True, related_name='types_frais', to='formations.formation'),
+            model_name="typefraisinscription",
+            name="formations",
+            field=models.ManyToManyField(
+                blank=True, related_name="types_frais", to="formations.formation"
+            ),
         ),
         migrations.AddField(
-            model_name='facturefrais',
-            name='type_frais',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='factures', to='paiements.typefraisinscription'),
+            model_name="facturefrais",
+            name="type_frais",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="factures",
+                to="paiements.typefraisinscription",
+            ),
         ),
         migrations.AddField(
-            model_name='versementbourse',
-            name='bourse',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='versements', to='paiements.bourse'),
+            model_name="versementbourse",
+            name="bourse",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="versements",
+                to="paiements.bourse",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='typefraisinscription',
-            unique_together={('annee_universitaire', 'code')},
+            name="typefraisinscription",
+            unique_together={("annee_universitaire", "code")},
         ),
         migrations.AddIndex(
-            model_name='facturefrais',
-            index=models.Index(fields=['etudiant', 'statut'], name='paiements_f_etudian_a64ef3_idx'),
+            model_name="facturefrais",
+            index=models.Index(
+                fields=["etudiant", "statut"], name="paiements_f_etudian_a64ef3_idx"
+            ),
         ),
     ]

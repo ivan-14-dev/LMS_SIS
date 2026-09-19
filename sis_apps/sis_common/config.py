@@ -1,4 +1,5 @@
 """Shared, security-sensitive configuration helpers for SIS projects."""
+
 import os
 import sys
 

@@ -1,16 +1,24 @@
 """Models for releves (SIS Supérieur)."""
-from django.db import models
+
+from apps.etablissement.models import AnneeUniversitaire, Semestre
 from apps.etudiants.models import Etudiant
-from apps.etablissement.models import Semestre, AnneeUniversitaire
 from apps.utilisateurs.models import Utilisateur
+from django.db import models
 
 
 class ReleveNotes(models.Model):
     """Relevé de notes semestriel."""
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="releves")
-    semestre = models.ForeignKey(Semestre, on_delete=models.PROTECT, related_name="releves")
+
+    etudiant = models.ForeignKey(
+        Etudiant, on_delete=models.CASCADE, related_name="releves"
+    )
+    semestre = models.ForeignKey(
+        Semestre, on_delete=models.PROTECT, related_name="releves"
+    )
     pdf_path = models.CharField(max_length=500)
-    moyenne_generale = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    moyenne_generale = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
     mention = models.CharField(max_length=30, blank=True)
     credits_total = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     credits_valides = models.DecimalField(max_digits=5, decimal_places=2, default=0)
@@ -20,7 +28,10 @@ class ReleveNotes(models.Model):
     signe = models.BooleanField(default=False)
     date_signature = models.DateTimeField(null=True, blank=True)
     signe_par = models.ForeignKey(
-        Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="releves_signes",
     )
     numero_serie = models.CharField(max_length=50, unique=True)
@@ -39,18 +50,26 @@ class ReleveNotes(models.Model):
 
 class Transcript(models.Model):
     """Transcript officiel (relevé global pluriannuel)."""
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="transcripts")
+
+    etudiant = models.ForeignKey(
+        Etudiant, on_delete=models.CASCADE, related_name="transcripts"
+    )
     annees = models.ManyToManyField(AnneeUniversitaire, related_name="transcripts")
     pdf_path = models.CharField(max_length=500)
     credits_total = models.DecimalField(max_digits=5, decimal_places=2)
     credits_valides = models.DecimalField(max_digits=5, decimal_places=2)
-    moyenne_ponderee = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    moyenne_ponderee = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
     mention_finale = models.CharField(max_length=30, blank=True)
     diplome_prepare = models.CharField(max_length=200, blank=True)
     date_emission = models.DateField()
     numero_serie = models.CharField(max_length=50, unique=True)
     signe_par = models.ForeignKey(
-        Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="transcripts_signes",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -65,6 +84,7 @@ class Transcript(models.Model):
 
 class Attestation(models.Model):
     """Attestations diverses (réussite, inscription, comparabilité)."""
+
     TYPE_CHOICES = [
         ("reussite", "Attestation de réussite"),
         ("inscription", "Attestation d'inscription"),
@@ -74,14 +94,19 @@ class Attestation(models.Model):
         ("stage", "Attestation de stage"),
         ("mobilite", "Attestation de mobilité"),
     ]
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="attestations")
+    etudiant = models.ForeignKey(
+        Etudiant, on_delete=models.CASCADE, related_name="attestations"
+    )
     type = models.CharField(max_length=30, choices=TYPE_CHOICES)
     pdf_path = models.CharField(max_length=500)
     date_emission = models.DateField()
     date_validite = models.DateField(null=True, blank=True)
     numero = models.CharField(max_length=50, unique=True)
     signe_par = models.ForeignKey(
-        Utilisateur, on_delete=models.SET_NULL, null=True, blank=True,
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="attestations_signees",
     )
     created_at = models.DateTimeField(auto_now_add=True)

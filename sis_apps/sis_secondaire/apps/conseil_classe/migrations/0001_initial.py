@@ -7,48 +7,107 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='AppreciationConseil',
+            name="AppreciationConseil",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('appreciation', models.TextField()),
-                ('projet_orientation', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("appreciation", models.TextField()),
+                ("projet_orientation", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
         ),
         migrations.CreateModel(
-            name='ConseilClasse',
+            name="ConseilClasse",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateTimeField()),
-                ('ordre_jour', models.TextField(blank=True)),
-                ('pv', models.TextField(blank=True)),
-                ('statut', models.CharField(choices=[('planifie', 'Planifié'), ('tenu', 'Tenu'), ('valide', 'Validé'), ('annule', 'Annulé')], default='planifie', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateTimeField()),
+                ("ordre_jour", models.TextField(blank=True)),
+                ("pv", models.TextField(blank=True)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("planifie", "Planifié"),
+                            ("tenu", "Tenu"),
+                            ("valide", "Validé"),
+                            ("annule", "Annulé"),
+                        ],
+                        default="planifie",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Conseil de classe',
-                'verbose_name_plural': 'Conseils de classe',
-                'ordering': ['-date'],
+                "verbose_name": "Conseil de classe",
+                "verbose_name_plural": "Conseils de classe",
+                "ordering": ["-date"],
             },
         ),
         migrations.CreateModel(
-            name='DecisionConseil',
+            name="DecisionConseil",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('decision', models.CharField(choices=[('passage', 'Passage en classe supérieure'), ('passage_conditionnel', 'Passage conditionnel'), ('redoublement', 'Redoublement'), ('orientation', 'Réorientation'), ('encouragement', 'Encouragements'), ('tableau_honneur', "Tableau d'honneur"), ('avertissement_travail', 'Avertissement travail'), ('avertissement_comportement', 'Avertissement comportement'), ('blame', 'Blâme')], max_length=30)),
-                ('moyenne_generale', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('rang', models.PositiveIntegerField(blank=True, null=True)),
-                ('motif', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "decision",
+                    models.CharField(
+                        choices=[
+                            ("passage", "Passage en classe supérieure"),
+                            ("passage_conditionnel", "Passage conditionnel"),
+                            ("redoublement", "Redoublement"),
+                            ("orientation", "Réorientation"),
+                            ("encouragement", "Encouragements"),
+                            ("tableau_honneur", "Tableau d'honneur"),
+                            ("avertissement_travail", "Avertissement travail"),
+                            (
+                                "avertissement_comportement",
+                                "Avertissement comportement",
+                            ),
+                            ("blame", "Blâme"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                (
+                    "moyenne_generale",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                ("rang", models.PositiveIntegerField(blank=True, null=True)),
+                ("motif", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Décision de conseil',
-                'verbose_name_plural': 'Décisions de conseil',
+                "verbose_name": "Décision de conseil",
+                "verbose_name_plural": "Décisions de conseil",
             },
         ),
     ]

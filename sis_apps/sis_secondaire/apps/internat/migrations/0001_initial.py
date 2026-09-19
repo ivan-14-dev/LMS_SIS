@@ -9,70 +9,133 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('eleves', '0001_initial'),
+        ("eleves", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='BatimentInternat',
+            name="BatimentInternat",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nom', models.CharField(max_length=100)),
-                ('adresse', models.CharField(blank=True, max_length=200)),
-                ('nb_etages', models.PositiveSmallIntegerField(default=1)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nom", models.CharField(max_length=100)),
+                ("adresse", models.CharField(blank=True, max_length=200)),
+                ("nb_etages", models.PositiveSmallIntegerField(default=1)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Bâtiment internat',
-                'verbose_name_plural': 'Bâtiments internat',
+                "verbose_name": "Bâtiment internat",
+                "verbose_name_plural": "Bâtiments internat",
             },
         ),
         migrations.CreateModel(
-            name='OccupantChambre',
+            name="OccupantChambre",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date_debut', models.DateField()),
-                ('date_fin', models.DateField(blank=True, null=True)),
-                ('motif_fin', models.CharField(blank=True, max_length=200)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date_debut", models.DateField()),
+                ("date_fin", models.DateField(blank=True, null=True)),
+                ("motif_fin", models.CharField(blank=True, max_length=200)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Occupant chambre',
-                'verbose_name_plural': 'Occupants chambre',
+                "verbose_name": "Occupant chambre",
+                "verbose_name_plural": "Occupants chambre",
             },
         ),
         migrations.CreateModel(
-            name='Chambre',
+            name="Chambre",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('numero', models.CharField(max_length=20)),
-                ('etage', models.PositiveSmallIntegerField(default=0)),
-                ('type', models.CharField(choices=[('simple', 'Simple'), ('double', 'Double'), ('triple', 'Triple'), ('quadruple', 'Quadruple')], default='double', max_length=20)),
-                ('capacite', models.PositiveSmallIntegerField(default=2)),
-                ('equipements', models.JSONField(blank=True, default=list)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('batiment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='chambres', to='internat.batimentinternat')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("numero", models.CharField(max_length=20)),
+                ("etage", models.PositiveSmallIntegerField(default=0)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("simple", "Simple"),
+                            ("double", "Double"),
+                            ("triple", "Triple"),
+                            ("quadruple", "Quadruple"),
+                        ],
+                        default="double",
+                        max_length=20,
+                    ),
+                ),
+                ("capacite", models.PositiveSmallIntegerField(default=2)),
+                ("equipements", models.JSONField(blank=True, default=list)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "batiment",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="chambres",
+                        to="internat.batimentinternat",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Chambre',
-                'verbose_name_plural': 'Chambres',
+                "verbose_name": "Chambre",
+                "verbose_name_plural": "Chambres",
             },
         ),
         migrations.CreateModel(
-            name='EtudeSurveillee',
+            name="EtudeSurveillee",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('salle', models.CharField(max_length=100)),
-                ('date', models.DateField()),
-                ('heure_debut', models.TimeField()),
-                ('heure_fin', models.TimeField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('batiment', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='etudes', to='internat.batimentinternat')),
-                ('eleves_presents', models.ManyToManyField(related_name='etudes_presence', to='eleves.eleve')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("salle", models.CharField(max_length=100)),
+                ("date", models.DateField()),
+                ("heure_debut", models.TimeField()),
+                ("heure_fin", models.TimeField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "batiment",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="etudes",
+                        to="internat.batimentinternat",
+                    ),
+                ),
+                (
+                    "eleves_presents",
+                    models.ManyToManyField(
+                        related_name="etudes_presence", to="eleves.eleve"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Étude surveillée',
-                'verbose_name_plural': 'Études surveillées',
+                "verbose_name": "Étude surveillée",
+                "verbose_name_plural": "Études surveillées",
             },
         ),
     ]

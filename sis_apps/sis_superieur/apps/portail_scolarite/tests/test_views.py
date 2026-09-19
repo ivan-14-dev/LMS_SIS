@@ -1,4 +1,5 @@
 """View tests for portail_scolarite."""
+
 from django.test import TestCase
 
 

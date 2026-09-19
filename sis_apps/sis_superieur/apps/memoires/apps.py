@@ -1,4 +1,5 @@
 """App config for memoires."""
+
 from django.apps import AppConfig
 
 

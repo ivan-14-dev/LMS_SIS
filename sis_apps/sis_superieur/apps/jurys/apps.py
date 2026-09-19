@@ -1,4 +1,5 @@
 """App config for jurys."""
+
 from django.apps import AppConfig
 
 

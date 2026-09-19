@@ -1,4 +1,5 @@
 """App config for transport."""
+
 from django.apps import AppConfig
 
 

@@ -1,6 +1,4 @@
 """URLs API for recherche."""
-from django.urls import path
-from . import api
 
 app_name = "recherche_api"
 

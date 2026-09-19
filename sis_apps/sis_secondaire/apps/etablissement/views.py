@@ -1,4 +1,5 @@
 """Views for etablissement admin (placeholder)."""
+
 from django.shortcuts import render
 
 

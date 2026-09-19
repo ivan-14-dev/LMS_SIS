@@ -1,4 +1,5 @@
 """App config for formations."""
+
 from django.apps import AppConfig
 
 

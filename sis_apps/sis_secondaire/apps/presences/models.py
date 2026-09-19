@@ -1,13 +1,17 @@
 """Models for presences (SIS Secondaire)."""
-from django.db import models
+
 from apps.eleves.models import Eleve
 from apps.emplois_du_temps.models import Creneau
 from apps.enseignants.models import Personnel
+from django.db import models
 
 
 class Appel(models.Model):
     """Appel fait par un enseignant pour un créneau donné."""
-    creneau = models.ForeignKey(Creneau, on_delete=models.CASCADE, related_name="appels")
+
+    creneau = models.ForeignKey(
+        Creneau, on_delete=models.CASCADE, related_name="appels"
+    )
     date = models.DateField()
     enseignant = models.ForeignKey(
         Personnel, on_delete=models.PROTECT, related_name="appels"
@@ -33,6 +37,7 @@ class Appel(models.Model):
 
 class Presence(models.Model):
     """Présence individuelle d'un élève à un appel."""
+
     STATUT_CHOICES = [
         ("present", "Présent"),
         ("absent", "Absent"),
@@ -62,6 +67,7 @@ class Presence(models.Model):
 
 class Justificatif(models.Model):
     """Justificatif d'absence."""
+
     STATUT_CHOICES = [
         ("en_attente", "En attente"),
         ("accepte", "Accepté"),
@@ -74,11 +80,16 @@ class Justificatif(models.Model):
     document = models.FileField(upload_to="justificatifs/", null=True, blank=True)
     date_depot = models.DateTimeField(auto_now_add=True)
     valide_par = models.ForeignKey(
-        Personnel, on_delete=models.SET_NULL, null=True, blank=True,
+        Personnel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="justificatifs_valides",
     )
     date_validation = models.DateTimeField(null=True, blank=True)
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="en_attente")
+    statut = models.CharField(
+        max_length=20, choices=STATUT_CHOICES, default="en_attente"
+    )
     commentaire_validation = models.TextField(blank=True)
 
     def __str__(self):

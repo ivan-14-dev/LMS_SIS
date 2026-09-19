@@ -8,28 +8,34 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('ects', '0002_initial'),
-        ('ue_ecue', '0001_initial'),
+        ("ects", "0002_initial"),
+        ("ue_ecue", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='bilanects',
-            name='ues_compensees',
-            field=models.ManyToManyField(blank=True, related_name='bilans_compensees', to='ue_ecue.ue'),
+            model_name="bilanects",
+            name="ues_compensees",
+            field=models.ManyToManyField(
+                blank=True, related_name="bilans_compensees", to="ue_ecue.ue"
+            ),
         ),
         migrations.AddField(
-            model_name='bilanects',
-            name='ues_echec',
-            field=models.ManyToManyField(blank=True, related_name='bilans_echec', to='ue_ecue.ue'),
+            model_name="bilanects",
+            name="ues_echec",
+            field=models.ManyToManyField(
+                blank=True, related_name="bilans_echec", to="ue_ecue.ue"
+            ),
         ),
         migrations.AddField(
-            model_name='bilanects',
-            name='ues_validees',
-            field=models.ManyToManyField(blank=True, related_name='bilans_validees', to='ue_ecue.ue'),
+            model_name="bilanects",
+            name="ues_validees",
+            field=models.ManyToManyField(
+                blank=True, related_name="bilans_validees", to="ue_ecue.ue"
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='bilanects',
-            unique_together={('etudiant', 'annee_universitaire')},
+            name="bilanects",
+            unique_together={("etudiant", "annee_universitaire")},
         ),
     ]

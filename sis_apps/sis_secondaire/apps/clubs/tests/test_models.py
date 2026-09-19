@@ -1,4 +1,5 @@
 """Model tests for clubs."""
+
 from django.test import TestCase
 
 

@@ -1,7 +1,0 @@
-"""Tests for internat."""
-from django.test import TestCase
-
-
-class InternatTestCase(TestCase):
-    def test_placeholder(self):
-        self.assertTrue(True)

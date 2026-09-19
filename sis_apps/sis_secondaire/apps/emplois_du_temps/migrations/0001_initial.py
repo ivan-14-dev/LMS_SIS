@@ -9,45 +9,118 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('classes', '0001_initial'),
+        ("classes", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Creneau',
+            name="Creneau",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('jour', models.PositiveSmallIntegerField(choices=[(1, 'Lundi'), (2, 'Mardi'), (3, 'Mercredi'), (4, 'Jeudi'), (5, 'Vendredi'), (6, 'Samedi'), (7, 'Dimanche')])),
-                ('heure_debut', models.TimeField()),
-                ('heure_fin', models.TimeField()),
-                ('semaine', models.PositiveSmallIntegerField(default=0, help_text='0 = toutes les semaines')),
-                ('type', models.CharField(choices=[('cours', 'Cours'), ('td', 'TD'), ('tp', 'TP'), ('evaluation', 'Évaluation'), ('permanence', 'Permanence'), ('reunion', 'Réunion')], default='cours', max_length=20)),
-                ('date_specifique', models.DateField(blank=True, help_text='Si défini, créneau ponctuel', null=True)),
-                ('notes', models.TextField(blank=True)),
-                ('actif', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "jour",
+                    models.PositiveSmallIntegerField(
+                        choices=[
+                            (1, "Lundi"),
+                            (2, "Mardi"),
+                            (3, "Mercredi"),
+                            (4, "Jeudi"),
+                            (5, "Vendredi"),
+                            (6, "Samedi"),
+                            (7, "Dimanche"),
+                        ]
+                    ),
+                ),
+                ("heure_debut", models.TimeField()),
+                ("heure_fin", models.TimeField()),
+                (
+                    "semaine",
+                    models.PositiveSmallIntegerField(
+                        default=0, help_text="0 = toutes les semaines"
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("cours", "Cours"),
+                            ("td", "TD"),
+                            ("tp", "TP"),
+                            ("evaluation", "Évaluation"),
+                            ("permanence", "Permanence"),
+                            ("reunion", "Réunion"),
+                        ],
+                        default="cours",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "date_specifique",
+                    models.DateField(
+                        blank=True, help_text="Si défini, créneau ponctuel", null=True
+                    ),
+                ),
+                ("notes", models.TextField(blank=True)),
+                ("actif", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'ordering': ['jour', 'heure_debut'],
+                "ordering": ["jour", "heure_debut"],
             },
         ),
         migrations.CreateModel(
-            name='Contrainte',
+            name="Contrainte",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.CharField(choices=[('indispo_enseignant', 'Indisponibilité enseignant'), ('indispo_salle', 'Indisponibilité salle'), ('indispo_classe', 'Indisponibilité classe'), ('preference', 'Préférence')], max_length=30)),
-                ('jour', models.PositiveSmallIntegerField(blank=True, null=True)),
-                ('heure_debut', models.TimeField(blank=True, null=True)),
-                ('heure_fin', models.TimeField(blank=True, null=True)),
-                ('priorite', models.PositiveSmallIntegerField(default=1)),
-                ('motif', models.CharField(blank=True, max_length=200)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('classe', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='contraintes', to='classes.classe')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("indispo_enseignant", "Indisponibilité enseignant"),
+                            ("indispo_salle", "Indisponibilité salle"),
+                            ("indispo_classe", "Indisponibilité classe"),
+                            ("preference", "Préférence"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                ("jour", models.PositiveSmallIntegerField(blank=True, null=True)),
+                ("heure_debut", models.TimeField(blank=True, null=True)),
+                ("heure_fin", models.TimeField(blank=True, null=True)),
+                ("priorite", models.PositiveSmallIntegerField(default=1)),
+                ("motif", models.CharField(blank=True, max_length=200)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "classe",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="contraintes",
+                        to="classes.classe",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Contrainte',
-                'verbose_name_plural': 'Contraintes',
+                "verbose_name": "Contrainte",
+                "verbose_name_plural": "Contraintes",
             },
         ),
     ]

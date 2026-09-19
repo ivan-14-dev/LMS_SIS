@@ -1,4 +1,5 @@
 """App config for etudiants."""
+
 from django.apps import AppConfig
 
 

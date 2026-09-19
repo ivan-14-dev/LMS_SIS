@@ -10,45 +10,81 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('emplois_du_temps', '0002_initial'),
-        ('structure', '0001_initial'),
+        ("emplois_du_temps", "0002_initial"),
+        ("structure", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='reservation',
-            name='demandeur',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='reservations_locaux', to=settings.AUTH_USER_MODEL),
+            model_name="reservation",
+            name="demandeur",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="reservations_locaux",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='reservation',
-            name='valide_par',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='reservations_validees', to=settings.AUTH_USER_MODEL),
+            model_name="reservation",
+            name="valide_par",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="reservations_validees",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='conflithoraire',
-            name='reservation',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='conflits', to='emplois_du_temps.reservation'),
+            model_name="conflithoraire",
+            name="reservation",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="conflits",
+                to="emplois_du_temps.reservation",
+            ),
         ),
         migrations.AddField(
-            model_name='salle',
-            name='batiment',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='salles', to='emplois_du_temps.batiment'),
+            model_name="salle",
+            name="batiment",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="salles",
+                to="emplois_du_temps.batiment",
+            ),
         ),
         migrations.AddField(
-            model_name='salle',
-            name='departement_gestionnaire',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='salles_gerees', to='structure.departement'),
+            model_name="salle",
+            name="departement_gestionnaire",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="salles_gerees",
+                to="structure.departement",
+            ),
         ),
         migrations.AddField(
-            model_name='reservation',
-            name='salle',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='reservations', to='emplois_du_temps.salle'),
+            model_name="reservation",
+            name="salle",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="reservations",
+                to="emplois_du_temps.salle",
+            ),
         ),
         migrations.AddField(
-            model_name='creneaucours',
-            name='salle',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='creneaux_cours', to='emplois_du_temps.salle'),
+            model_name="creneaucours",
+            name="salle",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="creneaux_cours",
+                to="emplois_du_temps.salle",
+            ),
         ),
     ]

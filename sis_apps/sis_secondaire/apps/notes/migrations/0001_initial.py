@@ -9,94 +9,257 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('classes', '0001_initial'),
-        ('eleves', '0001_initial'),
-        ('enseignants', '0001_initial'),
-        ('etablissement', '0001_initial'),
+        ("classes", "0001_initial"),
+        ("eleves", "0001_initial"),
+        ("enseignants", "0001_initial"),
+        ("etablissement", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Evaluation',
+            name="Evaluation",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.CharField(choices=[('interrogation', 'Interrogation'), ('ds', 'Devoir surveillé'), ('dm', 'Devoir maison'), ('tp', 'TP / Pratique'), ('oral', 'Oral'), ('examen_blanc', 'Examen blanc'), ('examen_final', 'Examen final'), ('projet', 'Projet')], default='ds', max_length=20)),
-                ('titre', models.CharField(max_length=200)),
-                ('description', models.TextField(blank=True)),
-                ('date', models.DateField()),
-                ('heure_debut', models.TimeField(blank=True, null=True)),
-                ('duree_minutes', models.PositiveIntegerField(blank=True, null=True)),
-                ('bareme', models.DecimalField(decimal_places=2, default=20, max_digits=5)),
-                ('coefficient', models.DecimalField(decimal_places=2, default=1, max_digits=4)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('classe', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='evaluations', to='classes.classe')),
-                ('enseignant', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='evaluations', to='enseignants.personnel')),
-                ('matiere', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='evaluations', to='classes.matiere')),
-                ('periode', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='evaluations', to='etablissement.periode')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("interrogation", "Interrogation"),
+                            ("ds", "Devoir surveillé"),
+                            ("dm", "Devoir maison"),
+                            ("tp", "TP / Pratique"),
+                            ("oral", "Oral"),
+                            ("examen_blanc", "Examen blanc"),
+                            ("examen_final", "Examen final"),
+                            ("projet", "Projet"),
+                        ],
+                        default="ds",
+                        max_length=20,
+                    ),
+                ),
+                ("titre", models.CharField(max_length=200)),
+                ("description", models.TextField(blank=True)),
+                ("date", models.DateField()),
+                ("heure_debut", models.TimeField(blank=True, null=True)),
+                ("duree_minutes", models.PositiveIntegerField(blank=True, null=True)),
+                (
+                    "bareme",
+                    models.DecimalField(decimal_places=2, default=20, max_digits=5),
+                ),
+                (
+                    "coefficient",
+                    models.DecimalField(decimal_places=2, default=1, max_digits=4),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "classe",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="evaluations",
+                        to="classes.classe",
+                    ),
+                ),
+                (
+                    "enseignant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="evaluations",
+                        to="enseignants.personnel",
+                    ),
+                ),
+                (
+                    "matiere",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="evaluations",
+                        to="classes.matiere",
+                    ),
+                ),
+                (
+                    "periode",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="evaluations",
+                        to="etablissement.periode",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-date'],
+                "ordering": ["-date"],
             },
         ),
         migrations.CreateModel(
-            name='Note',
+            name="Note",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('valeur', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('appreciation', models.TextField(blank=True)),
-                ('statut', models.CharField(choices=[('presente', 'Présentée'), ('absente', 'Absent'), ('dispensee', 'Dispensé'), ('non_rendue', 'Non rendue'), ('triche', 'Triche')], default='presente', max_length=20)),
-                ('date_saisie', models.DateTimeField(auto_now_add=True)),
-                ('modifie_le', models.DateTimeField(blank=True, null=True)),
-                ('motif_modification', models.TextField(blank=True)),
-                ('eleve', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notes', to='eleves.eleve')),
-                ('evaluation', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notes', to='notes.evaluation')),
-                ('modifie_par', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='notes_modifiees', to='enseignants.personnel')),
-                ('saisi_par', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='notes_saisies', to='enseignants.personnel')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "valeur",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                ("appreciation", models.TextField(blank=True)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("presente", "Présentée"),
+                            ("absente", "Absent"),
+                            ("dispensee", "Dispensé"),
+                            ("non_rendue", "Non rendue"),
+                            ("triche", "Triche"),
+                        ],
+                        default="presente",
+                        max_length=20,
+                    ),
+                ),
+                ("date_saisie", models.DateTimeField(auto_now_add=True)),
+                ("modifie_le", models.DateTimeField(blank=True, null=True)),
+                ("motif_modification", models.TextField(blank=True)),
+                (
+                    "eleve",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="notes",
+                        to="eleves.eleve",
+                    ),
+                ),
+                (
+                    "evaluation",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="notes",
+                        to="notes.evaluation",
+                    ),
+                ),
+                (
+                    "modifie_par",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="notes_modifiees",
+                        to="enseignants.personnel",
+                    ),
+                ),
+                (
+                    "saisi_par",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="notes_saisies",
+                        to="enseignants.personnel",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['eleve__user__last_name', 'eleve__user__first_name'],
+                "ordering": ["eleve__user__last_name", "eleve__user__first_name"],
             },
         ),
         migrations.CreateModel(
-            name='Bulletin',
+            name="Bulletin",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('moyenne_generale', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('rang', models.PositiveIntegerField(blank=True, null=True)),
-                ('effectif_classe', models.PositiveIntegerField(blank=True, null=True)),
-                ('appreciation_conseil', models.TextField(blank=True)),
-                ('decision', models.CharField(blank=True, help_text='passage, redoublement, encouragement, etc.', max_length=50)),
-                ('pdf_path', models.CharField(blank=True, max_length=500)),
-                ('signe', models.BooleanField(default=False)),
-                ('date_signature', models.DateTimeField(blank=True, null=True)),
-                ('publie', models.BooleanField(default=False)),
-                ('date_publication', models.DateTimeField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('classe', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='bulletins', to='classes.classe')),
-                ('eleve', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='bulletins', to='eleves.eleve')),
-                ('periode', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='bulletins', to='etablissement.periode')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "moyenne_generale",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                ("rang", models.PositiveIntegerField(blank=True, null=True)),
+                ("effectif_classe", models.PositiveIntegerField(blank=True, null=True)),
+                ("appreciation_conseil", models.TextField(blank=True)),
+                (
+                    "decision",
+                    models.CharField(
+                        blank=True,
+                        help_text="passage, redoublement, encouragement, etc.",
+                        max_length=50,
+                    ),
+                ),
+                ("pdf_path", models.CharField(blank=True, max_length=500)),
+                ("signe", models.BooleanField(default=False)),
+                ("date_signature", models.DateTimeField(blank=True, null=True)),
+                ("publie", models.BooleanField(default=False)),
+                ("date_publication", models.DateTimeField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "classe",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="bulletins",
+                        to="classes.classe",
+                    ),
+                ),
+                (
+                    "eleve",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="bulletins",
+                        to="eleves.eleve",
+                    ),
+                ),
+                (
+                    "periode",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="bulletins",
+                        to="etablissement.periode",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-periode__date_fin'],
-                'unique_together': {('eleve', 'periode')},
+                "ordering": ["-periode__date_fin"],
+                "unique_together": {("eleve", "periode")},
             },
         ),
         migrations.AddIndex(
-            model_name='evaluation',
-            index=models.Index(fields=['classe', 'date'], name='notes_evalu_classe__fe7760_idx'),
+            model_name="evaluation",
+            index=models.Index(
+                fields=["classe", "date"], name="notes_evalu_classe__fe7760_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='evaluation',
-            index=models.Index(fields=['matiere', 'date'], name='notes_evalu_matiere_5824de_idx'),
+            model_name="evaluation",
+            index=models.Index(
+                fields=["matiere", "date"], name="notes_evalu_matiere_5824de_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='note',
-            index=models.Index(fields=['eleve', 'evaluation'], name='notes_note_eleve_i_5e989c_idx'),
+            model_name="note",
+            index=models.Index(
+                fields=["eleve", "evaluation"], name="notes_note_eleve_i_5e989c_idx"
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='note',
-            unique_together={('evaluation', 'eleve')},
+            name="note",
+            unique_together={("evaluation", "eleve")},
         ),
     ]

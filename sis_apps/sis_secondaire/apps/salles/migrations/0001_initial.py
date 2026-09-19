@@ -9,31 +9,79 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etablissement', '0001_initial'),
+        ("etablissement", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Salle',
+            name="Salle",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nom', models.CharField(max_length=100)),
-                ('code', models.CharField(max_length=20)),
-                ('batiment', models.CharField(blank=True, max_length=100)),
-                ('etage', models.CharField(blank=True, max_length=20)),
-                ('capacite', models.PositiveIntegerField(default=30)),
-                ('type', models.CharField(choices=[('salle_classique', 'Salle de classe'), ('laboratoire', 'Laboratoire'), ('salle_info', 'Salle informatique'), ('gymnase', 'Gymnase'), ('amphi', 'Amphithéâtre'), ('bibliotheque', 'Bibliothèque'), ('cdi', 'CDI'), ('reunion', 'Salle de réunion')], default='salle_classique', max_length=30)),
-                ('equipements', models.JSONField(blank=True, default=list, help_text='["projecteur", "tableau_interactif"]')),
-                ('accessible_pm', models.BooleanField(default=True, help_text='Accessible personne mobilité réduite')),
-                ('surface_m2', models.DecimalField(blank=True, decimal_places=2, max_digits=6, null=True)),
-                ('notes', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('etablissement', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='salles', to='etablissement.etablissement')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nom", models.CharField(max_length=100)),
+                ("code", models.CharField(max_length=20)),
+                ("batiment", models.CharField(blank=True, max_length=100)),
+                ("etage", models.CharField(blank=True, max_length=20)),
+                ("capacite", models.PositiveIntegerField(default=30)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("salle_classique", "Salle de classe"),
+                            ("laboratoire", "Laboratoire"),
+                            ("salle_info", "Salle informatique"),
+                            ("gymnase", "Gymnase"),
+                            ("amphi", "Amphithéâtre"),
+                            ("bibliotheque", "Bibliothèque"),
+                            ("cdi", "CDI"),
+                            ("reunion", "Salle de réunion"),
+                        ],
+                        default="salle_classique",
+                        max_length=30,
+                    ),
+                ),
+                (
+                    "equipements",
+                    models.JSONField(
+                        blank=True,
+                        default=list,
+                        help_text='["projecteur", "tableau_interactif"]',
+                    ),
+                ),
+                (
+                    "accessible_pm",
+                    models.BooleanField(
+                        default=True, help_text="Accessible personne mobilité réduite"
+                    ),
+                ),
+                (
+                    "surface_m2",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=6, null=True
+                    ),
+                ),
+                ("notes", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "etablissement",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="salles",
+                        to="etablissement.etablissement",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['batiment', 'nom'],
-                'unique_together': {('etablissement', 'code')},
+                "ordering": ["batiment", "nom"],
+                "unique_together": {("etablissement", "code")},
             },
         ),
     ]

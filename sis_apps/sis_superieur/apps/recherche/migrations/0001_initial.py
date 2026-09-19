@@ -9,82 +9,196 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('enseignants', '0002_initial'),
+        ("enseignants", "0002_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ProductionScientifique',
+            name="ProductionScientifique",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.CharField(choices=[('article', 'Article scientifique'), ('communication', 'Communication'), ('chapitre', "Chapitre d'ouvrage"), ('livre', 'Livre'), ('brevet', 'Brevet'), ('these', 'Thèse'), ('hdr', 'HDR')], max_length=20)),
-                ('titre', models.CharField(max_length=300)),
-                ('annee', models.PositiveSmallIntegerField()),
-                ('doi', models.CharField(blank=True, max_length=100)),
-                ('fichier', models.FileField(blank=True, null=True, upload_to='publications/')),
-                ('url_hal', models.URLField(blank=True)),
-                ('facteur_impact', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("article", "Article scientifique"),
+                            ("communication", "Communication"),
+                            ("chapitre", "Chapitre d'ouvrage"),
+                            ("livre", "Livre"),
+                            ("brevet", "Brevet"),
+                            ("these", "Thèse"),
+                            ("hdr", "HDR"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("titre", models.CharField(max_length=300)),
+                ("annee", models.PositiveSmallIntegerField()),
+                ("doi", models.CharField(blank=True, max_length=100)),
+                (
+                    "fichier",
+                    models.FileField(blank=True, null=True, upload_to="publications/"),
+                ),
+                ("url_hal", models.URLField(blank=True)),
+                (
+                    "facteur_impact",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Production scientifique',
-                'verbose_name_plural': 'Productions scientifiques',
+                "verbose_name": "Production scientifique",
+                "verbose_name_plural": "Productions scientifiques",
             },
         ),
         migrations.CreateModel(
-            name='ProjetRecherche',
+            name="ProjetRecherche",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('titre', models.CharField(max_length=300)),
-                ('acronyme', models.CharField(blank=True, max_length=20)),
-                ('description', models.TextField()),
-                ('financeur', models.CharField(blank=True, max_length=200)),
-                ('reference', models.CharField(blank=True, max_length=100)),
-                ('budget', models.DecimalField(decimal_places=2, default=0, max_digits=12)),
-                ('date_debut', models.DateField()),
-                ('date_fin', models.DateField()),
-                ('statut', models.CharField(choices=[('propose', 'Proposé'), ('accepte', 'Accepté'), ('en_cours', 'En cours'), ('termine', 'Terminé'), ('suspendu', 'Suspendu')], default='propose', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("titre", models.CharField(max_length=300)),
+                ("acronyme", models.CharField(blank=True, max_length=20)),
+                ("description", models.TextField()),
+                ("financeur", models.CharField(blank=True, max_length=200)),
+                ("reference", models.CharField(blank=True, max_length=100)),
+                (
+                    "budget",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=12),
+                ),
+                ("date_debut", models.DateField()),
+                ("date_fin", models.DateField()),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("propose", "Proposé"),
+                            ("accepte", "Accepté"),
+                            ("en_cours", "En cours"),
+                            ("termine", "Terminé"),
+                            ("suspendu", "Suspendu"),
+                        ],
+                        default="propose",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Projet de recherche',
-                'verbose_name_plural': 'Projets de recherche',
+                "verbose_name": "Projet de recherche",
+                "verbose_name_plural": "Projets de recherche",
             },
         ),
         migrations.CreateModel(
-            name='These',
+            name="These",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('titre', models.CharField(max_length=300)),
-                ('resume', models.TextField()),
-                ('mots_cles', models.JSONField(blank=True, default=list)),
-                ('date_debut', models.DateField()),
-                ('date_soutenance', models.DateField(blank=True, null=True)),
-                ('statut', models.CharField(choices=[('en_cours', 'En cours'), ('soutenue', 'Soutenue'), ('abandonnee', 'Abandonnée'), ('suspendue', 'Suspendue')], default='en_cours', max_length=20)),
-                ('financement', models.CharField(blank=True, help_text='Ex: MENRT, CIFRE, ANR', max_length=200)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("titre", models.CharField(max_length=300)),
+                ("resume", models.TextField()),
+                ("mots_cles", models.JSONField(blank=True, default=list)),
+                ("date_debut", models.DateField()),
+                ("date_soutenance", models.DateField(blank=True, null=True)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("en_cours", "En cours"),
+                            ("soutenue", "Soutenue"),
+                            ("abandonnee", "Abandonnée"),
+                            ("suspendue", "Suspendue"),
+                        ],
+                        default="en_cours",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "financement",
+                    models.CharField(
+                        blank=True, help_text="Ex: MENRT, CIFRE, ANR", max_length=200
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Thèse',
-                'verbose_name_plural': 'Thèses',
+                "verbose_name": "Thèse",
+                "verbose_name_plural": "Thèses",
             },
         ),
         migrations.CreateModel(
-            name='Laboratoire',
+            name="Laboratoire",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nom', models.CharField(max_length=200)),
-                ('acronyme', models.CharField(max_length=20)),
-                ('type', models.CharField(choices=[('UMR', 'Unité Mixte de Recherche'), ('EA', "Équipe d'Accueil"), ('FRE', 'Formation de Recherche en Évolution'), ('USR', 'Unité de Service et de Recherche'), ('individuel', 'Laboratoire individuel')], default='UMR', max_length=20)),
-                ('tutelle', models.JSONField(blank=True, default=list, help_text='["CNRS", "Université X"]')),
-                ('axes_recherche', models.JSONField(blank=True, default=list)),
-                ('numero_rnsr', models.CharField(blank=True, max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('directeur', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='laboratoires_diriges', to='enseignants.enseignantchercheur')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nom", models.CharField(max_length=200)),
+                ("acronyme", models.CharField(max_length=20)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("UMR", "Unité Mixte de Recherche"),
+                            ("EA", "Équipe d'Accueil"),
+                            ("FRE", "Formation de Recherche en Évolution"),
+                            ("USR", "Unité de Service et de Recherche"),
+                            ("individuel", "Laboratoire individuel"),
+                        ],
+                        default="UMR",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "tutelle",
+                    models.JSONField(
+                        blank=True, default=list, help_text='["CNRS", "Université X"]'
+                    ),
+                ),
+                ("axes_recherche", models.JSONField(blank=True, default=list)),
+                ("numero_rnsr", models.CharField(blank=True, max_length=20)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "directeur",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="laboratoires_diriges",
+                        to="enseignants.enseignantchercheur",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Laboratoire',
-                'verbose_name_plural': 'Laboratoires',
+                "verbose_name": "Laboratoire",
+                "verbose_name_plural": "Laboratoires",
             },
         ),
     ]

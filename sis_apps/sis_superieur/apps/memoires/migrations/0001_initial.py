@@ -7,72 +7,163 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='JuryMemoire',
+            name="JuryMemoire",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Memoire',
+            name="Memoire",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('fichier', models.FileField(blank=True, null=True, upload_to='memoires/')),
-                ('resume', models.TextField(blank=True)),
-                ('abstract', models.TextField(blank=True, help_text='Abstract en anglais')),
-                ('date_depot', models.DateTimeField(blank=True, null=True)),
-                ('rapport_similarite', models.FloatField(blank=True, help_text='% plagiat', null=True)),
-                ('statut', models.CharField(choices=[('brouillon', 'Brouillon'), ('soumis', 'Soumis'), ('en_relecture', 'En relecture'), ('accepte', 'Accepté'), ('reserve', 'Sous réserve'), ('refuse', 'Refusé'), ('soutenu', 'Soutenu')], default='brouillon', max_length=20)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "fichier",
+                    models.FileField(blank=True, null=True, upload_to="memoires/"),
+                ),
+                ("resume", models.TextField(blank=True)),
+                (
+                    "abstract",
+                    models.TextField(blank=True, help_text="Abstract en anglais"),
+                ),
+                ("date_depot", models.DateTimeField(blank=True, null=True)),
+                (
+                    "rapport_similarite",
+                    models.FloatField(blank=True, help_text="% plagiat", null=True),
+                ),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("brouillon", "Brouillon"),
+                            ("soumis", "Soumis"),
+                            ("en_relecture", "En relecture"),
+                            ("accepte", "Accepté"),
+                            ("reserve", "Sous réserve"),
+                            ("refuse", "Refusé"),
+                            ("soutenu", "Soutenu"),
+                        ],
+                        default="brouillon",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
             options={
-                'verbose_name': 'Mémoire',
-                'verbose_name_plural': 'Mémoires',
+                "verbose_name": "Mémoire",
+                "verbose_name_plural": "Mémoires",
             },
         ),
         migrations.CreateModel(
-            name='SoutenanceMemoire',
+            name="SoutenanceMemoire",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateTimeField()),
-                ('duree_minutes', models.PositiveIntegerField(default=60)),
-                ('lieu', models.CharField(max_length=200)),
-                ('public', models.BooleanField(default=True)),
-                ('statut', models.CharField(choices=[('planifiee', 'Planifiée'), ('reporte', 'Reportée'), ('tenue', 'Tenue'), ('annulee', 'Annulée')], default='planifiee', max_length=20)),
-                ('decision', models.CharField(blank=True, choices=[('accepte', 'Accepté'), ('accepte_reserve', 'Accepté sous réserve'), ('refuse', 'Refusé')], max_length=30)),
-                ('mention', models.CharField(blank=True, max_length=30)),
-                ('pv_pdf', models.CharField(blank=True, max_length=500)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateTimeField()),
+                ("duree_minutes", models.PositiveIntegerField(default=60)),
+                ("lieu", models.CharField(max_length=200)),
+                ("public", models.BooleanField(default=True)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("planifiee", "Planifiée"),
+                            ("reporte", "Reportée"),
+                            ("tenue", "Tenue"),
+                            ("annulee", "Annulée"),
+                        ],
+                        default="planifiee",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "decision",
+                    models.CharField(
+                        blank=True,
+                        choices=[
+                            ("accepte", "Accepté"),
+                            ("accepte_reserve", "Accepté sous réserve"),
+                            ("refuse", "Refusé"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                ("mention", models.CharField(blank=True, max_length=30)),
+                ("pv_pdf", models.CharField(blank=True, max_length=500)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Soutenance',
-                'verbose_name_plural': 'Soutenances',
+                "verbose_name": "Soutenance",
+                "verbose_name_plural": "Soutenances",
             },
         ),
         migrations.CreateModel(
-            name='SujetMemoire',
+            name="SujetMemoire",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('titre', models.CharField(max_length=300)),
-                ('description', models.TextField()),
-                ('mots_cles', models.JSONField(blank=True, default=list)),
-                ('nb_etudiants_max', models.PositiveSmallIntegerField(default=1)),
-                ('prerequis', models.TextField(blank=True)),
-                ('statut', models.CharField(choices=[('propose', 'Proposé'), ('attribue', 'Attribué'), ('en_cours', 'En cours'), ('soutenu', 'Soutenu'), ('annule', 'Annulé')], default='propose', max_length=20)),
-                ('date_publication', models.DateField(blank=True, null=True)),
-                ('date_limite_candidature', models.DateField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("titre", models.CharField(max_length=300)),
+                ("description", models.TextField()),
+                ("mots_cles", models.JSONField(blank=True, default=list)),
+                ("nb_etudiants_max", models.PositiveSmallIntegerField(default=1)),
+                ("prerequis", models.TextField(blank=True)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("propose", "Proposé"),
+                            ("attribue", "Attribué"),
+                            ("en_cours", "En cours"),
+                            ("soutenu", "Soutenu"),
+                            ("annule", "Annulé"),
+                        ],
+                        default="propose",
+                        max_length=20,
+                    ),
+                ),
+                ("date_publication", models.DateField(blank=True, null=True)),
+                ("date_limite_candidature", models.DateField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Sujet de mémoire',
-                'verbose_name_plural': 'Sujets de mémoire',
-                'ordering': ['-created_at'],
+                "verbose_name": "Sujet de mémoire",
+                "verbose_name_plural": "Sujets de mémoire",
+                "ordering": ["-created_at"],
             },
         ),
     ]

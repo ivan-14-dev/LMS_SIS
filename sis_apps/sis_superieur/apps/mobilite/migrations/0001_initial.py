@@ -7,84 +7,207 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='AccordEtudes',
+            name="AccordEtudes",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('pdf_signe', models.FileField(blank=True, null=True, upload_to='mobilite/learning_agreements/')),
-                ('statut', models.CharField(choices=[('brouillon', 'Brouillon'), ('soumis', 'Soumis'), ('valide_local', "Validé par l'établissement d'origine"), ('valide_accueil', "Validé par l'université d'accueil"), ('refuse', 'Refusé'), ('modifie', 'Modifié en cours de mobilité')], default='brouillon', max_length=20)),
-                ('date_validation_origine', models.DateTimeField(blank=True, null=True)),
-                ('date_validation_accueil', models.DateTimeField(blank=True, null=True)),
-                ('valide_par_accueil', models.CharField(blank=True, max_length=200)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "pdf_signe",
+                    models.FileField(
+                        blank=True, null=True, upload_to="mobilite/learning_agreements/"
+                    ),
+                ),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("brouillon", "Brouillon"),
+                            ("soumis", "Soumis"),
+                            ("valide_local", "Validé par l'établissement d'origine"),
+                            ("valide_accueil", "Validé par l'université d'accueil"),
+                            ("refuse", "Refusé"),
+                            ("modifie", "Modifié en cours de mobilité"),
+                        ],
+                        default="brouillon",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "date_validation_origine",
+                    models.DateTimeField(blank=True, null=True),
+                ),
+                (
+                    "date_validation_accueil",
+                    models.DateTimeField(blank=True, null=True),
+                ),
+                ("valide_par_accueil", models.CharField(blank=True, max_length=200)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': "Accord d'études",
-                'verbose_name_plural': "Accords d'études",
+                "verbose_name": "Accord d'études",
+                "verbose_name_plural": "Accords d'études",
             },
         ),
         migrations.CreateModel(
-            name='CandidatureMobilite',
+            name="CandidatureMobilite",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('lettre_motivation', models.TextField()),
-                ('cv', models.FileField(upload_to='mobilite/cv/')),
-                ('releve_notes', models.FileField(upload_to='mobilite/releves/')),
-                ('certificat_langue', models.FileField(blank=True, null=True, upload_to='mobilite/langues/')),
-                ('projet_personnel', models.TextField()),
-                ('moyenne_ponderee', models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True)),
-                ('statut', models.CharField(choices=[('brouillon', 'Brouillon'), ('soumise', 'Soumise'), ('preselectionne', 'Présélectionné'), ('acceptee', 'Acceptée'), ('refusee', 'Refusée'), ('annulee', 'Annulée'), ('en_mobilite', 'En mobilité'), ('terminee', 'Terminée')], default='brouillon', max_length=20)),
-                ('date_soumission', models.DateTimeField(blank=True, null=True)),
-                ('motif_refus', models.TextField(blank=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("lettre_motivation", models.TextField()),
+                ("cv", models.FileField(upload_to="mobilite/cv/")),
+                ("releve_notes", models.FileField(upload_to="mobilite/releves/")),
+                (
+                    "certificat_langue",
+                    models.FileField(
+                        blank=True, null=True, upload_to="mobilite/langues/"
+                    ),
+                ),
+                ("projet_personnel", models.TextField()),
+                (
+                    "moyenne_ponderee",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=5, null=True
+                    ),
+                ),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("brouillon", "Brouillon"),
+                            ("soumise", "Soumise"),
+                            ("preselectionne", "Présélectionné"),
+                            ("acceptee", "Acceptée"),
+                            ("refusee", "Refusée"),
+                            ("annulee", "Annulée"),
+                            ("en_mobilite", "En mobilité"),
+                            ("terminee", "Terminée"),
+                        ],
+                        default="brouillon",
+                        max_length=20,
+                    ),
+                ),
+                ("date_soumission", models.DateTimeField(blank=True, null=True)),
+                ("motif_refus", models.TextField(blank=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Candidature mobilité',
-                'verbose_name_plural': 'Candidatures mobilité',
+                "verbose_name": "Candidature mobilité",
+                "verbose_name_plural": "Candidatures mobilité",
             },
         ),
         migrations.CreateModel(
-            name='ProgrammeMobilite',
+            name="ProgrammeMobilite",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nom', models.CharField(max_length=200)),
-                ('type', models.CharField(choices=[('erasmus', 'ERASMUS+'), ('erasmus_mundus', 'ERASMUS Mundus'), ('bilateral', 'Convention bilatérale'), ('propre', 'Programme propre'), ('crepuq', 'CREPUQ'), ('fulbright', 'Fulbright')], max_length=20)),
-                ('universite_accueil', models.CharField(max_length=200)),
-                ('pays', models.CharField(max_length=100)),
-                ('duree_mois', models.PositiveSmallIntegerField()),
-                ('nb_places', models.PositiveSmallIntegerField(default=1)),
-                ('langue_requise', models.CharField(default='Anglais', max_length=50)),
-                ('niveau_langue', models.CharField(default='B2', max_length=10)),
-                ('description', models.TextField(blank=True)),
-                ('date_limite_candidature', models.DateField()),
-                ('actif', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nom", models.CharField(max_length=200)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("erasmus", "ERASMUS+"),
+                            ("erasmus_mundus", "ERASMUS Mundus"),
+                            ("bilateral", "Convention bilatérale"),
+                            ("propre", "Programme propre"),
+                            ("crepuq", "CREPUQ"),
+                            ("fulbright", "Fulbright"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("universite_accueil", models.CharField(max_length=200)),
+                ("pays", models.CharField(max_length=100)),
+                ("duree_mois", models.PositiveSmallIntegerField()),
+                ("nb_places", models.PositiveSmallIntegerField(default=1)),
+                ("langue_requise", models.CharField(default="Anglais", max_length=50)),
+                ("niveau_langue", models.CharField(default="B2", max_length=10)),
+                ("description", models.TextField(blank=True)),
+                ("date_limite_candidature", models.DateField()),
+                ("actif", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Programme de mobilité',
-                'verbose_name_plural': 'Programmes de mobilité',
+                "verbose_name": "Programme de mobilité",
+                "verbose_name_plural": "Programmes de mobilité",
             },
         ),
         migrations.CreateModel(
-            name='UEAccordEtudes',
+            name="UEAccordEtudes",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code_universite_accueil', models.CharField(max_length=30)),
-                ('intitule_accueil', models.CharField(max_length=200)),
-                ('credits_accueil', models.DecimalField(decimal_places=2, max_digits=4)),
-                ('credits_origine', models.DecimalField(decimal_places=2, max_digits=4)),
-                ('validation', models.CharField(choices=[('OK', 'Équivalence totale'), ('PARTIEL', 'Équivalence partielle'), ('REFUS', 'Refusé'), ('EN_ATTENTE', 'En attente')], default='EN_ATTENTE', max_length=20)),
-                ('note_obtenue_accueil', models.DecimalField(blank=True, decimal_places=2, max_digits=4, null=True)),
-                ('note_echelle_ects', models.CharField(blank=True, help_text='A, B, C, D, E, F', max_length=2)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("code_universite_accueil", models.CharField(max_length=30)),
+                ("intitule_accueil", models.CharField(max_length=200)),
+                (
+                    "credits_accueil",
+                    models.DecimalField(decimal_places=2, max_digits=4),
+                ),
+                (
+                    "credits_origine",
+                    models.DecimalField(decimal_places=2, max_digits=4),
+                ),
+                (
+                    "validation",
+                    models.CharField(
+                        choices=[
+                            ("OK", "Équivalence totale"),
+                            ("PARTIEL", "Équivalence partielle"),
+                            ("REFUS", "Refusé"),
+                            ("EN_ATTENTE", "En attente"),
+                        ],
+                        default="EN_ATTENTE",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "note_obtenue_accueil",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=4, null=True
+                    ),
+                ),
+                (
+                    "note_echelle_ects",
+                    models.CharField(
+                        blank=True, help_text="A, B, C, D, E, F", max_length=2
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': "UE accord d'études",
-                'verbose_name_plural': "UEs accord d'études",
+                "verbose_name": "UE accord d'études",
+                "verbose_name_plural": "UEs accord d'études",
             },
         ),
     ]

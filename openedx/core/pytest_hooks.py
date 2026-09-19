@@ -48,6 +48,7 @@ def pytest_sessionfinish(session):
     this makes sure warnings from different run are not overwritten
     """
     dir_path = "test_root/log"
+    os.makedirs(dir_path, exist_ok=True)
     file_name_postfix = "pytest_warnings"
     num = 0
     # to make sure this doesn't loop forever, putting a maximum

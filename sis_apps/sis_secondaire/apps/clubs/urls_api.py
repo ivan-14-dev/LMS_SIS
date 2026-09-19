@@ -1,6 +1,4 @@
 """URLs API for clubs."""
-from django.urls import path
-from . import api
 
 app_name = "clubs_api"
 

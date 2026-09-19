@@ -1,11 +1,13 @@
 """Models for paiements (SIS Secondaire)."""
-from django.db import models
+
 from apps.eleves.models import Eleve
 from apps.etablissement.models import AnneeScolaire
+from django.db import models
 
 
 class TypeFrais(models.Model):
     """Type de frais (scolarité, inscription, cantine, etc.)."""
+
     PERIODE_CHOICES = [
         ("unique", "Unique"),
         ("mensuel", "Mensuel"),
@@ -18,9 +20,13 @@ class TypeFrais(models.Model):
     code = models.CharField(max_length=50)
     libelle = models.CharField(max_length=200)
     montant = models.DecimalField(max_digits=10, decimal_places=2)
-    periodicite = models.CharField(max_length=20, choices=PERIODE_CHOICES, default="annuel")
+    periodicite = models.CharField(
+        max_length=20, choices=PERIODE_CHOICES, default="annuel"
+    )
     obligatoire = models.BooleanField(default=True)
-    classes = models.ManyToManyField("classes.Classe", blank=True, related_name="types_frais")
+    classes = models.ManyToManyField(
+        "classes.Classe", blank=True, related_name="types_frais"
+    )
     date_limite = models.DateField(null=True, blank=True)
     actif = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -36,6 +42,7 @@ class TypeFrais(models.Model):
 
 class Facture(models.Model):
     """Facture émise pour un élève."""
+
     STATUT_CHOICES = [
         ("brouillon", "Brouillon"),
         ("emise", "Émise"),
@@ -45,7 +52,9 @@ class Facture(models.Model):
         ("annulee", "Annulée"),
     ]
     eleve = models.ForeignKey(Eleve, on_delete=models.PROTECT, related_name="factures")
-    type_frais = models.ForeignKey(TypeFrais, on_delete=models.PROTECT, related_name="factures")
+    type_frais = models.ForeignKey(
+        TypeFrais, on_delete=models.PROTECT, related_name="factures"
+    )
     numero = models.CharField(max_length=50, unique=True)
     date_emission = models.DateField()
     date_echeance = models.DateField()
@@ -74,6 +83,7 @@ class Facture(models.Model):
 
 class Paiement(models.Model):
     """Paiement d'une facture."""
+
     MODE_CHOICES = [
         ("especes", "Espèces"),
         ("cheque", "Chèque"),
@@ -88,16 +98,23 @@ class Paiement(models.Model):
         ("echec", "Échec"),
         ("rembourse", "Remboursé"),
     ]
-    facture = models.ForeignKey(Facture, on_delete=models.CASCADE, related_name="paiements")
+    facture = models.ForeignKey(
+        Facture, on_delete=models.CASCADE, related_name="paiements"
+    )
     numero = models.CharField(max_length=50, unique=True)
     date_paiement = models.DateField()
     montant = models.DecimalField(max_digits=10, decimal_places=2)
     mode = models.CharField(max_length=20, choices=MODE_CHOICES)
-    reference_externe = models.CharField(max_length=200, blank=True, help_text="N° chèque, transaction ID...")
+    reference_externe = models.CharField(
+        max_length=200, blank=True, help_text="N° chèque, transaction ID..."
+    )
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="valide")
     recu_pdf = models.CharField(max_length=500, blank=True)
     enregistre_par = models.ForeignKey(
-        "utilisateurs.Utilisateur", on_delete=models.SET_NULL, null=True, blank=True,
+        "utilisateurs.Utilisateur",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="paiements_enregistres",
     )
     created_at = models.DateTimeField(auto_now_add=True)

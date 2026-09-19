@@ -10,88 +10,143 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('etablissement', '0001_initial'),
-        ('etudiants', '0003_initial'),
-        ('notes', '0001_initial'),
-        ('ue_ecue', '0001_initial'),
+        ("etablissement", "0001_initial"),
+        ("etudiants", "0003_initial"),
+        ("notes", "0001_initial"),
+        ("ue_ecue", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='evaluation',
-            name='enseignant',
-            field=models.ForeignKey(limit_choices_to={'role__in': ['enseignant', 'chercheur']}, on_delete=django.db.models.deletion.PROTECT, related_name='evaluations_creees', to=settings.AUTH_USER_MODEL),
+            model_name="evaluation",
+            name="enseignant",
+            field=models.ForeignKey(
+                limit_choices_to={"role__in": ["enseignant", "chercheur"]},
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="evaluations_creees",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='evaluation',
-            name='semestre',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='evaluations', to='etablissement.semestre'),
+            model_name="evaluation",
+            name="semestre",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="evaluations",
+                to="etablissement.semestre",
+            ),
         ),
         migrations.AddField(
-            model_name='moyenneecue',
-            name='ecue',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='moyennes', to='ue_ecue.ecue'),
+            model_name="moyenneecue",
+            name="ecue",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="moyennes",
+                to="ue_ecue.ecue",
+            ),
         ),
         migrations.AddField(
-            model_name='moyenneecue',
-            name='etudiant',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='moyennes_ecue', to='etudiants.etudiant'),
+            model_name="moyenneecue",
+            name="etudiant",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="moyennes_ecue",
+                to="etudiants.etudiant",
+            ),
         ),
         migrations.AddField(
-            model_name='moyenneecue',
-            name='semestre',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='moyennes_ecue', to='etablissement.semestre'),
+            model_name="moyenneecue",
+            name="semestre",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="moyennes_ecue",
+                to="etablissement.semestre",
+            ),
         ),
         migrations.AddField(
-            model_name='moyenneue',
-            name='etudiant',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='moyennes_ue', to='etudiants.etudiant'),
+            model_name="moyenneue",
+            name="etudiant",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="moyennes_ue",
+                to="etudiants.etudiant",
+            ),
         ),
         migrations.AddField(
-            model_name='moyenneue',
-            name='semestre',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='moyennes_ue', to='etablissement.semestre'),
+            model_name="moyenneue",
+            name="semestre",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="moyennes_ue",
+                to="etablissement.semestre",
+            ),
         ),
         migrations.AddField(
-            model_name='moyenneue',
-            name='ue',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='moyennes', to='ue_ecue.ue'),
+            model_name="moyenneue",
+            name="ue",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="moyennes",
+                to="ue_ecue.ue",
+            ),
         ),
         migrations.AddField(
-            model_name='note',
-            name='etudiant',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notes', to='etudiants.etudiant'),
+            model_name="note",
+            name="etudiant",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="notes",
+                to="etudiants.etudiant",
+            ),
         ),
         migrations.AddField(
-            model_name='note',
-            name='evaluation',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='notes', to='notes.evaluation'),
+            model_name="note",
+            name="evaluation",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="notes",
+                to="notes.evaluation",
+            ),
         ),
         migrations.AddField(
-            model_name='note',
-            name='modifie_par',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='notes_modifiees_u', to=settings.AUTH_USER_MODEL),
+            model_name="note",
+            name="modifie_par",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="notes_modifiees_u",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='note',
-            name='saisi_par',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='notes_saisies_u', to=settings.AUTH_USER_MODEL),
+            model_name="note",
+            name="saisi_par",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="notes_saisies_u",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddIndex(
-            model_name='evaluation',
-            index=models.Index(fields=['ecue', 'date'], name='notes_evalu_ecue_id_9b4fee_idx'),
+            model_name="evaluation",
+            index=models.Index(
+                fields=["ecue", "date"], name="notes_evalu_ecue_id_9b4fee_idx"
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='moyenneecue',
-            unique_together={('etudiant', 'ecue', 'semestre')},
+            name="moyenneecue",
+            unique_together={("etudiant", "ecue", "semestre")},
         ),
         migrations.AlterUniqueTogether(
-            name='moyenneue',
-            unique_together={('etudiant', 'ue', 'semestre')},
+            name="moyenneue",
+            unique_together={("etudiant", "ue", "semestre")},
         ),
         migrations.AlterUniqueTogether(
-            name='note',
-            unique_together={('evaluation', 'etudiant')},
+            name="note",
+            unique_together={("evaluation", "etudiant")},
         ),
     ]

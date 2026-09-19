@@ -7,58 +7,108 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Club',
+            name="Club",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('nom', models.CharField(max_length=200)),
-                ('type', models.CharField(choices=[('sportif', 'Sportif'), ('culturel', 'Culturel'), ('scientifique', 'Scientifique'), ('artistique', 'Artistique'), ('citoyen', 'Citoyen'), ('autre', 'Autre')], max_length=20)),
-                ('description', models.TextField()),
-                ('salle', models.CharField(blank=True, max_length=100)),
-                ('horaires', models.CharField(help_text='Ex: Mercredi 14h-16h', max_length=200)),
-                ('capacite', models.PositiveSmallIntegerField(default=30)),
-                ('image', models.ImageField(blank=True, null=True, upload_to='clubs/')),
-                ('couleur', models.CharField(default='#3B82F6', max_length=7)),
-                ('date_creation', models.DateField()),
-                ('actif', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("nom", models.CharField(max_length=200)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[
+                            ("sportif", "Sportif"),
+                            ("culturel", "Culturel"),
+                            ("scientifique", "Scientifique"),
+                            ("artistique", "Artistique"),
+                            ("citoyen", "Citoyen"),
+                            ("autre", "Autre"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("description", models.TextField()),
+                ("salle", models.CharField(blank=True, max_length=100)),
+                (
+                    "horaires",
+                    models.CharField(help_text="Ex: Mercredi 14h-16h", max_length=200),
+                ),
+                ("capacite", models.PositiveSmallIntegerField(default=30)),
+                ("image", models.ImageField(blank=True, null=True, upload_to="clubs/")),
+                ("couleur", models.CharField(default="#3B82F6", max_length=7)),
+                ("date_creation", models.DateField()),
+                ("actif", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Club',
-                'verbose_name_plural': 'Clubs',
-                'ordering': ['nom'],
+                "verbose_name": "Club",
+                "verbose_name_plural": "Clubs",
+                "ordering": ["nom"],
             },
         ),
         migrations.CreateModel(
-            name='MembreClub',
+            name="MembreClub",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date_inscription', models.DateField(auto_now_add=True)),
-                ('statut', models.CharField(choices=[('actif', 'Actif'), ('inactif', 'Inactif'), ('suspendu', 'Suspendu')], default='actif', max_length=20)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date_inscription", models.DateField(auto_now_add=True)),
+                (
+                    "statut",
+                    models.CharField(
+                        choices=[
+                            ("actif", "Actif"),
+                            ("inactif", "Inactif"),
+                            ("suspendu", "Suspendu"),
+                        ],
+                        default="actif",
+                        max_length=20,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Membre de club',
-                'verbose_name_plural': 'Membres de club',
+                "verbose_name": "Membre de club",
+                "verbose_name_plural": "Membres de club",
             },
         ),
         migrations.CreateModel(
-            name='SeanceClub',
+            name="SeanceClub",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField()),
-                ('heure_debut', models.TimeField()),
-                ('heure_fin', models.TimeField()),
-                ('activite', models.TextField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateField()),
+                ("heure_debut", models.TimeField()),
+                ("heure_fin", models.TimeField()),
+                ("activite", models.TextField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'verbose_name': 'Séance de club',
-                'verbose_name_plural': 'Séances de club',
-                'ordering': ['-date'],
+                "verbose_name": "Séance de club",
+                "verbose_name_plural": "Séances de club",
+                "ordering": ["-date"],
             },
         ),
     ]
