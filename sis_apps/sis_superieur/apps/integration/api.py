@@ -1,6 +1,4 @@
 """API views for Open edX integration (SIS Supérieur)."""
-import hmac
-import hashlib
 import logging
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -12,15 +10,14 @@ from django.db.models import Count
 from .models import EdxUserMapping, EdxCourseMapping, EdxEnrollment, OutboxEvent
 from .edx_client import get_edx_client
 from .sync_service import SyncService
+from sis_common.webhooks import verify_hmac_signature
 
 logger = logging.getLogger(__name__)
 
 
 def _verify_hmac(request) -> bool:
     signature = request.headers.get("X-Signature", "")
-    secret = getattr(settings, "WEBHOOK_SECRET", "dev-secret")
-    expected = hmac.new(secret.encode(), request.body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, signature.replace("sha256=", ""))
+    return verify_hmac_signature(settings.WEBHOOK_SECRET, request.body, signature)
 
 
 @csrf_exempt

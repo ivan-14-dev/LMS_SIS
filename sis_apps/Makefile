@@ -156,18 +156,18 @@ lint: lint-secondaire lint-superieur ## Vérifie tout le code
 # SERVEURS DE DÉVELOPPEMENT
 # =============================================================================
 
-run-secondaire: ## Lance le serveur SIS Secondaire (port 8000)
-	cd sis_secondaire && $(PYTHON) manage.py runserver 0.0.0.0:8000
+run-secondaire: ## Lance le serveur SIS Secondaire (port 8001)
+	cd sis_secondaire && $(PYTHON) manage.py runserver 0.0.0.0:8001
 
-run-superieur: ## Lance le serveur SIS Supérieur (port 8001)
-	cd sis_superieur && $(PYTHON) manage.py runserver 0.0.0.0:8001
+run-superieur: ## Lance le serveur SIS Supérieur (port 8002)
+	cd sis_superieur && $(PYTHON) manage.py runserver 0.0.0.0:8002
 
 run-dual: ## Lance les deux serveurs en parallèle
 	@echo "$(YELLOW)Lancement des deux SIS...$(RESET)"
-	@echo "  SIS Secondaire: http://localhost:8000"
-	@echo "  SIS Supérieur:  http://localhost:8001"
-	cd sis_secondaire && $(PYTHON) manage.py runserver 0.0.0.0:8000 & \
-	cd sis_superieur && $(PYTHON) manage.py runserver 0.0.0.0:8001
+	@echo "  SIS Secondaire: http://localhost:8001"
+	@echo "  SIS Supérieur:  http://localhost:8002"
+	cd sis_secondaire && $(PYTHON) manage.py runserver 0.0.0.0:8001 & \
+	cd sis_superieur && $(PYTHON) manage.py runserver 0.0.0.0:8002
 
 # =============================================================================
 # CELERY
