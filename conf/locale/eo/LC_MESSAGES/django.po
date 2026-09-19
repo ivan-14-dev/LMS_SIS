@@ -19,3 +19,64 @@ msgid ""
 msgstr ""
 "© {org_name}.  All rights reserved except where noted.  edX, Open edX "
 "and their respective logos are régïstéréd trädémärks of edX Inc."
+
+#: lms/templates/instructor/edx_ace/enrollenrolled/email/subject.txt
+#, python-format
+msgid "You have been enrolled in %(course_name)s"
+msgstr "Ýöü hävé ßéén enrolled in %(course_name)s"
+
+#: lms/templates/instructor/edx_ace/enrollenrolled/email/body.txt
+#: lms/templates/instructor/edx_ace/enrollenrolled/email/body.html
+#, python-format
+msgid ""
+"You have been enrolled in %(course_name)s at %(site_name)s by a member of the "
+"course staff. This course will now appear on your %(site_name)s dashboard."
+msgstr ""
+"Ýöü hävé ßéén enrolled in %(course_name)s at %(site_name)s by a member of the "
+"course staff. This course will now appear on your %(site_name)s dashboard."
+
+#: lms/templates/instructor/edx_ace/enrolledunenroll/email/subject.txt
+#, python-format
+msgid "You have been unenrolled from %(course_name)s"
+msgstr "Ýöü hävé ßéén unenrolled from %(course_name)s"
+
+#: lms/templates/instructor/edx_ace/enrolledunenroll/email/body.txt
+#: lms/templates/instructor/edx_ace/enrolledunenroll/email/body.html
+#, python-format
+msgid ""
+"You have been unenrolled from %(course_name)s at %(site_name)s by a member of "
+"the course staff. This course will no longer appear on your %(site_name)s "
+"dashboard."
+msgstr ""
+"Ýöü hävé ßéén unenrolled from %(course_name)s at %(site_name)s by a member of "
+"the course staff. This course will no longer appear on your %(site_name)s "
+"dashboard."
+
+#: lms/templates/instructor/edx_ace/addbetatester/email/subject.txt
+#, python-format
+msgid "You have been invited to a beta test for %(course_name)s"
+msgstr "Ýöü hävé ßéén invited to a beta test for %(course_name)s"
+
+#: lms/templates/instructor/edx_ace/addbetatester/email/body.txt
+#, python-format
+msgid ""
+"You have been invited to be a beta tester for %(course_name)s at %(site_name)s "
+"by a member of the course staff."
+msgstr ""
+"Ýöü hävé ßéén invited to be a beta tester for %(course_name)s at %(site_name)s "
+"by a member of the course staff."
+
+#: lms/templates/instructor/edx_ace/allowedenroll/email/subject.txt
+#, python-format
+msgid "You have been invited to register for %(course_name)s"
+msgstr "Ýöü hävé ßéén invited to register for %(course_name)s"
+
+#: lms/templates/instructor/edx_ace/allowedenroll/email/body.txt
+#: lms/templates/instructor/edx_ace/allowedenroll/email/body.html
+#, python-format
+msgid ""
+"You have been invited to join %(course_name)s at %(site_name)s by a member of "
+"the course staff."
+msgstr ""
+"Ýöü hävé ßéén invited to join %(course_name)s at %(site_name)s by a member of "
+"the course staff."
