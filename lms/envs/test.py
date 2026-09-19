@@ -378,6 +378,7 @@ for static_dir in STATICFILES_DIRS:  # pylint: disable=not-an-iterable  # noqa: 
 STATICFILES_DIRS = _NEW_STATICFILES_DIRS
 
 FILE_UPLOAD_TEMP_DIR = TEST_ROOT / "uploads"  # noqa: F405
+os.makedirs(FILE_UPLOAD_TEMP_DIR, exist_ok=True)
 FILE_UPLOAD_HANDLERS = [
     'django.core.files.uploadhandler.MemoryFileUploadHandler',
     'django.core.files.uploadhandler.TemporaryFileUploadHandler',

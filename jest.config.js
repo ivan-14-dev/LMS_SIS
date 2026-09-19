@@ -10,6 +10,10 @@ module.exports = {
         '/**/*.test.jsx',
         'common/static/common/js/components/**/?(*.)+(spec|test).js?(x)',
     ],
+    testPathIgnorePatterns: [
+        '/node_modules/',
+        '/sis_apps/frontend-app-sis/',
+    ],
     testEnvironment: 'jsdom',
     transform: {
         '^.+\\.jsx$': 'babel-jest',
