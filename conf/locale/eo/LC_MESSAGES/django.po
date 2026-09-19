@@ -1,0 +1,21 @@
+# Dummy-language translations used by Open edX tests.
+msgid ""
+msgstr ""
+"Project-Id-Version: Open edX\n"
+"PO-Revision-Date: 2026-09-19 00:00+0000\n"
+"Last-Translator: Open edX\n"
+"Language-Team: Open edX\n"
+"Language: eo\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: lms/djangoapps/branding/api.py
+#, python-brace-format
+msgid ""
+"© {org_name}.  All rights reserved except where noted.  edX, Open edX "
+"and their respective logos are registered trademarks of edX Inc."
+msgstr ""
+"© {org_name}.  All rights reserved except where noted.  edX, Open edX "
+"and their respective logos are régïstéréd trädémärks of edX Inc."
