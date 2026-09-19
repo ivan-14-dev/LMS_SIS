@@ -1,6 +1,5 @@
 """Models for enseignants (SIS Supérieur)."""
 from django.db import models
-from apps.structure.models import Faculte, Departement, Laboratoire
 from apps.utilisateurs.models import Utilisateur
 from apps.ue_ecue.models import ECUE, UE
 
@@ -23,7 +22,7 @@ class EnseignantChercheur(models.Model):
     corps = models.CharField(max_length=30, choices=CORPS_CHOICES, default="MCF")
     specialite = models.CharField(max_length=200)
     laboratoire = models.ForeignKey(
-        Laboratoire, on_delete=models.SET_NULL, null=True, blank=True,
+        "recherche.Laboratoire", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="chercheurs"
     )
     h_index = models.PositiveSmallIntegerField(default=0)

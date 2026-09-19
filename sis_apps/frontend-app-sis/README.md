@@ -99,9 +99,9 @@ src/
 | Variable | Description | Défaut |
 |----------|-------------|--------|
 | `LMS_BASE_URL` | URL du LMS | `http://localhost:18000` |
-| `SIS_SUPERIEUR_API_URL` | API SIS Supérieur | `{LMS}/api/sis-superieur` |
-| `SIS_SECONDAIRE_API_URL` | API SIS Secondaire | `{LMS}/api/sis-secondaire` |
-| `SIS_ADMIN_API_URL` | API Administration | `{LMS}/api/sis/admin` |
+| `SIS_SUPERIEUR_API_URL` | API SIS Supérieur | `http://localhost:8002/api/v1` |
+| `SIS_SECONDAIRE_API_URL` | API SIS Secondaire | `http://localhost:8001/api/v1` |
+| `SIS_ADMIN_API_URL` | API Administration | `http://localhost:8001/api/v1` |
 
 ## 📦 Modules
 

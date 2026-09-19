@@ -8,9 +8,9 @@ import { mockFetch, mockPost, mockPut, mockDelete, isMockMode } from './mockApi'
  */
 export const getSuperieurApiUrl = () => {
   try {
-    return getConfig().SIS_SUPERIEUR_API_URL || 'http://localhost:8000/api/sis-superieur';
+    return getConfig().SIS_SUPERIEUR_API_URL || 'http://localhost:8002/api/v1';
   } catch {
-    return 'http://localhost:8000/api/sis-superieur';
+    return 'http://localhost:8002/api/v1';
   }
 };
 
@@ -19,9 +19,9 @@ export const getSuperieurApiUrl = () => {
  */
 export const getSecondaireApiUrl = () => {
   try {
-    return getConfig().SIS_SECONDAIRE_API_URL || 'http://localhost:8000/api/sis-secondaire';
+    return getConfig().SIS_SECONDAIRE_API_URL || 'http://localhost:8001/api/v1';
   } catch {
-    return 'http://localhost:8000/api/sis-secondaire';
+    return 'http://localhost:8001/api/v1';
   }
 };
 

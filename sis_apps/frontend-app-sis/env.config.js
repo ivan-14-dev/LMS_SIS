@@ -35,9 +35,9 @@ const config = {
   ORDER_HISTORY_URL: 'http://localhost:8080/orders',
   
   // SIS specific configuration
-  SIS_API_BASE_URL: 'http://localhost:8000/api/sis',
-  SIS_SUPERIEUR_API_URL: 'http://localhost:8000/api/sis-superieur',
-  SIS_SECONDAIRE_API_URL: 'http://localhost:8000/api/sis-secondaire',
+  SIS_API_BASE_URL: 'http://localhost:8001/api/v1',
+  SIS_SUPERIEUR_API_URL: 'http://localhost:8002/api/v1',
+  SIS_SECONDAIRE_API_URL: 'http://localhost:8001/api/v1',
   STANDALONE_MODE: true,
 };
 

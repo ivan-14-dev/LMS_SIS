@@ -3,7 +3,6 @@ from django.db import models
 from apps.ue_ecue.models import ECUE, UE
 from apps.etablissement.models import Semestre
 from apps.utilisateurs.models import Utilisateur
-from apps.structure.models import Salle  # référence vers modèle Salle si présent
 
 
 class SessionExamen(models.Model):

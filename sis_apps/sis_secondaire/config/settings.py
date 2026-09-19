@@ -2,45 +2,28 @@
 import os
 import sys
 from pathlib import Path
-from django.core.exceptions import ImproperlyConfigured
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
+SIS_APPS_DIR = BASE_DIR.parent
+if str(SIS_APPS_DIR) not in sys.path:
+    sys.path.insert(0, str(SIS_APPS_DIR))
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+from sis_common.config import (
+    get_allowed_hosts,
+    get_bool_environment,
+    get_required_secret,
+    is_test_environment,
+)
 
 # =============================================================================
 # SECURITY - Configuration obligatoire
 # =============================================================================
 
-def get_env_variable(var_name: str, default=None, required: bool = False):
-    """Récupère une variable d'environnement avec validation."""
-    value = os.environ.get(var_name, default)
-    if required and not value:
-        raise ImproperlyConfigured(f"La variable d'environnement {var_name} doit être définie.")
-    return value
-
-# SECRET_KEY est OBLIGATOIRE en production
-_secret_key = get_env_variable("DJANGO_SECRET_KEY")
-if not _secret_key:
-    if "test" in sys.argv or "pytest" in sys.modules:
-        SECRET_KEY = "test-secret-key-for-testing-only"
-    else:
-        raise ImproperlyConfigured(
-            "DJANGO_SECRET_KEY doit être défini. "
-            "Générez une clé avec: python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'"
-        )
-else:
-    SECRET_KEY = _secret_key
-
-# DEBUG est False par défaut (sécurisé)
-DEBUG = get_env_variable("DJANGO_DEBUG", "False").lower() in ("true", "1", "yes")
-
-# ALLOWED_HOSTS doit être configuré explicitement en production
-_allowed_hosts = get_env_variable("DJANGO_ALLOWED_HOSTS", "")
-if not _allowed_hosts and not DEBUG:
-    raise ImproperlyConfigured(
-        "DJANGO_ALLOWED_HOSTS doit être défini en production. "
-        "Exemple: DJANGO_ALLOWED_HOSTS=sis.example.com,api.sis.example.com"
-    )
-ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts.split(",") if h.strip()] if _allowed_hosts else ["localhost", "127.0.0.1"]
+SECRET_KEY = get_required_secret("DJANGO_SECRET_KEY", test_value="test-secret-key-for-testing-only")
+DEBUG = get_bool_environment("DJANGO_DEBUG")
+ALLOWED_HOSTS = get_allowed_hosts()
 
 # Application
 DJANGO_APPS = [
@@ -60,7 +43,7 @@ THIRD_PARTY_APPS = [
     "drf_spectacular",
     "corsheaders",
     "django_filters",
-    "django_auditlog",
+    "auditlog",
     "simple_history",
     "import_export",
     "guardian",
@@ -116,6 +99,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "axes.middleware.AxesMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.core.middleware.RequestIdMiddleware",
@@ -168,7 +152,7 @@ SHARED_APPS = (
 )
 TENANT_APPS = tuple(
     app for app in LOCAL_APPS if app not in ("apps.core", "apps.etablissement")
-) + THIRD_PARTY_APPS
+) + tuple(THIRD_PARTY_APPS)
 
 # Cache
 CACHES = {
@@ -198,6 +182,7 @@ LOGIN_REDIRECT_URL = "/tableau-de-bord/"
 LOGOUT_REDIRECT_URL = "/comptes/connexion/"
 
 AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
     "django.contrib.auth.backends.ModelBackend",
     "guardian.backends.ObjectPermissionBackend",
 ]
@@ -234,7 +219,7 @@ LANGUAGES = [
 # Static
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Media
@@ -290,8 +275,7 @@ CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:
 CORS_ALLOW_CREDENTIALS = True
 
 # Audit
-AUDITLOG_INCLUDE_TRACKING_MODELS = True
-AUDITLOG_TRACKING_MODELS = [
+AUDITLOG_INCLUDE_TRACKING_MODELS = [
     "eleves.Eleve",
     "notes.Note",
     "notes.Bulletin",
@@ -326,7 +310,7 @@ LOGGING = {
         "file": {
             "level": "INFO",
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": BASE_DIR / "logs" / "sis.log",
+            "filename": LOG_DIR / "sis.log",
             "maxBytes": 1024 * 1024 * 10,
             "backupCount": 5,
             "formatter": "json",
@@ -347,7 +331,7 @@ LOGGING = {
 # ====================== Open edX Integration ======================
 EDX_LMS_URL = os.environ.get("EDX_LMS_URL", "http://localhost:8000")
 EDX_CMS_URL = os.environ.get("EDX_CMS_URL", "http://localhost:8001")
-EDX_OAUTH_CLIENT_ID = os.environ.get("EDX_OAUTH_CLIENT_ID", "sis-secondaire")
-EDX_OAUTH_CLIENT_SECRET = os.environ.get("EDX_OAUTH_CLIENT_SECRET", "")
-WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "dev-webhook-secret")
+EDX_OAUTH_CLIENT_ID = get_required_secret("EDX_OAUTH_CLIENT_ID", test_value="sis-secondaire-test-client")
+EDX_OAUTH_CLIENT_SECRET = get_required_secret("EDX_OAUTH_CLIENT_SECRET", test_value="test-oauth-secret")
+WEBHOOK_SECRET = get_required_secret("WEBHOOK_SECRET", test_value="test-webhook-secret")
 SIS_WEBHOOK_LMS_URL = f"{EDX_LMS_URL}/api/webhooks/v1/webhooks/"

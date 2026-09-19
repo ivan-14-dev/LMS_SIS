@@ -67,7 +67,6 @@ import EtablissementPage from './admin/etablissement/EtablissementPage';
 import UtilisateursPage from './admin/utilisateurs/UtilisateursPage';
 import StructurePage from './admin/structure/StructurePage';
 import AnneesAcademiquesPage from './admin/annees-academiques/AnneesAcademiquesPage';
-import AnneesAcademiquesPage from './admin/annees-academiques/AnneesAcademiquesPage';
 
 const App = () => (
   <BrowserRouter basename={getConfig().PUBLIC_PATH}>
