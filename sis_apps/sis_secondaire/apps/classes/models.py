@@ -75,7 +75,7 @@ class Groupe(models.Model):
     )
     classes = models.ManyToManyField(Classe, related_name="groupes")
     nom = models.CharField(max_length=100)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    type = models.CharField(max_length=100)
     capacite = models.PositiveIntegerField(default=30)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -85,6 +85,9 @@ class Groupe(models.Model):
 
     def __str__(self):
         return f"{self.nom} ({self.get_type_display()})"
+
+    def get_type_display(self):
+        return dict(self.TYPE_CHOICES).get(self.type, self.type)
 
 
 class Matiere(models.Model):
@@ -106,7 +109,7 @@ class Matiere(models.Model):
     )
     code = models.CharField(max_length=20)
     nom = models.CharField(max_length=100)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="fondamentale")
+    type = models.CharField(max_length=100, default="fondamentale")
     couleur = models.CharField(max_length=7, default="#10B981")
     coefficient_defaut = models.DecimalField(max_digits=4, decimal_places=2, default=1)
     description = models.TextField(blank=True)
@@ -119,6 +122,9 @@ class Matiere(models.Model):
     def __str__(self):
         return self.nom
 
+    def get_type_display(self):
+        return dict(self.TYPE_CHOICES).get(self.type, self.type)
+
 
 class ProgrammeMatiere(models.Model):
     """Affectation d'une matière à une classe avec coefficient et horaires."""
@@ -130,6 +136,7 @@ class ProgrammeMatiere(models.Model):
         Matiere, on_delete=models.CASCADE, related_name="programmes"
     )
     coefficient = models.DecimalField(max_digits=4, decimal_places=2, default=1)
+    credits = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     heures_semaine = models.DecimalField(max_digits=4, decimal_places=2, default=0)
     obligatoire = models.BooleanField(default=True)
     enseignant_principal = models.ForeignKey(
@@ -138,6 +145,12 @@ class ProgrammeMatiere(models.Model):
         null=True,
         blank=True,
         related_name="programmes_principaux",
+        limit_choices_to={"role": "enseignant"},
+    )
+    enseignants = models.ManyToManyField(
+        Utilisateur,
+        blank=True,
+        related_name="programmes_enseignes",
         limit_choices_to={"role": "enseignant"},
     )
     created_at = models.DateTimeField(auto_now_add=True)

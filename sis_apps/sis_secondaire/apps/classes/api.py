@@ -78,7 +78,7 @@ class ClassesViewSet(viewsets.ModelViewSet):
         classe = self.get_object()
         programmes = classe.programmes.select_related(
             "matiere", "enseignant_principal"
-        ).order_by("matiere__nom")
+        ).prefetch_related("enseignants").order_by("matiere__nom")
         serializer = ProgrammeMatiereSerializer(programmes, many=True)
         return Response(serializer.data)
 
@@ -151,4 +151,4 @@ class ProgrammesViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return ProgrammeMatiere.objects.select_related(
             "classe", "matiere", "enseignant_principal"
-        )
+        ).prefetch_related("enseignants")

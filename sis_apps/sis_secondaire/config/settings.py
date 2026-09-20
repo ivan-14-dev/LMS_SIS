@@ -236,6 +236,14 @@ PRIVATE_EXAM_STORAGE_ROOT = Path(
     os.environ.get("PRIVATE_EXAM_STORAGE_ROOT", BASE_DIR / "private_exam_copies")
 )
 EXAM_COPY_MAX_SIZE = int(os.environ.get("EXAM_COPY_MAX_SIZE", 25 * 1024 * 1024))
+PRIVATE_FINANCIAL_STORAGE_ROOT = Path(
+    os.environ.get(
+        "PRIVATE_FINANCIAL_STORAGE_ROOT", BASE_DIR / "private_financial_documents"
+    )
+)
+PAYMENT_PROOF_MAX_SIZE = int(
+    os.environ.get("PAYMENT_PROOF_MAX_SIZE", 10 * 1024 * 1024)
+)
 
 # Security
 SECURE_CONTENT_TYPE_NOSNIFF = True

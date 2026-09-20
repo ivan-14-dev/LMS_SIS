@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from .models import Evaluation, MoyenneECUE, MoyenneUE, Note
+from .models import Evaluation, MoyenneECUE, MoyenneUE, Note, RegleValidation
 
 
 class EvaluationListSerializer(serializers.ModelSerializer):
@@ -33,6 +33,7 @@ class EvaluationListSerializer(serializers.ModelSerializer):
             "duree_minutes",
             "bareme",
             "coefficient",
+            "ponderation",
             "enseignant_nom",
         ]
 
@@ -66,6 +67,7 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
             "duree_minutes",
             "bareme",
             "coefficient",
+            "ponderation",
             "modalite",
             "modalite_display",
             "enseignant",
@@ -182,3 +184,21 @@ class MoyenneUESerializer(serializers.ModelSerializer):
             "date_calcul",
         ]
         read_only_fields = ["id", "date_calcul"]
+
+
+class RegleValidationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RegleValidation
+        fields = "__all__"
+
+    def validate(self, attrs):
+        semestre = attrs.get("semestre", getattr(self.instance, "semestre", None))
+        annee = attrs.get(
+            "annee_universitaire",
+            getattr(self.instance, "annee_universitaire", None),
+        )
+        if semestre and semestre.annee_universitaire_id != annee.id:
+            raise serializers.ValidationError(
+                {"semestre": "Le semestre doit appartenir à l'année de la règle."}
+            )
+        return attrs

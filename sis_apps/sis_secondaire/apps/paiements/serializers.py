@@ -106,7 +106,15 @@ class FactureDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "numero", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "numero",
+            "montant_paye",
+            "statut",
+            "pdf_path",
+            "created_at",
+            "updated_at",
+        ]
 
     def get_paiements(self, obj):
         return PaiementSerializer(obj.paiements.all(), many=True).data
@@ -120,6 +128,7 @@ class PaiementSerializer(serializers.ModelSerializer):
     enregistre_par_nom = serializers.CharField(
         source="enregistre_par.get_full_name", read_only=True
     )
+    preuve_disponible = serializers.SerializerMethodField()
 
     class Meta:
         model = Paiement
@@ -135,11 +144,18 @@ class PaiementSerializer(serializers.ModelSerializer):
             "statut",
             "statut_display",
             "recu_pdf",
+            "preuve_disponible",
             "enregistre_par",
             "enregistre_par_nom",
+            "verifie_par",
+            "verifie_le",
+            "motif_rejet",
             "created_at",
         ]
-        read_only_fields = ["id", "numero", "created_at"]
+        read_only_fields = fields
+
+    def get_preuve_disponible(self, obj):
+        return bool(obj.preuve_paiement)
 
 
 class PaiementCreateSerializer(serializers.ModelSerializer):
@@ -153,4 +169,41 @@ class PaiementCreateSerializer(serializers.ModelSerializer):
             "montant",
             "mode",
             "reference_externe",
+            "preuve_paiement",
         ]
+        extra_kwargs = {"preuve_paiement": {"write_only": True}}
+
+    def validate(self, data):
+        facture = data["facture"]
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        manager_roles = {
+            "direction",
+            "responsable_pedagogique",
+            "comptable",
+            "personnel_administratif",
+        }
+        is_manager = user and (
+            user.is_staff or getattr(user, "role", "") in manager_roles
+        )
+        owns_invoice = user and (
+            facture.eleve.user_id == user.id
+            or facture.eleve.tuteurs_lies.filter(
+                tuteur__user=user, autorise_acces_portail=True
+            ).exists()
+        )
+        if not is_manager and not owns_invoice:
+            raise serializers.ValidationError(
+                {"facture": "Vous ne pouvez pas payer cette facture."}
+            )
+        if facture.statut in ("payee", "annulee"):
+            raise serializers.ValidationError(
+                {"facture": "Cette facture n'accepte plus de paiement."}
+            )
+        if data["montant"] <= 0:
+            raise serializers.ValidationError({"montant": "Le montant doit être positif."})
+        if data["montant"] > facture.montant_restant:
+            raise serializers.ValidationError(
+                {"montant": "Le montant dépasse le solde de la facture."}
+            )
+        return data

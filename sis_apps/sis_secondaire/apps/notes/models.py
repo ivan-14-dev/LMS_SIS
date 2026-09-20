@@ -4,6 +4,7 @@ from apps.classes.models import Classe, Matiere
 from apps.eleves.models import Eleve
 from apps.enseignants.models import Personnel
 from apps.etablissement.models import Periode
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -26,7 +27,7 @@ class Evaluation(models.Model):
     classe = models.ForeignKey(
         Classe, on_delete=models.CASCADE, related_name="evaluations"
     )
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="ds")
+    type = models.CharField(max_length=100, default="ds")
     titre = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     date = models.DateField()
@@ -34,6 +35,13 @@ class Evaluation(models.Model):
     duree_minutes = models.PositiveIntegerField(null=True, blank=True)
     bareme = models.DecimalField(max_digits=5, decimal_places=2, default=20)
     coefficient = models.DecimalField(max_digits=4, decimal_places=2, default=1)
+    ponderation = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=100,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Pourcentage de cette évaluation dans son regroupement.",
+    )
     periode = models.ForeignKey(
         Periode, on_delete=models.PROTECT, related_name="evaluations"
     )
@@ -52,6 +60,9 @@ class Evaluation(models.Model):
 
     def __str__(self):
         return f"{self.titre} - {self.classe}/{self.matiere}"
+
+    def get_type_display(self):
+        return dict(self.TYPE_CHOICES).get(self.type, self.type)
 
 
 class Note(models.Model):
@@ -135,3 +146,67 @@ class Bulletin(models.Model):
 
     def __str__(self):
         return f"Bulletin {self.periode} - {self.eleve}"
+
+
+class RegleValidation(models.Model):
+    """Règle de passage configurable pour une année, un niveau ou une classe."""
+
+    code = models.SlugField(max_length=60)
+    libelle = models.CharField(max_length=160)
+    annee_scolaire = models.ForeignKey(
+        "etablissement.AnneeScolaire",
+        on_delete=models.CASCADE,
+        related_name="regles_validation",
+    )
+    niveau = models.ForeignKey(
+        "etablissement.Niveau",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="regles_validation",
+    )
+    classe = models.ForeignKey(
+        "classes.Classe",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="regles_validation",
+    )
+    seuil_moyenne = models.DecimalField(max_digits=5, decimal_places=2, default=10)
+    note_eliminatoire = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    credits_minimum = models.DecimalField(max_digits=7, decimal_places=2, default=0)
+    max_matieres_echouees = models.PositiveSmallIntegerField(null=True, blank=True)
+    compensation_autorisee = models.BooleanField(default=True)
+    criteres = models.JSONField(default=dict, blank=True)
+    priorite = models.PositiveSmallIntegerField(default=100)
+    actif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["priorite", "code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["annee_scolaire", "code"],
+                name="unique_regle_validation_secondaire",
+            )
+        ]
+
+    def evaluer(self, moyenne, credits=0, matieres_echouees=0, note_minimale=None):
+        motifs = []
+        if moyenne < self.seuil_moyenne:
+            motifs.append("moyenne_insuffisante")
+        if credits < self.credits_minimum:
+            motifs.append("credits_insuffisants")
+        if (
+            self.max_matieres_echouees is not None
+            and matieres_echouees > self.max_matieres_echouees
+        ):
+            motifs.append("trop_de_matieres_echouees")
+        if (
+            self.note_eliminatoire is not None
+            and note_minimale is not None
+            and note_minimale < self.note_eliminatoire
+        ):
+            motifs.append("note_eliminatoire")
+        return {"reussi": not motifs, "motifs": motifs}

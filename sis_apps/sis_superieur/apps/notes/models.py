@@ -4,6 +4,7 @@ from apps.etablissement.models import Semestre
 from apps.etudiants.models import Etudiant
 from apps.ue_ecue.models import ECUE, UE
 from apps.utilisateurs.models import Utilisateur
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -27,7 +28,14 @@ class Evaluation(models.Model):
     duree_minutes = models.PositiveIntegerField(null=True, blank=True)
     bareme = models.DecimalField(max_digits=5, decimal_places=2, default=20)
     coefficient = models.DecimalField(max_digits=4, decimal_places=2, default=1)
-    modalite = models.CharField(max_length=20, choices=MODALITE_CHOICES, default="cc")
+    ponderation = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=100,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Pourcentage de cette évaluation dans son regroupement.",
+    )
+    modalite = models.CharField(max_length=100, default="cc")
     semestre = models.ForeignKey(
         Semestre, on_delete=models.PROTECT, related_name="evaluations"
     )
@@ -49,6 +57,9 @@ class Evaluation(models.Model):
 
     def __str__(self):
         return f"{self.titre} - {self.ecue}"
+
+    def get_modalite_display(self):
+        return dict(self.MODALITE_CHOICES).get(self.modalite, self.modalite)
 
 
 class Note(models.Model):
@@ -142,3 +153,64 @@ class MoyenneUE(models.Model):
 
     def __str__(self):
         return f"{self.etudiant} - {self.ue} : {self.moyenne}"
+
+
+class RegleValidation(models.Model):
+    """Règle de réussite configurable par formation et semestre."""
+
+    code = models.SlugField(max_length=60)
+    libelle = models.CharField(max_length=160)
+    annee_universitaire = models.ForeignKey(
+        "etablissement.AnneeUniversitaire",
+        on_delete=models.CASCADE,
+        related_name="regles_validation",
+    )
+    formation = models.ForeignKey(
+        "formations.Formation",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="regles_validation",
+    )
+    semestre = models.ForeignKey(
+        "etablissement.Semestre",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="regles_validation",
+    )
+    seuil_moyenne = models.DecimalField(max_digits=5, decimal_places=2, default=10)
+    note_eliminatoire = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    credits_minimum = models.DecimalField(max_digits=7, decimal_places=2, default=30)
+    max_ecues_echoues = models.PositiveSmallIntegerField(null=True, blank=True)
+    compensation_autorisee = models.BooleanField(default=True)
+    criteres = models.JSONField(default=dict, blank=True)
+    priorite = models.PositiveSmallIntegerField(default=100)
+    actif = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["priorite", "code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["annee_universitaire", "code"],
+                name="unique_regle_validation_superieur",
+            )
+        ]
+
+    def evaluer(self, moyenne, credits=0, ecues_echoues=0, note_minimale=None):
+        motifs = []
+        if moyenne < self.seuil_moyenne:
+            motifs.append("moyenne_insuffisante")
+        if credits < self.credits_minimum:
+            motifs.append("credits_insuffisants")
+        if self.max_ecues_echoues is not None and ecues_echoues > self.max_ecues_echoues:
+            motifs.append("trop_ecues_echoues")
+        if (
+            self.note_eliminatoire is not None
+            and note_minimale is not None
+            and note_minimale < self.note_eliminatoire
+        ):
+            motifs.append("note_eliminatoire")
+        return {"reussi": not motifs, "motifs": motifs}

@@ -10,6 +10,10 @@ from sis_common.establishments import (
     validate_live_configuration,
     validate_timezone,
 )
+from sis_common.academic_configuration import (
+    default_academic_configuration,
+    validate_academic_configuration,
+)
 
 
 class Universite(TenantMixin):
@@ -24,7 +28,7 @@ class Universite(TenantMixin):
         ("autre", "Autre établissement"),
     ]
     nom = models.CharField(max_length=200)
-    type = models.CharField(max_length=30, choices=TYPE_CHOICES)
+    type = models.CharField(max_length=100)
     type_personnalise = models.CharField(
         max_length=100,
         blank=True,
@@ -72,6 +76,10 @@ class Universite(TenantMixin):
         default=default_live_configuration,
         validators=[validate_live_configuration],
     )
+    configuration_academique = models.JSONField(
+        default=default_academic_configuration,
+        validators=[validate_academic_configuration],
+    )
     systeme_notation = models.CharField(max_length=20, default="LMD")
     credits_annee = models.PositiveSmallIntegerField(default=60)
     accreditations = models.JSONField(default=list, blank=True)
@@ -86,6 +94,9 @@ class Universite(TenantMixin):
 
     def __str__(self):
         return self.nom
+
+    def get_type_display(self):
+        return dict(self.TYPE_CHOICES).get(self.type, self.type)
 
 
 class Domain(DomainMixin):
@@ -127,7 +138,7 @@ class Semestre(models.Model):
         AnneeUniversitaire, on_delete=models.CASCADE, related_name="semestres"
     )
     numero = models.PositiveSmallIntegerField()
-    type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    type = models.CharField(max_length=50)
     date_debut = models.DateField()
     date_fin = models.DateField()
     cloture = models.BooleanField(default=False)
@@ -139,3 +150,6 @@ class Semestre(models.Model):
 
     def __str__(self):
         return f"S{self.numero} - {self.annee_universitaire.libelle}"
+
+    def get_type_display(self):
+        return dict(self.TYPE_CHOICES).get(self.type, self.type)

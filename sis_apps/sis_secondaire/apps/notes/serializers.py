@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from .models import Bulletin, Evaluation, Note
+from .models import Bulletin, Evaluation, Note, RegleValidation
 
 
 class EvaluationListSerializer(serializers.ModelSerializer):
@@ -31,6 +31,7 @@ class EvaluationListSerializer(serializers.ModelSerializer):
             "duree_minutes",
             "bareme",
             "coefficient",
+            "ponderation",
             "enseignant_nom",
         ]
 
@@ -66,6 +67,7 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
             "duree_minutes",
             "bareme",
             "coefficient",
+            "ponderation",
             "enseignant",
             "enseignant_nom",
             "nb_notes",
@@ -176,3 +178,25 @@ class BulletinDetailSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class RegleValidationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RegleValidation
+        fields = "__all__"
+
+    def validate(self, attrs):
+        classe = attrs.get("classe", getattr(self.instance, "classe", None))
+        niveau = attrs.get("niveau", getattr(self.instance, "niveau", None))
+        annee = attrs.get(
+            "annee_scolaire", getattr(self.instance, "annee_scolaire", None)
+        )
+        if classe and classe.annee_scolaire_id != annee.id:
+            raise serializers.ValidationError(
+                {"classe": "La classe doit appartenir à l'année de la règle."}
+            )
+        if classe and niveau and classe.niveau_id != niveau.id:
+            raise serializers.ValidationError(
+                {"niveau": "Le niveau doit correspondre à celui de la classe."}
+            )
+        return attrs

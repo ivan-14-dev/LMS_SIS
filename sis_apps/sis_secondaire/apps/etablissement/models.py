@@ -10,6 +10,10 @@ from sis_common.establishments import (
     validate_live_configuration,
     validate_timezone,
 )
+from sis_common.academic_configuration import (
+    default_academic_configuration,
+    validate_academic_configuration,
+)
 
 
 class Etablissement(TenantMixin):
@@ -24,7 +28,7 @@ class Etablissement(TenantMixin):
     ]
 
     nom = models.CharField(max_length=200)
-    type = models.CharField(max_length=30, choices=TYPE_CHOICES)
+    type = models.CharField(max_length=100)
     type_personnalise = models.CharField(
         max_length=100,
         blank=True,
@@ -70,15 +74,14 @@ class Etablissement(TenantMixin):
         default=default_live_configuration,
         validators=[validate_live_configuration],
     )
+    configuration_academique = models.JSONField(
+        default=default_academic_configuration,
+        validators=[validate_academic_configuration],
+    )
     devise = models.CharField(max_length=200, blank=True)
     ministere_tutelle = models.CharField(max_length=200, blank=True)
     systeme_periodes = models.CharField(
         max_length=20,
-        choices=[
-            ("trimestre", "Trimestre"),
-            ("semestre", "Semestre"),
-            ("quadrimestre", "Quadrimestre"),
-        ],
         default="trimestre",
     )
     date_creation = models.DateTimeField(auto_now_add=True)
@@ -91,6 +94,17 @@ class Etablissement(TenantMixin):
 
     def __str__(self):
         return f"{self.nom} ({self.get_type_display()})"
+
+    def get_type_display(self):
+        return dict(self.TYPE_CHOICES).get(self.type, self.type)
+
+    def get_systeme_periodes_display(self):
+        labels = {
+            "trimestre": "Trimestre",
+            "semestre": "Semestre",
+            "quadrimestre": "Quadrimestre",
+        }
+        return labels.get(self.systeme_periodes, self.systeme_periodes)
 
 
 class Domain(DomainMixin):
@@ -133,7 +147,7 @@ class Periode(models.Model):
     annee_scolaire = models.ForeignKey(
         AnneeScolaire, on_delete=models.CASCADE, related_name="periodes"
     )
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    type = models.CharField(max_length=50)
     numero = models.PositiveSmallIntegerField()
     libelle = models.CharField(max_length=50, blank=True)
     date_debut = models.DateField()
@@ -148,6 +162,9 @@ class Periode(models.Model):
         return (
             f"{self.get_type_display()} {self.numero} - {self.annee_scolaire.libelle}"
         )
+
+    def get_type_display(self):
+        return dict(self.TYPE_CHOICES).get(self.type, self.type)
 
 
 class Niveau(models.Model):
@@ -173,7 +190,6 @@ class Niveau(models.Model):
     ordre = models.PositiveSmallIntegerField(default=0)
     cycle = models.CharField(
         max_length=20,
-        choices=[("college", "Collège"), ("lycee", "Lycée")],
         blank=True,
     )
 

@@ -134,6 +134,7 @@ class PaiementFraisSerializer(serializers.ModelSerializer):
     enregistre_par_nom = serializers.CharField(
         source="enregistre_par.get_full_name", read_only=True
     )
+    preuve_disponible = serializers.SerializerMethodField()
 
     class Meta:
         model = PaiementFrais
@@ -151,10 +152,17 @@ class PaiementFraisSerializer(serializers.ModelSerializer):
             "statut",
             "statut_display",
             "recu_pdf",
+            "preuve_disponible",
             "enregistre_par",
             "enregistre_par_nom",
+            "verifie_par",
+            "verifie_le",
+            "motif_rejet",
         ]
-        read_only_fields = ["id", "numero"]
+        read_only_fields = fields
+
+    def get_preuve_disponible(self, obj):
+        return bool(obj.preuve_paiement)
 
 
 class PaiementCreateSerializer(serializers.ModelSerializer):
@@ -168,12 +176,36 @@ class PaiementCreateSerializer(serializers.ModelSerializer):
             "montant",
             "mode",
             "reference_externe",
+            "preuve_paiement",
         ]
+        extra_kwargs = {"preuve_paiement": {"write_only": True}}
 
     def validate(self, data):
         facture = data["facture"]
         montant = data["montant"]
         reste = facture.montant - facture.montant_paye
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        manager_roles = {
+            "president",
+            "vice_president",
+            "doyen",
+            "scolarite",
+            "comptable",
+        }
+        is_manager = user and (
+            user.is_staff or getattr(user, "role", "") in manager_roles
+        )
+        if not is_manager and (not user or facture.etudiant.user_id != user.id):
+            raise serializers.ValidationError(
+                {"facture": "Vous ne pouvez pas payer cette facture."}
+            )
+        if facture.statut in ("payee", "annulee"):
+            raise serializers.ValidationError(
+                {"facture": "Cette facture n'accepte plus de paiement."}
+            )
+        if montant <= 0:
+            raise serializers.ValidationError({"montant": "Le montant doit être positif."})
         if montant > reste:
             raise serializers.ValidationError(
                 {

@@ -39,6 +39,11 @@ class Utilisateur(AbstractUser):
     doit_changer_mdp = models.BooleanField(default=False)
     derniere_connexion = models.DateTimeField(null=True, blank=True)
     preferences_notification = models.JSONField(default=dict, blank=True)
+    attributs_acces = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Contraintes ABAC par permission (classes, matières, années, etc.).",
+    )
 
     class Meta:
         verbose_name = "Utilisateur"

@@ -4,6 +4,11 @@ from apps.etablissement.models import AnneeUniversitaire
 from apps.etudiants.models import Etudiant
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
+from sis_common.exam_files import (
+    PrivateFinancialStorage,
+    payment_proof_upload_to,
+    validate_payment_proof,
+)
 
 
 class TypeFraisInscription(models.Model):
@@ -94,6 +99,7 @@ class PaiementFrais(models.Model):
         ("en_attente", "En attente"),
         ("valide", "Validé"),
         ("echec", "Échec"),
+        ("rejete", "Rejeté"),
         ("rembourse", "Remboursé"),
     ]
     facture = models.ForeignKey(
@@ -106,6 +112,13 @@ class PaiementFrais(models.Model):
     reference_externe = models.CharField(max_length=200, blank=True)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="valide")
     recu_pdf = models.CharField(max_length=500, blank=True)
+    preuve_paiement = models.FileField(
+        upload_to=payment_proof_upload_to,
+        storage=PrivateFinancialStorage(),
+        validators=[validate_payment_proof],
+        null=True,
+        blank=True,
+    )
     enregistre_par = models.ForeignKey(
         Utilisateur,
         on_delete=models.SET_NULL,
@@ -113,6 +126,15 @@ class PaiementFrais(models.Model):
         blank=True,
         related_name="paiements_enregistres",
     )
+    verifie_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="paiements_verifies",
+    )
+    verifie_le = models.DateTimeField(null=True, blank=True)
+    motif_rejet = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

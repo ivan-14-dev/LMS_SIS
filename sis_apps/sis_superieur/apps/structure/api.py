@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import has_business_permission_or_role
 
 from .models import Departement, EcoleDoctorale, Faculte
 from .serializers import DepartementSerializer, EcoleDoctoraleSerializer, FaculteDetailSerializer, FaculteListSerializer
@@ -19,7 +20,17 @@ class IsAdminOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        return request.user.is_staff
+        return has_business_permission_or_role(
+            request.user,
+            "structure.change_faculte",
+            (
+                "president",
+                "vice_president",
+                "doyen",
+                "directeur_etudes",
+                "scolarite",
+            ),
+        )
 
 
 class FacultesViewSet(viewsets.ModelViewSet):
@@ -32,7 +43,9 @@ class FacultesViewSet(viewsets.ModelViewSet):
     ordering = ["code"]
 
     def get_queryset(self):
-        return Faculte.objects.select_related("universite", "doyen")
+        return Faculte.objects.select_related("universite", "doyen").filter(
+            universite=self.request.tenant
+        )
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -72,7 +85,9 @@ class DepartementsViewSet(viewsets.ModelViewSet):
     ordering = ["code"]
 
     def get_queryset(self):
-        return Departement.objects.select_related("faculte", "directeur")
+        return Departement.objects.select_related("faculte", "directeur").filter(
+            faculte__universite=self.request.tenant
+        )
 
     @action(detail=True, methods=["get"])
     def formations(self, request, pk=None):
@@ -92,7 +107,7 @@ class DepartementsViewSet(viewsets.ModelViewSet):
         from apps.enseignants.serializers import EnseignantListSerializer
 
         enseignants = EnseignantChercheur.objects.filter(
-            departement=departement
+            affectations__ue__maquette__formation__departement=departement
         ).select_related("user")
         serializer = EnseignantListSerializer(enseignants, many=True)
         return Response(serializer.data)
@@ -109,4 +124,6 @@ class EcolesDoctoralesViewSet(viewsets.ModelViewSet):
     ordering = ["code"]
 
     def get_queryset(self):
-        return EcoleDoctorale.objects.select_related("universite", "directeur")
+        return EcoleDoctorale.objects.select_related("universite", "directeur").filter(
+            universite=self.request.tenant
+        )

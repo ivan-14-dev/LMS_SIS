@@ -8,7 +8,7 @@ from .models import Classe, Groupe, Matiere, ProgrammeMatiere
 class ClasseListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les listes de classes."""
 
-    niveau_nom = serializers.CharField(source="niveau.nom", read_only=True)
+    niveau_nom = serializers.CharField(source="niveau.libelle", read_only=True)
     annee_libelle = serializers.CharField(
         source="annee_scolaire.libelle", read_only=True
     )
@@ -37,7 +37,7 @@ class ClasseListSerializer(serializers.ModelSerializer):
 class ClasseDetailSerializer(serializers.ModelSerializer):
     """Serializer complet pour le détail d'une classe."""
 
-    niveau_nom = serializers.CharField(source="niveau.nom", read_only=True)
+    niveau_nom = serializers.CharField(source="niveau.libelle", read_only=True)
     annee_libelle = serializers.CharField(
         source="annee_scolaire.libelle", read_only=True
     )
@@ -156,9 +156,11 @@ class ProgrammeMatiereSerializer(serializers.ModelSerializer):
             "matiere_nom",
             "matiere_code",
             "coefficient",
+            "credits",
             "heures_semaine",
             "obligatoire",
             "enseignant_principal",
+            "enseignants",
             "enseignant_nom",
             "created_at",
         ]

@@ -1,11 +1,14 @@
 """API views for utilisateurs (ViewSets DRF) - SIS Secondaire."""
 
+from django.contrib.auth.models import Group, Permission
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+
+from sis_common.authorization import permission_snapshot
 
 from .models import Utilisateur
 from .serializers import (
@@ -14,6 +17,8 @@ from .serializers import (
     UtilisateurDetailSerializer,
     UtilisateurListSerializer,
     UtilisateurProfileSerializer,
+    GroupSerializer,
+    PermissionSerializer,
 )
 
 
@@ -73,6 +78,10 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
         serializer = UtilisateurDetailSerializer(request.user)
         return Response(serializer.data)
 
+    @action(detail=False, methods=["get"])
+    def capabilities(self, request):
+        return Response(permission_snapshot(request.user))
+
     @action(detail=False, methods=["patch"])
     def update_profile(self, request):
         """Met à jour le profil de l'utilisateur connecté."""
@@ -113,3 +122,20 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
                 "detail": f"Utilisateur {action_str}.",
             }
         )
+
+
+class PermissionsViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAdminUser]
+    serializer_class = PermissionSerializer
+    queryset = Permission.objects.select_related("content_type").order_by(
+        "content_type__app_label", "codename"
+    )
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ["content_type__app_label"]
+    search_fields = ["codename", "name"]
+
+
+class GroupesPermissionsViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAdminUser]
+    serializer_class = GroupSerializer
+    queryset = Group.objects.prefetch_related("permissions").order_by("name")

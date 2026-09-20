@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import has_business_permission_or_role
 
 from .models import AffectationEnseignement, EnseignantChercheur
 from .serializers import (
@@ -19,6 +20,17 @@ from .serializers import (
 
 class IsScolariteOrEnseignant(IsAuthenticated):
     """Permission: scolarité ou enseignant concerné."""
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return True
+        return has_business_permission_or_role(
+            request.user,
+            "enseignants.change_enseignantchercheur",
+            ("scolarite", "directeur_etudes", "doyen"),
+        )
 
     def has_object_permission(self, request, view, obj):
         user = request.user
@@ -100,7 +112,7 @@ class EnseignantsViewSet(viewsets.ModelViewSet):
 class AffectationsViewSet(viewsets.ModelViewSet):
     """ViewSet pour les affectations d'enseignement."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsScolariteOrEnseignant]
     serializer_class = AffectationEnseignementSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = [

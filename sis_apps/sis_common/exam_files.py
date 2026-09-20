@@ -29,6 +29,27 @@ class PrivateExamStorage(FileSystemStorage):
         )
 
 
+@deconstructible
+class PrivateFinancialStorage(FileSystemStorage):
+    """Stockage local privé pour les justificatifs financiers."""
+
+    def __init__(self, location=None):
+        super().__init__(
+            location=location
+            or getattr(
+                settings,
+                "PRIVATE_FINANCIAL_STORAGE_ROOT",
+                settings.BASE_DIR / "private_financial_documents",
+            ),
+            base_url=None,
+        )
+
+    def url(self, name):
+        raise SuspiciousFileOperation(
+            "Les justificatifs financiers ne disposent pas d'URL publique."
+        )
+
+
 def exam_copy_upload_to(instance, filename):
     extension = Path(filename).suffix.lower()
     return f"examens/{instance.convocation.epreuve_id}/{uuid4().hex}{extension}"
@@ -65,3 +86,29 @@ def hash_uploaded_file(file):
         digest.update(chunk)
     file.seek(position)
     return digest.hexdigest()
+
+
+def payment_proof_upload_to(instance, filename):
+    extension = Path(filename).suffix.lower()
+    return f"paiements/{instance.facture_id}/{uuid4().hex}{extension}"
+
+
+def validate_payment_proof(file):
+    max_size = getattr(settings, "PAYMENT_PROOF_MAX_SIZE", 10 * 1024 * 1024)
+    if file.size > max_size:
+        raise ValidationError("Le justificatif de paiement dépasse la taille autorisée.")
+    extension = Path(file.name).suffix.lower()
+    signatures = {
+        ".pdf": (b"%PDF-",),
+        ".png": (b"\x89PNG\r\n\x1a\n",),
+        ".jpg": (b"\xff\xd8\xff",),
+        ".jpeg": (b"\xff\xd8\xff",),
+    }
+    if extension not in signatures:
+        raise ValidationError("Le justificatif doit être un PDF, PNG ou JPEG.")
+    position = file.tell()
+    file.seek(0)
+    header = file.read(8)
+    file.seek(position)
+    if not any(header.startswith(signature) for signature in signatures[extension]):
+        raise ValidationError("Le contenu du justificatif ne correspond pas à son format.")

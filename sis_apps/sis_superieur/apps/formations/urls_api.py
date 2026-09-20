@@ -1,7 +1,14 @@
 """URLs API for formations."""
 
+from rest_framework.routers import DefaultRouter
+
+from .api import FormationsViewSet, MaquettesViewSet, ParcoursViewSet
+
 app_name = "formations_api"
 
-urlpatterns = [
-    # path("", api.FormationsViewSet.as_view({"get": "list", "post": "create"}), name="list"),
-]
+router = DefaultRouter()
+router.register("formations", FormationsViewSet, basename="formation")
+router.register("parcours", ParcoursViewSet, basename="parcours")
+router.register("maquettes", MaquettesViewSet, basename="maquette")
+
+urlpatterns = router.urls

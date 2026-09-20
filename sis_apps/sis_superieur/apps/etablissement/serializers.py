@@ -7,6 +7,11 @@ from sis_common.establishments import (
     default_establishment_features,
     default_live_configuration,
 )
+from sis_common.academic_configuration import (
+    catalog_label,
+    catalog_options,
+    merge_academic_configuration,
+)
 
 from .models import AnneeUniversitaire, Semestre, Universite
 
@@ -14,7 +19,7 @@ from .models import AnneeUniversitaire, Semestre, Universite
 class UniversiteSerializer(serializers.ModelSerializer):
     """Serializer pour les universités."""
 
-    type_display = serializers.CharField(source="get_type_display", read_only=True)
+    type_display = serializers.SerializerMethodField()
     type_options = serializers.SerializerMethodField()
     feature_options = serializers.SerializerMethodField()
     live_provider_options = serializers.SerializerMethodField()
@@ -47,6 +52,7 @@ class UniversiteSerializer(serializers.ModelSerializer):
             "feature_options",
             "configuration_visio",
             "live_provider_options",
+            "configuration_academique",
             "systeme_notation",
             "credits_annee",
             "accreditations",
@@ -61,7 +67,22 @@ class UniversiteSerializer(serializers.ModelSerializer):
         return obj.facultes.count() if hasattr(obj, "facultes") else 0
 
     def get_type_options(self, obj):
-        return [{"value": value, "label": label} for value, label in obj.TYPE_CHOICES]
+        return [
+            {"value": item["code"], "label": item["label"]}
+            for item in catalog_options(
+                obj.configuration_academique,
+                "institution_types",
+                obj.TYPE_CHOICES,
+            )
+        ]
+
+    def get_type_display(self, obj):
+        return catalog_label(
+            obj.configuration_academique,
+            "institution_types",
+            obj.type,
+            obj.TYPE_CHOICES,
+        )
 
     def get_feature_options(self, obj):
         return [
@@ -93,6 +114,10 @@ class UniversiteSerializer(serializers.ModelSerializer):
         current = getattr(self.instance, "configuration_visio", {})
         return {**default_live_configuration(), **current, **value}
 
+    def validate_configuration_academique(self, value):
+        current = getattr(self.instance, "configuration_academique", {})
+        return merge_academic_configuration(current, value)
+
 
 class AnneeUniversitaireSerializer(serializers.ModelSerializer):
     """Serializer pour les années universitaires."""
@@ -112,7 +137,7 @@ class AnneeUniversitaireSerializer(serializers.ModelSerializer):
             "nb_semestres",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "universite", "created_at"]
 
     def get_nb_semestres(self, obj):
         return obj.semestres.count()
@@ -146,3 +171,11 @@ class SemestreSerializer(serializers.ModelSerializer):
 
     def get_libelle(self, obj):
         return str(obj)
+
+    def validate_annee_universitaire(self, value):
+        request = self.context.get("request")
+        if request and value.universite_id != request.tenant.id:
+            raise serializers.ValidationError(
+                "Cette année n'appartient pas à l'établissement courant."
+            )
+        return value

@@ -11,6 +11,7 @@ import Footer from '@edx/frontend-component-footer';
 
 // Layout
 import SISLayout from './components/layout/SISLayout';
+import PermissionGuard from './components/auth/PermissionGuard';
 
 // Dashboards
 import DashboardSuperieur from './superieur/Dashboard';
@@ -92,7 +93,18 @@ const App = () => (
             <Route path="formations" element={<FormationsPage />} />
             <Route path="formations/:id" element={<FormationDetailPage />} />
             <Route path="inscriptions" element={<InscriptionsPage />} />
-            <Route path="notes" element={<NotesPage />} />
+            <Route
+              path="notes"
+              element={(
+                <PermissionGuard
+                  type="superieur"
+                  permission="notes.view_note"
+                  allowedRoles={['enseignant', 'chercheur', 'scolarite', 'directeur_etudes']}
+                >
+                  <NotesPage />
+                </PermissionGuard>
+              )}
+            />
             <Route path="examens" element={<ExamensPage />} />
             <Route path="jurys" element={<JurysPage />} />
             <Route path="releves" element={<RelevesPage />} />
@@ -111,7 +123,18 @@ const App = () => (
             <Route path="recherche" element={<RecherchePage />} />
 
             {/* Finances */}
-            <Route path="paiements" element={<PaiementsPage />} />
+            <Route
+              path="paiements"
+              element={(
+                <PermissionGuard
+                  type="superieur"
+                  permission="paiements.view_paiementfrais"
+                  allowedRoles={['etudiant', 'comptable', 'scolarite', 'doyen']}
+                >
+                  <PaiementsPage />
+                </PermissionGuard>
+              )}
+            />
 
             {/* Portails */}
             <Route path="portail-etudiant" element={<PortailEtudiant />} />
@@ -128,7 +151,18 @@ const App = () => (
             <Route path="eleves" element={<ElevesPage />} />
             <Route path="eleves/:id" element={<EleveDetailPage />} />
             <Route path="classes" element={<ClassesPage />} />
-            <Route path="evaluations" element={<EvaluationsPage />} />
+            <Route
+              path="evaluations"
+              element={(
+                <PermissionGuard
+                  type="secondaire"
+                  permission="notes.view_evaluation"
+                  allowedRoles={['enseignant', 'vie_scolaire', 'direction']}
+                >
+                  <EvaluationsPage />
+                </PermissionGuard>
+              )}
+            />
             <Route path="bulletins" element={<BulletinsPage />} />
             <Route path="conseil-classe" element={<ConseilClassePage />} />
 

@@ -50,8 +50,8 @@ class Formation(models.Model):
     )
     nom = models.CharField(max_length=200)
     code = models.CharField(max_length=30)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
-    niveau = models.CharField(max_length=5, choices=NIVEAU_CHOICES, blank=True)
+    type = models.CharField(max_length=100)
+    niveau = models.CharField(max_length=100, blank=True)
     duree_annees = models.PositiveSmallIntegerField(default=3)
     nb_semestres = models.PositiveSmallIntegerField(default=6)
     credits_total = models.PositiveSmallIntegerField(default=180)
@@ -66,7 +66,7 @@ class Formation(models.Model):
     date_accreditation = models.DateField(null=True, blank=True)
     date_fin_accreditation = models.DateField(null=True, blank=True)
     regime = models.CharField(
-        max_length=30, choices=REGIME_CHOICES, default="formation_initiale"
+        max_length=100, default="formation_initiale"
     )
     description = models.TextField(blank=True)
     objectifs = models.TextField(blank=True)
@@ -83,6 +83,15 @@ class Formation(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.nom}"
+
+    def get_type_display(self):
+        return dict(self.TYPE_CHOICES).get(self.type, self.type)
+
+    def get_niveau_display(self):
+        return dict(self.NIVEAU_CHOICES).get(self.niveau, self.niveau)
+
+    def get_regime_display(self):
+        return dict(self.REGIME_CHOICES).get(self.regime, self.regime)
 
 
 class Parcours(models.Model):

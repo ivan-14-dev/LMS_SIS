@@ -1,9 +1,24 @@
 """Serializers for utilisateurs (SIS Secondaire)."""
 
+from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 from .models import Utilisateur
+
+
+class PermissionSerializer(serializers.ModelSerializer):
+    app_label = serializers.CharField(source="content_type.app_label", read_only=True)
+
+    class Meta:
+        model = Permission
+        fields = ["id", "app_label", "codename", "name"]
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ["id", "name", "permissions"]
 
 
 class UtilisateurListSerializer(serializers.ModelSerializer):
@@ -21,6 +36,7 @@ class UtilisateurListSerializer(serializers.ModelSerializer):
             "full_name",
             "role",
             "role_display",
+            "groups",
             "is_active",
         ]
 
@@ -45,6 +61,9 @@ class UtilisateurDetailSerializer(serializers.ModelSerializer):
             "is_active",
             "is_staff",
             "etablissement",
+            "groups",
+            "user_permissions",
+            "attributs_acces",
             "telephone",
             "avatar",
             "date_joined",
@@ -106,3 +125,4 @@ class UtilisateurProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Utilisateur
         fields = ["first_name", "last_name", "telephone", "avatar"]
+from django.contrib.auth.models import Group, Permission

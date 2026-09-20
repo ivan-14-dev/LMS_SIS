@@ -26,7 +26,7 @@ class UE(models.Model):
     code = models.CharField(max_length=30)
     nom = models.CharField(max_length=200)
     credits_ects = models.DecimalField(max_digits=4, decimal_places=2)
-    type = models.CharField(max_length=2, choices=TYPE_CHOICES, default="F")
+    type = models.CharField(max_length=100, default="F")
     volume_horaire_cm = models.PositiveIntegerField(default=0, help_text="Heures CM")
     volume_horaire_td = models.PositiveIntegerField(default=0, help_text="Heures TD")
     volume_horaire_tp = models.PositiveIntegerField(default=0, help_text="Heures TP")
@@ -49,6 +49,9 @@ class UE(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.nom}"
+
+    def get_type_display(self):
+        return dict(self.TYPE_CHOICES).get(self.type, self.type)
 
     @property
     def volume_horaire_total(self):
