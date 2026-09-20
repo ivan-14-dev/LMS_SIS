@@ -18,8 +18,34 @@ export const useCapabilities = (type) => useQuery({
   staleTime: 60_000,
 });
 
+const getNestedValue = (object, path) => path.split('.').reduce(
+  (current, segment) => (current && current[segment] !== undefined ? current[segment] : undefined),
+  object,
+);
+
+const matchesExpectedValue = (actual, expected) => {
+  if (Array.isArray(expected)) {
+    return Array.isArray(actual)
+      ? actual.some((value) => expected.includes(value))
+      : expected.includes(actual);
+  }
+  if (Array.isArray(actual)) {
+    return actual.includes(expected);
+  }
+  return actual === expected;
+};
+
+const hasRequiredAttributes = (attributes, requiredAttributes = {}) => Object.entries(requiredAttributes).every(
+  ([path, expected]) => matchesExpectedValue(getNestedValue(attributes, path), expected),
+);
+
 const PermissionGuard = ({
-  type, permission, allowedRoles = [], children,
+  type,
+  permission,
+  allowedRoles = [],
+  allowedGroups = [],
+  requiredAttributes = {},
+  children,
 }) => {
   const { data, isLoading, isError } = useCapabilities(type);
 
@@ -27,10 +53,13 @@ const PermissionGuard = ({
     return <Spinner animation="border" screenReaderText="Chargement des permissions" />;
   }
   const permissions = data?.permissions || [];
-  const allowed = permissions.includes('*')
+  const groups = data?.groups || [];
+  const hasBasePermission = permissions.includes('*')
     || permissions.includes(permission)
     || allowedRoles.includes(data?.role);
-  if (isError || !allowed) {
+  const hasRequiredGroup = !allowedGroups.length || allowedGroups.some((group) => groups.includes(group));
+  const hasRequiredAttributeSet = hasRequiredAttributes(data?.attributes || {}, requiredAttributes);
+  if (isError || !hasBasePermission || !hasRequiredGroup || !hasRequiredAttributeSet) {
     return <Alert variant="danger">Vous n’avez pas la permission d’accéder à ce module.</Alert>;
   }
   return children;
@@ -40,6 +69,8 @@ PermissionGuard.propTypes = {
   type: PropTypes.oneOf(['secondaire', 'superieur']).isRequired,
   permission: PropTypes.string.isRequired,
   allowedRoles: PropTypes.arrayOf(PropTypes.string),
+  allowedGroups: PropTypes.arrayOf(PropTypes.string),
+  requiredAttributes: PropTypes.object,
   children: PropTypes.node.isRequired,
 };
 

@@ -7,11 +7,25 @@ from django.http import HttpResponse
 from rest_framework.exceptions import ValidationError
 
 
-def configured_report(request, code):
+def _has_any_permission(user, permissions):
+    if not permissions:
+        return True
+    if getattr(user, "is_superuser", False):
+        return True
+    return any(user.has_perm(permission) for permission in permissions)
+
+
+def configured_report(request, code, allowed_datasets=None):
     reports = getattr(request.tenant, "configuration_academique", {}).get("reports", [])
     report = next((item for item in reports if item.get("code") == code), None)
     if not report:
         raise ValidationError({"report": "Rapport inconnu ou non activé."})
+    dataset = report.get("dataset")
+    if allowed_datasets and dataset not in allowed_datasets:
+        raise ValidationError({"report": "Ce rapport n'est pas disponible depuis ce module."})
+    required_permissions = report.get("required_permissions", [])
+    if required_permissions and not _has_any_permission(request.user, required_permissions):
+        raise ValidationError({"report": "Vous n'avez pas accès à ce rapport."})
     return report
 
 

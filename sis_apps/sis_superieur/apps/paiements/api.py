@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.http import FileResponse
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -14,6 +14,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from sis_common.authorization import has_business_permission_or_role
+from sis_common.reporting import configured_report, export_queryset_csv
 
 from .models import FactureFrais, PaiementFrais, TypeFraisInscription
 from .serializers import (
@@ -23,6 +24,58 @@ from .serializers import (
     PaiementFraisSerializer,
     TypeFraisInscriptionSerializer,
 )
+
+INVOICE_REPORT_FIELDS = {
+    "numero": ("Numéro facture", "numero"),
+    "etudiant": ("Étudiant", "etudiant__user__last_name"),
+    "matricule": ("Matricule", "etudiant__matricule"),
+    "rubrique": ("Rubrique", "type_frais__libelle"),
+    "formation": ("Formation", "type_frais__formations__nom"),
+    "annee": ("Année", "type_frais__annee_universitaire__libelle"),
+    "statut": ("Statut", "statut"),
+    "montant": ("Montant", "montant"),
+    "montant_paye": ("Montant payé", "montant_paye"),
+    "date_emission": ("Date émission", "date_emission"),
+    "date_echeance": ("Date échéance", "date_echeance"),
+}
+INVOICE_REPORT_FILTERS = {
+    "annee": "type_frais__annee_universitaire_id",
+    "rubrique": "type_frais_id",
+    "etudiant": "etudiant_id",
+    "statut": "statut",
+}
+INVOICE_REPORT_GROUPS = {
+    "annee": "type_frais__annee_universitaire__libelle",
+    "rubrique": "type_frais__libelle",
+    "statut": "statut",
+}
+
+PAYMENT_REPORT_FIELDS = {
+    "numero": ("Numéro paiement", "numero"),
+    "facture": ("Numéro facture", "facture__numero"),
+    "etudiant": ("Étudiant", "facture__etudiant__user__last_name"),
+    "matricule": ("Matricule", "facture__etudiant__matricule"),
+    "rubrique": ("Rubrique", "facture__type_frais__libelle"),
+    "annee": ("Année", "facture__type_frais__annee_universitaire__libelle"),
+    "mode": ("Mode", "mode"),
+    "statut": ("Statut", "statut"),
+    "montant": ("Montant", "montant"),
+    "date_paiement": ("Date paiement", "date_paiement"),
+    "reference_externe": ("Référence externe", "reference_externe"),
+}
+PAYMENT_REPORT_FILTERS = {
+    "annee": "facture__type_frais__annee_universitaire_id",
+    "rubrique": "facture__type_frais_id",
+    "facture": "facture_id",
+    "mode": "mode",
+    "statut": "statut",
+}
+PAYMENT_REPORT_GROUPS = {
+    "annee": "facture__type_frais__annee_universitaire__libelle",
+    "rubrique": "facture__type_frais__libelle",
+    "mode": "mode",
+    "statut": "statut",
+}
 
 
 class IsComptabiliteOrReadOnly(IsAuthenticated):
@@ -138,6 +191,44 @@ class FacturesViewSet(viewsets.ModelViewSet):
         stats["reste_a_percevoir"] = stats["total_emis"] - stats["total_paye"]
         return Response(stats)
 
+    @action(detail=False, methods=["get"])
+    def bilan(self, request):
+        group_by = request.query_params.get("group_by", "rubrique")
+        group_field = INVOICE_REPORT_GROUPS.get(group_by)
+        if not group_field:
+            return Response(
+                {"group_by": f"Valeurs acceptées: {', '.join(INVOICE_REPORT_GROUPS)}."},
+                status=400,
+            )
+        rows = (
+            self.filter_queryset(self.get_queryset())
+            .values(group_field)
+            .annotate(nombre=Count("id"), montant_total=Sum("montant"), montant_paye=Sum("montant_paye"))
+            .order_by(group_field)
+        )
+        return Response(
+            [
+                {
+                    "groupe": row[group_field],
+                    "nombre": row["nombre"],
+                    "montant_total": row["montant_total"] or 0,
+                    "montant_paye": row["montant_paye"] or 0,
+                }
+                for row in rows
+            ]
+        )
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"financial_invoices"})
+        return export_queryset_csv(
+            self.filter_queryset(self.get_queryset()),
+            report,
+            INVOICE_REPORT_FIELDS,
+            INVOICE_REPORT_FILTERS,
+            request.data.get("filters", {}),
+        )
+
 
 class PaiementsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour paiements."""
@@ -243,3 +334,40 @@ class PaiementsViewSet(viewsets.ModelViewSet):
             facture.save(update_fields=["montant_paye", "statut", "updated_at"])
 
         return Response({"detail": "Paiement remboursé.", "id": paiement.id})
+
+    @action(detail=False, methods=["get"])
+    def bilan(self, request):
+        group_by = request.query_params.get("group_by", "statut")
+        group_field = PAYMENT_REPORT_GROUPS.get(group_by)
+        if not group_field:
+            return Response(
+                {"group_by": f"Valeurs acceptées: {', '.join(PAYMENT_REPORT_GROUPS)}."},
+                status=400,
+            )
+        rows = (
+            self.filter_queryset(self.get_queryset())
+            .values(group_field)
+            .annotate(nombre=Count("id"), montant_total=Sum("montant"))
+            .order_by(group_field)
+        )
+        return Response(
+            [
+                {
+                    "groupe": row[group_field],
+                    "nombre": row["nombre"],
+                    "montant_total": row["montant_total"] or 0,
+                }
+                for row in rows
+            ]
+        )
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"financial_payments"})
+        return export_queryset_csv(
+            self.filter_queryset(self.get_queryset()),
+            report,
+            PAYMENT_REPORT_FIELDS,
+            PAYMENT_REPORT_FILTERS,
+            request.data.get("filters", {}),
+        )

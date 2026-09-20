@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 from sis_common.academic_configuration import (
+    academic_configuration_schema,
     catalog_label,
     default_academic_configuration,
     merge_academic_configuration,
@@ -53,3 +54,68 @@ class AcademicConfigurationTests(SimpleTestCase):
 
         with self.assertRaises(ValidationError):
             validate_academic_configuration(configuration)
+
+    def test_extended_metamodel_sections_are_valid(self):
+        configuration = default_academic_configuration()
+        configuration["permission_groups"] = [
+            {
+                "code": "finance_manager",
+                "label": "Gestion financière",
+                "permissions": ["paiements.view_paiement", "paiements.change_paiement"],
+                "attributes": {"domains": ["finance"]},
+            }
+        ]
+        configuration["validation_policies"] = [
+            {
+                "code": "lmd-fr",
+                "label": "LMD francophone",
+                "scope": "semester",
+                "thresholds": {"minimum_average": 10, "minimum_credits": 30},
+                "criteria": {"financial_status": {"operator": "in", "value": ["ok", "waived"]}},
+                "publication": {"requires_financial_clearance": True},
+            }
+        ]
+        configuration["financial_workflows"] = [
+            {
+                "code": "fees",
+                "label": "Paiements",
+                "scope": "academic_year",
+                "steps": [
+                    {"code": "submitted", "label": "Soumis"},
+                    {"code": "validated", "label": "Validé", "terminal": True},
+                ],
+            }
+        ]
+        configuration["reports"] = [
+            {
+                "code": "payments",
+                "label": "Paiements validés",
+                "dataset": "financial_payments",
+                "fields": ["numero", "montant"],
+                "allowed_filters": ["annee", "statut"],
+                "required_permissions": ["paiements.view_paiement"],
+            }
+        ]
+
+        validate_academic_configuration(configuration)
+
+    def test_invalid_report_dataset_is_rejected(self):
+        configuration = default_academic_configuration()
+        configuration["reports"] = [
+            {
+                "code": "legacy",
+                "label": "Legacy",
+                "dataset": "unsupported",
+                "fields": ["numero"],
+                "allowed_filters": [],
+            }
+        ]
+
+        with self.assertRaises(ValidationError):
+            validate_academic_configuration(configuration)
+
+    def test_academic_configuration_schema_exposes_supported_dimensions_and_datasets(self):
+        schema = academic_configuration_schema()
+
+        self.assertIn({"code": "financial", "label": "Financier"}, schema["dimension_axes"])
+        self.assertIn({"code": "financial_payments", "label": "Paiements"}, schema["report_datasets"])

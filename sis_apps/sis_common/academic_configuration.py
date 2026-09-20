@@ -6,6 +6,52 @@ from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 
+DIMENSION_AXES = {
+    "institutional": "Institutionnel",
+    "academic": "Académique",
+    "organizational": "Organisationnel",
+    "pedagogical": "Pédagogique",
+    "financial": "Financier",
+}
+
+DIMENSION_SCOPES = {
+    "tenant": "Établissement",
+    "academic_year": "Année académique",
+    "period": "Période",
+    "semester": "Semestre",
+    "level": "Niveau",
+    "class": "Classe",
+    "department": "Département",
+    "program": "Filière / formation",
+    "section": "Section / parcours",
+    "subject": "Matière / ECUE",
+    "unit": "UE / unité d'enseignement",
+    "payment": "Rubrique de paiement",
+}
+
+VALIDATION_POLICY_SCOPES = {
+    "tenant": "Établissement",
+    "academic_year": "Année académique",
+    "level": "Niveau",
+    "class": "Classe",
+    "formation": "Formation",
+    "semester": "Semestre",
+}
+
+REPORT_DATASET_LABELS = {
+    "notes": "Notes",
+    "evaluations": "Évaluations",
+    "bulletins": "Bulletins",
+    "financial_invoices": "Factures",
+    "financial_payments": "Paiements",
+}
+
+FINANCIAL_WORKFLOW_SCOPES = {
+    "tenant": "Établissement",
+    "academic_year": "Année académique",
+    "payment_rubric": "Rubrique de paiement",
+}
+
 DEFAULT_ACADEMIC_CONFIGURATION = {
     "language": "fr",
     "framework": "custom",
@@ -26,7 +72,103 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
         "teaching_modalities": [],
         "ue_types": [],
     },
+    "dimensions": [
+        {
+            "code": "institution_type",
+            "label": "Type d'établissement",
+            "axis": "institutional",
+            "scope": "tenant",
+            "applicable_to": ["secondaire", "superieur"],
+        },
+        {
+            "code": "academic_year",
+            "label": "Année académique",
+            "axis": "academic",
+            "scope": "academic_year",
+            "applicable_to": ["secondaire", "superieur"],
+        },
+        {
+            "code": "period",
+            "label": "Période",
+            "axis": "academic",
+            "scope": "period",
+            "applicable_to": ["secondaire", "superieur"],
+        },
+        {
+            "code": "semester",
+            "label": "Semestre",
+            "axis": "academic",
+            "scope": "semester",
+            "applicable_to": ["superieur"],
+        },
+        {
+            "code": "level",
+            "label": "Niveau",
+            "axis": "academic",
+            "scope": "level",
+            "applicable_to": ["secondaire", "superieur"],
+        },
+        {
+            "code": "class",
+            "label": "Classe",
+            "axis": "organizational",
+            "scope": "class",
+            "applicable_to": ["secondaire"],
+        },
+        {
+            "code": "department",
+            "label": "Département",
+            "axis": "organizational",
+            "scope": "department",
+            "applicable_to": ["superieur"],
+        },
+        {
+            "code": "program",
+            "label": "Filière / formation",
+            "axis": "organizational",
+            "scope": "program",
+            "applicable_to": ["superieur"],
+        },
+        {
+            "code": "subject",
+            "label": "Matière / ECUE",
+            "axis": "pedagogical",
+            "scope": "subject",
+            "applicable_to": ["secondaire", "superieur"],
+        },
+        {
+            "code": "teaching_unit",
+            "label": "UE / unité d'enseignement",
+            "axis": "pedagogical",
+            "scope": "unit",
+            "applicable_to": ["superieur"],
+        },
+        {
+            "code": "payment_rubric",
+            "label": "Rubrique de paiement",
+            "axis": "financial",
+            "scope": "payment",
+            "applicable_to": ["secondaire", "superieur"],
+        },
+    ],
     "custom_dimensions": [],
+    "permission_groups": [],
+    "validation_policies": [],
+    "financial_workflows": [
+        {
+            "code": "payment_review",
+            "label": "Validation des paiements",
+            "scope": "tenant",
+            "steps": [
+                {"code": "submitted", "label": "Soumis"},
+                {"code": "under_review", "label": "En contrôle"},
+                {"code": "validated", "label": "Validé", "terminal": True},
+                {"code": "rejected", "label": "Rejeté", "terminal": True},
+                {"code": "refunded", "label": "Remboursé", "terminal": True},
+            ],
+            "required_permissions": ["paiements.change_paiement", "paiements.change_paiementfrais"],
+        }
+    ],
     "reports": [],
 }
 
@@ -58,6 +200,119 @@ def _validate_code_items(items, path):
         codes.add(code)
 
 
+def _validate_string_list(items, path, *, empty_allowed=True):
+    if not isinstance(items, list):
+        raise ValidationError(f"{path} doit être une liste.")
+    if not empty_allowed and not items:
+        raise ValidationError(f"{path} ne peut pas être vide.")
+    for index, item in enumerate(items):
+        if not isinstance(item, str) or not item.strip():
+            raise ValidationError(f"{path}[{index}] doit être une chaîne non vide.")
+
+
+def _validate_dimensions(items):
+    _validate_code_items(items, "dimensions")
+    for index, item in enumerate(items):
+        axis = item.get("axis")
+        scope = item.get("scope")
+        if axis not in DIMENSION_AXES:
+            raise ValidationError(f"dimensions[{index}].axis est invalide.")
+        if scope not in DIMENSION_SCOPES:
+            raise ValidationError(f"dimensions[{index}].scope est invalide.")
+        applicable_to = item.get("applicable_to", [])
+        _validate_string_list(applicable_to, f"dimensions[{index}].applicable_to")
+
+
+def _validate_permission_groups(items):
+    _validate_code_items(items, "permission_groups")
+    for index, item in enumerate(items):
+        _validate_string_list(
+            item.get("permissions", []),
+            f"permission_groups[{index}].permissions",
+            empty_allowed=False,
+        )
+        attributes = item.get("attributes", {})
+        if not isinstance(attributes, dict):
+            raise ValidationError(f"permission_groups[{index}].attributes doit être un objet.")
+
+
+def _validate_validation_policies(items):
+    _validate_code_items(items, "validation_policies")
+    for index, item in enumerate(items):
+        scope = item.get("scope")
+        if scope not in VALIDATION_POLICY_SCOPES:
+            raise ValidationError(f"validation_policies[{index}].scope est invalide.")
+        if "criteria" in item:
+            validate_rule_criteria(item["criteria"])
+        thresholds = item.get("thresholds", {})
+        if not isinstance(thresholds, dict):
+            raise ValidationError(f"validation_policies[{index}].thresholds doit être un objet.")
+        for name, threshold in thresholds.items():
+            if isinstance(threshold, bool):
+                continue
+            _decimal(threshold, f"validation_policies[{index}].thresholds.{name}")
+        publication = item.get("publication", {})
+        if not isinstance(publication, dict):
+            raise ValidationError(f"validation_policies[{index}].publication doit être un objet.")
+        for key in ("requires_financial_clearance", "auto_publish", "manual_review_required"):
+            if key in publication and not isinstance(publication[key], bool):
+                raise ValidationError(f"validation_policies[{index}].publication.{key} doit être booléen.")
+
+
+def _validate_financial_workflows(items):
+    _validate_code_items(items, "financial_workflows")
+    for index, workflow in enumerate(items):
+        scope = workflow.get("scope")
+        if scope not in FINANCIAL_WORKFLOW_SCOPES:
+            raise ValidationError(f"financial_workflows[{index}].scope est invalide.")
+        _validate_string_list(
+            workflow.get("required_permissions", []),
+            f"financial_workflows[{index}].required_permissions",
+        )
+        steps = workflow.get("steps", [])
+        _validate_code_items(steps, f"financial_workflows[{index}].steps")
+        for step_index, step in enumerate(steps):
+            if "terminal" in step and not isinstance(step["terminal"], bool):
+                raise ValidationError(
+                    f"financial_workflows[{index}].steps[{step_index}].terminal doit être booléen."
+                )
+
+
+def _validate_reports(items):
+    _validate_code_items(items, "reports")
+    for index, report in enumerate(items):
+        dataset = report.get("dataset")
+        if dataset not in REPORT_DATASET_LABELS:
+            raise ValidationError(
+                f"reports[{index}].dataset doit être l'un de: {', '.join(sorted(REPORT_DATASET_LABELS))}."
+            )
+        if not isinstance(report.get("fields"), list) or not report["fields"]:
+            raise ValidationError(f"reports[{index}].fields doit être une liste non vide.")
+        if not isinstance(report.get("allowed_filters", []), list):
+            raise ValidationError(f"reports[{index}].allowed_filters doit être une liste.")
+        if "required_permissions" in report:
+            _validate_string_list(
+                report["required_permissions"],
+                f"reports[{index}].required_permissions",
+                empty_allowed=False,
+            )
+        default_group_by = report.get("default_group_by")
+        if default_group_by is not None and (not isinstance(default_group_by, str) or not default_group_by.strip()):
+            raise ValidationError(f"reports[{index}].default_group_by doit être une chaîne non vide.")
+
+
+def academic_configuration_schema():
+    return {
+        "dimension_axes": [{"code": code, "label": label} for code, label in DIMENSION_AXES.items()],
+        "dimension_scopes": [{"code": code, "label": label} for code, label in DIMENSION_SCOPES.items()],
+        "validation_scopes": [{"code": code, "label": label} for code, label in VALIDATION_POLICY_SCOPES.items()],
+        "report_datasets": [{"code": code, "label": label} for code, label in REPORT_DATASET_LABELS.items()],
+        "financial_workflow_scopes": [
+            {"code": code, "label": label} for code, label in FINANCIAL_WORKFLOW_SCOPES.items()
+        ],
+    }
+
+
 def validate_academic_configuration(value):
     if not isinstance(value, dict):
         raise ValidationError("La configuration académique doit être un objet.")
@@ -85,16 +340,12 @@ def validate_academic_configuration(value):
         if not re.fullmatch(r"[a-z][a-z0-9_]{1,63}", name):
             raise ValidationError(f"Nom de catalogue invalide: {name!r}.")
         _validate_code_items(items, f"catalogs.{name}")
+    _validate_dimensions(value.get("dimensions", []))
     _validate_code_items(value.get("custom_dimensions", []), "custom_dimensions")
-    reports = value.get("reports", [])
-    _validate_code_items(reports, "reports")
-    for index, report in enumerate(reports):
-        if report.get("dataset") != "notes":
-            raise ValidationError(f"reports[{index}].dataset doit être « notes ».")
-        if not isinstance(report.get("fields"), list) or not report["fields"]:
-            raise ValidationError(f"reports[{index}].fields doit être une liste non vide.")
-        if not isinstance(report.get("allowed_filters", []), list):
-            raise ValidationError(f"reports[{index}].allowed_filters doit être une liste.")
+    _validate_permission_groups(value.get("permission_groups", []))
+    _validate_validation_policies(value.get("validation_policies", []))
+    _validate_financial_workflows(value.get("financial_workflows", []))
+    _validate_reports(value.get("reports", []))
 
 
 def merge_academic_configuration(current, updates):

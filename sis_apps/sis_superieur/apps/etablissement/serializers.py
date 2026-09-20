@@ -2,6 +2,7 @@
 
 from rest_framework import serializers
 from sis_common.academic_configuration import (
+    academic_configuration_schema,
     catalog_label,
     catalog_options,
     merge_academic_configuration,
@@ -23,6 +24,7 @@ class UniversiteSerializer(serializers.ModelSerializer):
     type_options = serializers.SerializerMethodField()
     feature_options = serializers.SerializerMethodField()
     live_provider_options = serializers.SerializerMethodField()
+    configuration_schema = serializers.SerializerMethodField()
     nb_facultes = serializers.SerializerMethodField()
 
     class Meta:
@@ -53,6 +55,7 @@ class UniversiteSerializer(serializers.ModelSerializer):
             "configuration_visio",
             "live_provider_options",
             "configuration_academique",
+            "configuration_schema",
             "systeme_notation",
             "credits_annee",
             "accreditations",
@@ -89,6 +92,9 @@ class UniversiteSerializer(serializers.ModelSerializer):
 
     def get_live_provider_options(self, obj):
         return [{"value": value, "label": label} for value, label in LIVE_PROVIDER_LABELS.items()]
+
+    def get_configuration_schema(self, obj):
+        return academic_configuration_schema()
 
     def validate(self, attrs):
         institution_type = attrs.get("type", getattr(self.instance, "type", None))
