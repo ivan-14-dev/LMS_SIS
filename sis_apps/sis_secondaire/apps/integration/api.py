@@ -18,12 +18,18 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 from sis_common.webhooks import verify_hmac_signature
 
 from .edx_client import get_edx_client
 from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
+from .serializers import (
+    EdxCourseMappingSerializer,
+    EdxUserMappingSerializer,
+    OutboxEventSerializer,
+)
 from .sync_service import SyncService
 
 logger = logging.getLogger(__name__)
@@ -32,6 +38,13 @@ logger = logging.getLogger(__name__)
 def _verify_hmac(request) -> bool:
     signature = request.headers.get("X-Signature", "")
     return verify_hmac_signature(settings.WEBHOOK_SECRET, request.body, signature)
+
+
+def _paginated_response(request, queryset, serializer_class):
+    paginator = PageNumberPagination()
+    page = paginator.paginate_queryset(queryset, request)
+    serializer = serializer_class(page, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 # ============== WEBHOOKS ENTRANTS ==============
@@ -94,7 +107,7 @@ def webhook_cms(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def sync_status(request):
     from django.db.models import Count
 
@@ -112,8 +125,44 @@ def sync_status(request):
     )
 
 
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def user_mappings(request):
+    """Liste paginée des correspondances entre utilisateurs SIS et Open edX."""
+    queryset = EdxUserMapping.objects.select_related("user_sis").order_by(
+        "-date_sync", "-created_at"
+    )
+    return _paginated_response(request, queryset, EdxUserMappingSerializer)
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def course_mappings(request):
+    """Liste paginée des correspondances entre cours SIS et Open edX."""
+    queryset = EdxCourseMapping.objects.select_related("matiere", "classe").order_by(
+        "course_name"
+    )
+    return _paginated_response(request, queryset, EdxCourseMappingSerializer)
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def outbox_events(request):
+    """Liste paginée des événements de synchronisation, filtrable par statut."""
+    queryset = OutboxEvent.objects.all()
+    statut = request.query_params.get("statut")
+    if statut:
+        if statut not in dict(OutboxEvent.STATUT_CHOICES):
+            return Response(
+                {"statut": "Statut invalide."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        queryset = queryset.filter(statut=statut)
+    return _paginated_response(request, queryset, OutboxEventSerializer)
+
+
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def sync_user(request, user_id):
     """Force la synchronisation d'un utilisateur vers le LMS."""
     from apps.utilisateurs.models import Utilisateur
@@ -138,7 +187,7 @@ def sync_user(request, user_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def sync_course(request):
     """Crée un cours dans le CMS Studio à partir d'une matière/classe."""
     from apps.classes.models import Classe, Matiere
@@ -166,7 +215,7 @@ def sync_course(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def sync_enroll(request):
     """Inscrit un élève à un cours LMS."""
     from apps.eleves.models import Eleve
@@ -194,7 +243,7 @@ def sync_enroll(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def sync_grade(request):
     """Pousse une note vers le LMS."""
     from apps.eleves.models import Eleve
@@ -220,7 +269,7 @@ def sync_grade(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def sync_certificate(request):
     """Délivre un certificat LMS."""
     from apps.eleves.models import Eleve
@@ -242,7 +291,7 @@ def sync_certificate(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def health(request):
     client = get_edx_client()
     return Response(client.health_check())

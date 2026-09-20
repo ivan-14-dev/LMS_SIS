@@ -97,7 +97,7 @@ class IntegrationAPIEndpointsTestCase(APITestCase):
         self.client.force_authenticate(user=self.admin_user)
 
     def test_list_user_mappings_authenticated(self):
-        """Lister les mappings utilisateurs (authentifié)."""
+        """Un administrateur peut lister les mappings utilisateurs."""
         # Créer quelques mappings
         user1 = Utilisateur.objects.create_user(
             username="mapped1", email="m1@test.com", password="pass"
@@ -108,13 +108,35 @@ class IntegrationAPIEndpointsTestCase(APITestCase):
         EdxUserMapping.objects.create(user_sis=user1, username_edx="edx1")
         EdxUserMapping.objects.create(user_sis=user2, username_edx="edx2")
 
-        # Ce test suppose l'existence de l'endpoint /api/v1/integration/mappings/
-        # Placeholder jusqu'à l'implémentation
+        response = self.client.get("/api/v1/integration/mappings/users/")
+
+        assert response.status_code == 200
+        assert response.data["count"] == 2
+        assert {item["username_edx"] for item in response.data["results"]} == {
+            "edx1",
+            "edx2",
+        }
 
     def test_list_user_mappings_unauthenticated(self):
         """Accès non authentifié refusé."""
         self.client.force_authenticate(user=None)
-        # Placeholder
+
+        response = self.client.get("/api/v1/integration/mappings/users/")
+
+        assert response.status_code in (401, 403)
+
+    def test_list_user_mappings_requires_admin(self):
+        """Un utilisateur standard ne peut pas consulter les mappings."""
+        user = Utilisateur.objects.create_user(
+            username="standard_user",
+            email="standard@test.com",
+            ******,
+        )
+        self.client.force_authenticate(user=user)
+
+        response = self.client.get("/api/v1/integration/mappings/users/")
+
+        assert response.status_code == 403
 
     def test_outbox_events_list(self):
         """Lister les événements outbox."""
@@ -124,12 +146,21 @@ class IntegrationAPIEndpointsTestCase(APITestCase):
             aggregate_id="1",
             payload={"test": True},
         )
-        # Placeholder
+
+        response = self.client.get("/api/v1/integration/outbox/")
+
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["event_type"] == "test.event"
 
     def test_sync_status_endpoint(self):
         """Endpoint de statut de synchronisation."""
-        # Devrait retourner le nombre d'événements pending, le dernier sync, etc.
-        pass
+        response = self.client.get("/api/v1/integration/sync/status/")
+
+        assert response.status_code == 200
+        assert response.data["users_mapped"] == 0
+        assert response.data["courses_mapped"] == 0
+        assert response.data["enrollments_active"] == 0
 
 
 class SyncServiceAPITestCase(APITestCase):
