@@ -30,21 +30,23 @@ Cette application MFE (Micro Frontend) fournit une interface utilisateur moderne
 ### Installation
 
 ```bash
-# Cloner le repository
-cd frontend-app-sis
+cd /home/runner/work/LMS_SIS/LMS_SIS/sis_apps/frontend-app-sis
 
 # Installer les dépendances
-npm install
+npm ci --legacy-peer-deps
 
 # Configurer l'environnement
-cp .env .env.development.local
-# Éditer .env.development.local avec vos URLs
+# Définir vos URLs et options dans .env.private (non versionné).
+# .env.development fournit les valeurs locales par défaut.
 
 # Lancer en développement
 npm start
 ```
 
 L'application sera disponible sur http://localhost:3000
+
+Le verrou de dépendances actuel nécessite `--legacy-peer-deps` à l'installation
+en raison d'un conflit de peer dependencies entre frontend-platform et frontend-build.
 
 ### Scripts disponibles
 
@@ -102,6 +104,45 @@ src/
 | `SIS_SUPERIEUR_API_URL` | API SIS Supérieur | `http://localhost:8002/api/v1` |
 | `SIS_SECONDAIRE_API_URL` | API SIS Secondaire | `http://localhost:8001/api/v1` |
 | `SIS_ADMIN_API_URL` | API Administration | `http://localhost:8001/api/v1` |
+| `USE_MOCK_API` | Données simulées uniquement si la valeur est `true` | `false` |
+
+Les variables sont lues à la compilation par frontend-build, puis chargées par
+l'initialisation frontend-platform. En développement, utiliser `.env.private` pour
+les surcharges locales ; en production, fournir les variables de compilation ou
+un fichier `.env` non versionné. Redémarrer le serveur ou reconstruire après modification.
+Ne jamais placer de secret OAuth, de mot de passe ou de clé privée dans la configuration
+du frontend : elle est accessible au navigateur.
+
+### API réelles et démonstration
+
+- **Par défaut**, l'application initialise frontend-platform et demande une connexion
+  au LMS avant d'afficher les écrans. Les requêtes utilisent son client HTTP authentifié.
+- **Démonstration seulement** : activer `USE_MOCK_API=true` dans la configuration locale.
+  Ce mode ne demande pas de connexion LMS et affiche un avertissement permanent :
+  les données sont fictives et les modifications ne sont pas enregistrées.
+- Une erreur d'authentification ou d'API ne provoque jamais un basculement automatique
+  vers les données simulées.
+
+### Limites actuelles du parcours d'inscription
+
+L'activation du client réel ne suffit **pas** à rendre l'inscription opérationnelle :
+
+1. Les SIS utilisent actuellement l'authentification Django/DRF et SimpleJWT.
+   L'authentification du navigateur auprès du LMS n'établit pas automatiquement une
+   identité SIS. Il reste à réaliser et tester le raccordement sécurisé, avec validation
+   des jetons et correspondance explicite avec l'utilisateur de l'établissement.
+   Ne pas désactiver la vérification des signatures ni ouvrir les permissions pour
+   contourner un refus d'accès.
+2. Les routes du module d'inscriptions universitaires ne sont pas encore exposées,
+   et le bouton « Nouvelle inscription » n'est pas raccordé.
+3. Vérifier les routes et les contrats de données écran par écran, ainsi que les
+   permissions, la pagination et la persistance après reconnexion.
+4. Autoriser l'origine exacte du frontend dans la configuration CORS du LMS et des SIS ;
+   configurer également les origines CSRF de confiance si l'authentification par session
+   est utilisée. Déployer les services avec HTTPS en production.
+
+Les tests frontend couvrent le choix explicite du mode, l'initialisation et les appels
+HTTP ; ils ne constituent pas une validation de bout en bout LMS–SIS.
 
 ## 📦 Modules
 
