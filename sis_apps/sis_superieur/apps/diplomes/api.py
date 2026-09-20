@@ -9,6 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.document_policies import enforce_financial_clearance, get_action_object
 
 from .models import CessionDiplome, Diplome
 from .serializers import CessionDiplomeDetailSerializer, CessionDiplomeListSerializer, DiplomeSerializer
@@ -100,9 +101,21 @@ class CessionsDiplomesViewSet(viewsets.ModelViewSet):
         serializer.save(numero_serie=numero_serie)
 
     @action(detail=True, methods=["post"])
+    @enforce_financial_clearance(
+        candidates_getter=lambda _view, request, cession: [
+            {"scope": "academic_year", "context": {"academic_year_id": cession.annee_universitaire_id}},
+            {"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}},
+        ],
+        subject_getter=lambda _view, _request, cession: cession.etudiant,
+        academic_year_ids_getter=lambda _view, _request, cession: [cession.annee_universitaire_id],
+        invoice_model_label="paiements.FactureFrais",
+        invoice_subject_field="etudiant",
+        invoice_year_lookup="type_frais__annee_universitaire_id",
+        message="La signature du diplôme exige une situation financière régularisée.",
+    )
     def signer(self, request, pk=None):
         """Signe le diplôme."""
-        cession = self.get_object()
+        cession = get_action_object(self)
         if cession.date_signature:
             return Response({"error": "Déjà signé."}, status=400)
 

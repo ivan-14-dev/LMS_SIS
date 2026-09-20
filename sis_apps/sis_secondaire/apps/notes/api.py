@@ -14,6 +14,7 @@ from sis_common.authorization import (
 )
 from sis_common.academic_configuration import resolve_validation_policy
 from sis_common.reporting import configured_report, export_queryset_csv
+from sis_common.document_policies import enforce_financial_clearance, get_action_object
 
 from .models import Bulletin, Evaluation, Note, RegleValidation
 from .serializers import (
@@ -333,34 +334,25 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         return BulletinDetailSerializer
 
     @action(detail=True, methods=["post"])
+    @enforce_financial_clearance(
+        candidates_getter=lambda _view, request, bulletin: [
+            {"scope": "class", "context": {"class_id": bulletin.classe_id}},
+            {"scope": "level", "context": {"level_id": bulletin.classe.niveau_id}},
+            {"scope": "academic_year", "context": {"academic_year_id": bulletin.classe.annee_scolaire_id}},
+            {"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}},
+        ],
+        subject_getter=lambda _view, _request, bulletin: bulletin.eleve,
+        academic_year_ids_getter=lambda _view, _request, bulletin: [bulletin.classe.annee_scolaire_id],
+        invoice_model_label="paiements.Facture",
+        invoice_subject_field="eleve",
+        invoice_year_lookup="type_frais__annee_scolaire_id",
+        message="La publication du bulletin exige une situation financière régularisée.",
+    )
     def publier(self, request, pk=None):
         """Publie un bulletin."""
-        bulletin = self.get_object()
+        bulletin = get_action_object(self)
         if bulletin.publie:
             return Response({"error": "Ce bulletin est déjà publié."}, status=400)
-        policy = resolve_validation_policy(
-            getattr(request.tenant, "configuration_academique", {}),
-            [
-                {"scope": "class", "context": {"class_id": bulletin.classe_id}},
-                {"scope": "level", "context": {"level_id": bulletin.classe.niveau_id}},
-                {"scope": "academic_year", "context": {"academic_year_id": bulletin.classe.annee_scolaire_id}},
-                {"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}},
-            ],
-        )
-        publication = (policy or {}).get("publication", {})
-        if publication.get("requires_financial_clearance"):
-            from apps.paiements.models import Facture
-
-            unpaid_exists = Facture.objects.filter(
-                eleve=bulletin.eleve,
-                type_frais__annee_scolaire_id=bulletin.classe.annee_scolaire_id,
-                statut__in=["emise", "partielle", "en_retard"],
-            ).exists()
-            if unpaid_exists:
-                return Response(
-                    {"error": "La publication du bulletin exige une situation financière régularisée."},
-                    status=409,
-                )
         bulletin.publie = True
         bulletin.date_publication = timezone.now()
         bulletin.save(update_fields=["publie", "date_publication", "updated_at"])
