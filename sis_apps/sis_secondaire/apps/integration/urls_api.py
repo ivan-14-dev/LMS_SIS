@@ -19,6 +19,11 @@ urlpatterns = [
     # Synchronisations
     path("sync/user/<int:user_id>/", api.sync_user, name="sync-user"),
     path("sync/course/", api.sync_course, name="sync-course"),
+    path(
+        "sync/course-live/<int:mapping_id>/",
+        api.sync_course_live,
+        name="sync-course-live",
+    ),
     path("sync/enroll/", api.sync_enroll, name="sync-enroll"),
     path("sync/grade/", api.sync_grade, name="sync-grade"),
     path("sync/certificate/", api.sync_certificate, name="sync-certificate"),

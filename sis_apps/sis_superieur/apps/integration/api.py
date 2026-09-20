@@ -180,6 +180,53 @@ def sync_course(request):
 
 @api_view(["POST"])
 @permission_classes([IsAdminUser])
+def sync_course_live(request, mapping_id):
+    """Active BigBlueButton sur un cours Open edX déjà mappé."""
+    try:
+        mapping = EdxCourseMapping.objects.get(pk=mapping_id, actif=True)
+    except EdxCourseMapping.DoesNotExist:
+        return Response({"error": "Course mapping not found"}, status=404)
+
+    tenant = getattr(request, "tenant", None)
+    live_configuration = getattr(tenant, "configuration_visio", {})
+    features = getattr(tenant, "fonctionnalites", {})
+    provider = live_configuration.get("provider", "none")
+    if not features.get("classes_virtuelles", False):
+        return Response(
+            {"error": "Virtual classrooms are disabled for this establishment."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if provider != "bigbluebutton":
+        return Response(
+            {"error": "BigBlueButton must be selected in establishment settings."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        client = get_edx_client()
+        providers = client.get_course_live_providers(mapping.course_id)
+        available = providers.get("providers", {}).get("available", {})
+        if "big_blue_button" not in available:
+            return Response(
+                {"error": "BigBlueButton is not configured in Open edX."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        result = client.configure_course_live(mapping.course_id, provider)
+        return Response(
+            {
+                "status": "ok",
+                "course_id": mapping.course_id,
+                "provider": "big_blue_button",
+                "configuration": result,
+            }
+        )
+    except Exception as exc:
+        logger.exception("Failed to configure course_live for %s", mapping.course_id)
+        return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
 def sync_enroll(request):
     from apps.etudiants.models import Etudiant
 
