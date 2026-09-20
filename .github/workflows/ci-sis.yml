@@ -82,6 +82,8 @@ jobs:
       DJANGO_SECRET_KEY: 'test-secret-key-for-ci'
       EDX_OAUTH_CLIENT_ID: 'test-sis-secondaire-client'
       EDX_OAUTH_CLIENT_SECRET: 'test-sis-secondaire-oauth-secret'
+      EDX_JWT_AUDIENCE: 'test-sis-audience'
+      EDX_JWT_PUBLIC_SIGNING_JWK_SET: '{"keys":[]}'
       WEBHOOK_SECRET: 'test-sis-secondaire-webhook-secret'
       DJANGO_DEBUG: 'True'
       DB_HOST: localhost
@@ -162,6 +164,8 @@ jobs:
       DJANGO_SECRET_KEY: 'test-secret-key-for-ci'
       EDX_OAUTH_CLIENT_ID: 'test-sis-superieur-client'
       EDX_OAUTH_CLIENT_SECRET: 'test-sis-superieur-oauth-secret'
+      EDX_JWT_AUDIENCE: 'test-sis-audience'
+      EDX_JWT_PUBLIC_SIGNING_JWK_SET: '{"keys":[]}'
       WEBHOOK_SECRET: 'test-sis-superieur-webhook-secret'
       DJANGO_DEBUG: 'True'
       DB_HOST: localhost

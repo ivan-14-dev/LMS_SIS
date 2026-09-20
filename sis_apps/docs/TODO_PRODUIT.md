@@ -33,8 +33,9 @@ validés.
 - [x] Activer la pagination et la limitation globale des requêtes DRF.
 - [x] Réserver la supervision et les commandes de synchronisation aux
   administrateurs.
-- [ ] Mettre en place une fédération d'identité Open edX vers les SIS avec
-  validation cryptographique des jetons, audience, émetteur et expiration.
+- [x] Mettre en place une fédération d'identité Open edX vers les SIS pour les
+  comptes pré-mappés, avec validation cryptographique des jetons, audience,
+  émetteur et expiration.
 - [ ] Vérifier l'isolation multi-tenant et les permissions objet sur chaque API.
 - [ ] Chiffrer au repos les secrets MFA, coordonnées bancaires et données
   médicales.
@@ -50,7 +51,7 @@ validés.
 - [x] Exposer une supervision paginée des mappings et de l'outbox Open edX.
 - [x] Préparer l'écran d'administration de l'intégration LMS pour les données
   réelles.
-- [ ] Activer cet écran après la fédération d'identité Open edX vers les SIS.
+- [x] Activer cet écran après la fédération d'identité Open edX vers les SIS.
 - [ ] Fiabiliser les webhooks avec validation de schéma, idempotence et
   événements inconnus rejetés.
 - [ ] Publier réellement les événements outbox avec verrouillage, reprise et

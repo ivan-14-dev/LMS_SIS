@@ -75,12 +75,22 @@ EDX_LMS_URL=http://localhost:8000
 EDX_CMS_URL=http://localhost:8001
 EDX_OAUTH_CLIENT_ID=sis-secondaire
 EDX_OAUTH_CLIENT_SECRET=xxx
+EDX_JWT_ISSUER=https://lms.example.com/oauth2
+EDX_JWT_AUDIENCE=lms-key
+EDX_JWT_PUBLIC_SIGNING_JWK_SET='{"keys":[...]}'
 WEBHOOK_SECRET=xxx
 ```
 
 ## Sécurité
 
 - **OAuth2** (client_credentials) entre SIS et LMS.
+- **JWT RS512** pour les utilisateurs Open edX pré-mappés, avec validation de
+  la signature, de l'émetteur, de l'audience et de l'expiration.
+- Les clés asymétriques Open edX doivent être activées et le JWKS public du LMS
+  doit être fourni au SIS.
+- Les cookies JWT Open edX doivent être partagés avec le domaine du SIS. Les
+  requêtes MFE sont acceptées uniquement avec `USE-JWT-COOKIE: true` et les
+  écritures restent protégées par CSRF.
 - **HMAC SHA-256** sur tous les webhooks (header `X-Signature`).
 - **CSRF exempt** sur les webhooks (signés HMAC).
 - **Rate limiting** via DRF.
