@@ -182,15 +182,26 @@ class RegleValidation(models.Model):
         matieres_echouees=0,
         note_minimale=None,
         donnees=None,
+        policy=None,
     ):
+        donnees = donnees or {}
+        thresholds = (policy or {}).get("thresholds", {})
+        publication = (policy or {}).get("publication", {})
+        seuil_moyenne = thresholds.get("seuil_moyenne", self.seuil_moyenne)
+        credits_minimum = thresholds.get("credits_minimum", self.credits_minimum)
+        max_matieres_echouees = thresholds.get("max_matieres_echouees", self.max_matieres_echouees)
+        note_eliminatoire = thresholds.get("note_eliminatoire", self.note_eliminatoire)
+        criteres = {**self.criteres, **(policy or {}).get("criteria", {})}
         motifs = []
-        if moyenne < self.seuil_moyenne:
+        if moyenne < seuil_moyenne:
             motifs.append("moyenne_insuffisante")
-        if credits < self.credits_minimum:
+        if credits < credits_minimum:
             motifs.append("credits_insuffisants")
-        if self.max_matieres_echouees is not None and matieres_echouees > self.max_matieres_echouees:
+        if max_matieres_echouees is not None and matieres_echouees > max_matieres_echouees:
             motifs.append("trop_de_matieres_echouees")
-        if self.note_eliminatoire is not None and note_minimale is not None and note_minimale < self.note_eliminatoire:
+        if note_eliminatoire is not None and note_minimale is not None and note_minimale < note_eliminatoire:
             motifs.append("note_eliminatoire")
-        motifs.extend(evaluate_rule_criteria(self.criteres, donnees))
+        motifs.extend(evaluate_rule_criteria(criteres, donnees))
+        if publication.get("requires_financial_clearance") and not donnees.get("financial_clearance", False):
+            motifs.append("financial_clearance_required")
         return {"reussi": not motifs, "motifs": motifs}

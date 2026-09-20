@@ -12,6 +12,7 @@ from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,
 )
+from sis_common.academic_configuration import resolve_validation_policy
 from sis_common.reporting import configured_report, export_queryset_csv
 
 from .models import Bulletin, Evaluation, Note, RegleValidation
@@ -337,6 +338,29 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         bulletin = self.get_object()
         if bulletin.publie:
             return Response({"error": "Ce bulletin est déjà publié."}, status=400)
+        policy = resolve_validation_policy(
+            getattr(request.tenant, "configuration_academique", {}),
+            [
+                {"scope": "class", "context": {"class_id": bulletin.classe_id}},
+                {"scope": "level", "context": {"level_id": bulletin.classe.niveau_id}},
+                {"scope": "academic_year", "context": {"academic_year_id": bulletin.classe.annee_scolaire_id}},
+                {"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}},
+            ],
+        )
+        publication = (policy or {}).get("publication", {})
+        if publication.get("requires_financial_clearance"):
+            from apps.paiements.models import Facture
+
+            unpaid_exists = Facture.objects.filter(
+                eleve=bulletin.eleve,
+                type_frais__annee_scolaire_id=bulletin.classe.annee_scolaire_id,
+                statut__in=["emise", "partielle", "en_retard"],
+            ).exists()
+            if unpaid_exists:
+                return Response(
+                    {"error": "La publication du bulletin exige une situation financière régularisée."},
+                    status=409,
+                )
         bulletin.publie = True
         bulletin.date_publication = timezone.now()
         bulletin.save(update_fields=["publie", "date_publication", "updated_at"])
@@ -370,7 +394,17 @@ class ReglesValidationViewSet(viewsets.ModelViewSet):
     def evaluer(self, request, pk=None):
         serializer = EvaluationRegleInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response(self.get_object().evaluer(**serializer.validated_data))
+        rule = self.get_object()
+        policy = resolve_validation_policy(
+            getattr(request.tenant, "configuration_academique", {}),
+            [
+                {"scope": "class", "context": {"class_id": rule.classe_id}},
+                {"scope": "level", "context": {"level_id": rule.niveau_id}},
+                {"scope": "academic_year", "context": {"academic_year_id": rule.annee_scolaire_id}},
+                {"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}},
+            ],
+        )
+        return Response(rule.evaluer(**serializer.validated_data, policy=policy))
 
 
 class EvaluationRegleInputSerializer(serializers.Serializer):

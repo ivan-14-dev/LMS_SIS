@@ -167,6 +167,11 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
                 {"code": "refunded", "label": "Remboursé", "terminal": True},
             ],
             "required_permissions": ["paiements.change_paiement", "paiements.change_paiementfrais"],
+            "transitions": [
+                {"action": "valider", "from": "en_attente", "to": "valide"},
+                {"action": "rejeter", "from": "en_attente", "to": "rejete"},
+                {"action": "rembourser", "from": "valide", "to": "rembourse"},
+            ],
         }
     ],
     "reports": [],
@@ -210,6 +215,21 @@ def _validate_string_list(items, path, *, empty_allowed=True):
             raise ValidationError(f"{path}[{index}] doit être une chaîne non vide.")
 
 
+def _validate_targets(value, path):
+    if not isinstance(value, dict):
+        raise ValidationError(f"{path} doit être un objet.")
+    for key, target in value.items():
+        if not re.fullmatch(r"[a-z][a-z0-9_]{1,63}", key):
+            raise ValidationError(f"{path}.{key} est invalide.")
+        if isinstance(target, list):
+            if not target:
+                raise ValidationError(f"{path}.{key} ne peut pas être vide.")
+        elif isinstance(target, (str, int, float, bool)) or target is None:
+            continue
+        else:
+            raise ValidationError(f"{path}.{key} doit être scalaire ou une liste.")
+
+
 def _validate_dimensions(items):
     _validate_code_items(items, "dimensions")
     for index, item in enumerate(items):
@@ -242,6 +262,8 @@ def _validate_validation_policies(items):
         scope = item.get("scope")
         if scope not in VALIDATION_POLICY_SCOPES:
             raise ValidationError(f"validation_policies[{index}].scope est invalide.")
+        if "targets" in item:
+            _validate_targets(item["targets"], f"validation_policies[{index}].targets")
         if "criteria" in item:
             validate_rule_criteria(item["criteria"])
         thresholds = item.get("thresholds", {})
@@ -265,6 +287,8 @@ def _validate_financial_workflows(items):
         scope = workflow.get("scope")
         if scope not in FINANCIAL_WORKFLOW_SCOPES:
             raise ValidationError(f"financial_workflows[{index}].scope est invalide.")
+        if "targets" in workflow:
+            _validate_targets(workflow["targets"], f"financial_workflows[{index}].targets")
         _validate_string_list(
             workflow.get("required_permissions", []),
             f"financial_workflows[{index}].required_permissions",
@@ -276,6 +300,20 @@ def _validate_financial_workflows(items):
                 raise ValidationError(
                     f"financial_workflows[{index}].steps[{step_index}].terminal doit être booléen."
                 )
+        transitions = workflow.get("transitions", [])
+        if not isinstance(transitions, list):
+            raise ValidationError(f"financial_workflows[{index}].transitions doit être une liste.")
+        for transition_index, transition in enumerate(transitions):
+            if not isinstance(transition, dict):
+                raise ValidationError(
+                    f"financial_workflows[{index}].transitions[{transition_index}] doit être un objet."
+                )
+            for key in ("action", "from", "to"):
+                value = str(transition.get(key, "")).strip()
+                if not value:
+                    raise ValidationError(
+                        f"financial_workflows[{index}].transitions[{transition_index}].{key} est requis."
+                    )
 
 
 def _validate_reports(items):
@@ -311,6 +349,72 @@ def academic_configuration_schema():
             {"code": code, "label": label} for code, label in FINANCIAL_WORKFLOW_SCOPES.items()
         ],
     }
+
+
+def _target_matches(targets, context):
+    context = context or {}
+    for key, expected in (targets or {}).items():
+        actual = context.get(key)
+        if isinstance(expected, list):
+            if actual not in expected:
+                return False
+        elif actual != expected:
+            return False
+    return True
+
+
+def resolve_validation_policy(configuration, candidates):
+    policies = (configuration or {}).get("validation_policies", [])
+    candidates = candidates if isinstance(candidates, list) else [candidates]
+    for candidate in candidates:
+        scope = candidate.get("scope")
+        context = candidate.get("context", {})
+        matching = [
+            policy
+            for policy in policies
+            if policy.get("scope") == scope
+            and policy.get("active", True)
+            and _target_matches(policy.get("targets", {}), context)
+        ]
+        if matching:
+            return sorted(
+                matching,
+                key=lambda item: (-len(item.get("targets", {})), item.get("priority", 100)),
+            )[0]
+    return None
+
+
+def resolve_financial_workflow(configuration, candidates):
+    workflows = (configuration or {}).get("financial_workflows", [])
+    candidates = candidates if isinstance(candidates, list) else [candidates]
+    for candidate in candidates:
+        scope = candidate.get("scope")
+        context = candidate.get("context", {})
+        matching = [
+            workflow
+            for workflow in workflows
+            if workflow.get("scope") == scope
+            and workflow.get("active", True)
+            and _target_matches(workflow.get("targets", {}), context)
+        ]
+        if matching:
+            return sorted(
+                matching,
+                key=lambda item: (-len(item.get("targets", {})), item.get("priority", 100)),
+            )[0]
+    return None
+
+
+def workflow_transition_allowed(workflow, action, current_status, next_status):
+    transitions = (workflow or {}).get("transitions", [])
+    if not transitions:
+        return True
+    return any(
+        transition.get("action") == action
+        and transition.get("from") == current_status
+        and transition.get("to") == next_status
+        for transition in transitions
+    )
 
 
 def validate_academic_configuration(value):

@@ -12,6 +12,7 @@ from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,
 )
+from sis_common.academic_configuration import resolve_validation_policy
 from sis_common.reporting import configured_report, export_queryset_csv
 
 from .models import Evaluation, MoyenneECUE, MoyenneUE, Note, RegleValidation
@@ -399,7 +400,17 @@ class ReglesValidationViewSet(viewsets.ModelViewSet):
     def evaluer(self, request, pk=None):
         serializer = EvaluationRegleInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response(self.get_object().evaluer(**serializer.validated_data))
+        rule = self.get_object()
+        policy = resolve_validation_policy(
+            getattr(request.tenant, "configuration_academique", {}),
+            [
+                {"scope": "semester", "context": {"semester_id": rule.semestre_id}},
+                {"scope": "formation", "context": {"formation_id": rule.formation_id}},
+                {"scope": "academic_year", "context": {"academic_year_id": rule.annee_universitaire_id}},
+                {"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}},
+            ],
+        )
+        return Response(rule.evaluer(**serializer.validated_data, policy=policy))
 
 
 class EvaluationRegleInputSerializer(serializers.Serializer):

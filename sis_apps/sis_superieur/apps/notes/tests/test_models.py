@@ -34,3 +34,21 @@ class NotesModelTestCase(SimpleTestCase):
         result = rule.evaluer(moyenne=Decimal("12"))
 
         self.assertEqual(result["motifs"], ["critere:memoire"])
+
+    def test_validation_rule_applies_policy_overrides_and_financial_clearance(self):
+        rule = RegleValidation(seuil_moyenne=Decimal("10"), credits_minimum=Decimal("30"))
+
+        result = rule.evaluer(
+            moyenne=Decimal("11"),
+            credits=Decimal("29"),
+            donnees={"financial_clearance": False},
+            policy={
+                "thresholds": {"seuil_moyenne": Decimal("12"), "credits_minimum": Decimal("30")},
+                "publication": {"requires_financial_clearance": True},
+            },
+        )
+
+        self.assertEqual(
+            result["motifs"],
+            ["moyenne_insuffisante", "credits_insuffisants", "financial_clearance_required"],
+        )

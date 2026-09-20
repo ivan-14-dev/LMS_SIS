@@ -13,6 +13,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.academic_configuration import resolve_financial_workflow, workflow_transition_allowed
 from sis_common.authorization import has_business_permission_or_role
 from sis_common.reporting import configured_report, export_queryset_csv
 
@@ -272,6 +273,16 @@ class PaiementsViewSet(viewsets.ModelViewSet):
         enregistre_par = self.request.user if self.request.user.is_authenticated else None
         return serializer.save(numero=numero, enregistre_par=enregistre_par, statut="en_attente")
 
+    def _workflow_for_facture(self, facture):
+        return resolve_financial_workflow(
+            getattr(self.request.tenant, "configuration_academique", {}),
+            [
+                {"scope": "payment_rubric", "context": {"payment_rubric_id": facture.type_frais_id}},
+                {"scope": "academic_year", "context": {"academic_year_id": facture.type_frais.annee_universitaire_id}},
+                {"scope": "tenant", "context": {"tenant_id": getattr(self.request.tenant, "id", None)}},
+            ],
+        )
+
     @action(detail=True, methods=["get"])
     def justificatif(self, request, pk=None):
         paiement = self.get_object()
@@ -288,8 +299,11 @@ class PaiementsViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             paiement = PaiementFrais.objects.select_for_update().get(pk=self.get_object().pk)
             facture = FactureFrais.objects.select_for_update().get(pk=paiement.facture_id)
+            workflow = self._workflow_for_facture(facture)
             if paiement.statut != "en_attente":
                 return Response({"error": "Ce paiement a déjà été traité."}, status=409)
+            if not workflow_transition_allowed(workflow, "valider", paiement.statut, "valide"):
+                return Response({"error": "Transition non autorisée par le workflow financier."}, status=409)
             reste = facture.montant - facture.montant_paye
             if paiement.montant > reste:
                 return Response({"error": "Le paiement dépasse le solde de la facture."}, status=409)
@@ -310,8 +324,11 @@ class PaiementsViewSet(viewsets.ModelViewSet):
             return Response({"motif": "Le motif est obligatoire."}, status=400)
         with transaction.atomic():
             paiement = PaiementFrais.objects.select_for_update().get(pk=self.get_object().pk)
+            workflow = self._workflow_for_facture(paiement.facture)
             if paiement.statut != "en_attente":
                 return Response({"error": "Ce paiement a déjà été traité."}, status=409)
+            if not workflow_transition_allowed(workflow, "rejeter", paiement.statut, "rejete"):
+                return Response({"error": "Transition non autorisée par le workflow financier."}, status=409)
             paiement.statut = "rejete"
             paiement.verifie_par = request.user
             paiement.verifie_le = timezone.now()
@@ -327,6 +344,9 @@ class PaiementsViewSet(viewsets.ModelViewSet):
             if paiement.statut != "valide":
                 return Response({"error": "Ce paiement ne peut pas être remboursé."}, status=400)
             facture = FactureFrais.objects.select_for_update().get(pk=paiement.facture_id)
+            workflow = self._workflow_for_facture(facture)
+            if not workflow_transition_allowed(workflow, "rembourser", paiement.statut, "rembourse"):
+                return Response({"error": "Transition non autorisée par le workflow financier."}, status=409)
             paiement.statut = "rembourse"
             paiement.save(update_fields=["statut"])
             facture.montant_paye = max(facture.montant_paye - paiement.montant, 0)

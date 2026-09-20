@@ -5,7 +5,10 @@ from sis_common.academic_configuration import (
     catalog_label,
     default_academic_configuration,
     merge_academic_configuration,
+    resolve_financial_workflow,
+    resolve_validation_policy,
     validate_academic_configuration,
+    workflow_transition_allowed,
 )
 
 
@@ -119,3 +122,41 @@ class AcademicConfigurationTests(SimpleTestCase):
 
         self.assertIn({"code": "financial", "label": "Financier"}, schema["dimension_axes"])
         self.assertIn({"code": "financial_payments", "label": "Paiements"}, schema["report_datasets"])
+
+    def test_resolve_validation_policy_prefers_most_specific_target(self):
+        configuration = default_academic_configuration()
+        configuration["validation_policies"] = [
+            {
+                "code": "tenant",
+                "label": "Tenant",
+                "scope": "tenant",
+                "thresholds": {"seuil_moyenne": 10},
+            },
+            {
+                "code": "class-specific",
+                "label": "Classe",
+                "scope": "class",
+                "targets": {"class_id": 42},
+                "thresholds": {"seuil_moyenne": 12},
+            },
+        ]
+
+        policy = resolve_validation_policy(
+            configuration,
+            [
+                {"scope": "class", "context": {"class_id": 42}},
+                {"scope": "tenant", "context": {"tenant_id": 7}},
+            ],
+        )
+
+        self.assertEqual(policy["code"], "class-specific")
+
+    def test_financial_workflow_transition_must_match_configuration(self):
+        configuration = default_academic_configuration()
+        workflow = resolve_financial_workflow(
+            configuration,
+            {"scope": "tenant", "context": {"tenant_id": 1}},
+        )
+
+        self.assertTrue(workflow_transition_allowed(workflow, "valider", "en_attente", "valide"))
+        self.assertFalse(workflow_transition_allowed(workflow, "valider", "valide", "rembourse"))
