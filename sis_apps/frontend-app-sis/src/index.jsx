@@ -55,6 +55,7 @@ subscribe(APP_INIT_ERROR, () => {
 });
 
 initialize({
+  messages: {},
   requireAuthenticatedUser: true,
   hydrateAuthenticatedUser: true,
   handlers: {

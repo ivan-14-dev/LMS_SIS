@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import {
   APP_INIT_ERROR, APP_READY, auth, getConfig, initialize, subscribe,
 } from '@edx/frontend-platform';
+import { configure as configureI18n, getLocale } from '@edx/frontend-platform/i18n';
 import './index';
 
 jest.mock('react-dom', () => ({
@@ -39,6 +40,15 @@ it('registers lifecycle handlers before initializing authentication', () => {
   expect(subscribe.mock.invocationCallOrder[1]).toBeLessThan(initialize.mock.invocationCallOrder[0]);
   expect(initializationOptions.requireAuthenticatedUser).toBe(true);
   expect(initializationOptions.hydrateAuthenticatedUser).toBe(true);
+});
+
+it('supplies messages accepted by the real i18n initialization phase', () => {
+  expect(() => configureI18n({
+    messages: initializationOptions.messages,
+    config: { ENVIRONMENT: 'production' },
+    loggingService: { logError: jest.fn() },
+  })).not.toThrow();
+  expect(getLocale()).toBe('en');
 });
 
 it('waits for LMS authentication in live mode', async () => {
