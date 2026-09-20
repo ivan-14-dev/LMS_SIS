@@ -66,6 +66,12 @@ def webhook_lms(request):
         else event_type.encode() + b":" + request.body
     )
     payload["_event_id"] = hashlib.sha256(event_material).hexdigest()
+    schema_name = getattr(getattr(request, "tenant", None), "schema_name", None)
+    if not schema_name:
+        return Response(
+            {"error": "Tenant context is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     from .tasks import (
         process_certificate_webhook,
         process_enrollment_webhook,
@@ -79,29 +85,35 @@ def webhook_lms(request):
         "org.openedx.learning.user.created.v1",
         "org.openedx.learning.user.updated.v1",
     }:
-        process_user_webhook.delay(event_type, payload)
+        process_user_webhook.delay(event_type, payload, schema_name)
     elif event_type in {
         "enrollment.created",
         "enrollment.updated",
         "enrollment.deleted",
+        "org.openedx.learning.course.enrollment.created.v1",
+        "org.openedx.learning.course.enrollment.changed.v1",
+        "org.openedx.learning.course.unenrollment.completed.v1",
         "org.openedx.learning.enrollment.created.v1",
         "org.openedx.learning.enrollment.updated.v1",
         "org.openedx.learning.enrollment.deleted.v1",
     }:
-        process_enrollment_webhook.delay(event_type, payload)
+        process_enrollment_webhook.delay(event_type, payload, schema_name)
     elif event_type in {
         "grade.updated",
+        "org.openedx.learning.course.persistent_grade_summary.changed.v1",
         "org.openedx.learning.course.grade.updated.v1",
         "org.openedx.learning.course.assessment.grade.changed.v1",
     }:
-        process_grade_webhook.delay(event_type, payload)
+        process_grade_webhook.delay(event_type, payload, schema_name)
     elif event_type in {
         "certificate.issued",
         "certificate.revoked",
+        "org.openedx.learning.certificate.created.v1",
+        "org.openedx.learning.certificate.changed.v1",
         "org.openedx.learning.certificate.issued.v1",
         "org.openedx.learning.certificate.revoked.v1",
     }:
-        process_certificate_webhook.delay(event_type, payload)
+        process_certificate_webhook.delay(event_type, payload, schema_name)
     else:
         logger.warning(f"Unknown LMS event: {event_type}")
         return Response(
@@ -122,6 +134,12 @@ def webhook_cms(request):
         )
     event_type = request.headers.get("X-Event-Type", "")
     payload = dict(request.data)
+    schema_name = getattr(getattr(request, "tenant", None), "schema_name", None)
+    if not schema_name:
+        return Response(
+            {"error": "Tenant context is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     from .tasks import process_cms_webhook
 
     supported_events = {
@@ -135,7 +153,7 @@ def webhook_cms(request):
         "org.openedx.studio.asset.uploaded.v1",
     }
     if event_type in supported_events:
-        process_cms_webhook.delay(event_type, payload)
+        process_cms_webhook.delay(event_type, payload, schema_name)
     else:
         logger.warning(f"Unknown CMS event: {event_type}")
         return Response(

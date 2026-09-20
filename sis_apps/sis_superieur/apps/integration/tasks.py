@@ -4,6 +4,7 @@ import logging
 
 from celery import shared_task
 from django.utils import timezone
+from django_tenants.utils import schema_context
 
 from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
 from .sync_service import SyncService
@@ -11,44 +12,50 @@ from .sync_service import SyncService
 logger = logging.getLogger(__name__)
 
 
-def _process_webhook(event_type, payload):
+def _process_webhook(event_type, payload, schema_name):
     from apps.etudiants.models import Etudiant
     from apps.notes.models import Note
 
     from .models import EdxGradeLog
     from .webhook_handlers import WebhookHandler
 
-    handler = WebhookHandler(
-        EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Etudiant, Note
-    )
-    if not handler.handle(event_type, payload):
-        raise ValueError(f"Webhook processing failed for {event_type}")
+    with schema_context(schema_name):
+        handler = WebhookHandler(
+            EdxUserMapping,
+            EdxCourseMapping,
+            EdxEnrollment,
+            EdxGradeLog,
+            Etudiant,
+            Note,
+        )
+        if not handler.handle(event_type, payload):
+            raise ValueError(f"Webhook processing failed for {event_type}")
     return True
 
 
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
-def process_user_webhook(event_type, payload):
-    return _process_webhook(event_type, payload)
+def process_user_webhook(event_type, payload, schema_name):
+    return _process_webhook(event_type, payload, schema_name)
 
 
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
-def process_enrollment_webhook(event_type, payload):
-    return _process_webhook(event_type, payload)
+def process_enrollment_webhook(event_type, payload, schema_name):
+    return _process_webhook(event_type, payload, schema_name)
 
 
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
-def process_grade_webhook(event_type, payload):
-    return _process_webhook(event_type, payload)
+def process_grade_webhook(event_type, payload, schema_name):
+    return _process_webhook(event_type, payload, schema_name)
 
 
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
-def process_certificate_webhook(event_type, payload):
-    return _process_webhook(event_type, payload)
+def process_certificate_webhook(event_type, payload, schema_name):
+    return _process_webhook(event_type, payload, schema_name)
 
 
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
-def process_cms_webhook(event_type, payload):
-    return _process_webhook(event_type, payload)
+def process_cms_webhook(event_type, payload, schema_name):
+    return _process_webhook(event_type, payload, schema_name)
 
 
 @shared_task
