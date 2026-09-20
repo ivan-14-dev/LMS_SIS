@@ -109,6 +109,24 @@ def has_business_permission_or_role(
     return getattr(user, "role", "") in legacy_roles
 
 
+def request_has_business_access(
+    request,
+    permission,
+    legacy_roles=(),
+    *,
+    context=None,
+    tenant_group_codes=(),
+):
+    return has_business_permission_or_role(
+        request.user,
+        permission,
+        legacy_roles,
+        context=context,
+        configuration=getattr(getattr(request, "tenant", None), "configuration_academique", {}),
+        tenant_group_codes=tenant_group_codes,
+    )
+
+
 def filter_queryset_by_scopes(queryset, user, permission, scope_fields):
     """Apply configured ABAC lists to a queryset; unknown scopes deny access."""
     if user.is_superuser:

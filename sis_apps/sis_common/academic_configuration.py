@@ -210,6 +210,57 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             ],
             "attributes": {},
         },
+        {
+            "code": "exam_manager_secondary",
+            "label": "Gestion examens secondaire",
+            "permissions": [
+                "examens.change_sessionexamen",
+                "examens.change_epreuveexamen",
+                "examens.change_convocationexamen",
+                "examens.change_resultatexamen",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "exam_manager_superieur",
+            "label": "Gestion examens supérieur",
+            "permissions": [
+                "examens.change_sessionexamen",
+                "examens.change_epreuveexamen",
+                "examens.change_convocationexamen",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "registration_manager_superieur",
+            "label": "Gestion inscriptions supérieur",
+            "permissions": [
+                "etudiants.change_inscriptionadministrative",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "stage_manager_secondary",
+            "label": "Gestion stages secondaire",
+            "permissions": [
+                "stages.change_conventionstage",
+                "stages.change_entreprise",
+                "stages.change_suivistage",
+                "stages.change_evaluationstage",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "jury_manager_superieur",
+            "label": "Gestion jurys supérieur",
+            "permissions": [
+                "jurys.change_jury",
+                "jurys.change_deliberation",
+                "jurys.change_decisionjury",
+                "jurys.change_decisionglobale",
+            ],
+            "attributes": {},
+        },
     ],
     "validation_policies": [],
     "financial_workflows": [

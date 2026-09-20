@@ -13,6 +13,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import request_has_business_access
 
 from .models import (
     AffectationCorrection,
@@ -45,11 +46,11 @@ class IsScolariteOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "direction",
-            "responsable_pedagogique",
-            "vie_scolaire",
+        return request_has_business_access(
+            request,
+            "examens.change_sessionexamen",
+            ("direction", "responsable_pedagogique", "vie_scolaire"),
+            tenant_group_codes=("exam_manager_secondary",),
         )
 
 
@@ -59,10 +60,11 @@ class IsExamManager(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        return request.user.is_staff or getattr(request.user, "role", "") in (
-            "direction",
-            "responsable_pedagogique",
-            "vie_scolaire",
+        return request_has_business_access(
+            request,
+            "examens.view_convocationexamen",
+            ("direction", "responsable_pedagogique", "vie_scolaire"),
+            tenant_group_codes=("exam_manager_secondary",),
         )
 
 
@@ -72,11 +74,11 @@ class IsCorrectionParticipant(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        return request.user.is_staff or getattr(request.user, "role", "") in (
-            "direction",
-            "responsable_pedagogique",
-            "vie_scolaire",
-            "enseignant",
+        return request_has_business_access(
+            request,
+            "examens.view_copieexamen",
+            ("direction", "responsable_pedagogique", "vie_scolaire", "enseignant"),
+            tenant_group_codes=("exam_manager_secondary",),
         )
 
 

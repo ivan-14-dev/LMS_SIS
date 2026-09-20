@@ -127,8 +127,13 @@ class AcademicConfigurationTests(SimpleTestCase):
         configuration = default_academic_configuration()
         codes = {group["code"] for group in configuration["permission_groups"]}
 
+        self.assertIn("exam_manager_secondary", codes)
+        self.assertIn("exam_manager_superieur", codes)
         self.assertIn("finance_manager_secondary", codes)
         self.assertIn("finance_manager_superieur", codes)
+        self.assertIn("jury_manager_superieur", codes)
+        self.assertIn("registration_manager_superieur", codes)
+        self.assertIn("stage_manager_secondary", codes)
         self.assertIn("document_signatory_superieur", codes)
 
     def test_resolve_validation_policy_prefers_most_specific_target(self):

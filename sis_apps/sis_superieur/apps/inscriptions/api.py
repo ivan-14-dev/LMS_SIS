@@ -11,6 +11,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import request_has_business_access
 
 from .serializers import InscriptionSerializer
 
@@ -23,11 +24,11 @@ class IsScolariteOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "scolarite",
-            "directeur_etudes",
-            "doyen",
+        return request_has_business_access(
+            request,
+            "etudiants.change_inscriptionadministrative",
+            ("scolarite", "directeur_etudes", "doyen"),
+            tenant_group_codes=("registration_manager_superieur",),
         )
 
 

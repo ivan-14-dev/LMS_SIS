@@ -4,6 +4,7 @@ from sis_common.authorization import (
     has_business_permission,
     has_business_permission_or_role,
     permission_snapshot,
+    request_has_business_access,
     user_in_configured_groups,
 )
 
@@ -35,6 +36,17 @@ class FakeUser:
 
     def get_all_permissions(self):
         return self.permissions
+
+
+class FakeTenant:
+    def __init__(self, configuration):
+        self.configuration_academique = configuration
+
+
+class FakeRequest:
+    def __init__(self, user, configuration=None):
+        self.user = user
+        self.tenant = FakeTenant(configuration or {})
 
 
 class AuthorizationTests(SimpleTestCase):
@@ -136,5 +148,29 @@ class AuthorizationTests(SimpleTestCase):
                 "releves.change_transcript",
                 configuration=configuration,
                 tenant_group_codes=("document_signatory_superieur",),
+            )
+        )
+
+    def test_request_helper_reads_tenant_configuration(self):
+        configuration = {
+            "permission_groups": [
+                {
+                    "code": "exam_manager_secondary",
+                    "label": "Examens",
+                    "permissions": ["examens.change_sessionexamen"],
+                    "attributes": {},
+                }
+            ]
+        }
+        request = FakeRequest(
+            FakeUser(permissions=["examens.change_sessionexamen"]),
+            configuration,
+        )
+
+        self.assertTrue(
+            request_has_business_access(
+                request,
+                "examens.view_convocationexamen",
+                tenant_group_codes=("exam_manager_secondary",),
             )
         )
