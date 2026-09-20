@@ -71,3 +71,25 @@ class PublishAssessmentGradeTest(TestCase):
         )
 
         post.assert_not_called()
+
+    @override_settings(
+        SIS_GRADE_WEBHOOK_TARGETS=[
+            {"url": "http://invalid.example.test/webhook/", "secret": ""},
+            {
+                "url": "https://sis.example.test/webhook/",
+                "secret": "valid-secret",
+            },
+        ]
+    )
+    @patch("openedx.core.djangoapps.sis_grade_webhooks.tasks.requests.post")
+    def test_invalid_target_does_not_block_valid_target(self, post):
+        post.return_value = Mock()
+
+        publish_assessment_grade(
+            {
+                "event_id": "event-4",
+                "course": {"course_key": "course-v1:Org+Course+Run"},
+            }
+        )
+
+        post.assert_called_once()

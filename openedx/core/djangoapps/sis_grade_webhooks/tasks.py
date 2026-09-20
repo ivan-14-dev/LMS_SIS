@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import logging
 from urllib.parse import urlsplit
 
 import requests
@@ -9,6 +10,7 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 EVENT_TYPE = "org.openedx.learning.course.assessment.grade.changed.v1"
+logger = logging.getLogger(__name__)
 
 
 def _eligible_targets(course_id):
@@ -52,7 +54,11 @@ def publish_assessment_grade(payload):
     """Publish one normalized assessment grade to its configured SIS targets."""
     body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
     for target in _eligible_targets(payload["course"]["course_key"]):
-        url, secret = _validate_target(target)
+        try:
+            url, secret = _validate_target(target)
+        except ImproperlyConfigured as exc:
+            logger.error("Skipping invalid SIS grade webhook target: %s", exc)
+            continue
         signature = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
         response = requests.post(
             url,

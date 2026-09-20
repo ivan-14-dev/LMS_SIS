@@ -187,7 +187,7 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
         from apps.etudiants.models import InscriptionPedagogique
 
         inscrits = list(
-            InscriptionPedagogique.objects.filter(ecue=epreuve.ecue)
+            InscriptionPedagogique.objects.filter(ecues=epreuve.ecue)
             .values_list("etudiant_id", flat=True)
             .distinct()
         )
