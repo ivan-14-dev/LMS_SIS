@@ -80,3 +80,19 @@ msgid ""
 msgstr ""
 "Ýöü hävé ßéén invited to join %(course_name)s at %(site_name)s by a member of "
 "the course staff."
+
+#: xmodule/capa_block.py
+msgid "Submit"
+msgstr "Süßmït"
+
+#: xmodule/capa_block.py
+msgid "Submitting"
+msgstr "Süßmïttïng"
+
+#: xblocks_contrib/problem/capa/templates/problem.html
+msgid ""
+"Some problems have options such as save, reset, hints, or show answer. "
+"These options follow the Submit button."
+msgstr ""
+"Some problems have options such as save, reset, hints, or show answer. "
+"These options follow the Süßmït button."
