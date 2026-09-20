@@ -108,7 +108,12 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def capabilities(self, request):
-        return Response(permission_snapshot(request.user))
+        return Response(
+            permission_snapshot(
+                request.user,
+                getattr(request.tenant, "configuration_academique", {}),
+            )
+        )
 
     @action(detail=False, methods=["patch"])
     def update_profile(self, request):

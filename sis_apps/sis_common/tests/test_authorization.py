@@ -1,8 +1,21 @@
 from django.test import SimpleTestCase
 from sis_common.authorization import (
+    configured_permission_groups,
     has_business_permission,
     has_business_permission_or_role,
+    permission_snapshot,
 )
+
+
+class FakeGroups:
+    def __init__(self, names):
+        self.names = names
+
+    def order_by(self, _field):
+        return self
+
+    def values_list(self, _field, flat=False):
+        return self.names if flat else [(name,) for name in self.names]
 
 
 class FakeUser:
@@ -11,12 +24,16 @@ class FakeUser:
     is_staff = False
     role = "custom_role"
 
-    def __init__(self, permissions=(), attributes=None):
+    def __init__(self, permissions=(), attributes=None, groups=()):
         self.permissions = set(permissions)
         self.attributs_acces = attributes or {}
+        self.groups = FakeGroups(groups)
 
     def has_perm(self, permission):
         return permission in self.permissions
+
+    def get_all_permissions(self):
+        return self.permissions
 
 
 class AuthorizationTests(SimpleTestCase):
@@ -40,3 +57,42 @@ class AuthorizationTests(SimpleTestCase):
         legacy_user = FakeUser()
         legacy_user.role = "direction"
         self.assertTrue(has_business_permission_or_role(legacy_user, permission, ("direction",)))
+
+    def test_configured_permission_groups_are_resolved_from_permissions_and_attributes(self):
+        configuration = {
+            "permission_groups": [
+                {
+                    "code": "finance_manager",
+                    "label": "Finance",
+                    "permissions": ["paiements.view_paiement", "paiements.change_paiement"],
+                    "attributes": {"domains": ["finance"]},
+                }
+            ]
+        }
+        user = FakeUser(
+            permissions=["paiements.view_paiement", "paiements.change_paiement"],
+            attributes={"domains": ["finance"]},
+        )
+
+        self.assertEqual(configured_permission_groups(user, configuration), ["finance_manager"])
+
+    def test_permission_snapshot_merges_django_and_configured_groups(self):
+        configuration = {
+            "permission_groups": [
+                {
+                    "code": "finance_manager",
+                    "label": "Finance",
+                    "permissions": ["paiements.view_paiement"],
+                    "attributes": {"domains": ["finance"]},
+                }
+            ]
+        }
+        user = FakeUser(
+            permissions=["paiements.view_paiement"],
+            attributes={"domains": ["finance"]},
+            groups=["staff"],
+        )
+
+        snapshot = permission_snapshot(user, configuration)
+
+        self.assertEqual(snapshot["groups"], ["finance_manager", "staff"])

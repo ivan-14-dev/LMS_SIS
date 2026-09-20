@@ -1,12 +1,60 @@
 """Dynamic RBAC and lightweight ABAC helpers shared by both SIS variants."""
 
 
-def permission_snapshot(user):
+def _group_names(user):
+    if not hasattr(user, "groups"):
+        return []
+    groups = user.groups
+    if hasattr(groups, "order_by"):
+        return list(groups.order_by("name").values_list("name", flat=True))
+    if isinstance(groups, (list, tuple, set)):
+        return list(groups)
+    return []
+
+
+def _attribute_matches(expected, actual):
+    if isinstance(expected, list):
+        if isinstance(actual, list):
+            return any(value in expected for value in actual)
+        return actual in expected
+    if isinstance(actual, list):
+        return expected in actual
+    return actual == expected
+
+
+def _matches_group_attributes(user_attributes, required_attributes):
+    for attribute, expected in (required_attributes or {}).items():
+        actual = user_attributes.get(attribute)
+        if not _attribute_matches(expected, actual):
+            return False
+    return True
+
+
+def configured_permission_groups(user, configuration=None):
+    if not user.is_authenticated:
+        return []
+    if user.is_superuser:
+        return [group["code"] for group in (configuration or {}).get("permission_groups", [])]
+
+    user_attributes = getattr(user, "attributs_acces", {}) or {}
+    resolved = []
+    for group in (configuration or {}).get("permission_groups", []):
+        permissions = group.get("permissions", [])
+        if permissions and not all(user.has_perm(permission) for permission in permissions):
+            continue
+        if not _matches_group_attributes(user_attributes, group.get("attributes", {})):
+            continue
+        resolved.append(group["code"])
+    return resolved
+
+
+def permission_snapshot(user, configuration=None):
     if not user.is_authenticated:
         return {"permissions": [], "groups": [], "attributes": {}, "role": ""}
+    groups = sorted(set(_group_names(user) + configured_permission_groups(user, configuration)))
     return {
         "permissions": ["*"] if user.is_superuser else sorted(user.get_all_permissions()),
-        "groups": list(user.groups.order_by("name").values_list("name", flat=True)),
+        "groups": groups,
         "attributes": getattr(user, "attributs_acces", {}) or {},
         "role": getattr(user, "role", ""),
     }

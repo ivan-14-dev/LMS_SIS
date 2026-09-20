@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.academic_configuration import resolve_validation_policy
 
 from .models import Attestation, ReleveNotes, Transcript
 from .serializers import (
@@ -16,6 +17,21 @@ from .serializers import (
     TranscriptDetailSerializer,
     TranscriptListSerializer,
 )
+
+
+def _requires_financial_clearance(configuration, candidates):
+    policy = resolve_validation_policy(configuration, candidates)
+    return bool((policy or {}).get("publication", {}).get("requires_financial_clearance"))
+
+
+def _student_has_financial_clearance(etudiant, academic_year_ids):
+    from apps.paiements.models import FactureFrais
+
+    return not FactureFrais.objects.filter(
+        etudiant=etudiant,
+        type_frais__annee_universitaire_id__in=academic_year_ids,
+        statut__in=["emise", "partielle", "en_retard"],
+    ).exists()
 
 
 class IsScolariteOrReadOnly(IsAuthenticated):
@@ -59,6 +75,21 @@ class RelevesNotesViewSet(viewsets.ModelViewSet):
         releve = self.get_object()
         if releve.signe:
             return Response({"error": "Déjà signé."}, status=400)
+        if _requires_financial_clearance(
+            getattr(request.tenant, "configuration_academique", {}),
+            [
+                {"scope": "semester", "context": {"semester_id": releve.semestre_id}},
+                {"scope": "academic_year", "context": {"academic_year_id": releve.semestre.annee_universitaire_id}},
+                {"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}},
+            ],
+        ) and not _student_has_financial_clearance(
+            releve.etudiant,
+            [releve.semestre.annee_universitaire_id],
+        ):
+            return Response(
+                {"error": "La signature du relevé exige une situation financière régularisée."},
+                status=409,
+            )
         releve.signe = True
         releve.date_signature = timezone.now()
         releve.signe_par = request.user
@@ -104,6 +135,29 @@ class TranscriptsViewSet(viewsets.ModelViewSet):
         serializer = TranscriptListSerializer(transcripts, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=["post"])
+    def signer(self, request, pk=None):
+        """Signe le transcript officiel."""
+        transcript = self.get_object()
+        if transcript.signe_par_id:
+            return Response({"error": "Déjà signé."}, status=400)
+        academic_year_ids = list(transcript.annees.values_list("id", flat=True))
+        policy_candidates = [
+            {"scope": "academic_year", "context": {"academic_year_id": academic_year_id}}
+            for academic_year_id in academic_year_ids
+        ] + [{"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}}]
+        if _requires_financial_clearance(
+            getattr(request.tenant, "configuration_academique", {}),
+            policy_candidates,
+        ) and not _student_has_financial_clearance(transcript.etudiant, academic_year_ids):
+            return Response(
+                {"error": "La signature du transcript exige une situation financière régularisée."},
+                status=409,
+            )
+        transcript.signe_par = request.user
+        transcript.save(update_fields=["signe_par"])
+        return Response({"detail": "Transcript signé.", "id": transcript.id})
+
 
 class AttestationsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour attestations."""
@@ -124,5 +178,5 @@ class AttestationsViewSet(viewsets.ModelViewSet):
         if not etudiant:
             return Response({"error": "Vous n'êtes pas étudiant."}, status=403)
         attestations = self.get_queryset().filter(etudiant=etudiant)
-        AttestationSerializer(attestations, many=True)
-        return Response(attestations.data)
+        serializer = AttestationSerializer(attestations, many=True)
+        return Response(serializer.data)
