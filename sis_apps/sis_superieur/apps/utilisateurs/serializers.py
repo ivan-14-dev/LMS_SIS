@@ -1,9 +1,24 @@
 """Serializers for utilisateurs (SIS Supérieur)."""
 
+from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 from .models import Utilisateur
+
+
+class PermissionSerializer(serializers.ModelSerializer):
+    app_label = serializers.CharField(source="content_type.app_label", read_only=True)
+
+    class Meta:
+        model = Permission
+        fields = ["id", "app_label", "codename", "name"]
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ["id", "name", "permissions"]
 
 
 class UtilisateurListSerializer(serializers.ModelSerializer):
@@ -23,6 +38,7 @@ class UtilisateurListSerializer(serializers.ModelSerializer):
             "full_name",
             "role",
             "role_display",
+            "groups",
             "is_active",
         ]
         read_only_fields = ["id", "full_name", "role_display"]
@@ -49,6 +65,9 @@ class UtilisateurDetailSerializer(serializers.ModelSerializer):
             "role",
             "role_display",
             "etablissement",
+            "groups",
+            "user_permissions",
+            "attributs_acces",
             "numero_etudiant",
             "numero_enseignant",
             "telephone",
@@ -103,9 +122,7 @@ class UtilisateurCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs.get("password") != attrs.get("password_confirm"):
-            raise serializers.ValidationError(
-                {"password_confirm": "Les mots de passe ne correspondent pas."}
-            )
+            raise serializers.ValidationError({"password_confirm": "Les mots de passe ne correspondent pas."})
         return attrs
 
     def create(self, validated_data):
@@ -126,9 +143,7 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs["new_password"] != attrs["new_password_confirm"]:
-            raise serializers.ValidationError(
-                {"new_password_confirm": "Les mots de passe ne correspondent pas."}
-            )
+            raise serializers.ValidationError({"new_password_confirm": "Les mots de passe ne correspondent pas."})
         return attrs
 
 

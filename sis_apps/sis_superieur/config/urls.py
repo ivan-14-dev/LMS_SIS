@@ -8,12 +8,14 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from sis_common.views import csrf_token
 
 urlpatterns = [
     # Healthcheck endpoints (public, no auth)
     path("health/", health_check, name="health-check"),
     path("ready/", readiness_check, name="readiness-check"),
     path("metrics/", metrics, name="metrics"),
+    path("csrf/api/v1/token", csrf_token, name="csrf-token"),
     # Admin
     path("admin/", admin.site.urls),
     path("api/v1/", include("config.api_urls")),

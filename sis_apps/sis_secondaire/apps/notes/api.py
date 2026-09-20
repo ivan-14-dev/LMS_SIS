@@ -3,13 +3,18 @@
 from django.db.models import Avg, Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
+from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import (
+    filter_queryset_by_scopes,
+    has_business_permission_or_role,
+)
+from sis_common.reporting import configured_report, export_queryset_csv
 
-from .models import Bulletin, Evaluation, Note
+from .models import Bulletin, Evaluation, Note, RegleValidation
 from .serializers import (
     BulletinDetailSerializer,
     BulletinListSerializer,
@@ -17,7 +22,36 @@ from .serializers import (
     EvaluationListSerializer,
     NoteSaisieSerializer,
     NoteSerializer,
+    RegleValidationSerializer,
 )
+
+REPORT_FIELDS = {
+    "matricule": ("Matricule", "eleve__matricule"),
+    "eleve": ("Élève", "eleve__user__last_name"),
+    "classe": ("Classe", "evaluation__classe__nom"),
+    "matiere": ("Matière", "evaluation__matiere__nom"),
+    "evaluation": ("Évaluation", "evaluation__titre"),
+    "note": ("Note", "valeur"),
+    "bareme": ("Barème", "evaluation__bareme"),
+    "appreciation": ("Appréciation", "appreciation"),
+    "enseignant": ("Enseignant", "evaluation__enseignant__user__last_name"),
+    "periode": ("Période", "evaluation__periode__libelle"),
+    "date": ("Date", "evaluation__date"),
+}
+REPORT_FILTERS = {
+    "annee": "evaluation__classe__annee_scolaire_id",
+    "classe": "evaluation__classe_id",
+    "matiere": "evaluation__matiere_id",
+    "enseignant": "evaluation__enseignant_id",
+    "periode": "evaluation__periode_id",
+    "statut": "statut",
+}
+REPORT_GROUPS = {
+    "classe": "evaluation__classe__nom",
+    "matiere": "evaluation__matiere__nom",
+    "enseignant": "evaluation__enseignant__user__last_name",
+    "periode": "evaluation__periode__libelle",
+}
 
 
 class IsEnseignantOrVieScolarite(IsAuthenticated):
@@ -29,12 +63,26 @@ class IsEnseignantOrVieScolarite(IsAuthenticated):
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
         user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "enseignant",
-            "vie_scolaire",
-            "directeur",
-            "proviseur",
-            "principal",
+        model_name = getattr(view, "permission_model", "note")
+        action_name = {
+            "create": "add",
+            "destroy": "delete",
+        }.get(view.action, "change")
+        return has_business_permission_or_role(
+            user,
+            f"notes.{action_name}_{model_name}",
+            ("enseignant", "vie_scolaire", "direction", "responsable_pedagogique"),
+        )
+
+
+class IsAcademicAdmin(IsAuthenticated):
+    def has_permission(self, request, view):
+        return super().has_permission(
+            request, view
+        ) and has_business_permission_or_role(
+            request.user,
+            "notes.change_reglevalidation",
+            ("direction", "responsable_pedagogique", "vie_scolaire"),
         )
 
 
@@ -42,6 +90,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour évaluations."""
 
     permission_classes = [IsEnseignantOrVieScolarite]
+    permission_model = "evaluation"
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["matiere", "classe", "periode", "type", "enseignant"]
     search_fields = ["titre", "description"]
@@ -80,6 +129,26 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         evaluation = self.get_object()
         serializer = NoteSaisieSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
+
+        student_ids = {item["eleve_id"] for item in serializer.validated_data}
+        eligible_student_ids = set(
+            evaluation.classe.eleves_actuels.filter(pk__in=student_ids).values_list(
+                "pk", flat=True
+            )
+        )
+        eligible_student_ids.update(
+            evaluation.classe.inscriptions.filter(
+                eleve_id__in=student_ids,
+                statut__in=("en_cours", "validee"),
+            ).values_list("eleve_id", flat=True)
+        )
+        invalid_student_ids = sorted(student_ids - eligible_student_ids)
+        if invalid_student_ids:
+            raise serializers.ValidationError(
+                {
+                    "eleve_id": f"Élèves non inscrits dans cette classe: {invalid_student_ids}."
+                }
+            )
 
         created = 0
         updated = 0
@@ -139,6 +208,7 @@ class NotesViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour notes."""
 
     permission_classes = [IsEnseignantOrVieScolarite]
+    permission_model = "note"
     serializer_class = NoteSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["evaluation", "eleve", "statut"]
@@ -151,6 +221,12 @@ class NotesViewSet(viewsets.ModelViewSet):
         if hasattr(user, "eleve_profile"):
             if not user.is_staff and getattr(user, "role", "") == "eleve":
                 qs = qs.filter(eleve__user=user)
+        if (
+            not user.is_staff
+            and getattr(user, "role", "") == "enseignant"
+            and hasattr(user, "personnel_profile")
+        ):
+            qs = qs.filter(evaluation__enseignant=user.personnel_profile)
         # Un parent ne voit que les notes de ses enfants
         if hasattr(user, "tuteur_profile"):
             from apps.eleves.models import EleveTuteur
@@ -159,13 +235,76 @@ class NotesViewSet(viewsets.ModelViewSet):
                 tuteur=user.tuteur_profile, autorise_acces_portail=True
             ).values_list("eleve_id", flat=True)
             qs = qs.filter(eleve_id__in=eleves_ids)
-        return qs
+        allowed_roles = {
+            "direction",
+            "responsable_pedagogique",
+            "vie_scolaire",
+            "enseignant",
+            "eleve",
+            "parent",
+        }
+        if (
+            not user.is_staff
+            and not user.has_perm("notes.view_note")
+            and getattr(user, "role", "") not in allowed_roles
+        ):
+            return qs.none()
+        return filter_queryset_by_scopes(
+            qs,
+            user,
+            "notes.view_note",
+            {
+                "classes": "evaluation__classe_id",
+                "matieres": "evaluation__matiere_id",
+                "annees": "evaluation__classe__annee_scolaire_id",
+                "periodes": "evaluation__periode_id",
+            },
+        )
+
+    @action(detail=False, methods=["get"])
+    def bilan(self, request):
+        group_by = request.query_params.get("group_by", "matiere")
+        group_field = REPORT_GROUPS.get(group_by)
+        if not group_field:
+            return Response(
+                {"group_by": f"Valeurs acceptées: {', '.join(REPORT_GROUPS)}."},
+                status=400,
+            )
+        rows = (
+            self.filter_queryset(self.get_queryset())
+            .filter(valeur__isnull=False)
+            .values(group_field)
+            .annotate(moyenne=Avg("valeur"), nombre=Count("id"))
+            .order_by(group_field)
+        )
+        return Response(
+            [
+                {
+                    "groupe": row[group_field],
+                    "moyenne": row["moyenne"],
+                    "nombre": row["nombre"],
+                }
+                for row in rows
+            ]
+        )
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"))
+        return export_queryset_csv(
+            self.filter_queryset(self.get_queryset()),
+            report,
+            REPORT_FIELDS,
+            REPORT_FILTERS,
+            request.data.get("filters", {}),
+        )
 
 
 class BulletinsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour bulletins."""
 
     permission_classes = [IsEnseignantOrVieScolarite]
+    permission_model = "bulletin"
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["eleve", "classe", "periode", "publie"]
     ordering = ["-periode__date_fin"]
@@ -213,3 +352,32 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         bulletin.date_signature = timezone.now()
         bulletin.save(update_fields=["signe", "date_signature", "updated_at"])
         return Response({"detail": "Bulletin signé.", "id": bulletin.id})
+
+
+class ReglesValidationViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAcademicAdmin]
+    serializer_class = RegleValidationSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ["annee_scolaire", "niveau", "classe", "actif"]
+    ordering = ["priorite", "code"]
+
+    def get_queryset(self):
+        return RegleValidation.objects.select_related(
+            "annee_scolaire", "niveau", "classe"
+        )
+
+    @action(detail=True, methods=["post"])
+    def evaluer(self, request, pk=None):
+        serializer = EvaluationRegleInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(self.get_object().evaluer(**serializer.validated_data))
+
+
+class EvaluationRegleInputSerializer(serializers.Serializer):
+    moyenne = serializers.DecimalField(max_digits=7, decimal_places=2)
+    credits = serializers.DecimalField(max_digits=7, decimal_places=2, default=0)
+    matieres_echouees = serializers.IntegerField(min_value=0, default=0)
+    note_minimale = serializers.DecimalField(
+        max_digits=7, decimal_places=2, required=False, allow_null=True
+    )
+    donnees = serializers.JSONField(default=dict)

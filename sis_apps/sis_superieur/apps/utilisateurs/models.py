@@ -34,7 +34,7 @@ class Utilisateur(AbstractUser):
         null=True,
         blank=True,
     )
-    role = models.CharField(max_length=40, choices=ROLE_CHOICES, default="etudiant")
+    role = models.CharField(max_length=100, default="etudiant")
     numero_etudiant = models.CharField(max_length=50, blank=True)
     numero_enseignant = models.CharField(max_length=50, blank=True)
     telephone = models.CharField(max_length=20, blank=True)
@@ -46,6 +46,11 @@ class Utilisateur(AbstractUser):
     doit_changer_mdp = models.BooleanField(default=False)
     derniere_connexion = models.DateTimeField(null=True, blank=True)
     preferences_notification = models.JSONField(default=dict, blank=True)
+    attributs_acces = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Contraintes ABAC par permission (facultés, formations, années, etc.).",
+    )
 
     class Meta:
         verbose_name = "Utilisateur"
@@ -53,6 +58,9 @@ class Utilisateur(AbstractUser):
 
     def __str__(self):
         return f"{self.get_full_name()} ({self.get_role_display()})"
+
+    def get_role_display(self):
+        return dict(self.ROLE_CHOICES).get(self.role, self.role)
 
     @property
     def is_etudiant(self):

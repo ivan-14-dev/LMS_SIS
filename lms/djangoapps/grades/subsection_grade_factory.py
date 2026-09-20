@@ -110,7 +110,8 @@ class SubsectionGradeFactory:
                     course_id=self.course_data.course_key,
                     user=self.student,
                     subsection_id=calculated_grade.location,
-                    subsection_grade=calculated_grade.graded_total.earned
+                    subsection_grade=calculated_grade.graded_total.earned,
+                    subsection_max_grade=calculated_grade.graded_total.possible,
                 )
 
         return calculated_grade

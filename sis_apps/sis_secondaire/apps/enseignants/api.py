@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import has_business_permission_or_role
 
 from .models import AffectationEnseignant, MatiereEnseignee, Personnel
 from .serializers import (
@@ -27,10 +28,10 @@ class IsDirectionOrReadOnly(IsAuthenticated):
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
         user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "directeur",
-            "proviseur",
-            "principal",
+        return has_business_permission_or_role(
+            user,
+            "enseignants.change_personnel",
+            ("direction", "responsable_pedagogique"),
         )
 
 
@@ -72,9 +73,7 @@ class PersonnelViewSet(viewsets.ModelViewSet):
             serializer = PersonnelDetailSerializer(personnel)
             return Response(serializer.data)
         except Personnel.DoesNotExist:
-            return Response(
-                {"error": "Vous n'êtes pas membre du personnel."}, status=404
-            )
+            return Response({"error": "Vous n'êtes pas membre du personnel."}, status=404)
 
     @action(detail=False, methods=["get"])
     def enseignants(self, request):

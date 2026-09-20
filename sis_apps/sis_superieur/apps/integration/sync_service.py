@@ -162,7 +162,9 @@ class SyncService:
             try:
                 m = EdxUserMapping.objects.get(user_sis=enrollment.etudiant.user)
                 grades = self.client.get_grades(mapping.course_id, m.username_edx)
-                enrollment.progression = grades.get("percent", 0)
+                enrollment.progression = min(
+                    max(float(grades.get("percent", 0)) * 100, 0), 100
+                )
                 enrollment.last_sync = timezone.now()
                 enrollment.save()
                 count += 1

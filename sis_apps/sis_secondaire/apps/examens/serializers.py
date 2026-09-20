@@ -1,8 +1,18 @@
 """Serializers for examens (SIS Secondaire)."""
 
 from rest_framework import serializers
+from sis_common.exam_files import hash_uploaded_file
 
-from .models import ConvocationExamen, EpreuveExamen, ResultatExamen, SessionExamen
+from .models import (
+    AffectationCorrection,
+    AuditCopieExamen,
+    ConvocationExamen,
+    CopieExamen,
+    CorrectionCopie,
+    EpreuveExamen,
+    ResultatExamen,
+    SessionExamen,
+)
 
 
 class SessionExamenSerializer(serializers.ModelSerializer):
@@ -31,6 +41,8 @@ class SessionExamenSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def get_nb_epreuves(self, obj):
+        if hasattr(obj, "nb_epreuves_count"):
+            return obj.nb_epreuves_count
         return obj.epreuves.count()
 
 
@@ -57,6 +69,7 @@ class EpreuveExamenListSerializer(serializers.ModelSerializer):
             "bareme",
             "coefficient",
             "anonymat",
+            "nombre_corrections",
         ]
 
 
@@ -87,6 +100,7 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
             "surveillants",
             "surveillants_list",
             "anonymat",
+            "nombre_corrections",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
@@ -158,3 +172,151 @@ class ResultatExamenSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+class CopieExamenSerializer(serializers.ModelSerializer):
+    epreuve = serializers.IntegerField(source="convocation.epreuve_id", read_only=True)
+    convocation = serializers.PrimaryKeyRelatedField(
+        queryset=ConvocationExamen.objects.all(), write_only=True
+    )
+
+    class Meta:
+        model = CopieExamen
+        fields = [
+            "id",
+            "convocation",
+            "epreuve",
+            "numero_anonyme",
+            "fichier",
+            "empreinte_sha256",
+            "taille_octets",
+            "statut",
+            "note_finale",
+            "deposee_le",
+        ]
+        read_only_fields = [
+            "id",
+            "numero_anonyme",
+            "empreinte_sha256",
+            "taille_octets",
+            "statut",
+            "note_finale",
+            "deposee_le",
+        ]
+        extra_kwargs = {"fichier": {"write_only": True}}
+
+    def validate_convocation(self, value):
+        if not value.epreuve.anonymat:
+            raise serializers.ValidationError(
+                "L'anonymat doit être activé avant le dépôt des copies."
+            )
+        if value.statut != "present":
+            raise serializers.ValidationError(
+                "Une copie ne peut être déposée que pour un candidat présent."
+            )
+        if hasattr(value, "copie"):
+            raise serializers.ValidationError(
+                "Une copie existe déjà pour cette convocation."
+            )
+        return value
+
+    def create(self, validated_data):
+        uploaded_file = validated_data["fichier"]
+        return CopieExamen.objects.create(
+            **validated_data,
+            empreinte_sha256=hash_uploaded_file(uploaded_file),
+            taille_octets=uploaded_file.size,
+            deposee_par=self.context["request"].user,
+        )
+
+
+class AffectationCorrectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AffectationCorrection
+        fields = [
+            "id",
+            "copie",
+            "correcteur",
+            "ordre",
+            "statut",
+            "affectee_le",
+        ]
+        read_only_fields = ["id", "statut", "affectee_le"]
+
+    def validate(self, attrs):
+        copie = attrs["copie"]
+        correcteur = attrs["correcteur"]
+        if (
+            correcteur.role != "enseignant" and not correcteur.is_staff
+        ) or not correcteur.is_active:
+            raise serializers.ValidationError(
+                {"correcteur": "Le correcteur doit être un enseignant actif."}
+            )
+        if correcteur.pk == copie.convocation.eleve.user_id:
+            raise serializers.ValidationError(
+                {"correcteur": "Un candidat ne peut pas corriger sa propre copie."}
+            )
+        if copie.statut not in ("deposee", "affectee"):
+            raise serializers.ValidationError(
+                {"copie": "Cette copie n'accepte plus de nouvelles affectations."}
+            )
+        if not 1 <= attrs["ordre"] <= copie.epreuve.nombre_corrections:
+            raise serializers.ValidationError(
+                {"ordre": "Cette épreuve ne prévoit pas ce niveau de correction."}
+            )
+        if copie.affectations.count() >= copie.epreuve.nombre_corrections:
+            raise serializers.ValidationError(
+                {"copie": "Toutes les corrections prévues sont déjà affectées."}
+            )
+        return attrs
+
+    def create(self, validated_data):
+        return AffectationCorrection.objects.create(
+            **validated_data, affectee_par=self.context["request"].user
+        )
+
+
+class CorrectionCopieSerializer(serializers.ModelSerializer):
+    numero_anonyme = serializers.CharField(
+        source="affectation.copie.numero_anonyme", read_only=True
+    )
+
+    class Meta:
+        model = CorrectionCopie
+        fields = [
+            "id",
+            "affectation",
+            "numero_anonyme",
+            "note",
+            "appreciation",
+            "soumise_le",
+        ]
+        read_only_fields = ["id", "numero_anonyme", "soumise_le"]
+
+    def validate(self, attrs):
+        affectation = attrs["affectation"]
+        if affectation.correcteur != self.context["request"].user:
+            raise serializers.ValidationError(
+                {"affectation": "Cette copie ne vous est pas affectée."}
+            )
+        if affectation.statut != "assignee" or affectation.copie.statut not in (
+            "affectee",
+            "correction",
+        ):
+            raise serializers.ValidationError(
+                {"affectation": "Cette affectation n'accepte plus de correction."}
+            )
+        if attrs["note"] > affectation.copie.epreuve.bareme or attrs["note"] < 0:
+            raise serializers.ValidationError(
+                {"note": "La note doit respecter le barème de l'épreuve."}
+            )
+        return attrs
+
+
+class AuditCopieExamenSerializer(serializers.ModelSerializer):
+    acteur = serializers.CharField(source="acteur.get_full_name", read_only=True)
+
+    class Meta:
+        model = AuditCopieExamen
+        fields = ["id", "copie", "acteur", "action", "details", "cree_le"]
+        read_only_fields = fields

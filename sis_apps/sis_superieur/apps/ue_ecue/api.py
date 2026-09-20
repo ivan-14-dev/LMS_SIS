@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import has_business_permission_or_role
 
 from .models import ECUE, UE, Prerequis
 from .serializers import ECUESerializer, PrerequisSerializer, UEDetailSerializer, UEListSerializer
@@ -20,11 +21,10 @@ class IsScolariteOrReadOnly(IsAuthenticated):
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
         user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "scolarite",
-            "directeur_etudes",
-            "responsable_formation",
-            "doyen",
+        return has_business_permission_or_role(
+            user,
+            "ue_ecue.change_ue",
+            ("scolarite", "directeur_etudes", "responsable_formation", "doyen"),
         )
 
 
@@ -39,9 +39,7 @@ class UEViewSet(viewsets.ModelViewSet):
     ordering = ["semestre", "code"]
 
     def get_queryset(self):
-        return UE.objects.select_related(
-            "maquette__formation", "semestre"
-        ).prefetch_related("parcours_autorises")
+        return UE.objects.select_related("maquette__formation", "semestre").prefetch_related("parcours_autorises")
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -93,9 +91,7 @@ class ECUEViewSet(viewsets.ModelViewSet):
         from apps.enseignants.models import AffectationEnseignement
         from apps.enseignants.serializers import AffectationEnseignementSerializer
 
-        affectations = AffectationEnseignement.objects.filter(ecue=ecue).select_related(
-            "enseignant__user"
-        )
+        affectations = AffectationEnseignement.objects.filter(ecue=ecue).select_related("enseignant__user")
         serializer = AffectationEnseignementSerializer(affectations, many=True)
         return Response(serializer.data)
 

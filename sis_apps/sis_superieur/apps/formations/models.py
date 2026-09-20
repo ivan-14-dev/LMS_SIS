@@ -50,8 +50,8 @@ class Formation(models.Model):
     )
     nom = models.CharField(max_length=200)
     code = models.CharField(max_length=30)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
-    niveau = models.CharField(max_length=5, choices=NIVEAU_CHOICES, blank=True)
+    type = models.CharField(max_length=100)
+    niveau = models.CharField(max_length=100, blank=True)
     duree_annees = models.PositiveSmallIntegerField(default=3)
     nb_semestres = models.PositiveSmallIntegerField(default=6)
     credits_total = models.PositiveSmallIntegerField(default=180)
@@ -65,9 +65,7 @@ class Formation(models.Model):
     accreditations = models.JSONField(default=list, blank=True)
     date_accreditation = models.DateField(null=True, blank=True)
     date_fin_accreditation = models.DateField(null=True, blank=True)
-    regime = models.CharField(
-        max_length=30, choices=REGIME_CHOICES, default="formation_initiale"
-    )
+    regime = models.CharField(max_length=100, default="formation_initiale")
     description = models.TextField(blank=True)
     objectifs = models.TextField(blank=True)
     debouches = models.TextField(blank=True)
@@ -84,13 +82,20 @@ class Formation(models.Model):
     def __str__(self):
         return f"{self.code} - {self.nom}"
 
+    def get_type_display(self):
+        return dict(self.TYPE_CHOICES).get(self.type, self.type)
+
+    def get_niveau_display(self):
+        return dict(self.NIVEAU_CHOICES).get(self.niveau, self.niveau)
+
+    def get_regime_display(self):
+        return dict(self.REGIME_CHOICES).get(self.regime, self.regime)
+
 
 class Parcours(models.Model):
     """Parcours au sein d'une formation (spécialisation)."""
 
-    formation = models.ForeignKey(
-        Formation, on_delete=models.CASCADE, related_name="parcours"
-    )
+    formation = models.ForeignKey(Formation, on_delete=models.CASCADE, related_name="parcours")
     nom = models.CharField(max_length=200)
     code = models.CharField(max_length=30)
     specialisation = models.CharField(max_length=200, blank=True)
@@ -109,17 +114,13 @@ class Parcours(models.Model):
 class MaquetteFormation(models.Model):
     """Maquette pédagogique d'une formation pour une année."""
 
-    formation = models.ForeignKey(
-        Formation, on_delete=models.CASCADE, related_name="maquettes"
-    )
+    formation = models.ForeignKey(Formation, on_delete=models.CASCADE, related_name="maquettes")
     annee_universitaire = models.ForeignKey(
         "etablissement.AnneeUniversitaire",
         on_delete=models.CASCADE,
         related_name="maquettes",
     )
-    structure = models.JSONField(
-        default=dict, help_text="Structure des UE par semestre"
-    )
+    structure = models.JSONField(default=dict, help_text="Structure des UE par semestre")
     statut = models.CharField(
         max_length=20,
         choices=[

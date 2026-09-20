@@ -47,9 +47,7 @@ class ClassesViewSet(viewsets.ModelViewSet):
     ordering = ["niveau__ordre", "nom"]
 
     def get_queryset(self):
-        qs = Classe.objects.select_related(
-            "niveau", "annee_scolaire", "prof_principal", "salle_principale"
-        )
+        qs = Classe.objects.select_related("niveau", "annee_scolaire", "prof_principal", "salle_principale")
         # Filtrer par établissement du tenant
         if hasattr(self.request, "tenant"):
             qs = qs.filter(etablissement=self.request.tenant)
@@ -66,9 +64,7 @@ class ClassesViewSet(viewsets.ModelViewSet):
         from apps.eleves.serializers import EleveListSerializer
 
         classe = self.get_object()
-        eleves = classe.eleves_actuels.select_related("user").order_by(
-            "user__last_name"
-        )
+        eleves = classe.eleves_actuels.select_related("user").order_by("user__last_name")
         serializer = EleveListSerializer(eleves, many=True)
         return Response(serializer.data)
 
@@ -76,9 +72,11 @@ class ClassesViewSet(viewsets.ModelViewSet):
     def programmes(self, request, pk=None):
         """Liste les programmes de matières de la classe."""
         classe = self.get_object()
-        programmes = classe.programmes.select_related(
-            "matiere", "enseignant_principal"
-        ).order_by("matiere__nom")
+        programmes = (
+            classe.programmes.select_related("matiere", "enseignant_principal")
+            .prefetch_related("enseignants")
+            .order_by("matiere__nom")
+        )
         serializer = ProgrammeMatiereSerializer(programmes, many=True)
         return Response(serializer.data)
 
@@ -149,6 +147,6 @@ class ProgrammesViewSet(viewsets.ModelViewSet):
     filterset_fields = ["classe", "matiere", "obligatoire"]
 
     def get_queryset(self):
-        return ProgrammeMatiere.objects.select_related(
-            "classe", "matiere", "enseignant_principal"
+        return ProgrammeMatiere.objects.select_related("classe", "matiere", "enseignant_principal").prefetch_related(
+            "enseignants"
         )

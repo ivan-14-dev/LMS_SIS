@@ -135,22 +135,44 @@ class IntegrationAPIEndpointsTestCase(APITestCase):
             user_sis=user, username_edx="sis-s-mapped", user_id_edx=111
         )
 
-        # Le test dépend de l'URL configurée
-        pass
+        response = self.client.get("/api/v1/integration/mappings/users/")
 
-    def test_trigger_sync_requires_auth(self):
-        """Déclencher une sync nécessite une authentification."""
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["username_edx"] == "sis-s-mapped"
+
+    def test_monitoring_requires_admin(self):
+        """La supervision de l'intégration est réservée aux administrateurs."""
+        user = Utilisateur.objects.create_user(
+            username="standard_user",
+            email="standard@test.com",
+            role="eleve",
+        )
+        self.client.force_authenticate(user=user)
+
+        response = self.client.get("/api/v1/integration/sync/status/")
+
+        assert response.status_code == 403
+
+    def test_monitoring_requires_authentication(self):
+        """La supervision de l'intégration refuse les visiteurs anonymes."""
         self.client.force_authenticate(user=None)
-        # Response devrait être 401/403
-        pass
+
+        response = self.client.get("/api/v1/integration/sync/status/")
+
+        assert response.status_code in (401, 403)
 
     def test_list_outbox_events(self):
         """Lister les événements outbox."""
         OutboxEvent.objects.create(
             event_type="test.event", aggregate_type="test", aggregate_id="1", payload={}
         )
-        # Dépend de l'URL
-        pass
+
+        response = self.client.get("/api/v1/integration/outbox/")
+
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["event_type"] == "test.event"
 
 
 class OutboxEventAPITestCase(APITestCase):
@@ -187,5 +209,13 @@ class OutboxEventAPITestCase(APITestCase):
                 statut=status,
             )
 
-        # Filtrage via querystring
-        pass
+        response = self.client.get("/api/v1/integration/outbox/?statut=failed")
+
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["statut"] == "failed"
+
+    def test_reject_invalid_status_filter(self):
+        response = self.client.get("/api/v1/integration/outbox/?statut=unknown")
+
+        assert response.status_code == 400

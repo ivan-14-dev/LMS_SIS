@@ -1921,6 +1921,9 @@ INSTALLED_APPS = [
     # Enrollment API
     'openedx.core.djangoapps.enrollments.apps.EnrollmentsConfig',
 
+    # Asynchronous detailed-grade delivery to configured SIS tenants
+    'openedx.core.djangoapps.sis_grade_webhooks.apps.SisGradeWebhooksConfig',
+
     # Entitlement API
     'common.djangoapps.entitlements.apps.EntitlementsConfig',
 

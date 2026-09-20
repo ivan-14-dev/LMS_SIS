@@ -1,7 +1,15 @@
 import { getConfig } from '@edx/frontend-platform';
 import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
 import {
-  fetchApi, postApi, putApi, patchApi, deleteApi,
+  deleteApi,
+  fetchApi,
+  getAdminApiUrl,
+  getCurrentEstablishmentUrl,
+  getIntegrationApiUrl,
+  normalizePageResponse,
+  patchApi,
+  postApi,
+  putApi,
 } from './api';
 import {
   isMockMode, mockFetch, mockPost, mockPut, mockDelete,
@@ -45,6 +53,50 @@ describe('explicit mock mode', () => {
   it.each([true, 'true'])('enables the demo only for %p', (value) => {
     getConfig.mockReturnValue({ USE_MOCK_API: value });
     expect(isMockMode()).toBe(true);
+  });
+
+  describe('SIS administration API configuration', () => {
+    it('uses the dedicated administration API when configured', () => {
+      getConfig.mockReturnValue({
+        SIS_ADMIN_API_URL: 'https://sis.example.com/api/v1',
+        LMS_BASE_URL: 'https://lms.example.com',
+      });
+
+      expect(getAdminApiUrl()).toBe('https://sis.example.com/api/v1');
+      expect(getCurrentEstablishmentUrl()).toBe(
+        'https://sis.example.com/api/v1/etablissement/current/',
+      );
+      expect(getIntegrationApiUrl()).toBe('https://sis.example.com/api/v1/integration');
+    });
+
+    it('falls back to the LMS administration API', () => {
+      getConfig.mockReturnValue({ LMS_BASE_URL: 'https://lms.example.com' });
+
+      expect(getAdminApiUrl()).toBe('https://lms.example.com/api/sis/admin');
+      expect(getIntegrationApiUrl()).toBe('https://lms.example.com/api/sis/admin/integration');
+    });
+  });
+
+  describe('paginated SIS responses', () => {
+    it('preserves pagination metadata', () => {
+      const page = {
+        count: 75,
+        next: 'https://sis.example.com/api/v1/integration/outbox/?page=2',
+        previous: null,
+        results: [{ id: 1 }],
+      };
+
+      expect(normalizePageResponse(page)).toEqual(page);
+    });
+
+    it('normalizes an unpaginated response', () => {
+      expect(normalizePageResponse([{ id: 1 }])).toEqual({
+        count: 1,
+        next: null,
+        previous: null,
+        results: [{ id: 1 }],
+      });
+    });
   });
 
   it('reads configuration after module import, not just at import time', () => {

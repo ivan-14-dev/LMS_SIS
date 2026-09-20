@@ -1,11 +1,23 @@
 """Models for examens (SIS Secondaire)."""
 
+import secrets
+
 from apps.classes.models import Classe, Matiere
 from apps.eleves.models import Eleve
 from apps.etablissement.models import AnneeScolaire
 from apps.salles.models import Salle
 from apps.utilisateurs.models import Utilisateur
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from sis_common.exam_files import (
+    PrivateExamStorage,
+    exam_copy_upload_to,
+    validate_exam_copy,
+)
+
+
+def generate_anonymous_number():
+    return secrets.token_hex(10).upper()
 
 
 class SessionExamen(models.Model):
@@ -62,6 +74,11 @@ class EpreuveExamen(models.Model):
         Utilisateur, blank=True, related_name="surveillances_examen"
     )
     anonymat = models.BooleanField(default=True)
+    nombre_corrections = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(2)],
+        help_text="Une correction simple ou une double correction indépendante.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -127,3 +144,129 @@ class ResultatExamen(models.Model):
 
     def __str__(self):
         return f"{self.eleve} - {self.epreuve} : {self.note}"
+
+
+class CopieExamen(models.Model):
+    """Copie PDF privée, identifiée uniquement par un numéro anonyme."""
+
+    STATUT_CHOICES = [
+        ("deposee", "Déposée"),
+        ("affectee", "Affectée"),
+        ("correction", "En correction"),
+        ("a_moderer", "À modérer"),
+        ("finalisee", "Finalisée"),
+    ]
+
+    convocation = models.OneToOneField(
+        ConvocationExamen, on_delete=models.PROTECT, related_name="copie"
+    )
+    numero_anonyme = models.CharField(
+        max_length=20, unique=True, default=generate_anonymous_number, editable=False
+    )
+    fichier = models.FileField(
+        upload_to=exam_copy_upload_to,
+        storage=PrivateExamStorage(),
+        validators=[validate_exam_copy],
+    )
+    empreinte_sha256 = models.CharField(max_length=64, editable=False)
+    taille_octets = models.PositiveBigIntegerField(editable=False)
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="deposee")
+    note_finale = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True
+    )
+    moderee_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="copies_moderees",
+    )
+    moderee_le = models.DateTimeField(null=True, blank=True)
+    motif_moderation = models.TextField(blank=True)
+    deposee_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        related_name="copies_examen_deposees",
+    )
+    deposee_le = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-deposee_le"]
+        indexes = [
+            models.Index(fields=["statut", "deposee_le"]),
+            models.Index(fields=["convocation"]),
+        ]
+
+    @property
+    def epreuve(self):
+        return self.convocation.epreuve
+
+    def __str__(self):
+        return self.numero_anonyme
+
+
+class AffectationCorrection(models.Model):
+    """Affectation anonyme d'une copie à un correcteur."""
+
+    STATUT_CHOICES = [
+        ("assignee", "Assignée"),
+        ("en_cours", "En cours"),
+        ("soumise", "Soumise"),
+    ]
+
+    copie = models.ForeignKey(
+        CopieExamen, on_delete=models.CASCADE, related_name="affectations"
+    )
+    correcteur = models.ForeignKey(
+        Utilisateur, on_delete=models.PROTECT, related_name="corrections_assignees"
+    )
+    ordre = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(2)]
+    )
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="assignee")
+    affectee_par = models.ForeignKey(
+        Utilisateur, on_delete=models.PROTECT, related_name="affectations_correction"
+    )
+    affectee_le = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["copie", "ordre"], name="unique_ordre_correction_secondaire"
+            ),
+            models.UniqueConstraint(
+                fields=["copie", "correcteur"],
+                name="unique_correcteur_copie_secondaire",
+            ),
+        ]
+        indexes = [models.Index(fields=["correcteur", "statut"])]
+
+
+class CorrectionCopie(models.Model):
+    """Note remise par un correcteur sans accès à l'identité de l'élève."""
+
+    affectation = models.OneToOneField(
+        AffectationCorrection, on_delete=models.CASCADE, related_name="correction"
+    )
+    note = models.DecimalField(max_digits=5, decimal_places=2)
+    appreciation = models.TextField(blank=True)
+    soumise_le = models.DateTimeField(auto_now_add=True)
+    modifiee_le = models.DateTimeField(auto_now=True)
+
+
+class AuditCopieExamen(models.Model):
+    """Journal append-only des opérations sensibles sur une copie."""
+
+    copie = models.ForeignKey(
+        CopieExamen, on_delete=models.PROTECT, related_name="audit"
+    )
+    acteur = models.ForeignKey(
+        Utilisateur, on_delete=models.PROTECT, related_name="audit_copies_examen"
+    )
+    action = models.CharField(max_length=50)
+    details = models.JSONField(default=dict, blank=True)
+    cree_le = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-cree_le"]
+        indexes = [models.Index(fields=["copie", "cree_le"])]

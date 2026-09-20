@@ -1,15 +1,17 @@
 // SIS - Main App Component
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import {
+  BrowserRouter, Routes, Route, Navigate,
+} from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { getConfig } from '@edx/frontend-platform';
 
-import Header from '@edx/frontend-component-header';
+import Header from '@edx/frontend-component-header/dist/Header';
 import Footer from '@edx/frontend-component-footer';
 
 // Layout
 import SISLayout from './components/layout/SISLayout';
-import Sidebar from './components/layout/Sidebar';
+import PermissionGuard from './components/auth/PermissionGuard';
 
 // Dashboards
 import DashboardSuperieur from './superieur/Dashboard';
@@ -67,11 +69,12 @@ import EtablissementPage from './admin/etablissement/EtablissementPage';
 import UtilisateursPage from './admin/utilisateurs/UtilisateursPage';
 import StructurePage from './admin/structure/StructurePage';
 import AnneesAcademiquesPage from './admin/annees-academiques/AnneesAcademiquesPage';
+import IntegrationLMSPage from './admin/integration-lms/IntegrationLMSPage';
 
 const App = () => (
   <BrowserRouter basename={getConfig().PUBLIC_PATH}>
     <Helmet>
-      <title>SIS - Système d'Information Scolaire</title>
+      <title>SIS - Système d’Information Scolaire</title>
     </Helmet>
     <div className="d-flex flex-column min-vh-100">
       <Header />
@@ -83,14 +86,25 @@ const App = () => (
           {/* ============ SIS SUPÉRIEUR ============ */}
           <Route path="/superieur" element={<SISLayout type="superieur" />}>
             <Route index element={<DashboardSuperieur />} />
-            
+
             {/* Gestion académique */}
             <Route path="etudiants" element={<EtudiantsPage />} />
             <Route path="etudiants/:id" element={<EtudiantDetailPage />} />
             <Route path="formations" element={<FormationsPage />} />
             <Route path="formations/:id" element={<FormationDetailPage />} />
             <Route path="inscriptions" element={<InscriptionsPage />} />
-            <Route path="notes" element={<NotesPage />} />
+            <Route
+              path="notes"
+              element={(
+                <PermissionGuard
+                  type="superieur"
+                  permission="notes.view_note"
+                  allowedRoles={['enseignant', 'chercheur', 'scolarite', 'directeur_etudes']}
+                >
+                  <NotesPage />
+                </PermissionGuard>
+              )}
+            />
             <Route path="examens" element={<ExamensPage />} />
             <Route path="jurys" element={<JurysPage />} />
             <Route path="releves" element={<RelevesPage />} />
@@ -109,7 +123,18 @@ const App = () => (
             <Route path="recherche" element={<RecherchePage />} />
 
             {/* Finances */}
-            <Route path="paiements" element={<PaiementsPage />} />
+            <Route
+              path="paiements"
+              element={(
+                <PermissionGuard
+                  type="superieur"
+                  permission="paiements.view_paiementfrais"
+                  allowedRoles={['etudiant', 'comptable', 'scolarite', 'doyen']}
+                >
+                  <PaiementsPage />
+                </PermissionGuard>
+              )}
+            />
 
             {/* Portails */}
             <Route path="portail-etudiant" element={<PortailEtudiant />} />
@@ -126,7 +151,18 @@ const App = () => (
             <Route path="eleves" element={<ElevesPage />} />
             <Route path="eleves/:id" element={<EleveDetailPage />} />
             <Route path="classes" element={<ClassesPage />} />
-            <Route path="evaluations" element={<EvaluationsPage />} />
+            <Route
+              path="evaluations"
+              element={(
+                <PermissionGuard
+                  type="secondaire"
+                  permission="notes.view_evaluation"
+                  allowedRoles={['enseignant', 'vie_scolaire', 'direction']}
+                >
+                  <EvaluationsPage />
+                </PermissionGuard>
+              )}
+            />
             <Route path="bulletins" element={<BulletinsPage />} />
             <Route path="conseil-classe" element={<ConseilClassePage />} />
 
@@ -154,6 +190,7 @@ const App = () => (
             <Route path="utilisateurs" element={<UtilisateursPage />} />
             <Route path="structure" element={<StructurePage />} />
             <Route path="annees-academiques" element={<AnneesAcademiquesPage />} />
+            <Route path="integration-lms" element={<IntegrationLMSPage />} />
           </Route>
         </Routes>
       </main>

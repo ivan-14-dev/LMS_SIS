@@ -365,8 +365,46 @@ class EdxClient:
         return r.json()
 
     def get_grades(self, course_key, username) -> dict:
-        url = f"{self.lms_url}/api/grades/v1/grades/{course_key}/{username}/"
+        url = f"{self.lms_url}/api/grades/v1/courses/{course_key}/"
+        r = requests.get(
+            url,
+            params={"username": username},
+            headers=self._headers(),
+            timeout=self.timeout,
+        )
+        r.raise_for_status()
+        payload = r.json()
+        if isinstance(payload, list):
+            return payload[0] if payload else {}
+        return payload
+
+    # ---------- COURSE LIVE ----------
+
+    def get_course_live_providers(self, course_key) -> dict:
+        """Liste les fournisseurs de classe virtuelle disponibles pour un cours."""
+        url = f"{self.lms_url}/api/course_live/providers/{course_key}/"
         r = requests.get(url, headers=self._headers(), timeout=self.timeout)
+        r.raise_for_status()
+        return r.json()
+
+    def configure_course_live(
+        self, course_key, provider_type, enabled: bool = True
+    ) -> dict:
+        """Active un fournisseur course_live déjà configuré globalement dans Open edX."""
+        provider_ids = {
+            "bigbluebutton": "big_blue_button",
+            "zoom_lti": "zoom",
+        }
+        edx_provider = provider_ids.get(provider_type, provider_type)
+        url = f"{self.lms_url}/api/course_live/course/{course_key}/"
+        data = {
+            "provider_type": edx_provider,
+            "enabled": enabled,
+            "free_tier": edx_provider == "big_blue_button",
+        }
+        r = requests.post(
+            url, json=data, headers=self._headers(), timeout=self.timeout
+        )
         r.raise_for_status()
         return r.json()
 

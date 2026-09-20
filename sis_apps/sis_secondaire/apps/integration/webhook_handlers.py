@@ -1,8 +1,12 @@
 """Handlers de webhooks entrants (LMS + CMS) - SIS Secondaire."""
 
+import hashlib
 import logging
+from decimal import Decimal
 
+from django.db import transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +30,29 @@ class WebhookHandler:
         self.Eleve = eleve_model
         self.Note = note_model
 
+    @staticmethod
+    def _event_data(payload):
+        return payload.get("data", payload)
+
+    @classmethod
+    def _username(cls, payload, container_name=None):
+        data = cls._event_data(payload)
+        container = data.get(container_name, data) if container_name else data
+        user = container.get("user") or data.get("user") or {}
+        return user.get("username") or (user.get("pii") or {}).get("username")
+
+    @classmethod
+    def _course_key(cls, payload, container_name=None):
+        data = cls._event_data(payload)
+        container = data.get(container_name, data) if container_name else data
+        course = container.get("course") or data.get("course") or {}
+        return course.get("course_key") or course.get("id")
+
     # ====================== LMS ======================
 
     def handle_user_created(self, payload: dict):
-        username = (payload.get("user") or {}).get("username")
+        payload = self._event_data(payload)
+        username = self._username(payload)
         if not username:
             return
         user_data = payload.get("user", {})
@@ -44,7 +67,8 @@ class WebhookHandler:
         logger.info(f"LMS user synced: {username}")
 
     def handle_user_updated(self, payload: dict):
-        username = (payload.get("user") or {}).get("username")
+        payload = self._event_data(payload)
+        username = self._username(payload)
         if not username:
             return
         try:
@@ -56,8 +80,10 @@ class WebhookHandler:
             self.handle_user_created(payload)
 
     def handle_enrollment_created(self, payload: dict):
-        username = (payload.get("user") or {}).get("username")
-        course_key = (payload.get("course") or {}).get("course_key")
+        payload = self._event_data(payload)
+        enrollment_data = payload.get("enrollment") or payload
+        username = self._username(payload, "enrollment")
+        course_key = self._course_key(payload, "enrollment")
         if not username or not course_key:
             return
         try:
@@ -67,30 +93,66 @@ class WebhookHandler:
                 eleve=mapping.user_sis.eleve_profile,
                 course=course_mapping,
                 defaults={
-                    "enrollment_id": (payload.get("enrollment") or {}).get("id"),
-                    "is_active": True,
+                    "enrollment_id": enrollment_data.get("id"),
+                    "is_active": enrollment_data.get("is_active", True),
                     "last_sync": timezone.now(),
                 },
             )
+            return True
         except Exception as e:
             logger.error(f"Failed to sync enrollment {username}→{course_key}: {e}")
+            return False
 
     def handle_enrollment_updated(self, payload: dict):
-        enrollment_id = (payload.get("enrollment") or {}).get("id")
-        is_active = (payload.get("enrollment") or {}).get("is_active", True)
-        if enrollment_id is None:
-            return
-        self.EdxEnrollment.objects.filter(enrollment_id=enrollment_id).update(
-            is_active=is_active, last_sync=timezone.now()
-        )
+        payload = self._event_data(payload)
+        enrollment_data = payload.get("enrollment") or payload
+        enrollment_id = enrollment_data.get("id")
+        is_active = enrollment_data.get("is_active", True)
+        if enrollment_id is not None:
+            queryset = self.EdxEnrollment.objects.filter(enrollment_id=enrollment_id)
+        else:
+            username = self._username(payload, "enrollment")
+            course_key = self._course_key(payload, "enrollment")
+            if not (username and course_key):
+                return False
+            try:
+                mapping = self.EdxUserMapping.objects.get(username_edx=username)
+                queryset = self.EdxEnrollment.objects.filter(
+                    eleve=mapping.user_sis.eleve_profile,
+                    course__course_id=course_key,
+                )
+            except Exception as e:
+                logger.error(f"Failed to find enrollment: {e}")
+                return False
+        if not queryset.exists():
+            return False
+        queryset.update(is_active=is_active, last_sync=timezone.now())
+        return True
 
     def handle_enrollment_deleted(self, payload: dict):
-        enrollment_id = (payload.get("enrollment") or {}).get("id")
-        if enrollment_id is None:
-            return
-        self.EdxEnrollment.objects.filter(enrollment_id=enrollment_id).update(
-            is_active=False, date_desinscription=timezone.now()
-        )
+        payload = self._event_data(payload)
+        enrollment_data = payload.get("enrollment") or payload
+        enrollment_id = enrollment_data.get("id")
+        if enrollment_id is not None:
+            queryset = self.EdxEnrollment.objects.filter(enrollment_id=enrollment_id)
+        else:
+            username = self._username(payload, "enrollment")
+            course_key = self._course_key(payload, "enrollment")
+            if not (username and course_key):
+                return False
+            try:
+                mapping = self.EdxUserMapping.objects.get(username_edx=username)
+                queryset = self.EdxEnrollment.objects.filter(
+                    eleve=mapping.user_sis.eleve_profile,
+                    course__course_id=course_key,
+                )
+            except Exception as e:
+                logger.error(f"Failed to find enrollment: {e}")
+                return False
+        if not queryset.exists():
+            return False
+        queryset.update(is_active=False, date_desinscription=timezone.now())
+        return True
 
     def handle_grade_updated(self, payload: dict):
         username = (payload.get("user") or {}).get("username")
@@ -99,30 +161,110 @@ class WebhookHandler:
         score = payload.get("score")
         max_score = payload.get("max_score", 100.0)
         completion = payload.get("completion", 0.0)
-        timestamp = payload.get("timestamp", timezone.now().isoformat())
+        timestamp = parse_datetime(payload.get("timestamp", "")) or timezone.now()
 
-        if not (username and course_key and subsection_id):
-            return
+        if not (username and course_key and subsection_id) or score is None:
+            return False
         try:
             mapping = self.EdxUserMapping.objects.get(username_edx=username)
             enrollment = self.EdxEnrollment.objects.get(
                 eleve=mapping.user_sis.eleve_profile,
                 course__course_id=course_key,
             )
-            self.EdxGradeLog.objects.create(
-                enrollment=enrollment,
-                subsection_id=subsection_id,
-                score=score,
-                max_score=max_score,
-                completion=completion,
-                timestamp_lms=timestamp,
-            )
+            event_id = payload.get("_event_id") or payload.get("event_id")
+            if not event_id:
+                material = (
+                    f"{username}|{course_key}|{subsection_id}|{score}|"
+                    f"{max_score}|{timestamp.isoformat()}"
+                )
+                event_id = hashlib.sha256(material.encode()).hexdigest()
+
+            with transaction.atomic():
+                grade_log, created = self.EdxGradeLog.objects.get_or_create(
+                    event_id=event_id,
+                    defaults={
+                        "enrollment": enrollment,
+                        "subsection_id": subsection_id,
+                        "score": score,
+                        "max_score": max_score,
+                        "completion": completion,
+                        "timestamp_lms": timestamp,
+                    },
+                )
+                if not created:
+                    return True
+
+                assessment = (
+                    enrollment.course.assessments.select_related("evaluation")
+                    .filter(subsection_id=subsection_id, actif=True)
+                    .first()
+                )
+                if not assessment:
+                    logger.info(
+                        "Grade retained without SIS import: no mapping for %s",
+                        subsection_id,
+                    )
+                    return True
+
+                if self.EdxGradeLog.objects.filter(
+                    enrollment=enrollment,
+                    subsection_id=subsection_id,
+                    imported_to_sis=True,
+                    timestamp_lms__gt=timestamp,
+                ).exists():
+                    logger.info("Ignored out-of-order grade event %s", event_id)
+                    return True
+
+                max_score_decimal = Decimal(str(max_score))
+                if max_score_decimal <= 0:
+                    raise ValueError("max_score must be greater than zero")
+                evaluation = assessment.evaluation
+                value = (
+                    Decimal(str(score)) * evaluation.bareme / max_score_decimal
+                ).quantize(Decimal("0.01"))
+                value = min(max(value, Decimal("0")), evaluation.bareme)
+                note, _ = self.Note.objects.update_or_create(
+                    evaluation=evaluation,
+                    eleve=enrollment.eleve,
+                    defaults={"valeur": value, "statut": "presente"},
+                )
+                grade_log.note_sis = note
+                grade_log.imported_to_sis = True
+                grade_log.save(update_fields=["note_sis", "imported_to_sis"])
+            return True
         except Exception as e:
-            logger.error(f"Failed to log LMS grade: {e}")
+            logger.exception("Failed to import LMS grade: %s", e)
+            return False
+
+    def handle_course_grade_changed(self, payload: dict):
+        """Met à jour la progression depuis l'événement public de note globale."""
+        data = self._event_data(payload)
+        grade = data.get("grade") or data
+        course_key = self._course_key({"data": grade})
+        user_id = grade.get("user_id") or (grade.get("user") or {}).get("id")
+        if not (course_key and user_id):
+            return False
+        try:
+            mapping = self.EdxUserMapping.objects.get(user_id_edx=user_id)
+            enrollment = self.EdxEnrollment.objects.get(
+                eleve=mapping.user_sis.eleve_profile,
+                course__course_id=course_key,
+            )
+            percent = float(grade.get("percent_grade", 0))
+            enrollment.progression = min(
+                max(percent * 100 if percent <= 1 else percent, 0), 100
+            )
+            enrollment.last_sync = timezone.now()
+            enrollment.save(update_fields=["progression", "last_sync"])
+            return True
+        except Exception as e:
+            logger.exception("Failed to import LMS course grade: %s", e)
+            return False
 
     def handle_certificate_awarded(self, payload: dict):
-        username = (payload.get("user") or {}).get("username")
-        course_key = (payload.get("course") or {}).get("course_key")
+        payload = self._event_data(payload)
+        username = self._username(payload, "certificate")
+        course_key = self._course_key(payload, "certificate")
         if not (username and course_key):
             return
         try:
@@ -134,8 +276,17 @@ class WebhookHandler:
             enrollment.progression = 100.0
             enrollment.save()
             logger.info(f"Certificate awarded: {username} → {course_key}")
+            return True
         except Exception as e:
             logger.error(f"Failed to log certificate: {e}")
+            return False
+
+    def handle_certificate_revoked(self, payload: dict):
+        payload = self._event_data(payload)
+        username = self._username(payload, "certificate")
+        course_key = self._course_key(payload, "certificate")
+        logger.info("Certificate revoked: %s → %s", username, course_key)
+        return bool(username and course_key)
 
     # ====================== CMS ======================
 
@@ -171,14 +322,33 @@ class WebhookHandler:
     def handle(self, event_type: str, payload: dict):
         router = {
             # LMS
+            "user.created": self.handle_user_created,
+            "user.updated": self.handle_user_updated,
+            "enrollment.created": self.handle_enrollment_created,
+            "enrollment.updated": self.handle_enrollment_updated,
+            "enrollment.deleted": self.handle_enrollment_deleted,
+            "grade.updated": self.handle_grade_updated,
+            "certificate.issued": self.handle_certificate_awarded,
+            "certificate.revoked": self.handle_certificate_revoked,
+            "course.published": self.handle_course_published,
+            "course.deleted": self.handle_course_deleted,
+            "xblock.published": self.handle_xblock_published,
+            "asset.uploaded": self.handle_asset_uploaded,
             "org.openedx.learning.user.created.v1": self.handle_user_created,
             "org.openedx.learning.user.updated.v1": self.handle_user_updated,
             "org.openedx.learning.enrollment.created.v1": self.handle_enrollment_created,
             "org.openedx.learning.enrollment.updated.v1": self.handle_enrollment_updated,
             "org.openedx.learning.enrollment.deleted.v1": self.handle_enrollment_deleted,
             "org.openedx.learning.course.grade.updated.v1": self.handle_grade_updated,
+            "org.openedx.learning.course.assessment.grade.changed.v1": self.handle_grade_updated,
+            "org.openedx.learning.course.persistent_grade_summary.changed.v1": self.handle_course_grade_changed,
             "org.openedx.learning.certificate.issued.v1": self.handle_certificate_awarded,
-            "org.openedx.learning.certificate.revoked.v1": self.handle_certificate_awarded,
+            "org.openedx.learning.certificate.created.v1": self.handle_certificate_awarded,
+            "org.openedx.learning.certificate.changed.v1": self.handle_certificate_awarded,
+            "org.openedx.learning.certificate.revoked.v1": self.handle_certificate_revoked,
+            "org.openedx.learning.course.enrollment.created.v1": self.handle_enrollment_created,
+            "org.openedx.learning.course.enrollment.changed.v1": self.handle_enrollment_updated,
+            "org.openedx.learning.course.unenrollment.completed.v1": self.handle_enrollment_deleted,
             # CMS
             "org.openedx.studio.course.published.v1": self.handle_course_published,
             "org.openedx.studio.course.deleted.v1": self.handle_course_deleted,
@@ -190,8 +360,7 @@ class WebhookHandler:
             logger.warning(f"Unknown event type: {event_type}")
             return False
         try:
-            handler(payload)
-            return True
+            return handler(payload) is not False
         except Exception as e:
             logger.error(f"Handler error for {event_type}: {e}")
             return False

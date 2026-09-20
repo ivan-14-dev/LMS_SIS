@@ -37,16 +37,19 @@ class EdxUserMappingSerializer(serializers.ModelSerializer):
 class EdxCourseMappingSerializer(serializers.ModelSerializer):
     """Serializer pour les mappings cours EdX."""
 
-    cours_code = serializers.CharField(source="cours.code", read_only=True)
-    cours_nom = serializers.CharField(source="cours.nom", read_only=True)
+    matiere_code = serializers.CharField(source="matiere.code", read_only=True)
+    matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
+    classe_nom = serializers.CharField(source="classe.nom", read_only=True)
 
     class Meta:
         model = EdxCourseMapping
         fields = [
             "id",
-            "cours",
-            "cours_code",
-            "cours_nom",
+            "matiere",
+            "matiere_code",
+            "matiere_nom",
+            "classe",
+            "classe_nom",
             "course_id",
             "course_name",
             "date_creation",

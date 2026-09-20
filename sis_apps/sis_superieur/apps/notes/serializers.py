@@ -1,8 +1,9 @@
 """Serializers for notes (SIS Supérieur)."""
 
 from rest_framework import serializers
+from sis_common.academic_configuration import validate_rule_criteria
 
-from .models import Evaluation, MoyenneECUE, MoyenneUE, Note
+from .models import Evaluation, MoyenneECUE, MoyenneUE, Note, RegleValidation
 
 
 class EvaluationListSerializer(serializers.ModelSerializer):
@@ -10,12 +11,8 @@ class EvaluationListSerializer(serializers.ModelSerializer):
 
     ecue_nom = serializers.CharField(source="ecue.nom", read_only=True)
     ecue_code = serializers.CharField(source="ecue.code", read_only=True)
-    modalite_display = serializers.CharField(
-        source="get_modalite_display", read_only=True
-    )
-    enseignant_nom = serializers.CharField(
-        source="enseignant.get_full_name", read_only=True
-    )
+    modalite_display = serializers.CharField(source="get_modalite_display", read_only=True)
+    enseignant_nom = serializers.CharField(source="enseignant.get_full_name", read_only=True)
 
     class Meta:
         model = Evaluation
@@ -33,6 +30,7 @@ class EvaluationListSerializer(serializers.ModelSerializer):
             "duree_minutes",
             "bareme",
             "coefficient",
+            "ponderation",
             "enseignant_nom",
         ]
 
@@ -41,12 +39,8 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
     """Serializer complet pour le détail d'une évaluation."""
 
     ecue_nom = serializers.CharField(source="ecue.nom", read_only=True)
-    modalite_display = serializers.CharField(
-        source="get_modalite_display", read_only=True
-    )
-    enseignant_nom = serializers.CharField(
-        source="enseignant.get_full_name", read_only=True
-    )
+    modalite_display = serializers.CharField(source="get_modalite_display", read_only=True)
+    enseignant_nom = serializers.CharField(source="enseignant.get_full_name", read_only=True)
     semestre_libelle = serializers.CharField(source="semestre.libelle", read_only=True)
     nb_notes = serializers.SerializerMethodField()
 
@@ -66,6 +60,7 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
             "duree_minutes",
             "bareme",
             "coefficient",
+            "ponderation",
             "modalite",
             "modalite_display",
             "enseignant",
@@ -84,12 +79,8 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
 class NoteSerializer(serializers.ModelSerializer):
     """Serializer pour les notes."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     evaluation_titre = serializers.CharField(source="evaluation.titre", read_only=True)
 
@@ -126,12 +117,8 @@ class NoteSaisieSerializer(serializers.Serializer):
 class MoyenneECUESerializer(serializers.ModelSerializer):
     """Serializer pour les moyennes ECUE."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
     ecue_nom = serializers.CharField(source="ecue.nom", read_only=True)
     ecue_code = serializers.CharField(source="ecue.code", read_only=True)
 
@@ -156,12 +143,8 @@ class MoyenneECUESerializer(serializers.ModelSerializer):
 class MoyenneUESerializer(serializers.ModelSerializer):
     """Serializer pour les moyennes UE."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
     ue_nom = serializers.CharField(source="ue.nom", read_only=True)
     ue_code = serializers.CharField(source="ue.code", read_only=True)
 
@@ -182,3 +165,23 @@ class MoyenneUESerializer(serializers.ModelSerializer):
             "date_calcul",
         ]
         read_only_fields = ["id", "date_calcul"]
+
+
+class RegleValidationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RegleValidation
+        fields = "__all__"
+
+    def validate_criteres(self, value):
+        validate_rule_criteria(value)
+        return value
+
+    def validate(self, attrs):
+        semestre = attrs.get("semestre", getattr(self.instance, "semestre", None))
+        annee = attrs.get(
+            "annee_universitaire",
+            getattr(self.instance, "annee_universitaire", None),
+        )
+        if semestre and semestre.annee_universitaire_id != annee.id:
+            raise serializers.ValidationError({"semestre": "Le semestre doit appartenir à l'année de la règle."})
+        return attrs

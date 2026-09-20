@@ -1,7 +1,19 @@
 """Models for etablissement (SIS Supérieur)."""
 
+from django.core.validators import RegexValidator
 from django.db import models
 from django_tenants.models import DomainMixin, TenantMixin
+from sis_common.academic_configuration import (
+    default_academic_configuration,
+    validate_academic_configuration,
+)
+from sis_common.establishments import (
+    default_establishment_features,
+    default_live_configuration,
+    validate_establishment_features,
+    validate_live_configuration,
+    validate_timezone,
+)
 
 
 class Universite(TenantMixin):
@@ -13,9 +25,15 @@ class Universite(TenantMixin):
         ("grande_ecole", "Grande école"),
         ("institut", "Institut supérieur"),
         ("ecole_doctorale", "École doctorale"),
+        ("autre", "Autre établissement"),
     ]
     nom = models.CharField(max_length=200)
-    type = models.CharField(max_length=30, choices=TYPE_CHOICES)
+    type = models.CharField(max_length=100)
+    type_personnalise = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Libellé utilisé lorsque le type d'établissement est « autre ».",
+    )
     sigle = models.CharField(max_length=20, blank=True)
     ministere_tutelle = models.CharField(max_length=200, blank=True)
     uai = models.CharField(max_length=20, blank=True)
@@ -27,6 +45,39 @@ class Universite(TenantMixin):
     email = models.EmailField()
     site_web = models.URLField(blank=True)
     logo = models.ImageField(upload_to="logos/", null=True, blank=True)
+    couleur_primaire = models.CharField(
+        max_length=7,
+        default="#0A3055",
+        validators=[
+            RegexValidator(
+                r"^#[0-9A-Fa-f]{6}$",
+                "Utilisez une couleur hexadécimale, par exemple #0A3055.",
+            )
+        ],
+    )
+    couleur_secondaire = models.CharField(
+        max_length=7,
+        default="#FFFFFF",
+        validators=[
+            RegexValidator(
+                r"^#[0-9A-Fa-f]{6}$",
+                "Utilisez une couleur hexadécimale, par exemple #FFFFFF.",
+            )
+        ],
+    )
+    fuseau_horaire = models.CharField(max_length=64, default="UTC", validators=[validate_timezone])
+    fonctionnalites = models.JSONField(
+        default=default_establishment_features,
+        validators=[validate_establishment_features],
+    )
+    configuration_visio = models.JSONField(
+        default=default_live_configuration,
+        validators=[validate_live_configuration],
+    )
+    configuration_academique = models.JSONField(
+        default=default_academic_configuration,
+        validators=[validate_academic_configuration],
+    )
     systeme_notation = models.CharField(max_length=20, default="LMD")
     credits_annee = models.PositiveSmallIntegerField(default=60)
     accreditations = models.JSONField(default=list, blank=True)
@@ -42,6 +93,9 @@ class Universite(TenantMixin):
     def __str__(self):
         return self.nom
 
+    def get_type_display(self):
+        return dict(self.TYPE_CHOICES).get(self.type, self.type)
+
 
 class Domain(DomainMixin):
     """Domaine de l'université."""
@@ -52,9 +106,7 @@ class Domain(DomainMixin):
 class AnneeUniversitaire(models.Model):
     """Année universitaire."""
 
-    universite = models.ForeignKey(
-        Universite, on_delete=models.CASCADE, related_name="annees_universitaires"
-    )
+    universite = models.ForeignKey(Universite, on_delete=models.CASCADE, related_name="annees_universitaires")
     libelle = models.CharField(max_length=50, help_text="Ex: 2026-2027")
     date_debut = models.DateField()
     date_fin = models.DateField()
@@ -78,11 +130,9 @@ class Semestre(models.Model):
         ("pair", "Semestre pair (S2, S4, S6)"),
         ("unique", "Semestre unique"),
     ]
-    annee_universitaire = models.ForeignKey(
-        AnneeUniversitaire, on_delete=models.CASCADE, related_name="semestres"
-    )
+    annee_universitaire = models.ForeignKey(AnneeUniversitaire, on_delete=models.CASCADE, related_name="semestres")
     numero = models.PositiveSmallIntegerField()
-    type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    type = models.CharField(max_length=50)
     date_debut = models.DateField()
     date_fin = models.DateField()
     cloture = models.BooleanField(default=False)
@@ -94,3 +144,6 @@ class Semestre(models.Model):
 
     def __str__(self):
         return f"S{self.numero} - {self.annee_universitaire.libelle}"
+
+    def get_type_display(self):
+        return dict(self.TYPE_CHOICES).get(self.type, self.type)

@@ -179,7 +179,9 @@ class SyncService:
                 grades = self.client.get_grades(
                     mapping.course_id, mapping_user.username_edx
                 )
-                enrollment.progression = grades.get("percent", 0)
+                enrollment.progression = min(
+                    max(float(grades.get("percent", 0)) * 100, 0), 100
+                )
                 enrollment.last_sync = timezone.now()
                 enrollment.save()
                 count += 1

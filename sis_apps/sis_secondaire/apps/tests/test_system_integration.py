@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.apps import apps
@@ -55,6 +56,7 @@ def test_signed_lms_webhook_queues_user_sync():
         HTTP_X_SIGNATURE=f"sha256={signature}",
         HTTP_X_EVENT_TYPE="user.created",
     )
+    request.tenant = SimpleNamespace(schema_name="school")
 
     local_cache = {
         "default": {
@@ -66,4 +68,8 @@ def test_signed_lms_webhook_queues_user_sync():
             response = webhook_lms(request)
 
     assert response.status_code == 200
-    delay.assert_called_once_with(payload)
+    event_type, queued_payload, schema_name = delay.call_args.args
+    assert event_type == "user.created"
+    assert queued_payload["user"] == payload["user"]
+    assert queued_payload["_event_id"]
+    assert schema_name == "school"

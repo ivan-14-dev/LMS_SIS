@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import {
   Box,
   Card,
@@ -21,29 +22,20 @@ import {
   IconButton,
   Tooltip,
   LinearProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
   CircularProgress,
   Divider,
   List,
   ListItem,
-  ListItemIcon,
   ListItemText,
   Switch,
-  FormControlLabel,
 } from '@mui/material';
 import {
   Sync as SyncIcon,
   Check as CheckIcon,
   Error as ErrorIcon,
-  Warning as WarningIcon,
   Person as PersonIcon,
   School as SchoolIcon,
   Assignment as AssignmentIcon,
-  CloudSync as CloudSyncIcon,
   Settings as SettingsIcon,
   Refresh as RefreshIcon,
   Link as LinkIcon,
@@ -53,54 +45,18 @@ import {
   CloudDone as CloudDoneIcon,
   CloudOff as CloudOffIcon,
 } from '@mui/icons-material';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../../components/common';
+import {
+  useIntegrationCourseMappings,
+  useIntegrationHealth,
+  useIntegrationOutboxEvents,
+  useIntegrationStats,
+  useIntegrationUserMappings,
+} from '../../services/api';
 
-// Mock data for development
-const mockIntegrationStatus = {
-  connected: true,
-  lms_url: 'http://localhost:18000',
-  cms_url: 'http://localhost:18010',
-  last_check: '2026-07-23T10:30:00Z',
-  version: '18.0.0',
-  oauth_status: 'valid',
-  webhook_status: 'active',
-};
-
-const mockSyncStats = {
-  users_mapped: 1245,
-  courses_mapped: 48,
-  enrollments_active: 3567,
-  outbox: {
-    pending: 12,
-    processing: 3,
-    done: 4521,
-    failed: 7,
-    dead: 2,
-  },
-  last_sync: '2026-07-23T10:25:00Z',
-};
-
-const mockUserMappings = [
-  { id: 1, user_sis: 'ETU001 - Jean Dupont', username_edx: 'sis-u-1', user_id_edx: 12345, date_sync: '2026-07-23T09:00:00Z', actif: true },
-  { id: 2, user_sis: 'ETU002 - Marie Martin', username_edx: 'sis-u-2', user_id_edx: 12346, date_sync: '2026-07-23T09:00:00Z', actif: true },
-  { id: 3, user_sis: 'ENS001 - Prof. Durand', username_edx: 'sis-u-3', user_id_edx: 12347, date_sync: '2026-07-23T08:30:00Z', actif: true },
-  { id: 4, user_sis: 'ETU003 - Pierre Leroy', username_edx: 'sis-u-4', user_id_edx: null, date_sync: null, actif: false },
-];
-
-const mockCourseMappings = [
-  { id: 1, ecue: 'INF101 - Introduction à la Programmation', course_id: 'course-v1:SIS-U+INF101+2025', course_name: 'Introduction à la Programmation 2025', actif: true },
-  { id: 2, ecue: 'MAT201 - Algèbre Linéaire', course_id: 'course-v1:SIS-U+MAT201+2025', course_name: 'Algèbre Linéaire 2025', actif: true },
-  { id: 3, ecue: 'PHY101 - Physique Générale', course_id: 'course-v1:SIS-U+PHY101+2025', course_name: 'Physique Générale 2025', actif: true },
-];
-
-const mockOutboxEvents = [
-  { id: 1, event_type: 'user.sync', aggregate_type: 'user', aggregate_id: '45', statut: 'pending', nb_tentatives: 0, created_at: '2026-07-23T10:28:00Z', erreur: '' },
-  { id: 2, event_type: 'enrollment.create', aggregate_type: 'etudiant', aggregate_id: '123', statut: 'processing', nb_tentatives: 1, created_at: '2026-07-23T10:25:00Z', erreur: '' },
-  { id: 3, event_type: 'grade.sync', aggregate_type: 'note', aggregate_id: '789', statut: 'failed', nb_tentatives: 3, created_at: '2026-07-23T10:20:00Z', erreur: 'Connection timeout' },
-];
-
-const StatCard = ({ title, value, icon, color = 'primary', subtitle }) => (
+const StatCard = ({
+  title, value = 0, icon, color = 'primary', subtitle = null,
+}) => (
   <Card sx={{ height: '100%' }}>
     <CardContent>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -117,12 +73,13 @@ const StatCard = ({ title, value, icon, color = 'primary', subtitle }) => (
             </Typography>
           )}
         </Box>
-        <Box sx={{ 
-          p: 1.5, 
-          borderRadius: 2, 
+        <Box sx={{
+          p: 1.5,
+          borderRadius: 2,
           bgcolor: `${color}.lighter`,
           color: `${color}.main`,
-        }}>
+        }}
+        >
           {icon}
         </Box>
       </Box>
@@ -130,13 +87,30 @@ const StatCard = ({ title, value, icon, color = 'primary', subtitle }) => (
   </Card>
 );
 
-const ConnectionStatus = ({ status }) => {
+StatCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  icon: PropTypes.node.isRequired,
+  color: PropTypes.string,
+  subtitle: PropTypes.string,
+};
+
+StatCard.defaultProps = {
+  value: 0,
+  color: 'primary',
+  subtitle: null,
+};
+
+const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
   const isConnected = status?.connected;
-  
+
   return (
     <Card sx={{ mb: 3 }}>
       <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Box sx={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2,
+        }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {isConnected ? (
               <CloudDoneIcon sx={{ fontSize: 48, color: 'success.main' }} />
@@ -153,23 +127,25 @@ const ConnectionStatus = ({ status }) => {
             </Box>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Chip 
+            <Chip
               icon={isConnected ? <CheckIcon /> : <ErrorIcon />}
               label={isConnected ? 'Connecté' : 'Déconnecté'}
               color={isConnected ? 'success' : 'error'}
             />
-            <Button 
-              variant="outlined" 
+            <Button
+              variant="outlined"
               startIcon={<RefreshIcon />}
               size="small"
+              disabled={isRefreshing}
+              onClick={onRefresh}
             >
-              Vérifier
+              {isRefreshing ? 'Vérification…' : 'Vérifier'}
             </Button>
           </Box>
         </Box>
-        
+
         <Divider sx={{ my: 2 }} />
-        
+
         <Grid container spacing={3}>
           <Grid item xs={12} md={3}>
             <Typography variant="body2" color="textSecondary">Version LMS</Typography>
@@ -177,17 +153,17 @@ const ConnectionStatus = ({ status }) => {
           </Grid>
           <Grid item xs={12} md={3}>
             <Typography variant="body2" color="textSecondary">OAuth</Typography>
-            <Chip 
-              size="small" 
-              label={status?.oauth_status || 'N/A'} 
+            <Chip
+              size="small"
+              label={status?.oauth_status || 'N/A'}
               color={status?.oauth_status === 'valid' ? 'success' : 'warning'}
             />
           </Grid>
           <Grid item xs={12} md={3}>
             <Typography variant="body2" color="textSecondary">Webhooks</Typography>
-            <Chip 
-              size="small" 
-              label={status?.webhook_status || 'N/A'} 
+            <Chip
+              size="small"
+              label={status?.webhook_status || 'N/A'}
               color={status?.webhook_status === 'active' ? 'success' : 'warning'}
             />
           </Grid>
@@ -203,18 +179,31 @@ const ConnectionStatus = ({ status }) => {
   );
 };
 
-const OutboxStatusCard = ({ outbox }) => {
+ConnectionStatus.propTypes = {
+  status: PropTypes.shape({
+    connected: PropTypes.bool,
+    lms_url: PropTypes.string,
+    version: PropTypes.string,
+    oauth_status: PropTypes.string,
+    webhook_status: PropTypes.string,
+    last_check: PropTypes.string,
+  }).isRequired,
+  isRefreshing: PropTypes.bool.isRequired,
+  onRefresh: PropTypes.func.isRequired,
+};
+
+const OutboxStatusCard = ({ outbox = {} }) => {
   const total = Object.values(outbox || {}).reduce((a, b) => a + b, 0);
   const pendingPercent = outbox?.pending ? (outbox.pending / total) * 100 : 0;
-  
+
   return (
     <Card>
       <CardContent>
-        <Typography variant="h6" gutterBottom>File d'attente (Outbox)</Typography>
+        <Typography variant="h6" gutterBottom>File d’attente (Outbox)</Typography>
         <Box sx={{ mb: 2 }}>
-          <LinearProgress 
-            variant="determinate" 
-            value={100 - pendingPercent} 
+          <LinearProgress
+            variant="determinate"
+            value={100 - pendingPercent}
             sx={{ height: 8, borderRadius: 4 }}
           />
         </Box>
@@ -243,6 +232,18 @@ const OutboxStatusCard = ({ outbox }) => {
   );
 };
 
+OutboxStatusCard.propTypes = {
+  outbox: PropTypes.shape({
+    pending: PropTypes.number,
+    processing: PropTypes.number,
+    failed: PropTypes.number,
+  }),
+};
+
+OutboxStatusCard.defaultProps = {
+  outbox: {},
+};
+
 const UserMappingsTab = ({ mappings }) => (
   <TableContainer component={Paper} sx={{ mt: 2 }}>
     <Table>
@@ -259,7 +260,9 @@ const UserMappingsTab = ({ mappings }) => (
       <TableBody>
         {mappings.map((mapping) => (
           <TableRow key={mapping.id}>
-            <TableCell>{mapping.user_sis}</TableCell>
+            <TableCell>
+              {mapping.user_sis_name || mapping.user_sis_username || mapping.user_sis}
+            </TableCell>
             <TableCell>
               <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                 {mapping.username_edx}
@@ -270,7 +273,7 @@ const UserMappingsTab = ({ mappings }) => (
               {mapping.date_sync ? new Date(mapping.date_sync).toLocaleString('fr-FR') : 'Jamais'}
             </TableCell>
             <TableCell>
-              <Chip 
+              <Chip
                 icon={mapping.actif ? <LinkIcon /> : <LinkOffIcon />}
                 label={mapping.actif ? 'Actif' : 'Inactif'}
                 color={mapping.actif ? 'success' : 'default'}
@@ -279,9 +282,11 @@ const UserMappingsTab = ({ mappings }) => (
             </TableCell>
             <TableCell align="right">
               <Tooltip title="Synchroniser">
-                <IconButton size="small" color="primary">
-                  <SyncIcon />
-                </IconButton>
+                <span>
+                  <IconButton size="small" color="primary" disabled>
+                    <SyncIcon />
+                  </IconButton>
+                </span>
               </Tooltip>
             </TableCell>
           </TableRow>
@@ -290,6 +295,19 @@ const UserMappingsTab = ({ mappings }) => (
     </Table>
   </TableContainer>
 );
+
+UserMappingsTab.propTypes = {
+  mappings: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    user_sis: PropTypes.number,
+    user_sis_name: PropTypes.string,
+    user_sis_username: PropTypes.string,
+    username_edx: PropTypes.string.isRequired,
+    user_id_edx: PropTypes.number,
+    date_sync: PropTypes.string,
+    actif: PropTypes.bool.isRequired,
+  })).isRequired,
+};
 
 const CourseMappingsTab = ({ mappings }) => (
   <TableContainer component={Paper} sx={{ mt: 2 }}>
@@ -306,7 +324,9 @@ const CourseMappingsTab = ({ mappings }) => (
       <TableBody>
         {mappings.map((mapping) => (
           <TableRow key={mapping.id}>
-            <TableCell>{mapping.ecue}</TableCell>
+            <TableCell>
+              {mapping.ecue_nom || mapping.matiere_nom || mapping.ecue || mapping.matiere}
+            </TableCell>
             <TableCell>
               <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
                 {mapping.course_id}
@@ -314,7 +334,7 @@ const CourseMappingsTab = ({ mappings }) => (
             </TableCell>
             <TableCell>{mapping.course_name}</TableCell>
             <TableCell>
-              <Chip 
+              <Chip
                 label={mapping.actif ? 'Actif' : 'Inactif'}
                 color={mapping.actif ? 'success' : 'default'}
                 size="small"
@@ -322,14 +342,18 @@ const CourseMappingsTab = ({ mappings }) => (
             </TableCell>
             <TableCell align="right">
               <Tooltip title="Ouvrir dans LMS">
-                <IconButton size="small" color="primary">
-                  <SchoolIcon />
-                </IconButton>
+                <span>
+                  <IconButton size="small" color="primary" disabled>
+                    <SchoolIcon />
+                  </IconButton>
+                </span>
               </Tooltip>
               <Tooltip title="Synchroniser inscriptions">
-                <IconButton size="small" color="primary">
-                  <SyncIcon />
-                </IconButton>
+                <span>
+                  <IconButton size="small" color="primary" disabled>
+                    <SyncIcon />
+                  </IconButton>
+                </span>
               </Tooltip>
             </TableCell>
           </TableRow>
@@ -338,6 +362,19 @@ const CourseMappingsTab = ({ mappings }) => (
     </Table>
   </TableContainer>
 );
+
+CourseMappingsTab.propTypes = {
+  mappings: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    ecue: PropTypes.number,
+    ecue_nom: PropTypes.string,
+    matiere: PropTypes.number,
+    matiere_nom: PropTypes.string,
+    course_id: PropTypes.string.isRequired,
+    course_name: PropTypes.string.isRequired,
+    actif: PropTypes.bool.isRequired,
+  })).isRequired,
+};
 
 const OutboxEventsTab = ({ events }) => {
   const getStatusColor = (status) => {
@@ -350,7 +387,7 @@ const OutboxEventsTab = ({ events }) => {
       default: return 'default';
     }
   };
-  
+
   return (
     <TableContainer component={Paper} sx={{ mt: 2 }}>
       <Table>
@@ -377,7 +414,7 @@ const OutboxEventsTab = ({ events }) => {
               <TableCell>{event.aggregate_type}</TableCell>
               <TableCell>{event.aggregate_id}</TableCell>
               <TableCell>
-                <Chip 
+                <Chip
                   label={event.statut}
                   color={getStatusColor(event.statut)}
                   size="small"
@@ -394,9 +431,11 @@ const OutboxEventsTab = ({ events }) => {
               </TableCell>
               <TableCell align="right">
                 <Tooltip title="Relancer">
-                  <IconButton size="small" color="primary" disabled={event.statut === 'done'}>
-                    <PlayArrowIcon />
-                  </IconButton>
+                  <span>
+                    <IconButton size="small" color="primary" disabled>
+                      <PlayArrowIcon />
+                    </IconButton>
+                  </span>
                 </Tooltip>
               </TableCell>
             </TableRow>
@@ -407,17 +446,80 @@ const OutboxEventsTab = ({ events }) => {
   );
 };
 
+OutboxEventsTab.propTypes = {
+  events: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    event_type: PropTypes.string.isRequired,
+    aggregate_type: PropTypes.string.isRequired,
+    aggregate_id: PropTypes.string.isRequired,
+    statut: PropTypes.string.isRequired,
+    nb_tentatives: PropTypes.number.isRequired,
+    created_at: PropTypes.string.isRequired,
+    erreur: PropTypes.string,
+  })).isRequired,
+};
+
+const PageNavigation = ({
+  count, hasNext, hasPrevious, page, onPageChange,
+}) => (
+  <Box sx={{
+    alignItems: 'center', display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2,
+  }}
+  >
+    <Typography variant="body2" color="textSecondary">
+      {count}
+      {' '}
+      résultat(s) — page
+      {' '}
+      {page}
+    </Typography>
+    <Button
+      size="small"
+      disabled={!hasPrevious}
+      onClick={() => onPageChange(page - 1)}
+    >
+      Précédent
+    </Button>
+    <Button
+      size="small"
+      disabled={!hasNext}
+      onClick={() => onPageChange(page + 1)}
+    >
+      Suivant
+    </Button>
+  </Box>
+);
+
+PageNavigation.propTypes = {
+  count: PropTypes.number.isRequired,
+  hasNext: PropTypes.bool.isRequired,
+  hasPrevious: PropTypes.bool.isRequired,
+  page: PropTypes.number.isRequired,
+  onPageChange: PropTypes.func.isRequired,
+};
+
 const IntegrationLMSPage = () => {
   const [tabValue, setTabValue] = useState(0);
-  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
-  const queryClient = useQueryClient();
+  const [userPage, setUserPage] = useState(1);
+  const [coursePage, setCoursePage] = useState(1);
+  const [outboxPage, setOutboxPage] = useState(1);
+  const healthQuery = useIntegrationHealth();
+  const statsQuery = useIntegrationStats();
+  const usersQuery = useIntegrationUserMappings(userPage);
+  const coursesQuery = useIntegrationCourseMappings(coursePage);
+  const outboxQuery = useIntegrationOutboxEvents(outboxPage);
 
-  // Using mock data for now
-  const integrationStatus = mockIntegrationStatus;
-  const syncStats = mockSyncStats;
-  const userMappings = mockUserMappings;
-  const courseMappings = mockCourseMappings;
-  const outboxEvents = mockOutboxEvents;
+  const integrationStatus = healthQuery.data || {};
+  const syncStats = statsQuery.data || {};
+  const userMappings = usersQuery.data?.results || [];
+  const courseMappings = coursesQuery.data?.results || [];
+  const outboxEvents = outboxQuery.data?.results || [];
+  const queries = [healthQuery, statsQuery, usersQuery, coursesQuery, outboxQuery];
+  const isLoading = queries.some(query => query.isLoading);
+  const isRefreshing = queries.some(query => query.isFetching);
+  const hasError = queries.some(query => query.isError);
+
+  const refresh = () => Promise.all(queries.map(query => query.refetch()));
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -429,23 +531,28 @@ const IntegrationLMSPage = () => {
         title="Intégration LMS"
         subtitle="Synchronisation avec Open edX Learning Management System"
         actions={[
-          { 
-            label: 'Sync complète', 
-            icon: <CloudSyncIcon />, 
-            variant: 'contained', 
-            onClick: () => setSyncDialogOpen(true) 
-          },
-          { 
-            label: 'Paramètres', 
-            icon: <SettingsIcon />, 
-            variant: 'outlined', 
-            onClick: () => {} 
+          {
+            label: 'Actualiser',
+            icon: <RefreshIcon />,
+            variant: 'outlined',
+            onClick: refresh,
           },
         ]}
       />
 
+      {hasError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          Impossible de charger la supervision Open edX. Vérifiez vos droits administrateur et la configuration API.
+        </Alert>
+      )}
+      {isLoading && <CircularProgress sx={{ mb: 3 }} />}
+
       {/* Connection Status */}
-      <ConnectionStatus status={integrationStatus} />
+      <ConnectionStatus
+        status={integrationStatus}
+        isRefreshing={isRefreshing}
+        onRefresh={refresh}
+      />
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -494,50 +601,80 @@ const IntegrationLMSPage = () => {
         <CardContent>
           {tabValue === 0 && (
             <>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2,
+              }}
+              >
                 <Typography variant="h6">Mappings Utilisateurs SIS ↔ LMS</Typography>
-                <Button variant="outlined" startIcon={<SyncIcon />} size="small">
+                <Button variant="outlined" startIcon={<SyncIcon />} size="small" disabled>
                   Synchroniser tous
                 </Button>
               </Box>
               <UserMappingsTab mappings={userMappings} />
+              <PageNavigation
+                count={usersQuery.data?.count || 0}
+                hasNext={Boolean(usersQuery.data?.next)}
+                hasPrevious={Boolean(usersQuery.data?.previous)}
+                page={userPage}
+                onPageChange={setUserPage}
+              />
             </>
           )}
           {tabValue === 1 && (
             <>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2,
+              }}
+              >
                 <Typography variant="h6">Mappings Cours ECUE ↔ LMS</Typography>
-                <Button variant="outlined" startIcon={<SyncIcon />} size="small">
+                <Button variant="outlined" startIcon={<SyncIcon />} size="small" disabled>
                   Créer cours manquants
                 </Button>
               </Box>
               <CourseMappingsTab mappings={courseMappings} />
+              <PageNavigation
+                count={coursesQuery.data?.count || 0}
+                hasNext={Boolean(coursesQuery.data?.next)}
+                hasPrevious={Boolean(coursesQuery.data?.previous)}
+                page={coursePage}
+                onPageChange={setCoursePage}
+              />
             </>
           )}
           {tabValue === 2 && (
             <>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2,
+              }}
+              >
                 <Typography variant="h6">Événements en attente de synchronisation</Typography>
                 <Box>
-                  <Button variant="outlined" startIcon={<PlayArrowIcon />} size="small" sx={{ mr: 1 }}>
+                  <Button variant="outlined" startIcon={<PlayArrowIcon />} size="small" sx={{ mr: 1 }} disabled>
                     Traiter tous
                   </Button>
-                  <Button variant="outlined" color="error" size="small">
+                  <Button variant="outlined" color="error" size="small" disabled>
                     Purger échecs
                   </Button>
                 </Box>
               </Box>
               <OutboxEventsTab events={outboxEvents} />
+              <PageNavigation
+                count={outboxQuery.data?.count || 0}
+                hasNext={Boolean(outboxQuery.data?.next)}
+                hasPrevious={Boolean(outboxQuery.data?.previous)}
+                page={outboxPage}
+                onPageChange={setOutboxPage}
+              />
             </>
           )}
           {tabValue === 3 && (
             <Box>
-              <Typography variant="h6" gutterBottom>Configuration de l'intégration</Typography>
+              <Typography variant="h6" gutterBottom>Configuration de l’intégration</Typography>
               <Alert severity="info" sx={{ mb: 3 }}>
-                <AlertTitle>Variables d'environnement requises</AlertTitle>
-                Les paramètres de connexion sont configurés via les variables d'environnement du backend.
+                <AlertTitle>Variables d’environnement requises</AlertTitle>
+                Les paramètres de connexion sont configurés via les variables d’environnement du backend.
               </Alert>
-              
+
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
                   <Card variant="outlined">
@@ -547,14 +684,14 @@ const IntegrationLMSPage = () => {
                       </Typography>
                       <List dense>
                         <ListItem>
-                          <ListItemText 
-                            primary="EDX_LMS_URL" 
+                          <ListItemText
+                            primary="EDX_LMS_URL"
                             secondary={integrationStatus.lms_url || 'Non configuré'}
                           />
                         </ListItem>
                         <ListItem>
-                          <ListItemText 
-                            primary="EDX_CMS_URL" 
+                          <ListItemText
+                            primary="EDX_CMS_URL"
                             secondary={integrationStatus.cms_url || 'Non configuré'}
                           />
                         </ListItem>
@@ -571,19 +708,19 @@ const IntegrationLMSPage = () => {
                       <List dense>
                         <ListItem>
                           <ListItemText primary="Sync utilisateurs à la création" />
-                          <Switch defaultChecked />
+                          <Switch checked disabled />
                         </ListItem>
                         <ListItem>
                           <ListItemText primary="Sync inscriptions automatique" />
-                          <Switch defaultChecked />
+                          <Switch checked disabled />
                         </ListItem>
                         <ListItem>
                           <ListItemText primary="Import notes depuis LMS" />
-                          <Switch defaultChecked />
+                          <Switch checked disabled />
                         </ListItem>
                         <ListItem>
                           <ListItemText primary="Webhooks actifs" />
-                          <Switch defaultChecked />
+                          <Switch checked disabled />
                         </ListItem>
                       </List>
                     </CardContent>
@@ -595,39 +732,6 @@ const IntegrationLMSPage = () => {
         </CardContent>
       </Card>
 
-      {/* Sync Dialog */}
-      <Dialog open={syncDialogOpen} onClose={() => setSyncDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Synchronisation complète</DialogTitle>
-        <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            Cette opération va synchroniser toutes les données entre le SIS et le LMS Open edX.
-            Cela peut prendre plusieurs minutes selon le volume de données.
-          </Alert>
-          <Typography variant="body2" gutterBottom>
-            Éléments à synchroniser :
-          </Typography>
-          <List dense>
-            <ListItem>
-              <ListItemIcon><PersonIcon /></ListItemIcon>
-              <ListItemText primary="Tous les utilisateurs (étudiants, enseignants)" />
-            </ListItem>
-            <ListItem>
-              <ListItemIcon><SchoolIcon /></ListItemIcon>
-              <ListItemText primary="Tous les cours (ECUE vers cours LMS)" />
-            </ListItem>
-            <ListItem>
-              <ListItemIcon><AssignmentIcon /></ListItemIcon>
-              <ListItemText primary="Toutes les inscriptions aux cours" />
-            </ListItem>
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSyncDialogOpen(false)}>Annuler</Button>
-          <Button variant="contained" startIcon={<CloudSyncIcon />} onClick={() => setSyncDialogOpen(false)}>
-            Lancer la synchronisation
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

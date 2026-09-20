@@ -1,14 +1,20 @@
 """API views for etablissement (ViewSets DRF) - SIS Supérieur."""
 
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from sis_common.authorization import has_business_permission_or_role
 
 from .models import AnneeUniversitaire, Semestre, Universite
-from .serializers import AnneeUniversitaireSerializer, SemestreSerializer, UniversiteSerializer
+from .serializers import (
+    AnneeUniversitaireSerializer,
+    SemestreSerializer,
+    UniversiteSerializer,
+)
 
 
 class IsAdminOrReadOnly(IsAuthenticated):
@@ -19,7 +25,69 @@ class IsAdminOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        return request.user.is_staff
+        return has_business_permission_or_role(
+            request.user,
+            "etablissement.change_universite",
+            (
+                "president",
+                "vice_president",
+                "doyen",
+                "directeur_etudes",
+                "scolarite",
+            ),
+        )
+
+
+class IsTenantConfigurationAdmin(IsAuthenticated):
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) and has_business_permission_or_role(
+            request.user,
+            "etablissement.change_universite",
+            (
+                "president",
+                "vice_president",
+                "doyen",
+                "directeur_etudes",
+                "scolarite",
+            ),
+        )
+
+
+class CurrentUniversiteView(APIView):
+    """Configuration de l'établissement associé au domaine courant."""
+
+    permission_classes = [IsTenantConfigurationAdmin]
+
+    def get_tenant(self, request):
+        if not isinstance(request.tenant, Universite):
+            return None
+        return request.tenant
+
+    def get(self, request):
+        tenant = self.get_tenant(request)
+        if tenant is None:
+            return Response(
+                {"detail": "Aucun établissement n'est associé à ce domaine."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(UniversiteSerializer(tenant, context={"request": request}).data)
+
+    def patch(self, request):
+        tenant = self.get_tenant(request)
+        if tenant is None:
+            return Response(
+                {"detail": "Aucun établissement n'est associé à ce domaine."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = UniversiteSerializer(
+            tenant,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class UniversitesViewSet(viewsets.ModelViewSet):
@@ -64,7 +132,10 @@ class AnneesUniversitairesViewSet(viewsets.ModelViewSet):
     ordering = ["-date_debut"]
 
     def get_queryset(self):
-        return AnneeUniversitaire.objects.select_related("universite")
+        return AnneeUniversitaire.objects.select_related("universite").filter(universite=self.request.tenant)
+
+    def perform_create(self, serializer):
+        serializer.save(universite=self.request.tenant)
 
     @action(detail=True, methods=["get"])
     def semestres(self, request, pk=None):
@@ -79,9 +150,9 @@ class AnneesUniversitairesViewSet(viewsets.ModelViewSet):
         """Active l'année universitaire."""
         annee = self.get_object()
         # Désactiver les autres années de la même université
-        AnneeUniversitaire.objects.filter(
-            universite=annee.universite, en_cours=True
-        ).exclude(pk=annee.pk).update(en_cours=False)
+        AnneeUniversitaire.objects.filter(universite=annee.universite, en_cours=True).exclude(pk=annee.pk).update(
+            en_cours=False
+        )
 
         annee.en_cours = True
         annee.save(update_fields=["en_cours"])
@@ -109,7 +180,9 @@ class SemestresViewSet(viewsets.ModelViewSet):
     ordering = ["annee_universitaire", "numero"]
 
     def get_queryset(self):
-        return Semestre.objects.select_related("annee_universitaire")
+        return Semestre.objects.select_related("annee_universitaire").filter(
+            annee_universitaire__universite=self.request.tenant
+        )
 
     @action(detail=True, methods=["post"])
     def cloturer(self, request, pk=None):
