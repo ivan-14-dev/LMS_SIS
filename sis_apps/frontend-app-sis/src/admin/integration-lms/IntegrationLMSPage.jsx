@@ -459,19 +459,61 @@ OutboxEventsTab.propTypes = {
   })).isRequired,
 };
 
+const PageNavigation = ({
+  count, hasNext, hasPrevious, page, onPageChange,
+}) => (
+  <Box sx={{
+    alignItems: 'center', display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2,
+  }}
+  >
+    <Typography variant="body2" color="textSecondary">
+      {count}
+      {' '}
+      résultat(s) — page
+      {' '}
+      {page}
+    </Typography>
+    <Button
+      size="small"
+      disabled={!hasPrevious}
+      onClick={() => onPageChange(page - 1)}
+    >
+      Précédent
+    </Button>
+    <Button
+      size="small"
+      disabled={!hasNext}
+      onClick={() => onPageChange(page + 1)}
+    >
+      Suivant
+    </Button>
+  </Box>
+);
+
+PageNavigation.propTypes = {
+  count: PropTypes.number.isRequired,
+  hasNext: PropTypes.bool.isRequired,
+  hasPrevious: PropTypes.bool.isRequired,
+  page: PropTypes.number.isRequired,
+  onPageChange: PropTypes.func.isRequired,
+};
+
 const IntegrationLMSPage = () => {
   const [tabValue, setTabValue] = useState(0);
+  const [userPage, setUserPage] = useState(1);
+  const [coursePage, setCoursePage] = useState(1);
+  const [outboxPage, setOutboxPage] = useState(1);
   const healthQuery = useIntegrationHealth();
   const statsQuery = useIntegrationStats();
-  const usersQuery = useIntegrationUserMappings();
-  const coursesQuery = useIntegrationCourseMappings();
-  const outboxQuery = useIntegrationOutboxEvents();
+  const usersQuery = useIntegrationUserMappings(userPage);
+  const coursesQuery = useIntegrationCourseMappings(coursePage);
+  const outboxQuery = useIntegrationOutboxEvents(outboxPage);
 
   const integrationStatus = healthQuery.data || {};
   const syncStats = statsQuery.data || {};
-  const userMappings = usersQuery.data || [];
-  const courseMappings = coursesQuery.data || [];
-  const outboxEvents = outboxQuery.data || [];
+  const userMappings = usersQuery.data?.results || [];
+  const courseMappings = coursesQuery.data?.results || [];
+  const outboxEvents = outboxQuery.data?.results || [];
   const queries = [healthQuery, statsQuery, usersQuery, coursesQuery, outboxQuery];
   const isLoading = queries.some(query => query.isLoading);
   const isRefreshing = queries.some(query => query.isFetching);
@@ -569,6 +611,13 @@ const IntegrationLMSPage = () => {
                 </Button>
               </Box>
               <UserMappingsTab mappings={userMappings} />
+              <PageNavigation
+                count={usersQuery.data?.count || 0}
+                hasNext={Boolean(usersQuery.data?.next)}
+                hasPrevious={Boolean(usersQuery.data?.previous)}
+                page={userPage}
+                onPageChange={setUserPage}
+              />
             </>
           )}
           {tabValue === 1 && (
@@ -583,6 +632,13 @@ const IntegrationLMSPage = () => {
                 </Button>
               </Box>
               <CourseMappingsTab mappings={courseMappings} />
+              <PageNavigation
+                count={coursesQuery.data?.count || 0}
+                hasNext={Boolean(coursesQuery.data?.next)}
+                hasPrevious={Boolean(coursesQuery.data?.previous)}
+                page={coursePage}
+                onPageChange={setCoursePage}
+              />
             </>
           )}
           {tabValue === 2 && (
@@ -602,6 +658,13 @@ const IntegrationLMSPage = () => {
                 </Box>
               </Box>
               <OutboxEventsTab events={outboxEvents} />
+              <PageNavigation
+                count={outboxQuery.data?.count || 0}
+                hasNext={Boolean(outboxQuery.data?.next)}
+                hasPrevious={Boolean(outboxQuery.data?.previous)}
+                page={outboxPage}
+                onPageChange={setOutboxPage}
+              />
             </>
           )}
           {tabValue === 3 && (

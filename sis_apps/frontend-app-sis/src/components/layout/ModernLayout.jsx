@@ -48,7 +48,6 @@ import {
   Person as PersonIcon,
   ExpandLess,
   ExpandMore,
-  CloudSync as CloudSyncIcon,
   Business as BusinessIcon,
   AdminPanelSettings as AdminIcon,
   Group as GroupIcon,
@@ -147,7 +146,6 @@ const adminNav = [
     items: [
       { text: 'Établissement', icon: <BusinessIcon />, path: '/admin/etablissement' },
       { text: 'Années académiques', icon: <CalendarIcon />, path: '/admin/annees-academiques' },
-      { text: 'Intégration LMS', icon: <CloudSyncIcon />, path: '/admin/integration-lms' },
       { text: 'Utilisateurs', icon: <GroupIcon />, path: '/admin/utilisateurs' },
       { text: 'Structure', icon: <AccountTreeIcon />, path: '/admin/structure' },
     ],

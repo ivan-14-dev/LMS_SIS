@@ -5,6 +5,7 @@ import {
   fetchApi,
   getAdminApiUrl,
   getIntegrationApiUrl,
+  normalizePageResponse,
   patchApi,
   postApi,
   putApi,
@@ -69,6 +70,28 @@ describe('explicit mock mode', () => {
 
       expect(getAdminApiUrl()).toBe('https://lms.example.com/api/sis/admin');
       expect(getIntegrationApiUrl()).toBe('https://lms.example.com/api/sis/admin/integration');
+    });
+  });
+
+  describe('paginated SIS responses', () => {
+    it('preserves pagination metadata', () => {
+      const page = {
+        count: 75,
+        next: 'https://sis.example.com/api/v1/integration/outbox/?page=2',
+        previous: null,
+        results: [{ id: 1 }],
+      };
+
+      expect(normalizePageResponse(page)).toEqual(page);
+    });
+
+    it('normalizes an unpaginated response', () => {
+      expect(normalizePageResponse([{ id: 1 }])).toEqual({
+        count: 1,
+        next: null,
+        previous: null,
+        results: [{ id: 1 }],
+      });
     });
   });
 

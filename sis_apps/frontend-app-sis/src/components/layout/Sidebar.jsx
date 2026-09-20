@@ -105,7 +105,6 @@ const menuAdmin = [
     items: [
       { path: '/admin/etablissement', label: 'Établissement', icon: AccountBalance },
       { path: '/admin/annees-academiques', label: 'Années académiques', icon: CalendarMonth },
-      { path: '/admin/integration-lms', label: 'Intégration LMS', icon: Science },
       { path: '/admin/utilisateurs', label: 'Utilisateurs', icon: People },
       { path: '/admin/structure', label: 'Structure', icon: Settings },
     ],

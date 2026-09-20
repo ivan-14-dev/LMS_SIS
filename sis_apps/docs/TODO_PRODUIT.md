@@ -48,8 +48,9 @@ validés.
 - [x] Versionner les migrations initiales des applications métier.
 - [x] Exposer les contrôles de santé et de disponibilité.
 - [x] Exposer une supervision paginée des mappings et de l'outbox Open edX.
-- [x] Connecter l'écran d'administration de l'intégration LMS aux données
+- [x] Préparer l'écran d'administration de l'intégration LMS pour les données
   réelles.
+- [ ] Activer cet écran après la fédération d'identité Open edX vers les SIS.
 - [ ] Fiabiliser les webhooks avec validation de schéma, idempotence et
   événements inconnus rejetés.
 - [ ] Publier réellement les événements outbox avec verrouillage, reprise et
