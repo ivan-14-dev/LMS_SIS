@@ -46,6 +46,8 @@ class CanManageUsers(IsAuthenticated):
                 "directeur_etudes",
                 "scolarite",
             ),
+            configuration=getattr(request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("academic_admin_superieur",),
         )
 
 
@@ -92,6 +94,8 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
                 "directeur_etudes",
                 "scolarite",
             ),
+            configuration=getattr(self.request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("academic_admin_superieur",),
         )
         if not can_list:
             qs = qs.filter(pk=user.pk)

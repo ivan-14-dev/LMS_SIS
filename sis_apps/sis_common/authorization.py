@@ -48,6 +48,12 @@ def configured_permission_groups(user, configuration=None):
     return resolved
 
 
+def user_in_configured_groups(user, configuration=None, group_codes=()):
+    if not group_codes:
+        return False
+    return any(group in configured_permission_groups(user, configuration) for group in group_codes)
+
+
 def permission_snapshot(user, configuration=None):
     if not user.is_authenticated:
         return {"permissions": [], "groups": [], "attributes": {}, "role": ""}
@@ -83,7 +89,14 @@ def has_business_permission(user, permission, context=None):
     return True
 
 
-def has_business_permission_or_role(user, permission, legacy_roles=(), context=None):
+def has_business_permission_or_role(
+    user,
+    permission,
+    legacy_roles=(),
+    context=None,
+    configuration=None,
+    tenant_group_codes=(),
+):
     """Honor dynamic Django permissions while retaining legacy role compatibility."""
     if not user.is_authenticated:
         return False
@@ -91,6 +104,8 @@ def has_business_permission_or_role(user, permission, legacy_roles=(), context=N
         return True
     if user.has_perm(permission):
         return has_business_permission(user, permission, context=context)
+    if user_in_configured_groups(user, configuration, tenant_group_codes):
+        return True
     return getattr(user, "role", "") in legacy_roles
 
 

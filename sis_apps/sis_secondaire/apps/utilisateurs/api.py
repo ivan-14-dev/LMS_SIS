@@ -43,6 +43,8 @@ class IsDirectionOrReadOnly(IsAuthenticated):
             user,
             permission,
             ("direction", "responsable_pedagogique"),
+            configuration=getattr(request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("academic_admin_secondary",),
         )
 
 
@@ -83,6 +85,8 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
             request.user,
             "utilisateurs.view_utilisateur",
             ("direction", "responsable_pedagogique"),
+            configuration=getattr(request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("academic_admin_secondary",),
         )
         if not can_list:
             return qs.filter(pk=request.user.pk)

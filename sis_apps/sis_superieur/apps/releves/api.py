@@ -11,6 +11,7 @@ from sis_common.document_policies import (
     enforce_financial_clearance,
     get_action_object,
 )
+from sis_common.authorization import has_business_permission_or_role
 
 from .models import Attestation, ReleveNotes, Transcript
 from .serializers import (
@@ -30,11 +31,17 @@ class IsScolariteOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "scolarite",
-            "directeur_etudes",
-            "doyen",
+        permission = getattr(view, "required_change_permission", "releves.change_relevenotes")
+        return has_business_permission_or_role(
+            request.user,
+            permission,
+            (
+                "scolarite",
+                "directeur_etudes",
+                "doyen",
+            ),
+            configuration=getattr(request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("academic_registry_superieur", "document_signatory_superieur"),
         )
 
 
@@ -42,6 +49,7 @@ class RelevesNotesViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour relevés de notes."""
 
     permission_classes = [IsScolariteOrReadOnly]
+    required_change_permission = "releves.change_relevenotes"
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["etudiant", "semestre", "signe", "mention"]
     search_fields = ["etudiant__matricule", "etudiant__user__last_name", "numero_serie"]
@@ -97,6 +105,7 @@ class TranscriptsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour transcripts."""
 
     permission_classes = [IsScolariteOrReadOnly]
+    required_change_permission = "releves.change_transcript"
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["etudiant", "diplome_prepare"]
     ordering = ["-date_emission"]
@@ -150,6 +159,7 @@ class AttestationsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour attestations."""
 
     permission_classes = [IsScolariteOrReadOnly]
+    required_change_permission = "releves.change_attestation"
     serializer_class = AttestationSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["etudiant", "type"]

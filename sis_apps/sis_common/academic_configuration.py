@@ -152,7 +152,65 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
         },
     ],
     "custom_dimensions": [],
-    "permission_groups": [],
+    "permission_groups": [
+        {
+            "code": "academic_admin_secondary",
+            "label": "Administration pédagogique secondaire",
+            "permissions": [
+                "notes.change_reglevalidation",
+                "utilisateurs.view_utilisateur",
+                "etablissement.change_etablissement",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "academic_admin_superieur",
+            "label": "Administration pédagogique supérieur",
+            "permissions": [
+                "notes.change_reglevalidation",
+                "utilisateurs.view_utilisateur",
+                "etablissement.change_universite",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "finance_manager_secondary",
+            "label": "Gestion financière secondaire",
+            "permissions": [
+                "paiements.change_paiement",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "finance_manager_superieur",
+            "label": "Gestion financière supérieur",
+            "permissions": [
+                "paiements.change_paiementfrais",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "academic_registry_superieur",
+            "label": "Scolarité et registres supérieur",
+            "permissions": [
+                "releves.change_relevenotes",
+                "releves.change_transcript",
+                "releves.change_attestation",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "document_signatory_superieur",
+            "label": "Signataire documentaire supérieur",
+            "permissions": [
+                "releves.change_relevenotes",
+                "releves.change_transcript",
+                "releves.change_attestation",
+                "diplomes.change_cessiondiplome",
+            ],
+            "attributes": {},
+        },
+    ],
     "validation_policies": [],
     "financial_workflows": [
         {

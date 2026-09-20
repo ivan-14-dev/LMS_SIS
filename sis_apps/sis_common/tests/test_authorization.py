@@ -4,6 +4,7 @@ from sis_common.authorization import (
     has_business_permission,
     has_business_permission_or_role,
     permission_snapshot,
+    user_in_configured_groups,
 )
 
 
@@ -96,3 +97,44 @@ class AuthorizationTests(SimpleTestCase):
         snapshot = permission_snapshot(user, configuration)
 
         self.assertEqual(snapshot["groups"], ["finance_manager", "staff"])
+
+    def test_user_in_configured_groups_supports_backend_authorization(self):
+        configuration = {
+            "permission_groups": [
+                {
+                    "code": "academic_admin_superieur",
+                    "label": "Admin",
+                    "permissions": ["utilisateurs.view_utilisateur"],
+                    "attributes": {"campus": ["centre"]},
+                }
+            ]
+        }
+        user = FakeUser(
+            permissions=["utilisateurs.view_utilisateur"],
+            attributes={"campus": "centre"},
+        )
+
+        self.assertTrue(user_in_configured_groups(user, configuration, ("academic_admin_superieur",)))
+        self.assertFalse(user_in_configured_groups(user, configuration, ("finance_manager_superieur",)))
+
+    def test_tenant_group_can_authorize_when_permission_is_missing(self):
+        configuration = {
+            "permission_groups": [
+                {
+                    "code": "document_signatory_superieur",
+                    "label": "Signataire",
+                    "permissions": ["diplomes.change_cessiondiplome"],
+                    "attributes": {},
+                }
+            ]
+        }
+        user = FakeUser(permissions=["diplomes.change_cessiondiplome"])
+
+        self.assertTrue(
+            has_business_permission_or_role(
+                user,
+                "releves.change_transcript",
+                configuration=configuration,
+                tenant_group_codes=("document_signatory_superieur",),
+            )
+        )

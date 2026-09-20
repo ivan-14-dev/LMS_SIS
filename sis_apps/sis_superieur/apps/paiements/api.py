@@ -103,6 +103,8 @@ class IsComptabiliteOrReadOnly(IsAuthenticated):
                 "scolarite",
                 "comptable",
             ),
+            configuration=getattr(request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("finance_manager_superieur",),
         )
 
 
@@ -112,6 +114,8 @@ class IsFinanceManager(IsAuthenticated):
             request.user,
             "paiements.change_paiementfrais",
             ("president", "vice_president", "doyen", "scolarite", "comptable"),
+            configuration=getattr(request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("finance_manager_superieur",),
         )
 
 

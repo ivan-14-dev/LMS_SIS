@@ -9,6 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import has_business_permission_or_role
 from sis_common.document_policies import enforce_financial_clearance, get_action_object
 
 from .models import CessionDiplome, Diplome
@@ -23,12 +24,17 @@ class IsScolariteOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "scolarite",
-            "responsable_formation",
-            "doyen",
-            "president_universite",
+        return has_business_permission_or_role(
+            request.user,
+            "diplomes.change_cessiondiplome",
+            (
+                "scolarite",
+                "responsable_formation",
+                "doyen",
+                "president_universite",
+            ),
+            configuration=getattr(request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("document_signatory_superieur", "academic_registry_superieur"),
         )
 
 

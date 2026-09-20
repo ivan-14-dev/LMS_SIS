@@ -101,6 +101,8 @@ class IsIntendanceOrReadOnly(IsAuthenticated):
                 "comptable",
                 "personnel_administratif",
             ),
+            configuration=getattr(request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("finance_manager_secondary",),
         )
 
 
@@ -115,6 +117,8 @@ class IsFinanceManager(IsAuthenticated):
                 "comptable",
                 "personnel_administratif",
             ),
+            configuration=getattr(request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("finance_manager_secondary",),
         )
 
 

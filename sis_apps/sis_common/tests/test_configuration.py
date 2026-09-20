@@ -123,6 +123,14 @@ class AcademicConfigurationTests(SimpleTestCase):
         self.assertIn({"code": "financial", "label": "Financier"}, schema["dimension_axes"])
         self.assertIn({"code": "financial_payments", "label": "Paiements"}, schema["report_datasets"])
 
+    def test_default_configuration_includes_reusable_permission_groups(self):
+        configuration = default_academic_configuration()
+        codes = {group["code"] for group in configuration["permission_groups"]}
+
+        self.assertIn("finance_manager_secondary", codes)
+        self.assertIn("finance_manager_superieur", codes)
+        self.assertIn("document_signatory_superieur", codes)
+
     def test_resolve_validation_policy_prefers_most_specific_target(self):
         configuration = default_academic_configuration()
         configuration["validation_policies"] = [
