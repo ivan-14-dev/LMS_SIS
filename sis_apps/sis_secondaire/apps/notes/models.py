@@ -6,6 +6,7 @@ from apps.enseignants.models import Personnel
 from apps.etablissement.models import Periode
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from sis_common.academic_configuration import evaluate_rule_criteria
 
 
 class Evaluation(models.Model):
@@ -21,12 +22,8 @@ class Evaluation(models.Model):
         ("examen_final", "Examen final"),
         ("projet", "Projet"),
     ]
-    matiere = models.ForeignKey(
-        Matiere, on_delete=models.CASCADE, related_name="evaluations"
-    )
-    classe = models.ForeignKey(
-        Classe, on_delete=models.CASCADE, related_name="evaluations"
-    )
+    matiere = models.ForeignKey(Matiere, on_delete=models.CASCADE, related_name="evaluations")
+    classe = models.ForeignKey(Classe, on_delete=models.CASCADE, related_name="evaluations")
     type = models.CharField(max_length=100, default="ds")
     titre = models.CharField(max_length=200)
     description = models.TextField(blank=True)
@@ -42,12 +39,8 @@ class Evaluation(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text="Pourcentage de cette évaluation dans son regroupement.",
     )
-    periode = models.ForeignKey(
-        Periode, on_delete=models.PROTECT, related_name="evaluations"
-    )
-    enseignant = models.ForeignKey(
-        Personnel, on_delete=models.PROTECT, related_name="evaluations"
-    )
+    periode = models.ForeignKey(Periode, on_delete=models.PROTECT, related_name="evaluations")
+    enseignant = models.ForeignKey(Personnel, on_delete=models.PROTECT, related_name="evaluations")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -75,9 +68,7 @@ class Note(models.Model):
         ("non_rendue", "Non rendue"),
         ("triche", "Triche"),
     ]
-    evaluation = models.ForeignKey(
-        Evaluation, on_delete=models.CASCADE, related_name="notes"
-    )
+    evaluation = models.ForeignKey(Evaluation, on_delete=models.CASCADE, related_name="notes")
     eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="notes")
     valeur = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     appreciation = models.TextField(blank=True)
@@ -115,15 +106,9 @@ class Bulletin(models.Model):
     """Bulletin périodique d'un élève."""
 
     eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="bulletins")
-    classe = models.ForeignKey(
-        Classe, on_delete=models.PROTECT, related_name="bulletins"
-    )
-    periode = models.ForeignKey(
-        Periode, on_delete=models.PROTECT, related_name="bulletins"
-    )
-    moyenne_generale = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
+    classe = models.ForeignKey(Classe, on_delete=models.PROTECT, related_name="bulletins")
+    periode = models.ForeignKey(Periode, on_delete=models.PROTECT, related_name="bulletins")
+    moyenne_generale = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     rang = models.PositiveIntegerField(null=True, blank=True)
     effectif_classe = models.PositiveIntegerField(null=True, blank=True)
     appreciation_conseil = models.TextField(blank=True)
@@ -173,9 +158,7 @@ class RegleValidation(models.Model):
         related_name="regles_validation",
     )
     seuil_moyenne = models.DecimalField(max_digits=5, decimal_places=2, default=10)
-    note_eliminatoire = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
+    note_eliminatoire = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     credits_minimum = models.DecimalField(max_digits=7, decimal_places=2, default=0)
     max_matieres_echouees = models.PositiveSmallIntegerField(null=True, blank=True)
     compensation_autorisee = models.BooleanField(default=True)
@@ -192,21 +175,22 @@ class RegleValidation(models.Model):
             )
         ]
 
-    def evaluer(self, moyenne, credits=0, matieres_echouees=0, note_minimale=None):
+    def evaluer(
+        self,
+        moyenne,
+        credits=0,
+        matieres_echouees=0,
+        note_minimale=None,
+        donnees=None,
+    ):
         motifs = []
         if moyenne < self.seuil_moyenne:
             motifs.append("moyenne_insuffisante")
         if credits < self.credits_minimum:
             motifs.append("credits_insuffisants")
-        if (
-            self.max_matieres_echouees is not None
-            and matieres_echouees > self.max_matieres_echouees
-        ):
+        if self.max_matieres_echouees is not None and matieres_echouees > self.max_matieres_echouees:
             motifs.append("trop_de_matieres_echouees")
-        if (
-            self.note_eliminatoire is not None
-            and note_minimale is not None
-            and note_minimale < self.note_eliminatoire
-        ):
+        if self.note_eliminatoire is not None and note_minimale is not None and note_minimale < self.note_eliminatoire:
             motifs.append("note_eliminatoire")
+        motifs.extend(evaluate_rule_criteria(self.criteres, donnees))
         return {"reussi": not motifs, "motifs": motifs}

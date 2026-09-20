@@ -93,9 +93,7 @@ class UtilisateurCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs["password"] != attrs.pop("password_confirm"):
-            raise serializers.ValidationError(
-                {"password_confirm": "Les mots de passe ne correspondent pas."}
-            )
+            raise serializers.ValidationError({"password_confirm": "Les mots de passe ne correspondent pas."})
         return attrs
 
     def create(self, validated_data):
@@ -124,5 +122,4 @@ class UtilisateurProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Utilisateur
-        fields = ["first_name", "last_name", "telephone", "avatar"]
-from django.contrib.auth.models import Group, Permission
+        fields = ["first_name", "last_name", "telephone", "photo"]

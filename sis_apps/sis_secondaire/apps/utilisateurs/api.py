@@ -5,20 +5,22 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
-from sis_common.authorization import permission_snapshot
+from sis_common.authorization import (
+    has_business_permission_or_role,
+    permission_snapshot,
+)
 
 from .models import Utilisateur
 from .serializers import (
     ChangePasswordSerializer,
+    GroupSerializer,
+    PermissionSerializer,
     UtilisateurCreateSerializer,
     UtilisateurDetailSerializer,
     UtilisateurListSerializer,
     UtilisateurProfileSerializer,
-    GroupSerializer,
-    PermissionSerializer,
 )
 
 
@@ -28,14 +30,34 @@ class IsDirectionOrReadOnly(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
+        user = request.user
+        if view.action in ("update_profile", "change_password"):
+            return True
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "directeur",
-            "proviseur",
-            "principal",
+        permission = {
+            "create": "utilisateurs.add_utilisateur",
+            "destroy": "utilisateurs.delete_utilisateur",
+        }.get(view.action, "utilisateurs.change_utilisateur")
+        return has_business_permission_or_role(
+            user,
+            permission,
+            ("direction", "responsable_pedagogique"),
         )
+
+
+class CanManageAuthorization(IsAuthenticated):
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        permission = {
+            "GET": "auth.view_group",
+            "HEAD": "auth.view_group",
+            "OPTIONS": "auth.view_group",
+            "POST": "auth.add_group",
+            "DELETE": "auth.delete_group",
+        }.get(request.method, "auth.change_group")
+        return request.user.is_staff or request.user.has_perm(permission)
 
 
 class UtilisateursViewSet(viewsets.ModelViewSet):
@@ -57,7 +79,13 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
         if hasattr(request, "tenant"):
             qs = qs.filter(etablissement=request.tenant)
 
-        # Exclure les superusers pour les non-superusers
+        can_list = has_business_permission_or_role(
+            request.user,
+            "utilisateurs.view_utilisateur",
+            ("direction", "responsable_pedagogique"),
+        )
+        if not can_list:
+            return qs.filter(pk=request.user.pk)
         if not request.user.is_superuser:
             qs = qs.filter(is_superuser=False)
 
@@ -85,9 +113,7 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["patch"])
     def update_profile(self, request):
         """Met à jour le profil de l'utilisateur connecté."""
-        serializer = UtilisateurProfileSerializer(
-            request.user, data=request.data, partial=True
-        )
+        serializer = UtilisateurProfileSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -95,9 +121,7 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def change_password(self, request):
         """Change le mot de passe de l'utilisateur connecté."""
-        serializer = ChangePasswordSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         request.user.set_password(serializer.validated_data["new_password"])
         request.user.save(update_fields=["password"])
@@ -125,17 +149,15 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
 
 
 class PermissionsViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [IsAdminUser]
+    permission_classes = [CanManageAuthorization]
     serializer_class = PermissionSerializer
-    queryset = Permission.objects.select_related("content_type").order_by(
-        "content_type__app_label", "codename"
-    )
+    queryset = Permission.objects.select_related("content_type").order_by("content_type__app_label", "codename")
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ["content_type__app_label"]
     search_fields = ["codename", "name"]
 
 
 class GroupesPermissionsViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAdminUser]
+    permission_classes = [CanManageAuthorization]
     serializer_class = GroupSerializer
     queryset = Group.objects.prefetch_related("permissions").order_by("name")

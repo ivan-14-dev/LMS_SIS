@@ -8,9 +8,7 @@ from .models import Facture, Paiement, TypeFrais
 class TypeFraisSerializer(serializers.ModelSerializer):
     """Serializer pour les types de frais."""
 
-    periodicite_display = serializers.CharField(
-        source="get_periodicite_display", read_only=True
-    )
+    periodicite_display = serializers.CharField(source="get_periodicite_display", read_only=True)
     nb_factures = serializers.SerializerMethodField()
 
     class Meta:
@@ -41,13 +39,9 @@ class FactureListSerializer(serializers.ModelSerializer):
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    type_frais_libelle = serializers.CharField(
-        source="type_frais.libelle", read_only=True
-    )
+    type_frais_libelle = serializers.CharField(source="type_frais.libelle", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
-    montant_restant = serializers.DecimalField(
-        max_digits=10, decimal_places=2, read_only=True
-    )
+    montant_restant = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Facture
@@ -74,13 +68,9 @@ class FactureDetailSerializer(serializers.ModelSerializer):
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    type_frais_libelle = serializers.CharField(
-        source="type_frais.libelle", read_only=True
-    )
+    type_frais_libelle = serializers.CharField(source="type_frais.libelle", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
-    montant_restant = serializers.DecimalField(
-        max_digits=10, decimal_places=2, read_only=True
-    )
+    montant_restant = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     paiements = serializers.SerializerMethodField()
 
     class Meta:
@@ -125,9 +115,7 @@ class PaiementSerializer(serializers.ModelSerializer):
 
     mode_display = serializers.CharField(source="get_mode_display", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
-    enregistre_par_nom = serializers.CharField(
-        source="enregistre_par.get_full_name", read_only=True
-    )
+    enregistre_par_nom = serializers.CharField(source="enregistre_par.get_full_name", read_only=True)
     preuve_disponible = serializers.SerializerMethodField()
 
     class Meta:
@@ -184,26 +172,18 @@ class PaiementCreateSerializer(serializers.ModelSerializer):
             "personnel_administratif",
         }
         is_manager = user and (
-            user.is_staff or getattr(user, "role", "") in manager_roles
+            user.is_staff or user.has_perm("paiements.add_paiement") or getattr(user, "role", "") in manager_roles
         )
         owns_invoice = user and (
             facture.eleve.user_id == user.id
-            or facture.eleve.tuteurs_lies.filter(
-                tuteur__user=user, autorise_acces_portail=True
-            ).exists()
+            or facture.eleve.tuteurs_lies.filter(tuteur__user=user, autorise_acces_portail=True).exists()
         )
         if not is_manager and not owns_invoice:
-            raise serializers.ValidationError(
-                {"facture": "Vous ne pouvez pas payer cette facture."}
-            )
+            raise serializers.ValidationError({"facture": "Vous ne pouvez pas payer cette facture."})
         if facture.statut in ("payee", "annulee"):
-            raise serializers.ValidationError(
-                {"facture": "Cette facture n'accepte plus de paiement."}
-            )
+            raise serializers.ValidationError({"facture": "Cette facture n'accepte plus de paiement."})
         if data["montant"] <= 0:
             raise serializers.ValidationError({"montant": "Le montant doit être positif."})
         if data["montant"] > facture.montant_restant:
-            raise serializers.ValidationError(
-                {"montant": "Le montant dépasse le solde de la facture."}
-            )
+            raise serializers.ValidationError({"montant": "Le montant dépasse le solde de la facture."})
         return data

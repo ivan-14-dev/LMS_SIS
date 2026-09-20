@@ -43,9 +43,7 @@ class FacultesViewSet(viewsets.ModelViewSet):
     ordering = ["code"]
 
     def get_queryset(self):
-        return Faculte.objects.select_related("universite", "doyen").filter(
-            universite=self.request.tenant
-        )
+        return Faculte.objects.select_related("universite", "doyen").filter(universite=self.request.tenant)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -67,9 +65,7 @@ class FacultesViewSet(viewsets.ModelViewSet):
         from apps.formations.models import Formation
         from apps.formations.serializers import FormationListSerializer
 
-        formations = Formation.objects.filter(
-            departement__faculte=faculte
-        ).select_related("departement", "responsable")
+        formations = Formation.objects.filter(departement__faculte=faculte).select_related("departement", "responsable")
         serializer = FormationListSerializer(formations, many=True)
         return Response(serializer.data)
 
@@ -124,6 +120,4 @@ class EcolesDoctoralesViewSet(viewsets.ModelViewSet):
     ordering = ["code"]
 
     def get_queryset(self):
-        return EcoleDoctorale.objects.select_related("universite", "directeur").filter(
-            universite=self.request.tenant
-        )
+        return EcoleDoctorale.objects.select_related("universite", "directeur").filter(universite=self.request.tenant)

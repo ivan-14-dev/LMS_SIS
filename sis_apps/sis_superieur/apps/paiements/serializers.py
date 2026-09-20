@@ -8,12 +8,8 @@ from .models import FactureFrais, PaiementFrais, TypeFraisInscription
 class TypeFraisInscriptionSerializer(serializers.ModelSerializer):
     """Serializer pour les types de frais."""
 
-    periodicite_display = serializers.CharField(
-        source="get_periodicite_display", read_only=True
-    )
-    annee_libelle = serializers.CharField(
-        source="annee_universitaire.libelle", read_only=True
-    )
+    periodicite_display = serializers.CharField(source="get_periodicite_display", read_only=True)
+    annee_libelle = serializers.CharField(source="annee_universitaire.libelle", read_only=True)
 
     class Meta:
         model = TypeFraisInscription
@@ -38,15 +34,9 @@ class TypeFraisInscriptionSerializer(serializers.ModelSerializer):
 class FactureFraisListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les listes de factures."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
-    type_frais_libelle = serializers.CharField(
-        source="type_frais.libelle", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
+    type_frais_libelle = serializers.CharField(source="type_frais.libelle", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     reste_a_payer = serializers.SerializerMethodField()
 
@@ -76,15 +66,9 @@ class FactureFraisListSerializer(serializers.ModelSerializer):
 class FactureFraisDetailSerializer(serializers.ModelSerializer):
     """Serializer complet pour une facture."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
-    type_frais_libelle = serializers.CharField(
-        source="type_frais.libelle", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
+    type_frais_libelle = serializers.CharField(source="type_frais.libelle", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     reste_a_payer = serializers.SerializerMethodField()
     nb_paiements = serializers.SerializerMethodField()
@@ -126,14 +110,10 @@ class PaiementFraisSerializer(serializers.ModelSerializer):
     """Serializer pour les paiements."""
 
     facture_numero = serializers.CharField(source="facture.numero", read_only=True)
-    etudiant_nom = serializers.CharField(
-        source="facture.etudiant.user.get_full_name", read_only=True
-    )
+    etudiant_nom = serializers.CharField(source="facture.etudiant.user.get_full_name", read_only=True)
     mode_display = serializers.CharField(source="get_mode_display", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
-    enregistre_par_nom = serializers.CharField(
-        source="enregistre_par.get_full_name", read_only=True
-    )
+    enregistre_par_nom = serializers.CharField(source="enregistre_par.get_full_name", read_only=True)
     preuve_disponible = serializers.SerializerMethodField()
 
     class Meta:
@@ -194,22 +174,16 @@ class PaiementCreateSerializer(serializers.ModelSerializer):
             "comptable",
         }
         is_manager = user and (
-            user.is_staff or getattr(user, "role", "") in manager_roles
+            user.is_staff or user.has_perm("paiements.add_paiementfrais") or getattr(user, "role", "") in manager_roles
         )
         if not is_manager and (not user or facture.etudiant.user_id != user.id):
-            raise serializers.ValidationError(
-                {"facture": "Vous ne pouvez pas payer cette facture."}
-            )
+            raise serializers.ValidationError({"facture": "Vous ne pouvez pas payer cette facture."})
         if facture.statut in ("payee", "annulee"):
-            raise serializers.ValidationError(
-                {"facture": "Cette facture n'accepte plus de paiement."}
-            )
+            raise serializers.ValidationError({"facture": "Cette facture n'accepte plus de paiement."})
         if montant <= 0:
             raise serializers.ValidationError({"montant": "Le montant doit être positif."})
         if montant > reste:
             raise serializers.ValidationError(
-                {
-                    "montant": f"Le montant ne peut pas dépasser le reste à payer ({reste}€)"
-                }
+                {"montant": f"Le montant ne peut pas dépasser le reste à payer ({reste}€)"}
             )
         return data

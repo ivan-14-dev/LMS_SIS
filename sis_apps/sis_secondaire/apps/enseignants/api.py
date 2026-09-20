@@ -73,9 +73,7 @@ class PersonnelViewSet(viewsets.ModelViewSet):
             serializer = PersonnelDetailSerializer(personnel)
             return Response(serializer.data)
         except Personnel.DoesNotExist:
-            return Response(
-                {"error": "Vous n'êtes pas membre du personnel."}, status=404
-            )
+            return Response({"error": "Vous n'êtes pas membre du personnel."}, status=404)
 
     @action(detail=False, methods=["get"])
     def enseignants(self, request):

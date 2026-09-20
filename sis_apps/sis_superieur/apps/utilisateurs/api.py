@@ -5,26 +5,68 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from sis_common.authorization import permission_snapshot
+from sis_common.authorization import (
+    has_business_permission_or_role,
+    permission_snapshot,
+)
 
 from .models import Utilisateur
 from .serializers import (
     ChangePasswordSerializer,
+    GroupSerializer,
+    PermissionSerializer,
     UtilisateurCreateSerializer,
     UtilisateurDetailSerializer,
     UtilisateurListSerializer,
     UtilisateurProfileSerializer,
-    GroupSerializer,
-    PermissionSerializer,
 )
+
+
+class CanManageUsers(IsAuthenticated):
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        if view.action in ("me", "capabilities", "update_profile", "change_password"):
+            return True
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return True
+        permission = {
+            "create": "utilisateurs.add_utilisateur",
+            "destroy": "utilisateurs.delete_utilisateur",
+        }.get(view.action, "utilisateurs.change_utilisateur")
+        return has_business_permission_or_role(
+            request.user,
+            permission,
+            (
+                "president",
+                "vice_president",
+                "doyen",
+                "directeur_etudes",
+                "scolarite",
+            ),
+        )
+
+
+class CanManageAuthorization(IsAuthenticated):
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        permission = {
+            "GET": "auth.view_group",
+            "HEAD": "auth.view_group",
+            "OPTIONS": "auth.view_group",
+            "POST": "auth.add_group",
+            "DELETE": "auth.delete_group",
+        }.get(request.method, "auth.change_group")
+        return request.user.is_staff or request.user.has_perm(permission)
 
 
 class UtilisateursViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour utilisateurs."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [CanManageUsers]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["role", "is_active", "etablissement"]
     search_fields = ["username", "email", "first_name", "last_name"]
@@ -40,8 +82,18 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
         if hasattr(user, "etablissement") and user.etablissement:
             qs = qs.filter(etablissement=user.etablissement)
 
-        # Les non-admins ne voient que leur propre profil
-        if not user.is_staff and not getattr(user, "is_admin", False):
+        can_list = has_business_permission_or_role(
+            user,
+            "utilisateurs.view_utilisateur",
+            (
+                "president",
+                "vice_president",
+                "doyen",
+                "directeur_etudes",
+                "scolarite",
+            ),
+        )
+        if not can_list:
             qs = qs.filter(pk=user.pk)
 
         return qs
@@ -58,11 +110,6 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
         elif self.action == "change_password":
             return ChangePasswordSerializer
         return UtilisateurDetailSerializer
-
-    def get_permissions(self):
-        if self.action in ["create", "destroy"]:
-            return [IsAdminUser()]
-        return super().get_permissions()
 
     @action(detail=False, methods=["get"])
     def me(self, request):
@@ -101,7 +148,7 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
 
         return Response({"detail": "Mot de passe modifié avec succès."})
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=["post"])
     def toggle_active(self, request, pk=None):
         """Active ou désactive un utilisateur."""
         user = self.get_object()
@@ -117,17 +164,15 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
 
 
 class PermissionsViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [IsAdminUser]
+    permission_classes = [CanManageAuthorization]
     serializer_class = PermissionSerializer
-    queryset = Permission.objects.select_related("content_type").order_by(
-        "content_type__app_label", "codename"
-    )
+    queryset = Permission.objects.select_related("content_type").order_by("content_type__app_label", "codename")
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ["content_type__app_label"]
     search_fields = ["codename", "name"]
 
 
 class GroupesPermissionsViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAdminUser]
+    permission_classes = [CanManageAuthorization]
     serializer_class = GroupSerializer
     queryset = Group.objects.prefetch_related("permissions").order_by("name")

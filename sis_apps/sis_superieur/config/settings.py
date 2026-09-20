@@ -22,9 +22,7 @@ from sis_common.config import (
 # SECURITY - Configuration obligatoire
 # =============================================================================
 
-SECRET_KEY = get_required_secret(
-    "DJANGO_SECRET_KEY", test_value="test-secret-key-for-testing-only"
-)
+SECRET_KEY = get_required_secret("DJANGO_SECRET_KEY", test_value="test-secret-key-for-testing-only")
 DEBUG = get_bool_environment("DJANGO_DEBUG")
 ALLOWED_HOSTS = get_allowed_hosts()
 
@@ -157,9 +155,9 @@ SHARED_APPS = (
     "apps.core",
     "apps.etablissement",
 )
-TENANT_APPS = tuple(
-    app for app in LOCAL_APPS if app not in ("apps.core", "apps.etablissement")
-) + tuple(THIRD_PARTY_APPS)
+TENANT_APPS = tuple(app for app in LOCAL_APPS if app not in ("apps.core", "apps.etablissement")) + tuple(
+    THIRD_PARTY_APPS
+)
 
 # Cache
 CACHES = {
@@ -203,9 +201,7 @@ PASSWORD_HASHERS = [
 ]
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
         "OPTIONS": {"min_length": 12},
@@ -236,18 +232,12 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 # Media
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
-PRIVATE_EXAM_STORAGE_ROOT = Path(
-    os.environ.get("PRIVATE_EXAM_STORAGE_ROOT", BASE_DIR / "private_exam_copies")
-)
+PRIVATE_EXAM_STORAGE_ROOT = Path(os.environ.get("PRIVATE_EXAM_STORAGE_ROOT", BASE_DIR / "private_exam_copies"))
 EXAM_COPY_MAX_SIZE = int(os.environ.get("EXAM_COPY_MAX_SIZE", 25 * 1024 * 1024))
 PRIVATE_FINANCIAL_STORAGE_ROOT = Path(
-    os.environ.get(
-        "PRIVATE_FINANCIAL_STORAGE_ROOT", BASE_DIR / "private_financial_documents"
-    )
+    os.environ.get("PRIVATE_FINANCIAL_STORAGE_ROOT", BASE_DIR / "private_financial_documents")
 )
-PAYMENT_PROOF_MAX_SIZE = int(
-    os.environ.get("PAYMENT_PROOF_MAX_SIZE", 10 * 1024 * 1024)
-)
+PAYMENT_PROOF_MAX_SIZE = int(os.environ.get("PAYMENT_PROOF_MAX_SIZE", 10 * 1024 * 1024))
 
 # Security
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -295,9 +285,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 # CORS
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    "CORS_ALLOWED_ORIGINS", "http://localhost:3000"
-).split(",")
+CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = (*default_headers, "use-jwt-cookie")
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
@@ -359,26 +347,14 @@ LOGGING = {
 # ====================== Open edX Integration ======================
 EDX_LMS_URL = os.environ.get("EDX_LMS_URL", "http://localhost:8000")
 EDX_CMS_URL = os.environ.get("EDX_CMS_URL", "http://localhost:8001")
-EDX_OAUTH_CLIENT_ID = get_required_secret(
-    "EDX_OAUTH_CLIENT_ID", test_value="sis-superieur-test-client"
-)
-EDX_OAUTH_CLIENT_SECRET = get_required_secret(
-    "EDX_OAUTH_CLIENT_SECRET", test_value="test-oauth-secret"
-)
+EDX_OAUTH_CLIENT_ID = get_required_secret("EDX_OAUTH_CLIENT_ID", test_value="sis-superieur-test-client")
+EDX_OAUTH_CLIENT_SECRET = get_required_secret("EDX_OAUTH_CLIENT_SECRET", test_value="test-oauth-secret")
 EDX_JWT_ISSUER = os.environ.get("EDX_JWT_ISSUER", f"{EDX_LMS_URL.rstrip('/')}/oauth2")
-EDX_JWT_AUDIENCE = get_required_secret(
-    "EDX_JWT_AUDIENCE", test_value="sis-test-audience"
-)
-EDX_JWT_PUBLIC_SIGNING_JWK_SET = get_required_secret(
-    "EDX_JWT_PUBLIC_SIGNING_JWK_SET", test_value='{"keys":[]}'
-)
+EDX_JWT_AUDIENCE = get_required_secret("EDX_JWT_AUDIENCE", test_value="sis-test-audience")
+EDX_JWT_PUBLIC_SIGNING_JWK_SET = get_required_secret("EDX_JWT_PUBLIC_SIGNING_JWK_SET", test_value='{"keys":[]}')
 EDX_JWT_ALGORITHM = "RS512"
 EDX_JWT_LEEWAY = 5
-EDX_JWT_COOKIE_HEADER_PAYLOAD = os.environ.get(
-    "EDX_JWT_COOKIE_HEADER_PAYLOAD", "edx-jwt-cookie-header-payload"
-)
-EDX_JWT_COOKIE_SIGNATURE = os.environ.get(
-    "EDX_JWT_COOKIE_SIGNATURE", "edx-jwt-cookie-signature"
-)
+EDX_JWT_COOKIE_HEADER_PAYLOAD = os.environ.get("EDX_JWT_COOKIE_HEADER_PAYLOAD", "edx-jwt-cookie-header-payload")
+EDX_JWT_COOKIE_SIGNATURE = os.environ.get("EDX_JWT_COOKIE_SIGNATURE", "edx-jwt-cookie-signature")
 WEBHOOK_SECRET = get_required_secret("WEBHOOK_SECRET", test_value="test-webhook-secret")
 SIS_WEBHOOK_LMS_URL = f"{EDX_LMS_URL}/api/webhooks/v1/webhooks/"

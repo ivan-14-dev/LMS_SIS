@@ -3,16 +3,16 @@
 from django.core.validators import RegexValidator
 from django.db import models
 from django_tenants.models import DomainMixin, TenantMixin
+from sis_common.academic_configuration import (
+    default_academic_configuration,
+    validate_academic_configuration,
+)
 from sis_common.establishments import (
     default_establishment_features,
     default_live_configuration,
     validate_establishment_features,
     validate_live_configuration,
     validate_timezone,
-)
-from sis_common.academic_configuration import (
-    default_academic_configuration,
-    validate_academic_configuration,
 )
 
 
@@ -63,9 +63,7 @@ class Etablissement(TenantMixin):
             )
         ],
     )
-    fuseau_horaire = models.CharField(
-        max_length=64, default="UTC", validators=[validate_timezone]
-    )
+    fuseau_horaire = models.CharField(max_length=64, default="UTC", validators=[validate_timezone])
     fonctionnalites = models.JSONField(
         default=default_establishment_features,
         validators=[validate_establishment_features],
@@ -116,9 +114,7 @@ class Domain(DomainMixin):
 class AnneeScolaire(models.Model):
     """Année scolaire d'un établissement."""
 
-    etablissement = models.ForeignKey(
-        Etablissement, on_delete=models.CASCADE, related_name="annees_scolaires"
-    )
+    etablissement = models.ForeignKey(Etablissement, on_delete=models.CASCADE, related_name="annees_scolaires")
     libelle = models.CharField(max_length=50, help_text="Ex: 2026-2027")
     date_debut = models.DateField()
     date_fin = models.DateField()
@@ -144,9 +140,7 @@ class Periode(models.Model):
         ("quadrimestre", "Quadrimestre"),
         ("sequence", "Séquence"),
     ]
-    annee_scolaire = models.ForeignKey(
-        AnneeScolaire, on_delete=models.CASCADE, related_name="periodes"
-    )
+    annee_scolaire = models.ForeignKey(AnneeScolaire, on_delete=models.CASCADE, related_name="periodes")
     type = models.CharField(max_length=50)
     numero = models.PositiveSmallIntegerField()
     libelle = models.CharField(max_length=50, blank=True)
@@ -159,9 +153,7 @@ class Periode(models.Model):
         ordering = ["annee_scolaire", "numero"]
 
     def __str__(self):
-        return (
-            f"{self.get_type_display()} {self.numero} - {self.annee_scolaire.libelle}"
-        )
+        return f"{self.get_type_display()} {self.numero} - {self.annee_scolaire.libelle}"
 
     def get_type_display(self):
         return dict(self.TYPE_CHOICES).get(self.type, self.type)
@@ -182,9 +174,7 @@ class Niveau(models.Model):
         ("1ere_pro", "1ère Pro"),
         ("tale_pro", "Terminale Pro"),
     ]
-    etablissement = models.ForeignKey(
-        Etablissement, on_delete=models.CASCADE, related_name="niveaux"
-    )
+    etablissement = models.ForeignKey(Etablissement, on_delete=models.CASCADE, related_name="niveaux")
     code = models.CharField(max_length=20)
     libelle = models.CharField(max_length=100)
     ordre = models.PositiveSmallIntegerField(default=0)

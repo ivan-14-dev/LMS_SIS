@@ -19,15 +19,11 @@ def export_queryset_csv(queryset, report, field_map, filter_map, supplied_filter
     fields = report.get("fields", [])
     unknown_fields = set(fields) - set(field_map)
     if unknown_fields:
-        raise ValidationError(
-            {"fields": f"Champs non exportables: {', '.join(sorted(unknown_fields))}."}
-        )
+        raise ValidationError({"fields": f"Champs non exportables: {', '.join(sorted(unknown_fields))}."})
     allowed_filters = set(report.get("allowed_filters", []))
     unknown_filters = set(supplied_filters) - allowed_filters
     if unknown_filters:
-        raise ValidationError(
-            {"filters": f"Filtres non autorisés: {', '.join(sorted(unknown_filters))}."}
-        )
+        raise ValidationError({"filters": f"Filtres non autorisés: {', '.join(sorted(unknown_filters))}."})
     orm_filters = {}
     for name, value in supplied_filters.items():
         if name not in filter_map:

@@ -16,9 +16,7 @@ class Migration(migrations.Migration):
             name="configuration_academique",
             field=models.JSONField(
                 default=sis_common.academic_configuration.default_academic_configuration,
-                validators=[
-                    sis_common.academic_configuration.validate_academic_configuration
-                ],
+                validators=[sis_common.academic_configuration.validate_academic_configuration],
             ),
         ),
         migrations.AlterField(

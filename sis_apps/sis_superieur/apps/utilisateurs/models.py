@@ -34,7 +34,7 @@ class Utilisateur(AbstractUser):
         null=True,
         blank=True,
     )
-    role = models.CharField(max_length=40, choices=ROLE_CHOICES, default="etudiant")
+    role = models.CharField(max_length=100, default="etudiant")
     numero_etudiant = models.CharField(max_length=50, blank=True)
     numero_enseignant = models.CharField(max_length=50, blank=True)
     telephone = models.CharField(max_length=20, blank=True)
@@ -58,6 +58,9 @@ class Utilisateur(AbstractUser):
 
     def __str__(self):
         return f"{self.get_full_name()} ({self.get_role_display()})"
+
+    def get_role_display(self):
+        return dict(self.ROLE_CHOICES).get(self.role, self.role)
 
     @property
     def is_etudiant(self):

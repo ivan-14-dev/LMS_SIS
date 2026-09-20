@@ -122,9 +122,7 @@ class UtilisateurCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs.get("password") != attrs.get("password_confirm"):
-            raise serializers.ValidationError(
-                {"password_confirm": "Les mots de passe ne correspondent pas."}
-            )
+            raise serializers.ValidationError({"password_confirm": "Les mots de passe ne correspondent pas."})
         return attrs
 
     def create(self, validated_data):
@@ -145,9 +143,7 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs["new_password"] != attrs["new_password_confirm"]:
-            raise serializers.ValidationError(
-                {"new_password_confirm": "Les mots de passe ne correspondent pas."}
-            )
+            raise serializers.ValidationError({"new_password_confirm": "Les mots de passe ne correspondent pas."})
         return attrs
 
 
@@ -165,4 +161,3 @@ class UtilisateurProfileSerializer(serializers.ModelSerializer):
             "langue",
             "preferences_notification",
         ]
-from django.contrib.auth.models import Group, Permission

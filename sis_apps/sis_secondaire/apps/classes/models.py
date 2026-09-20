@@ -15,9 +15,7 @@ class Classe(models.Model):
         null=True,
         blank=True,
     )
-    annee_scolaire = models.ForeignKey(
-        AnneeScolaire, on_delete=models.CASCADE, related_name="classes"
-    )
+    annee_scolaire = models.ForeignKey(AnneeScolaire, on_delete=models.CASCADE, related_name="classes")
     niveau = models.ForeignKey(Niveau, on_delete=models.PROTECT, related_name="classes")
     nom = models.CharField(max_length=50, help_text="Ex: 6e A, Terminale C")
     effectif_max = models.PositiveIntegerField(default=40)
@@ -70,9 +68,7 @@ class Groupe(models.Model):
         null=True,
         blank=True,
     )
-    annee_scolaire = models.ForeignKey(
-        AnneeScolaire, on_delete=models.CASCADE, related_name="groupes"
-    )
+    annee_scolaire = models.ForeignKey(AnneeScolaire, on_delete=models.CASCADE, related_name="groupes")
     classes = models.ManyToManyField(Classe, related_name="groupes")
     nom = models.CharField(max_length=100)
     type = models.CharField(max_length=100)
@@ -129,12 +125,8 @@ class Matiere(models.Model):
 class ProgrammeMatiere(models.Model):
     """Affectation d'une matière à une classe avec coefficient et horaires."""
 
-    classe = models.ForeignKey(
-        Classe, on_delete=models.CASCADE, related_name="programmes"
-    )
-    matiere = models.ForeignKey(
-        Matiere, on_delete=models.CASCADE, related_name="programmes"
-    )
+    classe = models.ForeignKey(Classe, on_delete=models.CASCADE, related_name="programmes")
+    matiere = models.ForeignKey(Matiere, on_delete=models.CASCADE, related_name="programmes")
     coefficient = models.DecimalField(max_digits=4, decimal_places=2, default=1)
     credits = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     heures_semaine = models.DecimalField(max_digits=4, decimal_places=2, default=0)
@@ -167,12 +159,8 @@ class ProgrammeMatiere(models.Model):
 class Chapitre(models.Model):
     """Chapitre d'un programme d'enseignement."""
 
-    matiere = models.ForeignKey(
-        Matiere, on_delete=models.CASCADE, related_name="chapitres"
-    )
-    niveau = models.ForeignKey(
-        Niveau, on_delete=models.CASCADE, related_name="chapitres"
-    )
+    matiere = models.ForeignKey(Matiere, on_delete=models.CASCADE, related_name="chapitres")
+    niveau = models.ForeignKey(Niveau, on_delete=models.CASCADE, related_name="chapitres")
     ordre = models.PositiveIntegerField()
     titre = models.CharField(max_length=200)
     description = models.TextField(blank=True)

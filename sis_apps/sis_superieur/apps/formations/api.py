@@ -44,9 +44,7 @@ class FormationsViewSet(viewsets.ModelViewSet):
     ordering = ["code"]
 
     def get_queryset(self):
-        return Formation.objects.select_related(
-            "departement", "ecole_doctorale", "responsable"
-        )
+        return Formation.objects.select_related("departement", "ecole_doctorale", "responsable")
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -76,9 +74,7 @@ class FormationsViewSet(viewsets.ModelViewSet):
         # Compter les étudiants inscrits via InscriptionAdministrative
         from apps.etudiants.models import InscriptionAdministrative
 
-        nb_inscrits = InscriptionAdministrative.objects.filter(
-            formation=formation, statut="validee"
-        ).count()
+        nb_inscrits = InscriptionAdministrative.objects.filter(formation=formation, statut="validee").count()
         return Response(
             {
                 "formation_id": formation.id,
@@ -112,6 +108,4 @@ class MaquettesViewSet(viewsets.ModelViewSet):
     filterset_fields = ["formation", "annee_universitaire", "statut"]
 
     def get_queryset(self):
-        return MaquetteFormation.objects.select_related(
-            "formation", "annee_universitaire"
-        )
+        return MaquetteFormation.objects.select_related("formation", "annee_universitaire")

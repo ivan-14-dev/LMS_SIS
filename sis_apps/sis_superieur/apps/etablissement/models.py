@@ -3,16 +3,16 @@
 from django.core.validators import RegexValidator
 from django.db import models
 from django_tenants.models import DomainMixin, TenantMixin
+from sis_common.academic_configuration import (
+    default_academic_configuration,
+    validate_academic_configuration,
+)
 from sis_common.establishments import (
     default_establishment_features,
     default_live_configuration,
     validate_establishment_features,
     validate_live_configuration,
     validate_timezone,
-)
-from sis_common.academic_configuration import (
-    default_academic_configuration,
-    validate_academic_configuration,
 )
 
 
@@ -65,9 +65,7 @@ class Universite(TenantMixin):
             )
         ],
     )
-    fuseau_horaire = models.CharField(
-        max_length=64, default="UTC", validators=[validate_timezone]
-    )
+    fuseau_horaire = models.CharField(max_length=64, default="UTC", validators=[validate_timezone])
     fonctionnalites = models.JSONField(
         default=default_establishment_features,
         validators=[validate_establishment_features],
@@ -108,9 +106,7 @@ class Domain(DomainMixin):
 class AnneeUniversitaire(models.Model):
     """Année universitaire."""
 
-    universite = models.ForeignKey(
-        Universite, on_delete=models.CASCADE, related_name="annees_universitaires"
-    )
+    universite = models.ForeignKey(Universite, on_delete=models.CASCADE, related_name="annees_universitaires")
     libelle = models.CharField(max_length=50, help_text="Ex: 2026-2027")
     date_debut = models.DateField()
     date_fin = models.DateField()
@@ -134,9 +130,7 @@ class Semestre(models.Model):
         ("pair", "Semestre pair (S2, S4, S6)"),
         ("unique", "Semestre unique"),
     ]
-    annee_universitaire = models.ForeignKey(
-        AnneeUniversitaire, on_delete=models.CASCADE, related_name="semestres"
-    )
+    annee_universitaire = models.ForeignKey(AnneeUniversitaire, on_delete=models.CASCADE, related_name="semestres")
     numero = models.PositiveSmallIntegerField()
     type = models.CharField(max_length=50)
     date_debut = models.DateField()

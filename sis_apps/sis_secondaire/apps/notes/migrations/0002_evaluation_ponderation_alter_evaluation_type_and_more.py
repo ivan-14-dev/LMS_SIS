@@ -53,9 +53,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "note_eliminatoire",
-                    models.DecimalField(
-                        blank=True, decimal_places=2, max_digits=5, null=True
-                    ),
+                    models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True),
                 ),
                 (
                     "credits_minimum",

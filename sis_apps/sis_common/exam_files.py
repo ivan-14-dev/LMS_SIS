@@ -24,9 +24,7 @@ class PrivateExamStorage(FileSystemStorage):
         )
 
     def url(self, name):
-        raise SuspiciousFileOperation(
-            "Les copies d'examen ne disposent pas d'URL publique."
-        )
+        raise SuspiciousFileOperation("Les copies d'examen ne disposent pas d'URL publique.")
 
 
 @deconstructible
@@ -45,9 +43,7 @@ class PrivateFinancialStorage(FileSystemStorage):
         )
 
     def url(self, name):
-        raise SuspiciousFileOperation(
-            "Les justificatifs financiers ne disposent pas d'URL publique."
-        )
+        raise SuspiciousFileOperation("Les justificatifs financiers ne disposent pas d'URL publique.")
 
 
 def exam_copy_upload_to(instance, filename):
@@ -58,9 +54,7 @@ def exam_copy_upload_to(instance, filename):
 def validate_exam_copy(file):
     max_size = getattr(settings, "EXAM_COPY_MAX_SIZE", 25 * 1024 * 1024)
     if file.size > max_size:
-        raise ValidationError(
-            f"La copie dépasse la taille maximale autorisée de {max_size // (1024 * 1024)} Mo."
-        )
+        raise ValidationError(f"La copie dépasse la taille maximale autorisée de {max_size // (1024 * 1024)} Mo.")
     if Path(file.name).suffix.lower() != ".pdf":
         raise ValidationError("Seules les copies PDF sont autorisées.")
     if getattr(file, "content_type", "application/pdf") not in (

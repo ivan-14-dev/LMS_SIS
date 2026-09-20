@@ -1,16 +1,16 @@
 """Serializers for etablissement (SIS Secondaire)."""
 
 from rest_framework import serializers
+from sis_common.academic_configuration import (
+    catalog_label,
+    catalog_options,
+    merge_academic_configuration,
+)
 from sis_common.establishments import (
     FEATURE_LABELS,
     LIVE_PROVIDER_LABELS,
     default_establishment_features,
     default_live_configuration,
-)
-from sis_common.academic_configuration import (
-    catalog_label,
-    catalog_options,
-    merge_academic_configuration,
 )
 
 from .models import AnneeScolaire, Etablissement, Niveau, Periode
@@ -97,25 +97,16 @@ class EtablissementSerializer(serializers.ModelSerializer):
         )
 
     def get_feature_options(self, obj):
-        return [
-            {"value": value, "label": label} for value, label in FEATURE_LABELS.items()
-        ]
+        return [{"value": value, "label": label} for value, label in FEATURE_LABELS.items()]
 
     def get_live_provider_options(self, obj):
-        return [
-            {"value": value, "label": label}
-            for value, label in LIVE_PROVIDER_LABELS.items()
-        ]
+        return [{"value": value, "label": label} for value, label in LIVE_PROVIDER_LABELS.items()]
 
     def validate(self, attrs):
         institution_type = attrs.get("type", getattr(self.instance, "type", None))
-        custom_type = attrs.get(
-            "type_personnalise", getattr(self.instance, "type_personnalise", "")
-        )
+        custom_type = attrs.get("type_personnalise", getattr(self.instance, "type_personnalise", ""))
         if institution_type == "autre" and not custom_type.strip():
-            raise serializers.ValidationError(
-                {"type_personnalise": "Précisez le type de cet établissement."}
-            )
+            raise serializers.ValidationError({"type_personnalise": "Précisez le type de cet établissement."})
         return attrs
 
     def validate_fonctionnalites(self, value):
@@ -159,9 +150,7 @@ class AnneeScolaireSerializer(serializers.ModelSerializer):
 class PeriodeSerializer(serializers.ModelSerializer):
     """Serializer pour les périodes."""
 
-    annee_libelle = serializers.CharField(
-        source="annee_scolaire.libelle", read_only=True
-    )
+    annee_libelle = serializers.CharField(source="annee_scolaire.libelle", read_only=True)
     type_display = serializers.CharField(source="get_type_display", read_only=True)
 
     class Meta:
@@ -183,9 +172,7 @@ class PeriodeSerializer(serializers.ModelSerializer):
     def validate_annee_scolaire(self, value):
         request = self.context.get("request")
         if request and value.etablissement_id != request.tenant.id:
-            raise serializers.ValidationError(
-                "Cette année n'appartient pas à l'établissement courant."
-            )
+            raise serializers.ValidationError("Cette année n'appartient pas à l'établissement courant.")
         return value
 
 

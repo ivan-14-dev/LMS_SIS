@@ -1,11 +1,10 @@
 """Validation helpers for tenant-defined academic structures and rules."""
 
+import re
 from copy import deepcopy
 from decimal import Decimal, InvalidOperation
-import re
 
 from django.core.exceptions import ValidationError
-
 
 DEFAULT_ACADEMIC_CONFIGURATION = {
     "language": "fr",
@@ -64,18 +63,14 @@ def validate_academic_configuration(value):
         raise ValidationError("La configuration académique doit être un objet.")
     unknown = set(value) - set(DEFAULT_ACADEMIC_CONFIGURATION)
     if unknown:
-        raise ValidationError(
-            f"Clés de configuration académique inconnues: {', '.join(sorted(unknown))}."
-        )
+        raise ValidationError(f"Clés de configuration académique inconnues: {', '.join(sorted(unknown))}.")
 
     scale = value.get("grading_scale", {})
     if not isinstance(scale, dict):
         raise ValidationError("grading_scale doit être un objet.")
     required = {"minimum", "maximum", "pass_mark"}
     if set(scale) != required:
-        raise ValidationError(
-            "grading_scale exige uniquement minimum, maximum et pass_mark."
-        )
+        raise ValidationError("grading_scale exige uniquement minimum, maximum et pass_mark.")
     minimum = _decimal(scale["minimum"], "grading_scale.minimum")
     maximum = _decimal(scale["maximum"], "grading_scale.maximum")
     pass_mark = _decimal(scale["pass_mark"], "grading_scale.pass_mark")
@@ -135,3 +130,46 @@ def catalog_label(configuration, name, code, fallback=()):
         (item["label"] for item in options if item["code"] == code),
         code,
     )
+
+
+def validate_rule_criteria(value):
+    if not isinstance(value, dict):
+        raise ValidationError("Les critères doivent être un objet.")
+    for code, criterion in value.items():
+        if not re.fullmatch(r"[a-z][a-z0-9_]{1,63}", code):
+            raise ValidationError(f"Code de critère invalide: {code!r}.")
+        if not isinstance(criterion, dict):
+            raise ValidationError(f"Le critère {code!r} doit être un objet.")
+        operator = criterion.get("operator")
+        if operator not in {"gte", "lte", "eq", "in"}:
+            raise ValidationError(f"Opérateur invalide pour le critère {code!r}.")
+        if "value" not in criterion:
+            raise ValidationError(f"Le critère {code!r} exige une valeur.")
+        if operator == "in" and not isinstance(criterion["value"], list):
+            raise ValidationError(f"La valeur du critère {code!r} doit être une liste.")
+
+
+def evaluate_rule_criteria(criteria, data):
+    validate_rule_criteria(criteria)
+    data = data or {}
+    failures = []
+    for code, criterion in criteria.items():
+        actual = data.get(code)
+        expected = criterion["value"]
+        operator = criterion["operator"]
+        passed = False
+        if actual is not None:
+            if operator == "in":
+                passed = actual in expected
+            elif operator == "eq":
+                passed = actual == expected
+            else:
+                try:
+                    actual_number = _decimal(actual, code)
+                    expected_number = _decimal(expected, code)
+                    passed = actual_number >= expected_number if operator == "gte" else actual_number <= expected_number
+                except ValidationError:
+                    passed = False
+        if not passed:
+            failures.append(f"critere:{code}")
+    return failures

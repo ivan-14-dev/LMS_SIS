@@ -9,12 +9,8 @@ class ClasseListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les listes de classes."""
 
     niveau_nom = serializers.CharField(source="niveau.libelle", read_only=True)
-    annee_libelle = serializers.CharField(
-        source="annee_scolaire.libelle", read_only=True
-    )
-    prof_principal_nom = serializers.CharField(
-        source="prof_principal.get_full_name", read_only=True
-    )
+    annee_libelle = serializers.CharField(source="annee_scolaire.libelle", read_only=True)
+    prof_principal_nom = serializers.CharField(source="prof_principal.get_full_name", read_only=True)
     effectif = serializers.IntegerField(source="effectif_actuel", read_only=True)
 
     class Meta:
@@ -38,12 +34,8 @@ class ClasseDetailSerializer(serializers.ModelSerializer):
     """Serializer complet pour le détail d'une classe."""
 
     niveau_nom = serializers.CharField(source="niveau.libelle", read_only=True)
-    annee_libelle = serializers.CharField(
-        source="annee_scolaire.libelle", read_only=True
-    )
-    prof_principal_nom = serializers.CharField(
-        source="prof_principal.get_full_name", read_only=True
-    )
+    annee_libelle = serializers.CharField(source="annee_scolaire.libelle", read_only=True)
+    prof_principal_nom = serializers.CharField(source="prof_principal.get_full_name", read_only=True)
     salle_nom = serializers.CharField(source="salle_principale.nom", read_only=True)
     effectif = serializers.IntegerField(source="effectif_actuel", read_only=True)
 
@@ -142,9 +134,7 @@ class ProgrammeMatiereSerializer(serializers.ModelSerializer):
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
     matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
     matiere_code = serializers.CharField(source="matiere.code", read_only=True)
-    enseignant_nom = serializers.CharField(
-        source="enseignant_principal.get_full_name", read_only=True
-    )
+    enseignant_nom = serializers.CharField(source="enseignant_principal.get_full_name", read_only=True)
 
     class Meta:
         model = ProgrammeMatiere

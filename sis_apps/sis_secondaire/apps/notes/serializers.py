@@ -1,6 +1,7 @@
 """Serializers for notes (SIS Secondaire)."""
 
 from rest_framework import serializers
+from sis_common.academic_configuration import validate_rule_criteria
 
 from .models import Bulletin, Evaluation, Note, RegleValidation
 
@@ -11,9 +12,7 @@ class EvaluationListSerializer(serializers.ModelSerializer):
     matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
     type_display = serializers.CharField(source="get_type_display", read_only=True)
-    enseignant_nom = serializers.CharField(
-        source="enseignant.user.get_full_name", read_only=True
-    )
+    enseignant_nom = serializers.CharField(source="enseignant.user.get_full_name", read_only=True)
 
     class Meta:
         model = Evaluation
@@ -42,9 +41,7 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
     matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
     type_display = serializers.CharField(source="get_type_display", read_only=True)
-    enseignant_nom = serializers.CharField(
-        source="enseignant.user.get_full_name", read_only=True
-    )
+    enseignant_nom = serializers.CharField(source="enseignant.user.get_full_name", read_only=True)
     periode_libelle = serializers.CharField(source="periode.libelle", read_only=True)
     nb_notes = serializers.SerializerMethodField()
 
@@ -185,18 +182,16 @@ class RegleValidationSerializer(serializers.ModelSerializer):
         model = RegleValidation
         fields = "__all__"
 
+    def validate_criteres(self, value):
+        validate_rule_criteria(value)
+        return value
+
     def validate(self, attrs):
         classe = attrs.get("classe", getattr(self.instance, "classe", None))
         niveau = attrs.get("niveau", getattr(self.instance, "niveau", None))
-        annee = attrs.get(
-            "annee_scolaire", getattr(self.instance, "annee_scolaire", None)
-        )
+        annee = attrs.get("annee_scolaire", getattr(self.instance, "annee_scolaire", None))
         if classe and classe.annee_scolaire_id != annee.id:
-            raise serializers.ValidationError(
-                {"classe": "La classe doit appartenir à l'année de la règle."}
-            )
+            raise serializers.ValidationError({"classe": "La classe doit appartenir à l'année de la règle."})
         if classe and niveau and classe.niveau_id != niveau.id:
-            raise serializers.ValidationError(
-                {"niveau": "Le niveau doit correspondre à celui de la classe."}
-            )
+            raise serializers.ValidationError({"niveau": "Le niveau doit correspondre à celui de la classe."})
         return attrs

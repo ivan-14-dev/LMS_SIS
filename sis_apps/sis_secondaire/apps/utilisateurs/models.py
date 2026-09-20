@@ -29,7 +29,7 @@ class Utilisateur(AbstractUser):
         null=True,
         blank=True,
     )
-    role = models.CharField(max_length=40, choices=ROLE_CHOICES, default="eleve")
+    role = models.CharField(max_length=100, default="eleve")
     telephone = models.CharField(max_length=20, blank=True)
     adresse = models.TextField(blank=True)
     photo = models.ImageField(upload_to="photos/", null=True, blank=True)
@@ -51,6 +51,9 @@ class Utilisateur(AbstractUser):
 
     def __str__(self):
         return f"{self.get_full_name()} ({self.get_role_display()})"
+
+    def get_role_display(self):
+        return dict(self.ROLE_CHOICES).get(self.role, self.role)
 
     @property
     def is_eleve(self):

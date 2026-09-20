@@ -84,9 +84,9 @@ class EnseignantsViewSet(viewsets.ModelViewSet):
     def affectations(self, request, pk=None):
         """Liste les affectations d'enseignement."""
         enseignant = self.get_object()
-        affectations = enseignant.affectations.select_related(
-            "ue", "ecue", "annee_universitaire"
-        ).order_by("-annee_universitaire__date_debut")
+        affectations = enseignant.affectations.select_related("ue", "ecue", "annee_universitaire").order_by(
+            "-annee_universitaire__date_debut"
+        )
         serializer = AffectationEnseignementSerializer(affectations, many=True)
         return Response(serializer.data)
 
@@ -125,6 +125,4 @@ class AffectationsViewSet(viewsets.ModelViewSet):
     ordering = ["-annee_universitaire__date_debut"]
 
     def get_queryset(self):
-        return AffectationEnseignement.objects.select_related(
-            "enseignant__user", "ue", "ecue", "annee_universitaire"
-        )
+        return AffectationEnseignement.objects.select_related("enseignant__user", "ue", "ecue", "annee_universitaire")

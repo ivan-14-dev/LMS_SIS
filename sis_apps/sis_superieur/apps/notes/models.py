@@ -6,6 +6,7 @@ from apps.ue_ecue.models import ECUE, UE
 from apps.utilisateurs.models import Utilisateur
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from sis_common.academic_configuration import evaluate_rule_criteria
 
 
 class Evaluation(models.Model):
@@ -36,9 +37,7 @@ class Evaluation(models.Model):
         help_text="Pourcentage de cette évaluation dans son regroupement.",
     )
     modalite = models.CharField(max_length=100, default="cc")
-    semestre = models.ForeignKey(
-        Semestre, on_delete=models.PROTECT, related_name="evaluations"
-    )
+    semestre = models.ForeignKey(Semestre, on_delete=models.PROTECT, related_name="evaluations")
     enseignant = models.ForeignKey(
         Utilisateur,
         on_delete=models.PROTECT,
@@ -74,18 +73,12 @@ class Note(models.Model):
         ("triche", "Triche"),
         ("en_attente", "En attente"),
     ]
-    evaluation = models.ForeignKey(
-        Evaluation, on_delete=models.CASCADE, related_name="notes"
-    )
-    etudiant = models.ForeignKey(
-        Etudiant, on_delete=models.CASCADE, related_name="notes"
-    )
+    evaluation = models.ForeignKey(Evaluation, on_delete=models.CASCADE, related_name="notes")
+    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="notes")
     valeur = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     numero_anonyme = models.CharField(max_length=20, blank=True)
     appreciation = models.TextField(blank=True)
-    statut = models.CharField(
-        max_length=20, choices=STATUT_CHOICES, default="en_attente"
-    )
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="en_attente")
     date_saisie = models.DateTimeField(auto_now_add=True)
     saisi_par = models.ForeignKey(
         Utilisateur,
@@ -115,13 +108,9 @@ class Note(models.Model):
 class MoyenneECUE(models.Model):
     """Moyenne calculée pour un ECUE / étudiant."""
 
-    etudiant = models.ForeignKey(
-        Etudiant, on_delete=models.CASCADE, related_name="moyennes_ecue"
-    )
+    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="moyennes_ecue")
     ecue = models.ForeignKey(ECUE, on_delete=models.CASCADE, related_name="moyennes")
-    semestre = models.ForeignKey(
-        Semestre, on_delete=models.CASCADE, related_name="moyennes_ecue"
-    )
+    semestre = models.ForeignKey(Semestre, on_delete=models.CASCADE, related_name="moyennes_ecue")
     moyenne = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     valide = models.BooleanField(default=False)
     date_calcul = models.DateTimeField(auto_now=True)
@@ -136,13 +125,9 @@ class MoyenneECUE(models.Model):
 class MoyenneUE(models.Model):
     """Moyenne calculée pour une UE / étudiant."""
 
-    etudiant = models.ForeignKey(
-        Etudiant, on_delete=models.CASCADE, related_name="moyennes_ue"
-    )
+    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="moyennes_ue")
     ue = models.ForeignKey(UE, on_delete=models.CASCADE, related_name="moyennes")
-    semestre = models.ForeignKey(
-        Semestre, on_delete=models.CASCADE, related_name="moyennes_ue"
-    )
+    semestre = models.ForeignKey(Semestre, on_delete=models.CASCADE, related_name="moyennes_ue")
     moyenne = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     credits_obtenus = models.DecimalField(max_digits=4, decimal_places=2, default=0)
     capitalisee = models.BooleanField(default=False)
@@ -180,9 +165,7 @@ class RegleValidation(models.Model):
         related_name="regles_validation",
     )
     seuil_moyenne = models.DecimalField(max_digits=5, decimal_places=2, default=10)
-    note_eliminatoire = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
+    note_eliminatoire = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     credits_minimum = models.DecimalField(max_digits=7, decimal_places=2, default=30)
     max_ecues_echoues = models.PositiveSmallIntegerField(null=True, blank=True)
     compensation_autorisee = models.BooleanField(default=True)
@@ -199,7 +182,14 @@ class RegleValidation(models.Model):
             )
         ]
 
-    def evaluer(self, moyenne, credits=0, ecues_echoues=0, note_minimale=None):
+    def evaluer(
+        self,
+        moyenne,
+        credits=0,
+        ecues_echoues=0,
+        note_minimale=None,
+        donnees=None,
+    ):
         motifs = []
         if moyenne < self.seuil_moyenne:
             motifs.append("moyenne_insuffisante")
@@ -207,10 +197,7 @@ class RegleValidation(models.Model):
             motifs.append("credits_insuffisants")
         if self.max_ecues_echoues is not None and ecues_echoues > self.max_ecues_echoues:
             motifs.append("trop_ecues_echoues")
-        if (
-            self.note_eliminatoire is not None
-            and note_minimale is not None
-            and note_minimale < self.note_eliminatoire
-        ):
+        if self.note_eliminatoire is not None and note_minimale is not None and note_minimale < self.note_eliminatoire:
             motifs.append("note_eliminatoire")
+        motifs.extend(evaluate_rule_criteria(self.criteres, donnees))
         return {"reussi": not motifs, "motifs": motifs}

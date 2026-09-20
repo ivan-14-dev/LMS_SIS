@@ -40,9 +40,7 @@ class IsAdminOrReadOnly(IsAuthenticated):
 
 class IsTenantConfigurationAdmin(IsAuthenticated):
     def has_permission(self, request, view):
-        return super().has_permission(
-            request, view
-        ) and has_business_permission_or_role(
+        return super().has_permission(request, view) and has_business_permission_or_role(
             request.user,
             "etablissement.change_universite",
             (
@@ -134,9 +132,7 @@ class AnneesUniversitairesViewSet(viewsets.ModelViewSet):
     ordering = ["-date_debut"]
 
     def get_queryset(self):
-        return AnneeUniversitaire.objects.select_related("universite").filter(
-            universite=self.request.tenant
-        )
+        return AnneeUniversitaire.objects.select_related("universite").filter(universite=self.request.tenant)
 
     def perform_create(self, serializer):
         serializer.save(universite=self.request.tenant)
@@ -154,9 +150,9 @@ class AnneesUniversitairesViewSet(viewsets.ModelViewSet):
         """Active l'année universitaire."""
         annee = self.get_object()
         # Désactiver les autres années de la même université
-        AnneeUniversitaire.objects.filter(
-            universite=annee.universite, en_cours=True
-        ).exclude(pk=annee.pk).update(en_cours=False)
+        AnneeUniversitaire.objects.filter(universite=annee.universite, en_cours=True).exclude(pk=annee.pk).update(
+            en_cours=False
+        )
 
         annee.en_cours = True
         annee.save(update_fields=["en_cours"])

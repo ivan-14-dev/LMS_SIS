@@ -35,9 +35,7 @@ class IsAdminOrReadOnly(IsAuthenticated):
 
 class IsTenantConfigurationAdmin(IsAuthenticated):
     def has_permission(self, request, view):
-        return super().has_permission(
-            request, view
-        ) and has_business_permission_or_role(
+        return super().has_permission(request, view) and has_business_permission_or_role(
             request.user,
             "etablissement.change_etablissement",
             ("direction", "responsable_pedagogique"),
@@ -61,9 +59,7 @@ class CurrentEtablissementView(APIView):
                 {"detail": "Aucun établissement n'est associé à ce domaine."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(
-            EtablissementSerializer(tenant, context={"request": request}).data
-        )
+        return Response(EtablissementSerializer(tenant, context={"request": request}).data)
 
     def patch(self, request):
         tenant = self.get_tenant(request)
@@ -115,9 +111,7 @@ class AnneesScolairesViewSet(viewsets.ModelViewSet):
     ordering = ["-date_debut"]
 
     def get_queryset(self):
-        return AnneeScolaire.objects.select_related("etablissement").filter(
-            etablissement=self.request.tenant
-        )
+        return AnneeScolaire.objects.select_related("etablissement").filter(etablissement=self.request.tenant)
 
     def perform_create(self, serializer):
         serializer.save(etablissement=self.request.tenant)
@@ -135,9 +129,9 @@ class AnneesScolairesViewSet(viewsets.ModelViewSet):
         """Active l'année scolaire."""
         annee = self.get_object()
         # Désactiver les autres années du même établissement
-        AnneeScolaire.objects.filter(
-            etablissement=annee.etablissement, en_cours=True
-        ).exclude(pk=annee.pk).update(en_cours=False)
+        AnneeScolaire.objects.filter(etablissement=annee.etablissement, en_cours=True).exclude(pk=annee.pk).update(
+            en_cours=False
+        )
 
         annee.en_cours = True
         annee.save(update_fields=["en_cours"])
@@ -187,9 +181,7 @@ class NiveauxViewSet(viewsets.ModelViewSet):
     serializer_class = NiveauSerializer
 
     def get_queryset(self):
-        return Niveau.objects.filter(etablissement=self.request.tenant).order_by(
-            "ordre", "code"
-        )
+        return Niveau.objects.filter(etablissement=self.request.tenant).order_by("ordre", "code")
 
     def perform_create(self, serializer):
         serializer.save(etablissement=self.request.tenant)

@@ -39,9 +39,7 @@ class UEViewSet(viewsets.ModelViewSet):
     ordering = ["semestre", "code"]
 
     def get_queryset(self):
-        return UE.objects.select_related(
-            "maquette__formation", "semestre"
-        ).prefetch_related("parcours_autorises")
+        return UE.objects.select_related("maquette__formation", "semestre").prefetch_related("parcours_autorises")
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -93,9 +91,7 @@ class ECUEViewSet(viewsets.ModelViewSet):
         from apps.enseignants.models import AffectationEnseignement
         from apps.enseignants.serializers import AffectationEnseignementSerializer
 
-        affectations = AffectationEnseignement.objects.filter(ecue=ecue).select_related(
-            "enseignant__user"
-        )
+        affectations = AffectationEnseignement.objects.filter(ecue=ecue).select_related("enseignant__user")
         serializer = AffectationEnseignementSerializer(affectations, many=True)
         return Response(serializer.data)
 

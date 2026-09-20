@@ -34,19 +34,27 @@ class IsComptabiliteOrReadOnly(IsAuthenticated):
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
         user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "comptabilite",
-            "scolarite",
-            "directeur_etudes",
-            "doyen",
+        model_name = getattr(view, "permission_model", "facturefrais")
+        action_name = {
+            "create": "add",
+            "destroy": "delete",
+        }.get(view.action, "change")
+        return has_business_permission_or_role(
+            user,
+            f"paiements.{action_name}_{model_name}",
+            (
+                "president",
+                "vice_president",
+                "doyen",
+                "scolarite",
+                "comptable",
+            ),
         )
 
 
 class IsFinanceManager(IsAuthenticated):
     def has_permission(self, request, view):
-        return super().has_permission(
-            request, view
-        ) and has_business_permission_or_role(
+        return super().has_permission(request, view) and has_business_permission_or_role(
             request.user,
             "paiements.change_paiementfrais",
             ("president", "vice_president", "doyen", "scolarite", "comptable"),
@@ -57,6 +65,7 @@ class TypesFraisViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour types de frais."""
 
     permission_classes = [IsComptabiliteOrReadOnly]
+    permission_model = "typefraisinscription"
     serializer_class = TypeFraisInscriptionSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ["annee_universitaire", "periodicite", "obligatoire", "actif"]
@@ -70,6 +79,7 @@ class FacturesViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour factures."""
 
     permission_classes = [IsComptabiliteOrReadOnly]
+    permission_model = "facturefrais"
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["etudiant", "type_frais", "statut"]
     search_fields = ["numero", "etudiant__matricule", "etudiant__user__last_name"]
@@ -92,9 +102,7 @@ class FacturesViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         # Générer un numéro de facture unique
-        numero = (
-            f"FACT-{timezone.now().strftime('%Y%m')}-{uuid.uuid4().hex[:6].upper()}"
-        )
+        numero = f"FACT-{timezone.now().strftime('%Y%m')}-{uuid.uuid4().hex[:6].upper()}"
         serializer.save(numero=numero)
 
     @action(detail=True, methods=["get"])
@@ -109,9 +117,7 @@ class FacturesViewSet(viewsets.ModelViewSet):
     def en_retard(self, request):
         """Liste les factures en retard."""
         today = timezone.now().date()
-        qs = self.get_queryset().filter(
-            date_echeance__lt=today, statut__in=["emise", "partielle"]
-        )
+        qs = self.get_queryset().filter(date_echeance__lt=today, statut__in=["emise", "partielle"])
         serializer = FactureFraisListSerializer(qs, many=True)
         return Response(serializer.data)
 
@@ -156,9 +162,7 @@ class PaiementsViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        queryset = PaiementFrais.objects.select_related(
-            "facture__etudiant__user", "enregistre_par", "verifie_par"
-        )
+        queryset = PaiementFrais.objects.select_related("facture__etudiant__user", "enregistre_par", "verifie_par")
         user = self.request.user
         if IsFinanceManager().has_permission(self.request, self):
             return queryset
@@ -173,15 +177,9 @@ class PaiementsViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         # Générer un numéro de paiement unique
-        numero = (
-            f"PAY-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
-        )
-        enregistre_par = (
-            self.request.user if self.request.user.is_authenticated else None
-        )
-        return serializer.save(
-            numero=numero, enregistre_par=enregistre_par, statut="en_attente"
-        )
+        numero = f"PAY-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        enregistre_par = self.request.user if self.request.user.is_authenticated else None
+        return serializer.save(numero=numero, enregistre_par=enregistre_par, statut="en_attente")
 
     @action(detail=True, methods=["get"])
     def justificatif(self, request, pk=None):
@@ -191,39 +189,26 @@ class PaiementsViewSet(viewsets.ModelViewSet):
         return FileResponse(
             paiement.preuve_paiement.open("rb"),
             as_attachment=True,
-            filename=(
-                f"justificatif-{paiement.numero}"
-                f"{Path(paiement.preuve_paiement.name).suffix.lower()}"
-            ),
+            filename=(f"justificatif-{paiement.numero}" f"{Path(paiement.preuve_paiement.name).suffix.lower()}"),
         )
 
     @action(detail=True, methods=["post"], permission_classes=[IsFinanceManager])
     def valider(self, request, pk=None):
         with transaction.atomic():
-            paiement = PaiementFrais.objects.select_for_update().get(
-                pk=self.get_object().pk
-            )
-            facture = FactureFrais.objects.select_for_update().get(
-                pk=paiement.facture_id
-            )
+            paiement = PaiementFrais.objects.select_for_update().get(pk=self.get_object().pk)
+            facture = FactureFrais.objects.select_for_update().get(pk=paiement.facture_id)
             if paiement.statut != "en_attente":
                 return Response({"error": "Ce paiement a déjà été traité."}, status=409)
             reste = facture.montant - facture.montant_paye
             if paiement.montant > reste:
-                return Response(
-                    {"error": "Le paiement dépasse le solde de la facture."}, status=409
-                )
+                return Response({"error": "Le paiement dépasse le solde de la facture."}, status=409)
             paiement.statut = "valide"
             paiement.verifie_par = request.user
             paiement.verifie_le = timezone.now()
             paiement.motif_rejet = ""
-            paiement.save(
-                update_fields=["statut", "verifie_par", "verifie_le", "motif_rejet"]
-            )
+            paiement.save(update_fields=["statut", "verifie_par", "verifie_le", "motif_rejet"])
             facture.montant_paye += paiement.montant
-            facture.statut = (
-                "payee" if facture.montant_paye >= facture.montant else "partielle"
-            )
+            facture.statut = "payee" if facture.montant_paye >= facture.montant else "partielle"
             facture.save(update_fields=["montant_paye", "statut", "updated_at"])
         return Response(PaiementFraisSerializer(paiement).data)
 
@@ -233,34 +218,24 @@ class PaiementsViewSet(viewsets.ModelViewSet):
         if not motif:
             return Response({"motif": "Le motif est obligatoire."}, status=400)
         with transaction.atomic():
-            paiement = PaiementFrais.objects.select_for_update().get(
-                pk=self.get_object().pk
-            )
+            paiement = PaiementFrais.objects.select_for_update().get(pk=self.get_object().pk)
             if paiement.statut != "en_attente":
                 return Response({"error": "Ce paiement a déjà été traité."}, status=409)
             paiement.statut = "rejete"
             paiement.verifie_par = request.user
             paiement.verifie_le = timezone.now()
             paiement.motif_rejet = motif
-            paiement.save(
-                update_fields=["statut", "verifie_par", "verifie_le", "motif_rejet"]
-            )
+            paiement.save(update_fields=["statut", "verifie_par", "verifie_le", "motif_rejet"])
         return Response(PaiementFraisSerializer(paiement).data)
 
     @action(detail=True, methods=["post"])
     def rembourser(self, request, pk=None):
         """Rembourse un paiement."""
         with transaction.atomic():
-            paiement = PaiementFrais.objects.select_for_update().get(
-                pk=self.get_object().pk
-            )
+            paiement = PaiementFrais.objects.select_for_update().get(pk=self.get_object().pk)
             if paiement.statut != "valide":
-                return Response(
-                    {"error": "Ce paiement ne peut pas être remboursé."}, status=400
-                )
-            facture = FactureFrais.objects.select_for_update().get(
-                pk=paiement.facture_id
-            )
+                return Response({"error": "Ce paiement ne peut pas être remboursé."}, status=400)
+            facture = FactureFrais.objects.select_for_update().get(pk=paiement.facture_id)
             paiement.statut = "rembourse"
             paiement.save(update_fields=["statut"])
             facture.montant_paye = max(facture.montant_paye - paiement.montant, 0)

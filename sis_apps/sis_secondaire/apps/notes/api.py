@@ -63,20 +63,21 @@ class IsEnseignantOrVieScolarite(IsAuthenticated):
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
         user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "enseignant",
-            "vie_scolaire",
-            "directeur",
-            "proviseur",
-            "principal",
+        model_name = getattr(view, "permission_model", "note")
+        action_name = {
+            "create": "add",
+            "destroy": "delete",
+        }.get(view.action, "change")
+        return has_business_permission_or_role(
+            user,
+            f"notes.{action_name}_{model_name}",
+            ("enseignant", "vie_scolaire", "direction", "responsable_pedagogique"),
         )
 
 
 class IsAcademicAdmin(IsAuthenticated):
     def has_permission(self, request, view):
-        return super().has_permission(
-            request, view
-        ) and has_business_permission_or_role(
+        return super().has_permission(request, view) and has_business_permission_or_role(
             request.user,
             "notes.change_reglevalidation",
             ("direction", "responsable_pedagogique", "vie_scolaire"),
@@ -87,6 +88,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour évaluations."""
 
     permission_classes = [IsEnseignantOrVieScolarite]
+    permission_model = "evaluation"
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["matiere", "classe", "periode", "type", "enseignant"]
     search_fields = ["titre", "description"]
@@ -94,9 +96,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     ordering = ["-date"]
 
     def get_queryset(self):
-        qs = Evaluation.objects.select_related(
-            "matiere", "classe", "periode", "enseignant__user"
-        )
+        qs = Evaluation.objects.select_related("matiere", "classe", "periode", "enseignant__user")
         # Un enseignant ne voit que ses évaluations
         user = self.request.user
         if not user.is_staff and getattr(user, "role", "") == "enseignant":
@@ -113,9 +113,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     def notes(self, request, pk=None):
         """Liste les notes d'une évaluation."""
         evaluation = self.get_object()
-        notes = evaluation.notes.select_related("eleve__user").order_by(
-            "eleve__user__last_name"
-        )
+        notes = evaluation.notes.select_related("eleve__user").order_by("eleve__user__last_name")
         serializer = NoteSerializer(notes, many=True)
         return Response(serializer.data)
 
@@ -184,6 +182,7 @@ class NotesViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour notes."""
 
     permission_classes = [IsEnseignantOrVieScolarite]
+    permission_model = "note"
     serializer_class = NoteSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["evaluation", "eleve", "statut"]
@@ -196,11 +195,7 @@ class NotesViewSet(viewsets.ModelViewSet):
         if hasattr(user, "eleve_profile"):
             if not user.is_staff and getattr(user, "role", "") == "eleve":
                 qs = qs.filter(eleve__user=user)
-        if (
-            not user.is_staff
-            and getattr(user, "role", "") == "enseignant"
-            and hasattr(user, "personnel_profile")
-        ):
+        if not user.is_staff and getattr(user, "role", "") == "enseignant" and hasattr(user, "personnel_profile"):
             qs = qs.filter(evaluation__enseignant=user.personnel_profile)
         # Un parent ne voit que les notes de ses enfants
         if hasattr(user, "tuteur_profile"):
@@ -279,6 +274,7 @@ class BulletinsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour bulletins."""
 
     permission_classes = [IsEnseignantOrVieScolarite]
+    permission_model = "bulletin"
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["eleve", "classe", "periode", "publie"]
     ordering = ["-periode__date_fin"]
@@ -336,9 +332,7 @@ class ReglesValidationViewSet(viewsets.ModelViewSet):
     ordering = ["priorite", "code"]
 
     def get_queryset(self):
-        return RegleValidation.objects.select_related(
-            "annee_scolaire", "niveau", "classe"
-        )
+        return RegleValidation.objects.select_related("annee_scolaire", "niveau", "classe")
 
     @action(detail=True, methods=["post"])
     def evaluer(self, request, pk=None):
@@ -351,6 +345,5 @@ class EvaluationRegleInputSerializer(serializers.Serializer):
     moyenne = serializers.DecimalField(max_digits=7, decimal_places=2)
     credits = serializers.DecimalField(max_digits=7, decimal_places=2, default=0)
     matieres_echouees = serializers.IntegerField(min_value=0, default=0)
-    note_minimale = serializers.DecimalField(
-        max_digits=7, decimal_places=2, required=False, allow_null=True
-    )
+    note_minimale = serializers.DecimalField(max_digits=7, decimal_places=2, required=False, allow_null=True)
+    donnees = serializers.JSONField(default=dict)

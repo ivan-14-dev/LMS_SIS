@@ -21,9 +21,7 @@ def has_business_permission(user, permission, context=None):
     if not user.has_perm(permission):
         return False
 
-    configured_scopes = (getattr(user, "attributs_acces", {}) or {}).get(
-        "permission_scopes", {}
-    )
+    configured_scopes = (getattr(user, "attributs_acces", {}) or {}).get("permission_scopes", {})
     constraints = configured_scopes.get(permission)
     if not constraints:
         return True
@@ -37,9 +35,7 @@ def has_business_permission(user, permission, context=None):
     return True
 
 
-def has_business_permission_or_role(
-    user, permission, legacy_roles=(), context=None
-):
+def has_business_permission_or_role(user, permission, legacy_roles=(), context=None):
     """Honor dynamic Django permissions while retaining legacy role compatibility."""
     if not user.is_authenticated:
         return False
@@ -54,9 +50,7 @@ def filter_queryset_by_scopes(queryset, user, permission, scope_fields):
     """Apply configured ABAC lists to a queryset; unknown scopes deny access."""
     if user.is_superuser:
         return queryset
-    constraints = (getattr(user, "attributs_acces", {}) or {}).get(
-        "permission_scopes", {}
-    ).get(permission, {})
+    constraints = (getattr(user, "attributs_acces", {}) or {}).get("permission_scopes", {}).get(permission, {})
     for attribute, allowed_values in constraints.items():
         lookup = scope_fields.get(attribute)
         if not lookup or not isinstance(allowed_values, list):

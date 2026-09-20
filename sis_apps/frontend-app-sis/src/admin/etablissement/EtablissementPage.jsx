@@ -21,11 +21,14 @@ import {
 const EMPTY_FORM = {
   fonctionnalites: {},
   configuration_visio: { provider: 'none', public_url: '' },
+  configuration_academique: {},
 };
 
 const EtablissementPage = () => {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [academicJson, setAcademicJson] = useState('{}');
+  const [academicError, setAcademicError] = useState('');
   const endpoint = getCurrentEstablishmentUrl();
 
   const {
@@ -43,7 +46,9 @@ const EtablissementPage = () => {
         ...etablissement,
         fonctionnalites: etablissement.fonctionnalites || {},
         configuration_visio: etablissement.configuration_visio || EMPTY_FORM.configuration_visio,
+        configuration_academique: etablissement.configuration_academique || {},
       });
+      setAcademicJson(JSON.stringify(etablissement.configuration_academique || {}, null, 2));
     }
   }, [etablissement]);
 
@@ -84,6 +89,14 @@ const EtablissementPage = () => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    let academicConfiguration;
+    try {
+      academicConfiguration = JSON.parse(academicJson);
+      setAcademicError('');
+    } catch (error) {
+      setAcademicError('La configuration académique doit être un objet JSON valide.');
+      return;
+    }
     const {
       nom,
       type,
@@ -117,6 +130,7 @@ const EtablissementPage = () => {
       fuseau_horaire: fuseauHoraire,
       fonctionnalites,
       configuration_visio: configurationVisio,
+      configuration_academique: academicConfiguration,
     });
   };
 
@@ -329,6 +343,32 @@ const EtablissementPage = () => {
                   Les QCM et la correction automatique sont exécutés par le moteur Open edX ;
                   le SIS conserve la planification et les résultats consolidés.
                 </Alert>
+              </Card.Body>
+            </Card>
+          </Tab>
+
+          <Tab eventKey="academic" title="Organisation académique">
+            <Card className="mt-3">
+              <Card.Body>
+                <Form.Group>
+                  <Form.Label>Configuration académique dynamique</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={18}
+                    value={academicJson}
+                    onChange={(event) => setAcademicJson(event.target.value)}
+                    isInvalid={Boolean(academicError)}
+                    spellCheck={false}
+                  />
+                  <Form.Control.Feedback type="invalid">
+                    {academicError}
+                  </Form.Control.Feedback>
+                  <Form.Text>
+                    Configurez l’échelle de notation, les types d’évaluation, les catalogues,
+                    les dimensions de filtre et les rapports exportables. Le serveur valide
+                    chaque code, champ et filtre avant l’enregistrement.
+                  </Form.Text>
+                </Form.Group>
               </Card.Body>
             </Card>
           </Tab>

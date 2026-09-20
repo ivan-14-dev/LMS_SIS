@@ -19,7 +19,7 @@ export const useCapabilities = (type) => useQuery({
 });
 
 const PermissionGuard = ({
-  type, permission, allowedRoles, children,
+  type, permission, allowedRoles = [], children,
 }) => {
   const { data, isLoading, isError } = useCapabilities(type);
 
@@ -41,10 +41,6 @@ PermissionGuard.propTypes = {
   permission: PropTypes.string.isRequired,
   allowedRoles: PropTypes.arrayOf(PropTypes.string),
   children: PropTypes.node.isRequired,
-};
-
-PermissionGuard.defaultProps = {
-  allowedRoles: [],
 };
 
 export default PermissionGuard;

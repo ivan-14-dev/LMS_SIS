@@ -20,9 +20,7 @@ class UE(models.Model):
         ("non_calculable", "Non calculable"),
         ("calculable_separement", "Calculable séparément"),
     ]
-    maquette = models.ForeignKey(
-        MaquetteFormation, on_delete=models.CASCADE, related_name="ues"
-    )
+    maquette = models.ForeignKey(MaquetteFormation, on_delete=models.CASCADE, related_name="ues")
     code = models.CharField(max_length=30)
     nom = models.CharField(max_length=200)
     credits_ects = models.DecimalField(max_digits=4, decimal_places=2)
@@ -31,12 +29,8 @@ class UE(models.Model):
     volume_horaire_td = models.PositiveIntegerField(default=0, help_text="Heures TD")
     volume_horaire_tp = models.PositiveIntegerField(default=0, help_text="Heures TP")
     semestre = models.ForeignKey(Semestre, on_delete=models.PROTECT, related_name="ues")
-    mh_global = models.CharField(
-        max_length=30, choices=MH_GLOBAL_CHOICES, default="calculable_separement"
-    )
-    parcours_autorises = models.ManyToManyField(
-        Parcours, blank=True, related_name="ues"
-    )
+    mh_global = models.CharField(max_length=30, choices=MH_GLOBAL_CHOICES, default="calculable_separement")
+    parcours_autorises = models.ManyToManyField(Parcours, blank=True, related_name="ues")
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -93,12 +87,8 @@ class Prerequis(models.Model):
         ("moyenne_ue", "Moyenne UE"),
         ("note_minimale", "Note minimale"),
     ]
-    ue_cible = models.ForeignKey(
-        UE, on_delete=models.CASCADE, related_name="prerequis_requis"
-    )
-    ue_prereq = models.ForeignKey(
-        UE, on_delete=models.CASCADE, related_name="est_prerequis_de"
-    )
+    ue_cible = models.ForeignKey(UE, on_delete=models.CASCADE, related_name="prerequis_requis")
+    ue_prereq = models.ForeignKey(UE, on_delete=models.CASCADE, related_name="est_prerequis_de")
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="capitalisee")
     note_minimale = models.DecimalField(
         max_digits=4,
@@ -124,9 +114,7 @@ class Capitalisation(models.Model):
     type = models.CharField(max_length=20, default="note_seuil")
     note_seuil = models.DecimalField(max_digits=4, decimal_places=2, default=10)
     compensation_autorisee = models.BooleanField(default=True)
-    note_seuil_compensation = models.DecimalField(
-        max_digits=4, decimal_places=2, default=8
-    )
+    note_seuil_compensation = models.DecimalField(max_digits=4, decimal_places=2, default=8)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
