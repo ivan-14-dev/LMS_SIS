@@ -1,12 +1,10 @@
 /**
  * Mock API wrapper for development and testing
- * Returns mock data when the real backend is unavailable
+ * Returns mock data only when explicitly enabled in the application configuration
  */
 
+import { getConfig } from '@edx/frontend-platform';
 import * as mockData from './mockData';
-
-// Check if we're in mock mode (no backend available)
-const USE_MOCK = process.env.USE_MOCK_API === 'true' || true; // Enable by default for dev
 
 // Simulate network delay
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -165,4 +163,7 @@ export const mockDelete = async (url) => {
 /**
  * Check if mock mode is enabled
  */
-export const isMockMode = () => USE_MOCK;
+export const isMockMode = () => {
+  const { USE_MOCK_API } = getConfig();
+  return USE_MOCK_API === true || USE_MOCK_API === 'true';
+};
