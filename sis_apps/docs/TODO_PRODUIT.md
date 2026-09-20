@@ -110,4 +110,3 @@ validés.
   formation → inscriptions ».
 - [ ] Activer ensuite les API métier par lots, chacune accompagnée de tests de
   permissions et de contrats frontend.
-

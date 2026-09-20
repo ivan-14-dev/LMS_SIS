@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import {
   Box,
   Card,
@@ -25,16 +26,13 @@ import {
   Divider,
   List,
   ListItem,
-  ListItemIcon,
   ListItemText,
   Switch,
-  FormControlLabel,
 } from '@mui/material';
 import {
   Sync as SyncIcon,
   Check as CheckIcon,
   Error as ErrorIcon,
-  Warning as WarningIcon,
   Person as PersonIcon,
   School as SchoolIcon,
   Assignment as AssignmentIcon,
@@ -56,7 +54,9 @@ import {
   useIntegrationUserMappings,
 } from '../../services/api';
 
-const StatCard = ({ title, value, icon, color = 'primary', subtitle }) => (
+const StatCard = ({
+  title, value = 0, icon, color = 'primary', subtitle = null,
+}) => (
   <Card sx={{ height: '100%' }}>
     <CardContent>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -73,12 +73,13 @@ const StatCard = ({ title, value, icon, color = 'primary', subtitle }) => (
             </Typography>
           )}
         </Box>
-        <Box sx={{ 
-          p: 1.5, 
-          borderRadius: 2, 
+        <Box sx={{
+          p: 1.5,
+          borderRadius: 2,
           bgcolor: `${color}.lighter`,
           color: `${color}.main`,
-        }}>
+        }}
+        >
           {icon}
         </Box>
       </Box>
@@ -86,13 +87,30 @@ const StatCard = ({ title, value, icon, color = 'primary', subtitle }) => (
   </Card>
 );
 
+StatCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  icon: PropTypes.node.isRequired,
+  color: PropTypes.string,
+  subtitle: PropTypes.string,
+};
+
+StatCard.defaultProps = {
+  value: 0,
+  color: 'primary',
+  subtitle: null,
+};
+
 const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
   const isConnected = status?.connected;
-  
+
   return (
     <Card sx={{ mb: 3 }}>
       <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Box sx={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2,
+        }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {isConnected ? (
               <CloudDoneIcon sx={{ fontSize: 48, color: 'success.main' }} />
@@ -109,13 +127,13 @@ const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
             </Box>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Chip 
+            <Chip
               icon={isConnected ? <CheckIcon /> : <ErrorIcon />}
               label={isConnected ? 'Connecté' : 'Déconnecté'}
               color={isConnected ? 'success' : 'error'}
             />
-            <Button 
-              variant="outlined" 
+            <Button
+              variant="outlined"
               startIcon={<RefreshIcon />}
               size="small"
               disabled={isRefreshing}
@@ -125,9 +143,9 @@ const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
             </Button>
           </Box>
         </Box>
-        
+
         <Divider sx={{ my: 2 }} />
-        
+
         <Grid container spacing={3}>
           <Grid item xs={12} md={3}>
             <Typography variant="body2" color="textSecondary">Version LMS</Typography>
@@ -135,17 +153,17 @@ const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
           </Grid>
           <Grid item xs={12} md={3}>
             <Typography variant="body2" color="textSecondary">OAuth</Typography>
-            <Chip 
-              size="small" 
-              label={status?.oauth_status || 'N/A'} 
+            <Chip
+              size="small"
+              label={status?.oauth_status || 'N/A'}
               color={status?.oauth_status === 'valid' ? 'success' : 'warning'}
             />
           </Grid>
           <Grid item xs={12} md={3}>
             <Typography variant="body2" color="textSecondary">Webhooks</Typography>
-            <Chip 
-              size="small" 
-              label={status?.webhook_status || 'N/A'} 
+            <Chip
+              size="small"
+              label={status?.webhook_status || 'N/A'}
               color={status?.webhook_status === 'active' ? 'success' : 'warning'}
             />
           </Grid>
@@ -161,18 +179,31 @@ const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
   );
 };
 
-const OutboxStatusCard = ({ outbox }) => {
+ConnectionStatus.propTypes = {
+  status: PropTypes.shape({
+    connected: PropTypes.bool,
+    lms_url: PropTypes.string,
+    version: PropTypes.string,
+    oauth_status: PropTypes.string,
+    webhook_status: PropTypes.string,
+    last_check: PropTypes.string,
+  }).isRequired,
+  isRefreshing: PropTypes.bool.isRequired,
+  onRefresh: PropTypes.func.isRequired,
+};
+
+const OutboxStatusCard = ({ outbox = {} }) => {
   const total = Object.values(outbox || {}).reduce((a, b) => a + b, 0);
   const pendingPercent = outbox?.pending ? (outbox.pending / total) * 100 : 0;
-  
+
   return (
     <Card>
       <CardContent>
-        <Typography variant="h6" gutterBottom>File d'attente (Outbox)</Typography>
+        <Typography variant="h6" gutterBottom>File d’attente (Outbox)</Typography>
         <Box sx={{ mb: 2 }}>
-          <LinearProgress 
-            variant="determinate" 
-            value={100 - pendingPercent} 
+          <LinearProgress
+            variant="determinate"
+            value={100 - pendingPercent}
             sx={{ height: 8, borderRadius: 4 }}
           />
         </Box>
@@ -199,6 +230,18 @@ const OutboxStatusCard = ({ outbox }) => {
       </CardContent>
     </Card>
   );
+};
+
+OutboxStatusCard.propTypes = {
+  outbox: PropTypes.shape({
+    pending: PropTypes.number,
+    processing: PropTypes.number,
+    failed: PropTypes.number,
+  }),
+};
+
+OutboxStatusCard.defaultProps = {
+  outbox: {},
 };
 
 const UserMappingsTab = ({ mappings }) => (
@@ -230,7 +273,7 @@ const UserMappingsTab = ({ mappings }) => (
               {mapping.date_sync ? new Date(mapping.date_sync).toLocaleString('fr-FR') : 'Jamais'}
             </TableCell>
             <TableCell>
-              <Chip 
+              <Chip
                 icon={mapping.actif ? <LinkIcon /> : <LinkOffIcon />}
                 label={mapping.actif ? 'Actif' : 'Inactif'}
                 color={mapping.actif ? 'success' : 'default'}
@@ -252,6 +295,19 @@ const UserMappingsTab = ({ mappings }) => (
     </Table>
   </TableContainer>
 );
+
+UserMappingsTab.propTypes = {
+  mappings: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    user_sis: PropTypes.number,
+    user_sis_name: PropTypes.string,
+    user_sis_username: PropTypes.string,
+    username_edx: PropTypes.string.isRequired,
+    user_id_edx: PropTypes.number,
+    date_sync: PropTypes.string,
+    actif: PropTypes.bool.isRequired,
+  })).isRequired,
+};
 
 const CourseMappingsTab = ({ mappings }) => (
   <TableContainer component={Paper} sx={{ mt: 2 }}>
@@ -278,7 +334,7 @@ const CourseMappingsTab = ({ mappings }) => (
             </TableCell>
             <TableCell>{mapping.course_name}</TableCell>
             <TableCell>
-              <Chip 
+              <Chip
                 label={mapping.actif ? 'Actif' : 'Inactif'}
                 color={mapping.actif ? 'success' : 'default'}
                 size="small"
@@ -307,6 +363,19 @@ const CourseMappingsTab = ({ mappings }) => (
   </TableContainer>
 );
 
+CourseMappingsTab.propTypes = {
+  mappings: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    ecue: PropTypes.number,
+    ecue_nom: PropTypes.string,
+    matiere: PropTypes.number,
+    matiere_nom: PropTypes.string,
+    course_id: PropTypes.string.isRequired,
+    course_name: PropTypes.string.isRequired,
+    actif: PropTypes.bool.isRequired,
+  })).isRequired,
+};
+
 const OutboxEventsTab = ({ events }) => {
   const getStatusColor = (status) => {
     switch (status) {
@@ -318,7 +387,7 @@ const OutboxEventsTab = ({ events }) => {
       default: return 'default';
     }
   };
-  
+
   return (
     <TableContainer component={Paper} sx={{ mt: 2 }}>
       <Table>
@@ -345,7 +414,7 @@ const OutboxEventsTab = ({ events }) => {
               <TableCell>{event.aggregate_type}</TableCell>
               <TableCell>{event.aggregate_id}</TableCell>
               <TableCell>
-                <Chip 
+                <Chip
                   label={event.statut}
                   color={getStatusColor(event.statut)}
                   size="small"
@@ -375,6 +444,19 @@ const OutboxEventsTab = ({ events }) => {
       </Table>
     </TableContainer>
   );
+};
+
+OutboxEventsTab.propTypes = {
+  events: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    event_type: PropTypes.string.isRequired,
+    aggregate_type: PropTypes.string.isRequired,
+    aggregate_id: PropTypes.string.isRequired,
+    statut: PropTypes.string.isRequired,
+    nb_tentatives: PropTypes.number.isRequired,
+    created_at: PropTypes.string.isRequired,
+    erreur: PropTypes.string,
+  })).isRequired,
 };
 
 const IntegrationLMSPage = () => {
@@ -410,7 +492,7 @@ const IntegrationLMSPage = () => {
           {
             label: 'Actualiser',
             icon: <RefreshIcon />,
-            variant: 'outlined', 
+            variant: 'outlined',
             onClick: refresh,
           },
         ]}
@@ -477,7 +559,10 @@ const IntegrationLMSPage = () => {
         <CardContent>
           {tabValue === 0 && (
             <>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2,
+              }}
+              >
                 <Typography variant="h6">Mappings Utilisateurs SIS ↔ LMS</Typography>
                 <Button variant="outlined" startIcon={<SyncIcon />} size="small" disabled>
                   Synchroniser tous
@@ -488,7 +573,10 @@ const IntegrationLMSPage = () => {
           )}
           {tabValue === 1 && (
             <>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2,
+              }}
+              >
                 <Typography variant="h6">Mappings Cours ECUE ↔ LMS</Typography>
                 <Button variant="outlined" startIcon={<SyncIcon />} size="small" disabled>
                   Créer cours manquants
@@ -499,7 +587,10 @@ const IntegrationLMSPage = () => {
           )}
           {tabValue === 2 && (
             <>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Box sx={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2,
+              }}
+              >
                 <Typography variant="h6">Événements en attente de synchronisation</Typography>
                 <Box>
                   <Button variant="outlined" startIcon={<PlayArrowIcon />} size="small" sx={{ mr: 1 }} disabled>
@@ -515,12 +606,12 @@ const IntegrationLMSPage = () => {
           )}
           {tabValue === 3 && (
             <Box>
-              <Typography variant="h6" gutterBottom>Configuration de l'intégration</Typography>
+              <Typography variant="h6" gutterBottom>Configuration de l’intégration</Typography>
               <Alert severity="info" sx={{ mb: 3 }}>
-                <AlertTitle>Variables d'environnement requises</AlertTitle>
-                Les paramètres de connexion sont configurés via les variables d'environnement du backend.
+                <AlertTitle>Variables d’environnement requises</AlertTitle>
+                Les paramètres de connexion sont configurés via les variables d’environnement du backend.
               </Alert>
-              
+
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
                   <Card variant="outlined">
@@ -530,14 +621,14 @@ const IntegrationLMSPage = () => {
                       </Typography>
                       <List dense>
                         <ListItem>
-                          <ListItemText 
-                            primary="EDX_LMS_URL" 
+                          <ListItemText
+                            primary="EDX_LMS_URL"
                             secondary={integrationStatus.lms_url || 'Non configuré'}
                           />
                         </ListItem>
                         <ListItem>
-                          <ListItemText 
-                            primary="EDX_CMS_URL" 
+                          <ListItemText
+                            primary="EDX_CMS_URL"
                             secondary={integrationStatus.cms_url || 'Non configuré'}
                           />
                         </ListItem>

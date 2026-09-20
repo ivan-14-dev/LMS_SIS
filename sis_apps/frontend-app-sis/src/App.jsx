@@ -1,6 +1,8 @@
 // SIS - Main App Component
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import {
+  BrowserRouter, Routes, Route, Navigate,
+} from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { getConfig } from '@edx/frontend-platform';
 
@@ -9,7 +11,6 @@ import Footer from '@edx/frontend-component-footer';
 
 // Layout
 import SISLayout from './components/layout/SISLayout';
-import Sidebar from './components/layout/Sidebar';
 
 // Dashboards
 import DashboardSuperieur from './superieur/Dashboard';
@@ -72,7 +73,7 @@ import IntegrationLMSPage from './admin/integration-lms/IntegrationLMSPage';
 const App = () => (
   <BrowserRouter basename={getConfig().PUBLIC_PATH}>
     <Helmet>
-      <title>SIS - Système d'Information Scolaire</title>
+      <title>SIS - Système d’Information Scolaire</title>
     </Helmet>
     <div className="d-flex flex-column min-vh-100">
       <Header />
@@ -84,7 +85,7 @@ const App = () => (
           {/* ============ SIS SUPÉRIEUR ============ */}
           <Route path="/superieur" element={<SISLayout type="superieur" />}>
             <Route index element={<DashboardSuperieur />} />
-            
+
             {/* Gestion académique */}
             <Route path="etudiants" element={<EtudiantsPage />} />
             <Route path="etudiants/:id" element={<EtudiantDetailPage />} />

@@ -1,7 +1,9 @@
 import { getConfig } from '@edx/frontend-platform';
 import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { mockFetch, mockPost, mockPut, mockDelete, isMockMode } from './mockApi';
+import {
+  mockFetch, mockPost, mockPut, mockDelete, isMockMode,
+} from './mockApi';
 
 /**
  * Get the base URL for SIS Supérieur API
@@ -33,7 +35,7 @@ export const fetchApi = async (url, options = {}) => {
   if (isMockMode()) {
     return mockFetch(url);
   }
-  
+
   const client = getAuthenticatedHttpClient();
   const response = await client.get(url, options);
   return response.data;
@@ -46,7 +48,7 @@ export const postApi = async (url, data, options = {}) => {
   if (isMockMode()) {
     return mockPost(url, data);
   }
-  
+
   const client = getAuthenticatedHttpClient();
   const response = await client.post(url, data, options);
   return response.data;
@@ -59,7 +61,7 @@ export const putApi = async (url, data, options = {}) => {
   if (isMockMode()) {
     return mockPut(url, data);
   }
-  
+
   const client = getAuthenticatedHttpClient();
   const response = await client.put(url, data, options);
   return response.data;
@@ -72,7 +74,7 @@ export const patchApi = async (url, data, options = {}) => {
   if (isMockMode()) {
     return mockPut(url, data);
   }
-  
+
   const client = getAuthenticatedHttpClient();
   const response = await client.patch(url, data, options);
   return response.data;
@@ -85,7 +87,7 @@ export const deleteApi = async (url, options = {}) => {
   if (isMockMode()) {
     return mockDelete(url);
   }
-  
+
   const client = getAuthenticatedHttpClient();
   const response = await client.delete(url, options);
   return response.data;
@@ -107,14 +109,14 @@ export const createResourceHooks = (resourceName, apiType = 'superieur') => {
     useList: (params = {}) => {
       const queryString = new URLSearchParams(params).toString();
       const url = queryString ? `${getBaseUrl()}/?${queryString}` : `${getBaseUrl()}/`;
-      
+
       return useQuery({
         queryKey: [resourceName, 'list', params],
         queryFn: () => fetchApi(url),
         select: (data) => {
           // Handle paginated response { results: [...] } or direct array
-          if (Array.isArray(data)) return data;
-          if (data?.results && Array.isArray(data.results)) return data.results;
+          if (Array.isArray(data)) { return data; }
+          if (data?.results && Array.isArray(data.results)) { return data.results; }
           return [];
         },
       });
@@ -143,7 +145,7 @@ export const createResourceHooks = (resourceName, apiType = 'superieur') => {
       const queryClient = useQueryClient();
       return useMutation({
         mutationFn: ({ id, data }) => putApi(`${getBaseUrl()}/${id}/`, data),
-        onSuccess: (_, { id }) => {
+        onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: [resourceName] });
         },
       });
@@ -154,7 +156,7 @@ export const createResourceHooks = (resourceName, apiType = 'superieur') => {
       const queryClient = useQueryClient();
       return useMutation({
         mutationFn: ({ id, data }) => patchApi(`${getBaseUrl()}/${id}/`, data),
-        onSuccess: (_, { id }) => {
+        onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: [resourceName] });
         },
       });
@@ -418,7 +420,7 @@ export const useActivitesClub = () => useQuery({
 
 // ============ ADMIN HOOKS ============
 
-export const getAdminApiUrl = () => getConfig().SIS_ADMIN_API_URL || getConfig().LMS_BASE_URL + '/api/sis/admin';
+export const getAdminApiUrl = () => getConfig().SIS_ADMIN_API_URL || `${getConfig().LMS_BASE_URL}/api/sis/admin`;
 
 export const getIntegrationApiUrl = () => `${getAdminApiUrl()}/integration`;
 const selectResults = (data) => (Array.isArray(data) ? data : data?.results || []);

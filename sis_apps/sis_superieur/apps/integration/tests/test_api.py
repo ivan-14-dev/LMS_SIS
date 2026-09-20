@@ -130,7 +130,6 @@ class IntegrationAPIEndpointsTestCase(APITestCase):
         user = Utilisateur.objects.create_user(
             username="standard_user",
             email="standard@test.com",
-            ******,
         )
         self.client.force_authenticate(user=user)
 
