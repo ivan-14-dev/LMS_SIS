@@ -77,7 +77,9 @@ class IsEnseignantOrVieScolarite(IsAuthenticated):
 
 class IsAcademicAdmin(IsAuthenticated):
     def has_permission(self, request, view):
-        return super().has_permission(request, view) and has_business_permission_or_role(
+        return super().has_permission(
+            request, view
+        ) and has_business_permission_or_role(
             request.user,
             "notes.change_reglevalidation",
             ("direction", "responsable_pedagogique", "vie_scolaire"),
@@ -96,7 +98,9 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     ordering = ["-date"]
 
     def get_queryset(self):
-        qs = Evaluation.objects.select_related("matiere", "classe", "periode", "enseignant__user")
+        qs = Evaluation.objects.select_related(
+            "matiere", "classe", "periode", "enseignant__user"
+        )
         # Un enseignant ne voit que ses évaluations
         user = self.request.user
         if not user.is_staff and getattr(user, "role", "") == "enseignant":
@@ -113,7 +117,9 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     def notes(self, request, pk=None):
         """Liste les notes d'une évaluation."""
         evaluation = self.get_object()
-        notes = evaluation.notes.select_related("eleve__user").order_by("eleve__user__last_name")
+        notes = evaluation.notes.select_related("eleve__user").order_by(
+            "eleve__user__last_name"
+        )
         serializer = NoteSerializer(notes, many=True)
         return Response(serializer.data)
 
@@ -123,6 +129,26 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         evaluation = self.get_object()
         serializer = NoteSaisieSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
+
+        student_ids = {item["eleve_id"] for item in serializer.validated_data}
+        eligible_student_ids = set(
+            evaluation.classe.eleves_actuels.filter(pk__in=student_ids).values_list(
+                "pk", flat=True
+            )
+        )
+        eligible_student_ids.update(
+            evaluation.classe.inscriptions.filter(
+                eleve_id__in=student_ids,
+                statut__in=("en_cours", "validee"),
+            ).values_list("eleve_id", flat=True)
+        )
+        invalid_student_ids = sorted(student_ids - eligible_student_ids)
+        if invalid_student_ids:
+            raise serializers.ValidationError(
+                {
+                    "eleve_id": f"Élèves non inscrits dans cette classe: {invalid_student_ids}."
+                }
+            )
 
         created = 0
         updated = 0
@@ -195,7 +221,11 @@ class NotesViewSet(viewsets.ModelViewSet):
         if hasattr(user, "eleve_profile"):
             if not user.is_staff and getattr(user, "role", "") == "eleve":
                 qs = qs.filter(eleve__user=user)
-        if not user.is_staff and getattr(user, "role", "") == "enseignant" and hasattr(user, "personnel_profile"):
+        if (
+            not user.is_staff
+            and getattr(user, "role", "") == "enseignant"
+            and hasattr(user, "personnel_profile")
+        ):
             qs = qs.filter(evaluation__enseignant=user.personnel_profile)
         # Un parent ne voit que les notes de ses enfants
         if hasattr(user, "tuteur_profile"):
@@ -332,7 +362,9 @@ class ReglesValidationViewSet(viewsets.ModelViewSet):
     ordering = ["priorite", "code"]
 
     def get_queryset(self):
-        return RegleValidation.objects.select_related("annee_scolaire", "niveau", "classe")
+        return RegleValidation.objects.select_related(
+            "annee_scolaire", "niveau", "classe"
+        )
 
     @action(detail=True, methods=["post"])
     def evaluer(self, request, pk=None):
@@ -345,5 +377,7 @@ class EvaluationRegleInputSerializer(serializers.Serializer):
     moyenne = serializers.DecimalField(max_digits=7, decimal_places=2)
     credits = serializers.DecimalField(max_digits=7, decimal_places=2, default=0)
     matieres_echouees = serializers.IntegerField(min_value=0, default=0)
-    note_minimale = serializers.DecimalField(max_digits=7, decimal_places=2, required=False, allow_null=True)
+    note_minimale = serializers.DecimalField(
+        max_digits=7, decimal_places=2, required=False, allow_null=True
+    )
     donnees = serializers.JSONField(default=dict)

@@ -1,6 +1,6 @@
 """API views for notes (ViewSets DRF) - SIS Supérieur."""
 
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
@@ -83,7 +83,9 @@ class IsEnseignantOrScolarite(IsAuthenticated):
 
 class IsAcademicAdmin(IsAuthenticated):
     def has_permission(self, request, view):
-        return super().has_permission(request, view) and has_business_permission_or_role(
+        return super().has_permission(
+            request, view
+        ) and has_business_permission_or_role(
             request.user,
             "notes.change_reglevalidation",
             ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
@@ -102,7 +104,14 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     ordering = ["-date"]
 
     def get_queryset(self):
-        return Evaluation.objects.select_related("ecue", "semestre", "enseignant")
+        qs = Evaluation.objects.select_related("ecue", "semestre", "enseignant")
+        user = self.request.user
+        if not user.is_staff and getattr(user, "role", "") in (
+            "enseignant",
+            "chercheur",
+        ):
+            qs = qs.filter(enseignant=user)
+        return qs
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -113,7 +122,9 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     def notes(self, request, pk=None):
         """Liste les notes d'une évaluation."""
         evaluation = self.get_object()
-        notes = evaluation.notes.select_related("etudiant__user").order_by("etudiant__user__last_name")
+        notes = evaluation.notes.select_related("etudiant__user").order_by(
+            "etudiant__user__last_name"
+        )
         serializer = NoteSerializer(notes, many=True)
         return Response(serializer.data)
 
@@ -123,6 +134,23 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         evaluation = self.get_object()
         serializer = NoteSaisieSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
+
+        student_ids = {item["etudiant_id"] for item in serializer.validated_data}
+        eligible_student_ids = set(
+            evaluation.semestre.inscriptions_peda.filter(
+                inscription_admin__etudiant_id__in=student_ids,
+                statut="validee",
+            )
+            .filter(Q(ecues=evaluation.ecue) | Q(ues=evaluation.ecue.ue))
+            .values_list("inscription_admin__etudiant_id", flat=True)
+        )
+        invalid_student_ids = sorted(student_ids - eligible_student_ids)
+        if invalid_student_ids:
+            raise serializers.ValidationError(
+                {
+                    "etudiant_id": f"Étudiants non inscrits à cette évaluation: {invalid_student_ids}."
+                }
+            )
 
         created = 0
         updated = 0
@@ -188,9 +216,8 @@ class NotesViewSet(viewsets.ModelViewSet):
         qs = Note.objects.select_related("evaluation", "etudiant__user")
         # Un étudiant ne voit que ses propres notes
         user = self.request.user
-        if hasattr(user, "etudiant_profile"):
-            if not user.is_staff and getattr(user, "role", "") == "etudiant":
-                qs = qs.filter(etudiant__user=user)
+        if not user.is_staff and getattr(user, "role", "") in ("etudiant", "doctorant"):
+            qs = qs.filter(etudiant__user=user)
         if not user.is_staff and getattr(user, "role", "") in (
             "enseignant",
             "chercheur",
@@ -221,8 +248,12 @@ class NotesViewSet(viewsets.ModelViewSet):
             "notes.view_note",
             {
                 "formations": "etudiant__inscriptions_admin__formation_id",
-                "facultes": ("etudiant__inscriptions_admin__formation__departement__faculte_id"),
-                "departements": ("etudiant__inscriptions_admin__formation__departement_id"),
+                "facultes": (
+                    "etudiant__inscriptions_admin__formation__departement__faculte_id"
+                ),
+                "departements": (
+                    "etudiant__inscriptions_admin__formation__departement_id"
+                ),
                 "annees": "evaluation__semestre__annee_universitaire_id",
                 "semestres": "evaluation__semestre_id",
                 "ues": "evaluation__ecue__ue_id",
@@ -280,10 +311,35 @@ class MoyennesECUEViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = MoyenneECUE.objects.select_related("etudiant__user", "ecue", "semestre")
         user = self.request.user
-        if hasattr(user, "etudiant_profile"):
-            if not user.is_staff and getattr(user, "role", "") == "etudiant":
-                qs = qs.filter(etudiant__user=user)
-        return qs
+        if not user.is_staff and getattr(user, "role", "") in ("etudiant", "doctorant"):
+            return qs.filter(etudiant__user=user)
+        if (
+            not user.is_staff
+            and not user.has_perm("notes.view_moyenneecue")
+            and getattr(user, "role", "")
+            not in (
+                "president",
+                "vice_president",
+                "doyen",
+                "directeur_etudes",
+                "scolarite",
+            )
+        ):
+            return qs.none()
+        return filter_queryset_by_scopes(
+            qs,
+            user,
+            "notes.view_moyenneecue",
+            {
+                "formations": "etudiant__inscriptions_admin__formation_id",
+                "facultes": "etudiant__inscriptions_admin__formation__departement__faculte_id",
+                "departements": "etudiant__inscriptions_admin__formation__departement_id",
+                "annees": "semestre__annee_universitaire_id",
+                "semestres": "semestre_id",
+                "ecues": "ecue_id",
+                "ues": "ecue__ue_id",
+            },
+        )
 
 
 class MoyennesUEViewSet(viewsets.ReadOnlyModelViewSet):
@@ -297,10 +353,34 @@ class MoyennesUEViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = MoyenneUE.objects.select_related("etudiant__user", "ue", "semestre")
         user = self.request.user
-        if hasattr(user, "etudiant_profile"):
-            if not user.is_staff and getattr(user, "role", "") == "etudiant":
-                qs = qs.filter(etudiant__user=user)
-        return qs
+        if not user.is_staff and getattr(user, "role", "") in ("etudiant", "doctorant"):
+            return qs.filter(etudiant__user=user)
+        if (
+            not user.is_staff
+            and not user.has_perm("notes.view_moyenneue")
+            and getattr(user, "role", "")
+            not in (
+                "president",
+                "vice_president",
+                "doyen",
+                "directeur_etudes",
+                "scolarite",
+            )
+        ):
+            return qs.none()
+        return filter_queryset_by_scopes(
+            qs,
+            user,
+            "notes.view_moyenneue",
+            {
+                "formations": "etudiant__inscriptions_admin__formation_id",
+                "facultes": "etudiant__inscriptions_admin__formation__departement__faculte_id",
+                "departements": "etudiant__inscriptions_admin__formation__departement_id",
+                "annees": "semestre__annee_universitaire_id",
+                "semestres": "semestre_id",
+                "ues": "ue_id",
+            },
+        )
 
 
 class ReglesValidationViewSet(viewsets.ModelViewSet):
@@ -311,7 +391,9 @@ class ReglesValidationViewSet(viewsets.ModelViewSet):
     ordering = ["priorite", "code"]
 
     def get_queryset(self):
-        return RegleValidation.objects.select_related("annee_universitaire", "formation", "semestre")
+        return RegleValidation.objects.select_related(
+            "annee_universitaire", "formation", "semestre"
+        )
 
     @action(detail=True, methods=["post"])
     def evaluer(self, request, pk=None):
@@ -324,5 +406,7 @@ class EvaluationRegleInputSerializer(serializers.Serializer):
     moyenne = serializers.DecimalField(max_digits=7, decimal_places=2)
     credits = serializers.DecimalField(max_digits=7, decimal_places=2, default=0)
     ecues_echoues = serializers.IntegerField(min_value=0, default=0)
-    note_minimale = serializers.DecimalField(max_digits=7, decimal_places=2, required=False, allow_null=True)
+    note_minimale = serializers.DecimalField(
+        max_digits=7, decimal_places=2, required=False, allow_null=True
+    )
     donnees = serializers.JSONField(default=dict)
