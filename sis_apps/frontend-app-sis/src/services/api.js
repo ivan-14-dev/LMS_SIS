@@ -227,7 +227,7 @@ export const noteHooks = createResourceHooks('notes', 'superieur');
 export const useNotes = noteHooks.useList;
 
 // Examens
-export const examenHooks = createResourceHooks('examens', 'superieur');
+export const examenHooks = createResourceHooks('examens/epreuves', 'superieur');
 export const useExamens = examenHooks.useList;
 export const useExamen = examenHooks.useDetail;
 
@@ -423,6 +423,7 @@ export const useActivitesClub = () => useQuery({
 export const getAdminApiUrl = () => getConfig().SIS_ADMIN_API_URL || `${getConfig().LMS_BASE_URL}/api/sis/admin`;
 
 export const getIntegrationApiUrl = () => `${getAdminApiUrl()}/integration`;
+export const getCurrentEstablishmentUrl = () => `${getAdminApiUrl()}/etablissement/current/`;
 export const normalizePageResponse = (data) => {
   if (Array.isArray(data)) {
     return {

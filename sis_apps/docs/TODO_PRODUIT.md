@@ -20,6 +20,8 @@ validés.
   modèles, serializers, permissions et règles multi-tenant.
 - [ ] Terminer un premier parcours vertical : identité Open edX, profil,
   établissement, classe ou formation et inscription.
+- [x] Exposer une configuration de l'établissement courant, isolée par tenant et
+  réservée aux administrateurs.
 - [ ] Aligner les routes et les payloads des portails élève, étudiant,
   enseignant et parent.
 - [ ] Remplacer toutes les données de démonstration présentes dans les écrans
@@ -74,6 +76,8 @@ validés.
 
 ## P1 — Parité fonctionnelle avec Google Classroom
 
+- [x] Permettre le choix d'un type d'établissement personnalisé, des couleurs,
+  du fuseau horaire et des modules actifs depuis le panel.
 - [ ] Espaces de classe/cours avec enseignants, co-enseignants et apprenants.
 - [ ] Flux de classe : annonces, ressources, thèmes et commentaires modérés.
 - [ ] Devoirs avec brouillon, planification, échéance, pièces jointes et
@@ -88,6 +92,32 @@ validés.
 - [ ] Applications accessibles, responsives, multilingues et compatibles RTL.
 - [ ] Fonctionnement dégradé pour les connexions lentes et synchronisation
   différée.
+
+### Examens et évaluations
+
+- [x] Exposer les sessions, épreuves, convocations et résultats SIS existants
+  avec filtrage des données nominatives selon le rôle.
+- [ ] Synchroniser les examens Open edX avec les sessions et épreuves SIS.
+- [ ] Exposer dans le SIS les banques de questions, QCM et compositions Open edX
+  sans dupliquer le moteur CAPA.
+- [ ] Remonter les notes corrigées automatiquement vers les résultats consolidés.
+- [ ] Ajouter les copies écrites numérisées, le double anonymat et les circuits de
+  correction/modération.
+- [ ] Déporter la génération massive de convocations, notifications et exports
+  vers Celery.
+- [ ] Tester les volumes réels et supprimer les requêtes N+1 sur tous les tableaux
+  de résultats.
+
+### Classes virtuelles et partage
+
+- [x] Permettre à chaque tenant d'activer les classes virtuelles et de choisir un
+  fournisseur BigBlueButton, Zoom LTI Pro ou LTI générique.
+- [ ] Configurer les secrets fournisseurs uniquement côté serveur Open edX.
+- [ ] Relier le paramétrage tenant au framework `course_live` d'Open edX.
+- [ ] Activer le partage vidéo public par politique d'établissement et par cours.
+- [ ] Exposer les bibliothèques de contenu pour partager et réutiliser des cours
+  entre équipes autorisées.
+- [ ] Ajouter enregistrements, présence, sous-titres et règles de conservation.
 
 ## P2 — Dépasser Google Classroom
 
@@ -104,11 +134,13 @@ validés.
 - [ ] Interopérabilité OneRoster, LTI, QTI, calendriers et API événementielles.
 - [ ] Tableaux de bord institutionnels avec indicateurs anonymisés.
 
-## Prochaine tranche recommandée
+## Prochaines tranches recommandées
 
-- [ ] Corriger les défauts de contrat connus dans les serializers et portails.
-- [ ] Implémenter la fédération d'identité Open edX–SIS.
-- [ ] Livrer le parcours sécurisé « utilisateur connecté → profil → classe ou
-  formation → inscriptions ».
-- [ ] Activer ensuite les API métier par lots, chacune accompagnée de tests de
-  permissions et de contrats frontend.
+1. Relier les capacités activées par tenant aux politiques Open edX et aux menus
+   visibles dans le MFE.
+2. Livrer le parcours « création d'un examen Open edX → QCM/copie → correction →
+   résultat SIS ».
+3. Intégrer BigBlueButton comme premier fournisseur de classe virtuelle, puis
+   Zoom LTI Pro.
+4. Ajouter les tests multi-tenant, de permissions et de charge avant ouverture
+   à de grands effectifs.

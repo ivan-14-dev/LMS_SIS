@@ -1,6 +1,6 @@
 """API views for examens (ViewSets DRF) - SIS Secondaire."""
 
-from django.db.models import Avg
+from django.db.models import Avg, Count
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -28,10 +28,22 @@ class IsScolariteOrReadOnly(IsAuthenticated):
             return True
         user = request.user
         return user.is_staff or getattr(user, "role", "") in (
-            "scolarite",
-            "directeur",
-            "proviseur",
-            "principal",
+            "direction",
+            "responsable_pedagogique",
+            "vie_scolaire",
+        )
+
+
+class IsExamManager(IsAuthenticated):
+    """Réserve les données nominatives aux équipes chargées des examens."""
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        return request.user.is_staff or getattr(request.user, "role", "") in (
+            "direction",
+            "responsable_pedagogique",
+            "vie_scolaire",
         )
 
 
@@ -46,8 +58,8 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
     ordering = ["-date_debut"]
 
     def get_queryset(self):
-        return SessionExamen.objects.select_related("annee_scolaire").prefetch_related(
-            "epreuves"
+        return SessionExamen.objects.select_related("annee_scolaire").annotate(
+            nb_epreuves_count=Count("epreuves")
         )
 
     @action(detail=True, methods=["get"])
@@ -79,7 +91,7 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
             return EpreuveExamenListSerializer
         return EpreuveExamenDetailSerializer
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, methods=["get"], permission_classes=[IsExamManager])
     def convocations(self, request, pk=None):
         """Liste les convocations de l'épreuve."""
         epreuve = self.get_object()
@@ -89,7 +101,7 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
         serializer = ConvocationExamenSerializer(convocations, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, methods=["get"], permission_classes=[IsExamManager])
     def resultats(self, request, pk=None):
         """Liste les résultats de l'épreuve."""
         epreuve = self.get_object()
@@ -97,7 +109,7 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
         serializer = ResultatExamenSerializer(resultats, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, methods=["get"], permission_classes=[IsExamManager])
     def statistiques(self, request, pk=None):
         """Statistiques de l'épreuve."""
         epreuve = self.get_object()
@@ -120,9 +132,24 @@ class ConvocationsExamenViewSet(viewsets.ModelViewSet):
     ordering = ["numero_place"]
 
     def get_queryset(self):
-        return ConvocationExamen.objects.select_related(
+        queryset = ConvocationExamen.objects.select_related(
             "epreuve__matiere", "eleve__user"
         )
+        user = self.request.user
+        if user.is_staff or getattr(user, "role", "") in (
+            "direction",
+            "responsable_pedagogique",
+            "vie_scolaire",
+        ):
+            return queryset
+        if getattr(user, "role", "") == "eleve":
+            return queryset.filter(eleve__user=user)
+        if getattr(user, "role", "") == "parent":
+            return queryset.filter(
+                eleve__tuteurs_lies__tuteur__user=user,
+                eleve__tuteurs_lies__autorise_acces_portail=True,
+            ).distinct()
+        return queryset.none()
 
     @action(detail=True, methods=["post"])
     def marquer_present(self, request, pk=None):
@@ -151,4 +178,21 @@ class ResultatsExamenViewSet(viewsets.ModelViewSet):
     ordering = ["-note"]
 
     def get_queryset(self):
-        return ResultatExamen.objects.select_related("epreuve__matiere", "eleve__user")
+        queryset = ResultatExamen.objects.select_related(
+            "epreuve__matiere", "eleve__user"
+        )
+        user = self.request.user
+        if user.is_staff or getattr(user, "role", "") in (
+            "direction",
+            "responsable_pedagogique",
+            "vie_scolaire",
+        ):
+            return queryset
+        if getattr(user, "role", "") == "eleve":
+            return queryset.filter(eleve__user=user)
+        if getattr(user, "role", "") == "parent":
+            return queryset.filter(
+                eleve__tuteurs_lies__tuteur__user=user,
+                eleve__tuteurs_lies__autorise_acces_portail=True,
+            ).distinct()
+        return queryset.none()

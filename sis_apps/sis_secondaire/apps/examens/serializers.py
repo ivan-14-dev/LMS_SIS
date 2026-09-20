@@ -31,6 +31,8 @@ class SessionExamenSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def get_nb_epreuves(self, obj):
+        if hasattr(obj, "nb_epreuves_count"):
+            return obj.nb_epreuves_count
         return obj.epreuves.count()
 
 

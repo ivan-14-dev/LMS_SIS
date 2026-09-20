@@ -33,6 +33,19 @@ class IsScolariteOrReadOnly(IsAuthenticated):
         )
 
 
+class IsExamManager(IsAuthenticated):
+    """Réserve les données nominatives aux équipes chargées des examens."""
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        return request.user.is_staff or getattr(request.user, "role", "") in (
+            "scolarite",
+            "directeur_etudes",
+            "doyen",
+        )
+
+
 class SessionsExamenViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour sessions d'examens."""
 
@@ -44,7 +57,9 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
     ordering = ["-date_debut"]
 
     def get_queryset(self):
-        return SessionExamen.objects.select_related("semestre")
+        return SessionExamen.objects.select_related("semestre").annotate(
+            nb_epreuves_count=Count("epreuves")
+        )
 
     @action(detail=True, methods=["get"])
     def epreuves(self, request, pk=None):
@@ -66,7 +81,7 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
         session.save(update_fields=["cloturee"])
         return Response({"detail": "Session clôturée.", "id": session.id})
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, methods=["get"], permission_classes=[IsExamManager])
     def statistiques(self, request, pk=None):
         """Statistiques de la session."""
         session = self.get_object()
@@ -104,8 +119,16 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
     ordering = ["date", "heure_debut"]
 
     def get_queryset(self):
-        return EpreuveExamen.objects.select_related("session", "ecue").prefetch_related(
-            "surveillants"
+        return (
+            EpreuveExamen.objects.select_related("session", "ecue")
+            .prefetch_related("surveillants")
+            .annotate(
+                nb_convoques_count=Count("convocations"),
+                nb_presents_count=Count(
+                    "convocations",
+                    filter=Q(convocations__statut="present"),
+                ),
+            )
         )
 
     def get_serializer_class(self):
@@ -113,7 +136,7 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
             return EpreuveExamenListSerializer
         return EpreuveExamenDetailSerializer
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, methods=["get"], permission_classes=[IsExamManager])
     def convocations(self, request, pk=None):
         """Liste les convocations de l'épreuve."""
         epreuve = self.get_object()
@@ -130,29 +153,40 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
         # Récupérer les étudiants inscrits à l'ECUE
         from apps.etudiants.models import InscriptionPedagogique
 
-        inscrits = InscriptionPedagogique.objects.filter(ecue=epreuve.ecue).values_list(
-            "etudiant_id", flat=True
+        inscrits = list(
+            InscriptionPedagogique.objects.filter(ecue=epreuve.ecue)
+            .values_list("etudiant_id", flat=True)
+            .distinct()
         )
-
-        created = 0
-        for i, etudiant_id in enumerate(inscrits, 1):
-            _, was_created = ConvocationExamen.objects.get_or_create(
+        deja_convoques = set(
+            epreuve.convocations.filter(etudiant_id__in=inscrits).values_list(
+                "etudiant_id", flat=True
+            )
+        )
+        nouvelles_convocations = [
+            ConvocationExamen(
                 epreuve=epreuve,
                 etudiant_id=etudiant_id,
-                defaults={"numero_place": str(i)},
+                numero_place=str(numero),
             )
-            if was_created:
-                created += 1
+            for numero, etudiant_id in enumerate(inscrits, 1)
+            if etudiant_id not in deja_convoques
+        ]
+        ConvocationExamen.objects.bulk_create(
+            nouvelles_convocations,
+            batch_size=1000,
+            ignore_conflicts=True,
+        )
 
         return Response(
             {
                 "epreuve_id": epreuve.id,
-                "convocations_creees": created,
+                "convocations_creees": len(nouvelles_convocations),
                 "total_convoques": epreuve.convocations.count(),
             }
         )
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, methods=["get"], permission_classes=[IsExamManager])
     def emargement(self, request, pk=None):
         """Export la liste d'émargement."""
         epreuve = self.get_object()
@@ -193,11 +227,15 @@ class ConvocationsExamenViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = ConvocationExamen.objects.select_related("epreuve__ecue", "etudiant__user")
         user = self.request.user
-        # Un étudiant ne voit que ses propres convocations
-        if hasattr(user, "etudiant_profile"):
-            if not user.is_staff and getattr(user, "role", "") == "etudiant":
-                qs = qs.filter(etudiant__user=user)
-        return qs
+        if user.is_staff or getattr(user, "role", "") in (
+            "scolarite",
+            "directeur_etudes",
+            "doyen",
+        ):
+            return qs
+        if getattr(user, "role", "") in ("etudiant", "doctorant"):
+            return qs.filter(etudiant__user=user)
+        return qs.none()
 
     @action(detail=True, methods=["post"])
     def pointer(self, request, pk=None):

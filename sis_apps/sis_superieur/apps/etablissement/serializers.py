@@ -1,6 +1,12 @@
 """Serializers for etablissement (SIS Supérieur)."""
 
 from rest_framework import serializers
+from sis_common.establishments import (
+    FEATURE_LABELS,
+    LIVE_PROVIDER_LABELS,
+    default_establishment_features,
+    default_live_configuration,
+)
 
 from .models import AnneeUniversitaire, Semestre, Universite
 
@@ -9,6 +15,9 @@ class UniversiteSerializer(serializers.ModelSerializer):
     """Serializer pour les universités."""
 
     type_display = serializers.CharField(source="get_type_display", read_only=True)
+    type_options = serializers.SerializerMethodField()
+    feature_options = serializers.SerializerMethodField()
+    live_provider_options = serializers.SerializerMethodField()
     nb_facultes = serializers.SerializerMethodField()
 
     class Meta:
@@ -19,6 +28,8 @@ class UniversiteSerializer(serializers.ModelSerializer):
             "sigle",
             "type",
             "type_display",
+            "type_personnalise",
+            "type_options",
             "ministere_tutelle",
             "uai",
             "adresse",
@@ -29,6 +40,13 @@ class UniversiteSerializer(serializers.ModelSerializer):
             "email",
             "site_web",
             "logo",
+            "couleur_primaire",
+            "couleur_secondaire",
+            "fuseau_horaire",
+            "fonctionnalites",
+            "feature_options",
+            "configuration_visio",
+            "live_provider_options",
             "systeme_notation",
             "credits_annee",
             "accreditations",
@@ -41,6 +59,39 @@ class UniversiteSerializer(serializers.ModelSerializer):
 
     def get_nb_facultes(self, obj):
         return obj.facultes.count() if hasattr(obj, "facultes") else 0
+
+    def get_type_options(self, obj):
+        return [{"value": value, "label": label} for value, label in obj.TYPE_CHOICES]
+
+    def get_feature_options(self, obj):
+        return [
+            {"value": value, "label": label} for value, label in FEATURE_LABELS.items()
+        ]
+
+    def get_live_provider_options(self, obj):
+        return [
+            {"value": value, "label": label}
+            for value, label in LIVE_PROVIDER_LABELS.items()
+        ]
+
+    def validate(self, attrs):
+        institution_type = attrs.get("type", getattr(self.instance, "type", None))
+        custom_type = attrs.get(
+            "type_personnalise", getattr(self.instance, "type_personnalise", "")
+        )
+        if institution_type == "autre" and not custom_type.strip():
+            raise serializers.ValidationError(
+                {"type_personnalise": "Précisez le type de cet établissement."}
+            )
+        return attrs
+
+    def validate_fonctionnalites(self, value):
+        current = getattr(self.instance, "fonctionnalites", {})
+        return {**default_establishment_features(), **current, **value}
+
+    def validate_configuration_visio(self, value):
+        current = getattr(self.instance, "configuration_visio", {})
+        return {**default_live_configuration(), **current, **value}
 
 
 class AnneeUniversitaireSerializer(serializers.ModelSerializer):

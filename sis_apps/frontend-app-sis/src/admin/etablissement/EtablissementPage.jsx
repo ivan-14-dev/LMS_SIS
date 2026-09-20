@@ -1,109 +1,229 @@
-import React from 'react';
-import { Row, Col, Card, Form, Button, Tabs, Tab } from '@openedx/paragon';
-import { Save, Business } from '@openedx/paragon/icons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PageHeader, StatCard } from '../../components/common';
-import { fetchApi, getAdminApiUrl } from '../../services/api';
+import React, { useEffect, useState } from 'react';
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  Form,
+  Row,
+  Tab,
+  Tabs,
+} from '@openedx/paragon';
+import { Save } from '@openedx/paragon/icons';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { PageHeader } from '../../components/common';
+import {
+  fetchApi,
+  getCurrentEstablishmentUrl,
+  patchApi,
+} from '../../services/api';
+
+const EMPTY_FORM = {
+  fonctionnalites: {},
+  configuration_visio: { provider: 'none', public_url: '' },
+};
 
 const EtablissementPage = () => {
   const queryClient = useQueryClient();
-  
-  const { data: etablissement, isLoading } = useQuery({
-    queryKey: ['etablissement'],
-    queryFn: () => fetchApi(`${getAdminApiUrl()}/etablissement/`),
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const endpoint = getCurrentEstablishmentUrl();
+
+  const {
+    data: etablissement,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['etablissement-current'],
+    queryFn: () => fetchApi(endpoint),
   });
+
+  useEffect(() => {
+    if (etablissement) {
+      setFormData({
+        ...etablissement,
+        fonctionnalites: etablissement.fonctionnalites || {},
+        configuration_visio: etablissement.configuration_visio || EMPTY_FORM.configuration_visio,
+      });
+    }
+  }, [etablissement]);
 
   const updateMutation = useMutation({
-    mutationFn: (data) => fetchApi(`${getAdminApiUrl()}/etablissement/`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-    onSuccess: () => queryClient.invalidateQueries(['etablissement']),
+    mutationFn: (data) => patchApi(endpoint, data),
+    onSuccess: (data) => {
+      setFormData(data);
+      queryClient.setQueryData(['etablissement-current'], data);
+    },
   });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData.entries());
-    updateMutation.mutate(data);
+  const updateField = (event) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({ ...current, [name]: value }));
   };
 
-  if (isLoading) return <div>Chargement...</div>;
+  const updateFeature = (event) => {
+    const { name, checked } = event.target;
+    setFormData((current) => ({
+      ...current,
+      fonctionnalites: {
+        ...current.fonctionnalites,
+        [name]: checked,
+      },
+    }));
+  };
+
+  const updateLiveConfiguration = (event) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({
+      ...current,
+      configuration_visio: {
+        ...current.configuration_visio,
+        [name]: value,
+      },
+    }));
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const {
+      nom,
+      type,
+      type_personnalise: typePersonnalise,
+      adresse,
+      code_postal: codePostal,
+      ville,
+      pays,
+      telephone,
+      email,
+      site_web: siteWeb,
+      couleur_primaire: couleurPrimaire,
+      couleur_secondaire: couleurSecondaire,
+      fuseau_horaire: fuseauHoraire,
+      fonctionnalites,
+      configuration_visio: configurationVisio,
+    } = formData;
+    updateMutation.mutate({
+      nom,
+      type,
+      type_personnalise: typePersonnalise,
+      adresse,
+      code_postal: codePostal,
+      ville,
+      pays,
+      telephone,
+      email,
+      site_web: siteWeb,
+      couleur_primaire: couleurPrimaire,
+      couleur_secondaire: couleurSecondaire,
+      fuseau_horaire: fuseauHoraire,
+      fonctionnalites,
+      configuration_visio: configurationVisio,
+    });
+  };
+
+  if (isLoading) {
+    return <div>Chargement de la configuration...</div>;
+  }
+
+  if (isError) {
+    return <Alert variant="danger">Impossible de charger la configuration de cet établissement.</Alert>;
+  }
 
   return (
     <div>
       <PageHeader
         title="Configuration établissement"
-        subtitle="Paramètres généraux de l'établissement"
+        subtitle="Personnalisez l’identité, les modules pédagogiques et les services de votre organisation"
       />
 
-      <Tabs defaultActiveKey="general">
-        <Tab eventKey="general" title="Informations générales">
-          <Card className="mt-3">
-            <Card.Body>
-              <Form onSubmit={handleSubmit}>
+      {updateMutation.isSuccess && (
+        <Alert variant="success">La configuration a été enregistrée.</Alert>
+      )}
+      {updateMutation.isError && (
+        <Alert variant="danger">L’enregistrement a échoué. Vérifiez les valeurs saisies.</Alert>
+      )}
+
+      <Form onSubmit={handleSubmit}>
+        <Tabs defaultActiveKey="general">
+          <Tab eventKey="general" title="Identité">
+            <Card className="mt-3">
+              <Card.Body>
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Nom de l'établissement</Form.Label>
-                      <Form.Control name="nom" defaultValue={etablissement?.nom} required />
+                      <Form.Label>Nom de l’établissement</Form.Label>
+                      <Form.Control
+                        name="nom"
+                        value={formData.nom || ''}
+                        onChange={updateField}
+                        required
+                      />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Code établissement</Form.Label>
-                      <Form.Control name="code" defaultValue={etablissement?.code} required />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Type d'établissement</Form.Label>
-                      <Form.Control as="select" name="type" defaultValue={etablissement?.type}>
-                        <option value="universite">Université</option>
-                        <option value="ecole_superieure">École supérieure</option>
-                        <option value="institut">Institut</option>
-                        <option value="lycee">Lycée</option>
-                        <option value="college">Collège</option>
+                      <Form.Label>Type d’établissement</Form.Label>
+                      <Form.Control
+                        as="select"
+                        name="type"
+                        value={formData.type || ''}
+                        onChange={updateField}
+                        required
+                      >
+                        {(formData.type_options || []).map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
                       </Form.Control>
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Statut</Form.Label>
-                      <Form.Control as="select" name="statut" defaultValue={etablissement?.statut}>
-                        <option value="public">Public</option>
-                        <option value="prive">Privé</option>
-                      </Form.Control>
-                    </Form.Group>
-                  </Col>
                 </Row>
-                <Row>
-                  <Col md={12}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Adresse</Form.Label>
-                      <Form.Control name="adresse" defaultValue={etablissement?.adresse} />
-                    </Form.Group>
-                  </Col>
-                </Row>
+                {formData.type === 'autre' && (
+                  <Form.Group className="mb-3">
+                    <Form.Label>Type personnalisé</Form.Label>
+                    <Form.Control
+                      name="type_personnalise"
+                      value={formData.type_personnalise || ''}
+                      onChange={updateField}
+                      required
+                    />
+                  </Form.Group>
+                )}
+                <Form.Group className="mb-3">
+                  <Form.Label>Adresse</Form.Label>
+                  <Form.Control
+                    name="adresse"
+                    value={formData.adresse || ''}
+                    onChange={updateField}
+                  />
+                </Form.Group>
                 <Row>
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Ville</Form.Label>
-                      <Form.Control name="ville" defaultValue={etablissement?.ville} />
+                      <Form.Control
+                        name="ville"
+                        value={formData.ville || ''}
+                        onChange={updateField}
+                      />
                     </Form.Group>
                   </Col>
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Code postal</Form.Label>
-                      <Form.Control name="code_postal" defaultValue={etablissement?.code_postal} />
+                      <Form.Control
+                        name="code_postal"
+                        value={formData.code_postal || ''}
+                        onChange={updateField}
+                      />
                     </Form.Group>
                   </Col>
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Pays</Form.Label>
-                      <Form.Control name="pays" defaultValue={etablissement?.pays || 'France'} />
+                      <Form.Control
+                        name="pays"
+                        value={formData.pays || ''}
+                        onChange={updateField}
+                      />
                     </Form.Group>
                   </Col>
                 </Row>
@@ -111,72 +231,159 @@ const EtablissementPage = () => {
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Téléphone</Form.Label>
-                      <Form.Control name="telephone" defaultValue={etablissement?.telephone} />
+                      <Form.Control
+                        name="telephone"
+                        value={formData.telephone || ''}
+                        onChange={updateField}
+                      />
                     </Form.Group>
                   </Col>
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Email</Form.Label>
-                      <Form.Control type="email" name="email" defaultValue={etablissement?.email} />
+                      <Form.Control
+                        type="email"
+                        name="email"
+                        value={formData.email || ''}
+                        onChange={updateField}
+                      />
                     </Form.Group>
                   </Col>
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Site web</Form.Label>
-                      <Form.Control name="site_web" defaultValue={etablissement?.site_web} />
+                      <Form.Control
+                        type="url"
+                        name="site_web"
+                        value={formData.site_web || ''}
+                        onChange={updateField}
+                      />
                     </Form.Group>
                   </Col>
                 </Row>
-                <Button type="submit" variant="primary" iconBefore={Save} disabled={updateMutation.isLoading}>
-                  {updateMutation.isLoading ? 'Enregistrement...' : 'Enregistrer'}
-                </Button>
-              </Form>
-            </Card.Body>
-          </Card>
-        </Tab>
+              </Card.Body>
+            </Card>
+          </Tab>
 
-        <Tab eventKey="annee" title="Année scolaire">
-          <Card className="mt-3">
-            <Card.Body>
-              <Row>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Année scolaire en cours</Form.Label>
-                    <Form.Control defaultValue={etablissement?.annee_scolaire || '2025-2026'} />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Trimestre/Semestre actif</Form.Label>
-                    <Form.Control as="select" defaultValue="1">
-                      <option value="1">Trimestre 1 / Semestre 1</option>
-                      <option value="2">Trimestre 2</option>
-                      <option value="3">Trimestre 3 / Semestre 2</option>
-                    </Form.Control>
-                  </Form.Group>
-                </Col>
-              </Row>
-              <Button variant="primary" iconBefore={Save}>Enregistrer</Button>
-            </Card.Body>
-          </Card>
-        </Tab>
+          <Tab eventKey="appearance" title="Apparence">
+            <Card className="mt-3">
+              <Card.Body>
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Couleur principale</Form.Label>
+                      <Form.Control
+                        type="color"
+                        name="couleur_primaire"
+                        value={formData.couleur_primaire || '#0A3055'}
+                        onChange={updateField}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Couleur secondaire</Form.Label>
+                      <Form.Control
+                        type="color"
+                        name="couleur_secondaire"
+                        value={formData.couleur_secondaire || '#FFFFFF'}
+                        onChange={updateField}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Fuseau horaire IANA</Form.Label>
+                      <Form.Control
+                        name="fuseau_horaire"
+                        value={formData.fuseau_horaire || 'UTC'}
+                        onChange={updateField}
+                        placeholder="Africa/Abidjan"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <p className="text-muted mb-0">
+                  Le logo est géré dans l’administration Django afin de conserver un téléversement sécurisé.
+                </p>
+              </Card.Body>
+            </Card>
+          </Tab>
 
-        <Tab eventKey="logo" title="Logo & Apparence">
-          <Card className="mt-3">
-            <Card.Body>
-              <Form.Group className="mb-3">
-                <Form.Label>Logo de l'établissement</Form.Label>
-                <Form.Control type="file" accept="image/*" />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Couleur principale</Form.Label>
-                <Form.Control type="color" defaultValue="#0066CC" />
-              </Form.Group>
-              <Button variant="primary" iconBefore={Save}>Enregistrer</Button>
-            </Card.Body>
-          </Card>
-        </Tab>
-      </Tabs>
+          <Tab eventKey="features" title="Modules">
+            <Card className="mt-3">
+              <Card.Body>
+                {(formData.feature_options || []).map((feature) => (
+                  <Form.Check
+                    key={feature.value}
+                    className="mb-3"
+                    type="switch"
+                    id={`feature-${feature.value}`}
+                    name={feature.value}
+                    label={feature.label}
+                    checked={Boolean(formData.fonctionnalites[feature.value])}
+                    onChange={updateFeature}
+                  />
+                ))}
+                <Alert variant="info" className="mb-0">
+                  Les QCM et la correction automatique sont exécutés par le moteur Open edX ;
+                  le SIS conserve la planification et les résultats consolidés.
+                </Alert>
+              </Card.Body>
+            </Card>
+          </Tab>
+
+          <Tab eventKey="live" title="Classes virtuelles">
+            <Card className="mt-3">
+              <Card.Body>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Fournisseur</Form.Label>
+                      <Form.Control
+                        as="select"
+                        name="provider"
+                        value={formData.configuration_visio.provider || 'none'}
+                        onChange={updateLiveConfiguration}
+                      >
+                        {(formData.live_provider_options || []).map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </Form.Control>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>URL publique HTTPS</Form.Label>
+                      <Form.Control
+                        type="url"
+                        name="public_url"
+                        value={formData.configuration_visio.public_url || ''}
+                        onChange={updateLiveConfiguration}
+                        placeholder="https://classes.example.edu"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Alert variant="warning" className="mb-0">
+                  Les clés et secrets BigBlueButton, Zoom ou LTI ne sont jamais saisis ici.
+                  Ils doivent rester dans la configuration sécurisée du serveur Open edX.
+                </Alert>
+              </Card.Body>
+            </Card>
+          </Tab>
+        </Tabs>
+
+        <Button
+          className="mt-3"
+          type="submit"
+          variant="primary"
+          iconBefore={Save}
+          disabled={updateMutation.isPending}
+        >
+          {updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer la configuration'}
+        </Button>
+      </Form>
     </div>
   );
 };

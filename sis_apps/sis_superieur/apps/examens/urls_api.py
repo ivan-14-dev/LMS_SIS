@@ -1,7 +1,16 @@
 """URLs API for examens."""
 
+from rest_framework.routers import DefaultRouter
+
+from .api import ConvocationsExamenViewSet, EpreuvesExamenViewSet, SessionsExamenViewSet
+
 app_name = "examens_api"
 
-urlpatterns = [
-    # path("", api.ExamensViewSet.as_view({"get": "list", "post": "create"}), name="list"),
-]
+router = DefaultRouter()
+router.register("sessions", SessionsExamenViewSet, basename="session-examen")
+router.register("epreuves", EpreuvesExamenViewSet, basename="epreuve-examen")
+router.register(
+    "convocations", ConvocationsExamenViewSet, basename="convocation-examen"
+)
+
+urlpatterns = router.urls

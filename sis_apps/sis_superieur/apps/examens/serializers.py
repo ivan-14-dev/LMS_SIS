@@ -32,6 +32,8 @@ class SessionExamenSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def get_nb_epreuves(self, obj):
+        if hasattr(obj, "nb_epreuves_count"):
+            return obj.nb_epreuves_count
         return obj.epreuves.count()
 
 
@@ -61,6 +63,8 @@ class EpreuveExamenListSerializer(serializers.ModelSerializer):
         ]
 
     def get_nb_convoques(self, obj):
+        if hasattr(obj, "nb_convoques_count"):
+            return obj.nb_convoques_count
         return obj.convocations.count()
 
 
@@ -101,9 +105,13 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
         return [s.get_full_name() for s in obj.surveillants.all()]
 
     def get_nb_convoques(self, obj):
+        if hasattr(obj, "nb_convoques_count"):
+            return obj.nb_convoques_count
         return obj.convocations.count()
 
     def get_nb_presents(self, obj):
+        if hasattr(obj, "nb_presents_count"):
+            return obj.nb_presents_count
         return obj.convocations.filter(statut="present").count()
 
 

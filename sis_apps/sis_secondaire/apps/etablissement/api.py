@@ -1,14 +1,19 @@
 """API views for etablissement (ViewSets DRF) - SIS Secondaire."""
 
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import AnneeScolaire, Etablissement, Niveau, Periode
-from .serializers import AnneeScolaireSerializer, EtablissementSerializer, PeriodeSerializer
+from .serializers import (
+    AnneeScolaireSerializer,
+    EtablissementSerializer,
+    PeriodeSerializer,
+)
 
 
 class IsAdminOrReadOnly(IsAuthenticated):
@@ -20,6 +25,45 @@ class IsAdminOrReadOnly(IsAuthenticated):
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
         return request.user.is_staff
+
+
+class CurrentEtablissementView(APIView):
+    """Configuration de l'établissement associé au domaine courant."""
+
+    permission_classes = [IsAdminUser]
+
+    def get_tenant(self, request):
+        if not isinstance(request.tenant, Etablissement):
+            return None
+        return request.tenant
+
+    def get(self, request):
+        tenant = self.get_tenant(request)
+        if tenant is None:
+            return Response(
+                {"detail": "Aucun établissement n'est associé à ce domaine."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(
+            EtablissementSerializer(tenant, context={"request": request}).data
+        )
+
+    def patch(self, request):
+        tenant = self.get_tenant(request)
+        if tenant is None:
+            return Response(
+                {"detail": "Aucun établissement n'est associé à ce domaine."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = EtablissementSerializer(
+            tenant,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class EtablissementsViewSet(viewsets.ModelViewSet):

@@ -4,6 +4,7 @@ import {
   deleteApi,
   fetchApi,
   getAdminApiUrl,
+  getCurrentEstablishmentUrl,
   getIntegrationApiUrl,
   normalizePageResponse,
   patchApi,
@@ -62,6 +63,9 @@ describe('explicit mock mode', () => {
       });
 
       expect(getAdminApiUrl()).toBe('https://sis.example.com/api/v1');
+      expect(getCurrentEstablishmentUrl()).toBe(
+        'https://sis.example.com/api/v1/etablissement/current/',
+      );
       expect(getIntegrationApiUrl()).toBe('https://sis.example.com/api/v1/integration');
     });
 
