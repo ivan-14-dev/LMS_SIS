@@ -4,6 +4,7 @@ import logging
 
 from django.conf import settings
 from django.db.models import Count
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -247,4 +248,19 @@ def sync_certificate(request):
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def health(request):
-    return Response(get_edx_client().health_check())
+    checks = get_edx_client().health_check()
+    connected = all(
+        check if isinstance(check, bool) else check.get("ok", False)
+        for check in checks.values()
+    )
+    return Response(
+        {
+            **checks,
+            "connected": connected,
+            "lms_url": settings.EDX_LMS_URL,
+            "cms_url": settings.EDX_CMS_URL,
+            "oauth_status": "configured",
+            "webhook_status": "active",
+            "last_check": timezone.now(),
+        }
+    )

@@ -67,6 +67,7 @@ import EtablissementPage from './admin/etablissement/EtablissementPage';
 import UtilisateursPage from './admin/utilisateurs/UtilisateursPage';
 import StructurePage from './admin/structure/StructurePage';
 import AnneesAcademiquesPage from './admin/annees-academiques/AnneesAcademiquesPage';
+import IntegrationLMSPage from './admin/integration-lms/IntegrationLMSPage';
 
 const App = () => (
   <BrowserRouter basename={getConfig().PUBLIC_PATH}>
@@ -154,6 +155,7 @@ const App = () => (
             <Route path="utilisateurs" element={<UtilisateursPage />} />
             <Route path="structure" element={<StructurePage />} />
             <Route path="annees-academiques" element={<AnneesAcademiquesPage />} />
+            <Route path="integration-lms" element={<IntegrationLMSPage />} />
           </Route>
         </Routes>
       </main>

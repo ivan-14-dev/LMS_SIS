@@ -420,6 +420,39 @@ export const useActivitesClub = () => useQuery({
 
 export const getAdminApiUrl = () => getConfig().SIS_ADMIN_API_URL || getConfig().LMS_BASE_URL + '/api/sis/admin';
 
+export const getIntegrationApiUrl = () => `${getAdminApiUrl()}/integration`;
+const selectResults = (data) => (Array.isArray(data) ? data : data?.results || []);
+
+export const useIntegrationHealth = () => useQuery({
+  queryKey: ['integration', 'health'],
+  queryFn: () => fetchApi(`${getIntegrationApiUrl()}/health/`),
+  staleTime: 30 * 1000,
+});
+
+export const useIntegrationStats = () => useQuery({
+  queryKey: ['integration', 'stats'],
+  queryFn: () => fetchApi(`${getIntegrationApiUrl()}/sync/status/`),
+  staleTime: 30 * 1000,
+});
+
+export const useIntegrationUserMappings = () => useQuery({
+  queryKey: ['integration', 'user-mappings'],
+  queryFn: () => fetchApi(`${getIntegrationApiUrl()}/mappings/users/`),
+  select: selectResults,
+});
+
+export const useIntegrationCourseMappings = () => useQuery({
+  queryKey: ['integration', 'course-mappings'],
+  queryFn: () => fetchApi(`${getIntegrationApiUrl()}/mappings/courses/`),
+  select: selectResults,
+});
+
+export const useIntegrationOutboxEvents = () => useQuery({
+  queryKey: ['integration', 'outbox'],
+  queryFn: () => fetchApi(`${getIntegrationApiUrl()}/outbox/`),
+  select: selectResults,
+});
+
 // Utilisateurs
 export const utilisateurHooks = createResourceHooks('utilisateurs', 'admin');
 export const useUtilisateurs = () => useQuery({

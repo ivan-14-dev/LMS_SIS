@@ -3,6 +3,9 @@
 Deux applications Django distinctes intégrées au LMS Open edX.
 
 > **📚 Documentation complète** : [docs/ROADMAP_OPERATIONNEL.md](docs/ROADMAP_OPERATIONNEL.md)
+>
+> **✅ TODO produit priorisée** :
+> [docs/TODO_PRODUIT.md](docs/TODO_PRODUIT.md)
 
 ## Modes de déploiement
 
