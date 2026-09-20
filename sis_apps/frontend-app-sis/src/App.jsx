@@ -6,7 +6,7 @@ import {
 import { Helmet } from 'react-helmet';
 import { getConfig } from '@edx/frontend-platform';
 
-import Header from '@edx/frontend-component-header';
+import Header from '@edx/frontend-component-header/dist/Header';
 import Footer from '@edx/frontend-component-footer';
 
 // Layout

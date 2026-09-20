@@ -1,5 +1,6 @@
 """Models for Open edX integration (SIS Supérieur)."""
 
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -64,6 +65,41 @@ class EdxEnrollment(models.Model):
         return f"{self.etudiant} → {self.course.course_id}"
 
 
+class EdxAssessmentMapping(models.Model):
+    """Associe une sous-section notée Open edX à une évaluation du SIS."""
+
+    course = models.ForeignKey(
+        EdxCourseMapping, on_delete=models.CASCADE, related_name="assessments"
+    )
+    subsection_id = models.CharField(max_length=255)
+    evaluation = models.OneToOneField(
+        "notes.Evaluation",
+        on_delete=models.CASCADE,
+        related_name="edx_assessment",
+    )
+    actif = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["course", "subsection_id"],
+                name="unique_edx_assessment_superieur",
+            )
+        ]
+        verbose_name = "Mapping évaluation EdX"
+        verbose_name_plural = "Mappings évaluations EdX"
+
+    def __str__(self):
+        return f"{self.course.course_id} / {self.subsection_id} → {self.evaluation}"
+
+    def clean(self):
+        if self.evaluation_id and self.course_id:
+            if self.evaluation.ecue_id != self.course.ecue_id:
+                raise ValidationError("L'évaluation doit appartenir à l'ECUE du cours.")
+
+
 class EdxGradeLog(models.Model):
     enrollment = models.ForeignKey(
         EdxEnrollment, on_delete=models.CASCADE, related_name="grade_logs"
@@ -73,6 +109,7 @@ class EdxGradeLog(models.Model):
     max_score = models.DecimalField(max_digits=5, decimal_places=2, default=20)
     completion = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     timestamp_lms = models.DateTimeField()
+    event_id = models.CharField(max_length=64, unique=True, null=True, blank=True)
     imported_to_sis = models.BooleanField(default=False)
     note_sis = models.ForeignKey(
         "notes.Note",

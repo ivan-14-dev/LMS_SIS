@@ -100,20 +100,33 @@ validés.
 - [ ] Synchroniser les examens Open edX avec les sessions et épreuves SIS.
 - [ ] Exposer dans le SIS les banques de questions, QCM et compositions Open edX
   sans dupliquer le moteur CAPA.
-- [ ] Remonter les notes corrigées automatiquement vers les résultats consolidés.
-- [ ] Ajouter les copies écrites numérisées, le double anonymat et les circuits de
-  correction/modération.
+- [x] Importer de façon idempotente les notes des sous-sections Open edX vers une
+  évaluation SIS explicitement mappée, avec conversion vers son barème.
+- [ ] Relier les résultats consolidés aux notes importées après validation des
+  règles de jury et de publication.
+- [ ] Ajouter les copies écrites numérisées uniquement après mise en place d'un
+  stockage privé, du contrôle MIME/taille, d'une analyse antivirus et de liens
+  temporaires signés.
+- [ ] Ajouter anonymisation, affectation de correcteurs, double correction,
+  modération des écarts et journal d'audit immuable avant toute ouverture des
+  copies aux correcteurs.
 - [ ] Déporter la génération massive de convocations, notifications et exports
   vers Celery.
-- [ ] Tester les volumes réels et supprimer les requêtes N+1 sur tous les tableaux
-  de résultats.
+- [ ] Automatiser les scénarios de charge avec des données synthétiques isolées :
+  10 000 convocations, 5 000 copies, 1 000 imports de notes par minute et
+  100 correcteurs simultanés.
+- [ ] Bloquer une livraison si les listes paginées dépassent 2 s au 95e percentile,
+  si le taux d'erreur dépasse 1 % ou si des requêtes N+1 réapparaissent.
 
 ### Classes virtuelles et partage
 
 - [x] Permettre à chaque tenant d'activer les classes virtuelles et de choisir un
   fournisseur BigBlueButton, Zoom LTI Pro ou LTI générique.
-- [ ] Configurer les secrets fournisseurs uniquement côté serveur Open edX.
-- [ ] Relier le paramétrage tenant au framework `course_live` d'Open edX.
+- [x] Conserver les secrets fournisseurs uniquement côté serveur Open edX.
+- [x] Relier explicitement un cours SIS mappé au framework `course_live` et au
+  fournisseur BigBlueButton choisi par le tenant.
+- [ ] Autoriser le partage du nom d'utilisateur LTI dans la politique de chaque
+  cours BigBlueButton et vérifier les droits du compte OAuth de synchronisation.
 - [ ] Activer le partage vidéo public par politique d'établissement et par cours.
 - [ ] Exposer les bibliothèques de contenu pour partager et réutiliser des cours
   entre équipes autorisées.

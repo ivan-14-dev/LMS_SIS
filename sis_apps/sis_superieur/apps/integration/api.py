@@ -1,5 +1,6 @@
 """API views for Open edX integration (SIS Supérieur)."""
 
+import hashlib
 import logging
 
 from django.conf import settings
@@ -15,11 +16,7 @@ from sis_common.webhooks import verify_hmac_signature
 
 from .edx_client import get_edx_client
 from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
-from .serializers import (
-    EdxCourseMappingSerializer,
-    EdxUserMappingSerializer,
-    OutboxEventSerializer,
-)
+from .serializers import EdxCourseMappingSerializer, EdxUserMappingSerializer, OutboxEventSerializer
 from .sync_service import SyncService
 
 logger = logging.getLogger(__name__)
@@ -46,7 +43,14 @@ def webhook_lms(request):
             {"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED
         )
     event_type = request.headers.get("X-Event-Type", "")
-    payload = request.data
+    payload = dict(request.data)
+    supplied_event_id = request.headers.get("X-Event-ID")
+    event_material = (
+        supplied_event_id.encode()
+        if supplied_event_id
+        else event_type.encode() + b":" + request.body
+    )
+    payload["_event_id"] = hashlib.sha256(event_material).hexdigest()
     from .tasks import (
         process_certificate_webhook,
         process_enrollment_webhook,
@@ -54,14 +58,41 @@ def webhook_lms(request):
         process_user_webhook,
     )
 
-    if "user" in event_type:
-        process_user_webhook.delay(payload)
-    elif "enrollment" in event_type:
-        process_enrollment_webhook.delay(payload)
-    elif "grade" in event_type:
-        process_grade_webhook.delay(payload)
-    elif "certificate" in event_type:
-        process_certificate_webhook.delay(payload)
+    if event_type in {
+        "user.created",
+        "user.updated",
+        "org.openedx.learning.user.created.v1",
+        "org.openedx.learning.user.updated.v1",
+    }:
+        process_user_webhook.delay(event_type, payload)
+    elif event_type in {
+        "enrollment.created",
+        "enrollment.updated",
+        "enrollment.deleted",
+        "org.openedx.learning.enrollment.created.v1",
+        "org.openedx.learning.enrollment.updated.v1",
+        "org.openedx.learning.enrollment.deleted.v1",
+    }:
+        process_enrollment_webhook.delay(event_type, payload)
+    elif event_type in {
+        "grade.updated",
+        "org.openedx.learning.course.grade.updated.v1",
+        "org.openedx.learning.course.assessment.grade.changed.v1",
+    }:
+        process_grade_webhook.delay(event_type, payload)
+    elif event_type in {
+        "certificate.issued",
+        "certificate.revoked",
+        "org.openedx.learning.certificate.issued.v1",
+        "org.openedx.learning.certificate.revoked.v1",
+    }:
+        process_certificate_webhook.delay(event_type, payload)
+    else:
+        logger.warning(f"Unknown LMS event: {event_type}")
+        return Response(
+            {"error": "Unsupported event type", "event": event_type},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     return Response({"status": "queued", "event": event_type})
 
 
@@ -74,13 +105,27 @@ def webhook_cms(request):
             {"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED
         )
     event_type = request.headers.get("X-Event-Type", "")
-    payload = request.data
-    from .tasks import process_course_published, process_xblock_published
+    payload = dict(request.data)
+    from .tasks import process_cms_webhook
 
-    if "xblock" in event_type:
-        process_xblock_published.delay(payload)
-    elif "course.published" in event_type:
-        process_course_published.delay(payload)
+    supported_events = {
+        "course.published",
+        "course.deleted",
+        "xblock.published",
+        "asset.uploaded",
+        "org.openedx.studio.course.published.v1",
+        "org.openedx.studio.course.deleted.v1",
+        "org.openedx.studio.xblock.published.v1",
+        "org.openedx.studio.asset.uploaded.v1",
+    }
+    if event_type in supported_events:
+        process_cms_webhook.delay(event_type, payload)
+    else:
+        logger.warning(f"Unknown CMS event: {event_type}")
+        return Response(
+            {"error": "Unsupported event type", "event": event_type},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     return Response({"status": "queued", "event": event_type})
 
 
@@ -212,6 +257,18 @@ def sync_course_live(request, mapping_id):
                 status=status.HTTP_409_CONFLICT,
             )
         result = client.configure_course_live(mapping.course_id, provider)
+        if result.get("message"):
+            return Response(
+                {"error": result["message"]},
+                status=status.HTTP_409_CONFLICT,
+            )
+        if result.get("provider_type") != "big_blue_button" or not result.get(
+            "enabled"
+        ):
+            return Response(
+                {"error": "Open edX did not activate BigBlueButton."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
         return Response(
             {
                 "status": "ok",

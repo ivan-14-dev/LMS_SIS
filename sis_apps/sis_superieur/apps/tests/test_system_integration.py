@@ -66,4 +66,7 @@ def test_signed_lms_webhook_queues_user_sync():
             response = webhook_lms(request)
 
     assert response.status_code == 200
-    delay.assert_called_once_with(payload)
+    event_type, queued_payload = delay.call_args.args
+    assert event_type == "user.created"
+    assert queued_payload["user"] == payload["user"]
+    assert queued_payload["_event_id"]

@@ -1,8 +1,12 @@
 """Handlers de webhooks entrants (LMS + CMS) - SIS Secondaire."""
 
+import hashlib
 import logging
+from decimal import Decimal
 
+from django.db import transaction
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -99,26 +103,71 @@ class WebhookHandler:
         score = payload.get("score")
         max_score = payload.get("max_score", 100.0)
         completion = payload.get("completion", 0.0)
-        timestamp = payload.get("timestamp", timezone.now().isoformat())
+        timestamp = parse_datetime(payload.get("timestamp", "")) or timezone.now()
 
-        if not (username and course_key and subsection_id):
-            return
+        if not (username and course_key and subsection_id) or score is None:
+            return False
         try:
             mapping = self.EdxUserMapping.objects.get(username_edx=username)
             enrollment = self.EdxEnrollment.objects.get(
                 eleve=mapping.user_sis.eleve_profile,
                 course__course_id=course_key,
             )
-            self.EdxGradeLog.objects.create(
-                enrollment=enrollment,
-                subsection_id=subsection_id,
-                score=score,
-                max_score=max_score,
-                completion=completion,
-                timestamp_lms=timestamp,
-            )
+            event_id = payload.get("_event_id") or payload.get("event_id")
+            if not event_id:
+                material = (
+                    f"{username}|{course_key}|{subsection_id}|{score}|"
+                    f"{max_score}|{timestamp.isoformat()}"
+                )
+                event_id = hashlib.sha256(material.encode()).hexdigest()
+
+            with transaction.atomic():
+                grade_log, created = self.EdxGradeLog.objects.get_or_create(
+                    event_id=event_id,
+                    defaults={
+                        "enrollment": enrollment,
+                        "subsection_id": subsection_id,
+                        "score": score,
+                        "max_score": max_score,
+                        "completion": completion,
+                        "timestamp_lms": timestamp,
+                    },
+                )
+                if not created:
+                    return True
+
+                assessment = (
+                    enrollment.course.assessments.select_related("evaluation")
+                    .filter(subsection_id=subsection_id, actif=True)
+                    .first()
+                )
+                if not assessment:
+                    logger.info(
+                        "Grade retained without SIS import: no mapping for %s",
+                        subsection_id,
+                    )
+                    return True
+
+                max_score_decimal = Decimal(str(max_score))
+                if max_score_decimal <= 0:
+                    raise ValueError("max_score must be greater than zero")
+                evaluation = assessment.evaluation
+                value = (
+                    Decimal(str(score)) * evaluation.bareme / max_score_decimal
+                ).quantize(Decimal("0.01"))
+                value = min(max(value, Decimal("0")), evaluation.bareme)
+                note, _ = self.Note.objects.update_or_create(
+                    evaluation=evaluation,
+                    eleve=enrollment.eleve,
+                    defaults={"valeur": value, "statut": "presente"},
+                )
+                grade_log.note_sis = note
+                grade_log.imported_to_sis = True
+                grade_log.save(update_fields=["note_sis", "imported_to_sis"])
+            return True
         except Exception as e:
-            logger.error(f"Failed to log LMS grade: {e}")
+            logger.exception("Failed to import LMS grade: %s", e)
+            return False
 
     def handle_certificate_awarded(self, payload: dict):
         username = (payload.get("user") or {}).get("username")
@@ -171,12 +220,25 @@ class WebhookHandler:
     def handle(self, event_type: str, payload: dict):
         router = {
             # LMS
+            "user.created": self.handle_user_created,
+            "user.updated": self.handle_user_updated,
+            "enrollment.created": self.handle_enrollment_created,
+            "enrollment.updated": self.handle_enrollment_updated,
+            "enrollment.deleted": self.handle_enrollment_deleted,
+            "grade.updated": self.handle_grade_updated,
+            "certificate.issued": self.handle_certificate_awarded,
+            "certificate.revoked": self.handle_certificate_awarded,
+            "course.published": self.handle_course_published,
+            "course.deleted": self.handle_course_deleted,
+            "xblock.published": self.handle_xblock_published,
+            "asset.uploaded": self.handle_asset_uploaded,
             "org.openedx.learning.user.created.v1": self.handle_user_created,
             "org.openedx.learning.user.updated.v1": self.handle_user_updated,
             "org.openedx.learning.enrollment.created.v1": self.handle_enrollment_created,
             "org.openedx.learning.enrollment.updated.v1": self.handle_enrollment_updated,
             "org.openedx.learning.enrollment.deleted.v1": self.handle_enrollment_deleted,
             "org.openedx.learning.course.grade.updated.v1": self.handle_grade_updated,
+            "org.openedx.learning.course.assessment.grade.changed.v1": self.handle_grade_updated,
             "org.openedx.learning.certificate.issued.v1": self.handle_certificate_awarded,
             "org.openedx.learning.certificate.revoked.v1": self.handle_certificate_awarded,
             # CMS

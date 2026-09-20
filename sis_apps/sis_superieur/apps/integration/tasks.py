@@ -11,8 +11,7 @@ from .sync_service import SyncService
 logger = logging.getLogger(__name__)
 
 
-@shared_task
-def process_user_webhook(payload):
+def _process_webhook(event_type, payload):
     from apps.etudiants.models import Etudiant
     from apps.notes.models import Note
 
@@ -22,40 +21,34 @@ def process_user_webhook(payload):
     handler = WebhookHandler(
         EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Etudiant, Note
     )
-    return handler.handle_user_created(payload)
+    if not handler.handle(event_type, payload):
+        raise ValueError(f"Webhook processing failed for {event_type}")
+    return True
 
 
-@shared_task
-def process_enrollment_webhook(payload):
-    from apps.etudiants.models import Etudiant
-    from apps.notes.models import Note
-
-    from .models import EdxGradeLog
-    from .webhook_handlers import WebhookHandler
-
-    handler = WebhookHandler(
-        EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Etudiant, Note
-    )
-    return handler.handle_enrollment_created(payload)
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
+def process_user_webhook(event_type, payload):
+    return _process_webhook(event_type, payload)
 
 
-@shared_task
-def process_grade_webhook(payload):
-    from apps.etudiants.models import Etudiant
-    from apps.notes.models import Note
-
-    from .models import EdxGradeLog
-    from .webhook_handlers import WebhookHandler
-
-    handler = WebhookHandler(
-        EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Etudiant, Note
-    )
-    return handler.handle_grade_updated(payload)
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
+def process_enrollment_webhook(event_type, payload):
+    return _process_webhook(event_type, payload)
 
 
-@shared_task
-def process_certificate_webhook(payload):
-    logger.info(f"Processing certificate webhook: {payload}")
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
+def process_grade_webhook(event_type, payload):
+    return _process_webhook(event_type, payload)
+
+
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
+def process_certificate_webhook(event_type, payload):
+    return _process_webhook(event_type, payload)
+
+
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
+def process_cms_webhook(event_type, payload):
+    return _process_webhook(event_type, payload)
 
 
 @shared_task
@@ -99,7 +92,9 @@ def reconcile_lms():
             course = enrollment.course
             user_map = EdxUserMapping.objects.get(user_sis=enrollment.etudiant.user)
             grades = service.client.get_grades(course.course_id, user_map.username_edx)
-            enrollment.progression = grades.get("percent", 0)
+            enrollment.progression = min(
+                max(float(grades.get("percent", 0)) * 100, 0), 100
+            )
             enrollment.last_sync = timezone.now()
             enrollment.save()
         except Exception as e:
