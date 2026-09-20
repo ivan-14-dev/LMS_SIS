@@ -43,8 +43,9 @@ validés.
   médicales.
 - [ ] Finaliser l'inscription MFA, la récupération de compte et la révocation
   des sessions.
-- [ ] Valider type, taille et contenu des fichiers téléversés.
-- [ ] Journaliser les actions sensibles dans une piste d'audit inviolable.
+- [x] Valider le format, la taille et la signature PDF des copies d'examen.
+- [x] Journaliser les opérations sensibles du workflow des copies dans une
+  piste d'audit non modifiable via l'API.
 
 ### Données, intégration et exploitation
 
@@ -107,12 +108,13 @@ validés.
 - [ ] Ajouter les copies écrites numérisées uniquement après mise en place d'un
   stockage privé, du contrôle MIME/taille, d'une analyse antivirus et de liens
   temporaires signés.
-- [ ] Ajouter anonymisation, affectation de correcteurs, double correction,
+- [x] Ajouter anonymisation, affectation de correcteurs, double correction,
   modération des écarts et journal d'audit immuable avant toute ouverture des
   copies aux correcteurs.
 - [ ] Déporter la génération massive de convocations, notifications et exports
   vers Celery.
-- [ ] Automatiser les scénarios de charge avec des données synthétiques isolées :
+- [ ] Compléter les scénarios de charge reproductibles déjà disponibles pour les
+  listes d'examens et les webhooks de notes avec :
   10 000 convocations, 5 000 copies, 1 000 imports de notes par minute et
   100 correcteurs simultanés.
 - [ ] Bloquer une livraison si les listes paginées dépassent 2 s au 95e percentile,

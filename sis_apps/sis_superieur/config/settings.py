@@ -12,7 +12,11 @@ if str(SIS_APPS_DIR) not in sys.path:
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-from sis_common.config import get_allowed_hosts, get_bool_environment, get_required_secret
+from sis_common.config import (
+    get_allowed_hosts,
+    get_bool_environment,
+    get_required_secret,
+)
 
 # =============================================================================
 # SECURITY - Configuration obligatoire
@@ -232,6 +236,10 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 # Media
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+PRIVATE_EXAM_STORAGE_ROOT = Path(
+    os.environ.get("PRIVATE_EXAM_STORAGE_ROOT", BASE_DIR / "private_exam_copies")
+)
+EXAM_COPY_MAX_SIZE = int(os.environ.get("EXAM_COPY_MAX_SIZE", 25 * 1024 * 1024))
 
 # Security
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -349,9 +357,7 @@ EDX_OAUTH_CLIENT_ID = get_required_secret(
 EDX_OAUTH_CLIENT_SECRET = get_required_secret(
     "EDX_OAUTH_CLIENT_SECRET", test_value="test-oauth-secret"
 )
-EDX_JWT_ISSUER = os.environ.get(
-    "EDX_JWT_ISSUER", f"{EDX_LMS_URL.rstrip('/')}/oauth2"
-)
+EDX_JWT_ISSUER = os.environ.get("EDX_JWT_ISSUER", f"{EDX_LMS_URL.rstrip('/')}/oauth2")
 EDX_JWT_AUDIENCE = get_required_secret(
     "EDX_JWT_AUDIENCE", test_value="sis-test-audience"
 )

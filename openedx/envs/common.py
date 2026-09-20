@@ -3009,6 +3009,9 @@ FEEDBACK_SUBMISSION_EMAIL = ''
 # keys for  big blue button live provider
 COURSE_LIVE_GLOBAL_CREDENTIALS = {}
 
+# Outbound detailed-grade webhooks. Each target contains url, secret and optional course_ids.
+SIS_GRADE_WEBHOOK_TARGETS = []
+
 BEAMER_PRODUCT_ID = ""
 
 # For geolocation ip database

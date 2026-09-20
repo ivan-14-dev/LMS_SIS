@@ -2,7 +2,14 @@
 
 from rest_framework.routers import DefaultRouter
 
-from .api import ConvocationsExamenViewSet, EpreuvesExamenViewSet, SessionsExamenViewSet
+from .api import (
+    AffectationsCorrectionViewSet,
+    ConvocationsExamenViewSet,
+    CopiesExamenViewSet,
+    CorrectionsCopieViewSet,
+    EpreuvesExamenViewSet,
+    SessionsExamenViewSet,
+)
 
 app_name = "examens_api"
 
@@ -12,5 +19,12 @@ router.register("epreuves", EpreuvesExamenViewSet, basename="epreuve-examen")
 router.register(
     "convocations", ConvocationsExamenViewSet, basename="convocation-examen"
 )
+router.register("copies", CopiesExamenViewSet, basename="copie-examen")
+router.register(
+    "affectations-correction",
+    AffectationsCorrectionViewSet,
+    basename="affectation-correction",
+)
+router.register("corrections", CorrectionsCopieViewSet, basename="correction-copie")
 
 urlpatterns = router.urls

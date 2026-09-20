@@ -511,6 +511,8 @@ COURSE_LIVE_GLOBAL_CREDENTIALS["BIG_BLUE_BUTTON"] = {  # noqa: F405
     "URL": _YAML_TOKENS.get('BIG_BLUE_BUTTON_GLOBAL_URL'),
 }
 
+SIS_GRADE_WEBHOOK_TARGETS = _YAML_TOKENS.get('SIS_GRADE_WEBHOOK_TARGETS', [])
+
 ############## Event bus producer ##############
 EVENT_BUS_PRODUCER_CONFIG = merge_producer_configs(
     EVENT_BUS_PRODUCER_CONFIG,  # noqa: F405
