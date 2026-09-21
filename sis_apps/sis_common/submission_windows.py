@@ -73,47 +73,6 @@ def get_submission_window_alert(instance, configuration, window_type, now=None):
     settings = resolve_submission_window_settings(configuration, window_type)
     if not settings.get("enabled", True):
         return None
-
-
-def _submission_window_template_context(instance, alert, window_type):
-        deadline = getattr(instance, "fin_soumission", None)
-        return {
-            "object_label": str(instance),
-            "object_type": WINDOW_OBJECT_LABELS.get(window_type, window_type),
-            "window_label": WINDOW_KIND_LABELS[window_type],
-            "threshold_hours": alert["threshold_hours"],
-            "deadline": deadline.isoformat() if deadline else "",
-        }
-
-
-def _render_submission_window_template(template, context):
-        values = context or {}
-        rendered = template
-        for _, field_name, _, _ in Formatter().parse(template):
-            if field_name:
-                rendered = rendered.replace("{" + field_name + "}", str(values.get(field_name, "")))
-        return rendered
-
-
-def get_submission_window_notification_content(instance, configuration, window_type, alert=None):
-        settings = resolve_submission_window_settings(configuration, window_type)
-        alert = alert or get_submission_window_alert(instance, configuration, window_type)
-        if not alert:
-            return None
-        context = _submission_window_template_context(instance, alert, window_type)
-        title = _render_submission_window_template(
-            settings.get("title_template", "Clôture de soumission imminente"),
-            context,
-        )
-        message = _render_submission_window_template(
-            settings.get("message_template", alert["message"]),
-            context,
-        )
-        return {
-            **alert,
-            "title": title,
-            "message": message,
-        }
     now = now or timezone.now()
     deadline = getattr(instance, "fin_soumission", None)
     if not deadline or now > deadline:
@@ -130,6 +89,47 @@ def get_submission_window_notification_content(instance, configuration, window_t
                 "message": f"Clôture de la {WINDOW_KIND_LABELS[window_type]} dans moins de {hours}h.",
             }
     return None
+
+
+def _submission_window_template_context(instance, alert, window_type):
+    deadline = getattr(instance, "fin_soumission", None)
+    return {
+        "object_label": str(instance),
+        "object_type": WINDOW_OBJECT_LABELS.get(window_type, window_type),
+        "window_label": WINDOW_KIND_LABELS[window_type],
+        "threshold_hours": alert["threshold_hours"],
+        "deadline": deadline.isoformat() if deadline else "",
+    }
+
+
+def _render_submission_window_template(template, context):
+    values = context or {}
+    rendered = template
+    for _, field_name, _, _ in Formatter().parse(template):
+        if field_name:
+            rendered = rendered.replace("{" + field_name + "}", str(values.get(field_name, "")))
+    return rendered
+
+
+def get_submission_window_notification_content(instance, configuration, window_type, alert=None):
+    settings = resolve_submission_window_settings(configuration, window_type)
+    alert = alert or get_submission_window_alert(instance, configuration, window_type)
+    if not alert:
+        return None
+    context = _submission_window_template_context(instance, alert, window_type)
+    title = _render_submission_window_template(
+        settings.get("title_template", "Clôture de soumission imminente"),
+        context,
+    )
+    message = _render_submission_window_template(
+        settings.get("message_template", alert["message"]),
+        context,
+    )
+    return {
+        **alert,
+        "title": title,
+        "message": message,
+    }
 
 
 def _normalize_recipient(recipient):
