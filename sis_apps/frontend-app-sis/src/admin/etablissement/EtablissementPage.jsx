@@ -17,45 +17,19 @@ import {
   getCurrentEstablishmentUrl,
   patchApi,
 } from '../../services/api';
+import {
+  formatCsv,
+  normalizeAcademicConfiguration,
+  parseArrayField,
+  parseCsv,
+  parseObjectField,
+  stringifyAcademicConfiguration,
+} from './academicConfigurationForm';
 
 const EMPTY_FORM = {
   fonctionnalites: {},
   configuration_visio: { provider: 'none', public_url: '' },
   configuration_academique: {},
-};
-
-const normalizeAcademicConfiguration = (value = {}) => ({
-  ...value,
-  dimensions: value.dimensions || [],
-  permission_groups: value.permission_groups || [],
-  validation_policies: value.validation_policies || [],
-  financial_workflows: value.financial_workflows || [],
-  reports: value.reports || [],
-});
-
-const parseCsv = (value) => value.split(',').map((item) => item.trim()).filter(Boolean);
-const formatCsv = (value) => (Array.isArray(value) ? value.join(', ') : '');
-
-const parseObjectField = (value, label) => {
-  if (!value.trim()) {
-    return {};
-  }
-  const parsed = JSON.parse(value);
-  if (typeof parsed !== 'object' || Array.isArray(parsed) || parsed === null) {
-    throw new Error(`${label} doit être un objet JSON.`);
-  }
-  return parsed;
-};
-
-const parseArrayField = (value, label) => {
-  if (!value.trim()) {
-    return [];
-  }
-  const parsed = JSON.parse(value);
-  if (!Array.isArray(parsed)) {
-    throw new Error(`${label} doit être une liste JSON.`);
-  }
-  return parsed;
 };
 
 const EtablissementPage = () => {
@@ -89,7 +63,7 @@ const EtablissementPage = () => {
         etablissement.configuration_academique || {},
       );
       setAcademicConfiguration(normalizedConfiguration);
-      setAcademicJson(JSON.stringify(normalizedConfiguration, null, 2));
+      setAcademicJson(stringifyAcademicConfiguration(normalizedConfiguration));
     }
   }, [etablissement]);
 
@@ -130,7 +104,7 @@ const EtablissementPage = () => {
 
   const syncAcademicConfiguration = (nextConfiguration) => {
     setAcademicConfiguration(nextConfiguration);
-    setAcademicJson(JSON.stringify(nextConfiguration, null, 2));
+    setAcademicJson(stringifyAcademicConfiguration(nextConfiguration));
     setAcademicError('');
   };
 
@@ -180,9 +154,9 @@ const EtablissementPage = () => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    let academicConfiguration;
+    let parsedAcademicConfiguration;
     try {
-      academicConfiguration = normalizeAcademicConfiguration(JSON.parse(academicJson));
+      parsedAcademicConfiguration = normalizeAcademicConfiguration(JSON.parse(academicJson));
       setAcademicError('');
     } catch (error) {
       setAcademicError('La configuration académique doit être un objet JSON valide.');
@@ -221,7 +195,7 @@ const EtablissementPage = () => {
       fuseau_horaire: fuseauHoraire,
       fonctionnalites,
       configuration_visio: configurationVisio,
-      configuration_academique: academicConfiguration,
+      configuration_academique: parsedAcademicConfiguration,
     });
   };
 
@@ -463,7 +437,7 @@ const EtablissementPage = () => {
                   </Card.Header>
                   <Card.Body>
                     {(academicConfiguration.dimensions || []).map((dimension, index) => (
-                      <Card key={`dimension-${index}`} className="mb-3">
+                      <Card key={dimension.code || dimension.label || JSON.stringify(dimension)} className="mb-3">
                         <Card.Body>
                           <Row>
                             <Col md={6}>
@@ -554,7 +528,7 @@ const EtablissementPage = () => {
                   </Card.Header>
                   <Card.Body>
                     {(academicConfiguration.permission_groups || []).map((group, index) => (
-                      <Card key={`group-${index}`} className="mb-3">
+                      <Card key={group.code || group.label || JSON.stringify(group)} className="mb-3">
                         <Card.Body>
                           <Row>
                             <Col md={6}>
@@ -626,7 +600,7 @@ const EtablissementPage = () => {
                   </Card.Header>
                   <Card.Body>
                     {(academicConfiguration.validation_policies || []).map((policy, index) => (
-                      <Card key={`policy-${index}`} className="mb-3">
+                      <Card key={policy.code || policy.label || JSON.stringify(policy)} className="mb-3">
                         <Card.Body>
                           <Row>
                             <Col md={6}>
@@ -721,7 +695,7 @@ const EtablissementPage = () => {
                   </Card.Header>
                   <Card.Body>
                     {(academicConfiguration.financial_workflows || []).map((workflow, index) => (
-                      <Card key={`workflow-${index}`} className="mb-3">
+                      <Card key={workflow.code || workflow.label || JSON.stringify(workflow)} className="mb-3">
                         <Card.Body>
                           <Row>
                             <Col md={6}>
@@ -826,7 +800,7 @@ const EtablissementPage = () => {
                   </Card.Header>
                   <Card.Body>
                     {(academicConfiguration.reports || []).map((report, index) => (
-                      <Card key={`report-${index}`} className="mb-3">
+                      <Card key={report.code || report.label || JSON.stringify(report)} className="mb-3">
                         <Card.Body>
                           <Row>
                             <Col md={6}>
