@@ -10,6 +10,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import filter_queryset_by_scopes, request_has_business_access
 
 
 class IsDoyen(IsAuthenticated):
@@ -18,12 +19,11 @@ class IsDoyen(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "doyen",
-            "vice_doyen",
-            "president",
-            "vice_president",
+        return request_has_business_access(
+            request,
+            "formations.view_formation",
+            ("doyen", "vice_doyen", "president", "vice_president"),
+            tenant_group_codes=("academic_admin_superieur", "student_manager_superieur", "research_manager_superieur"),
         )
 
 
@@ -32,39 +32,106 @@ class PortailDoyenViewSet(viewsets.ViewSet):
 
     permission_classes = [IsDoyen]
 
+    def _formations_queryset(self):
+        return filter_queryset_by_scopes(
+            Formation.objects.all(),
+            self.request.user,
+            "formations.view_formation",
+            {
+                "facultes": "departement__faculte_id",
+                "departements": "departement_id",
+                "formations": "id",
+            },
+        )
+
+    def _departements_queryset(self):
+        return filter_queryset_by_scopes(
+            Departement.objects.all(),
+            self.request.user,
+            "formations.view_formation",
+            {
+                "facultes": "faculte_id",
+                "departements": "id",
+            },
+        )
+
+    def _inscriptions_queryset(self):
+        return filter_queryset_by_scopes(
+            InscriptionAdministrative.objects.all(),
+            self.request.user,
+            "etudiants.view_etudiant",
+            {
+                "facultes": "formation__departement__faculte_id",
+                "departements": "formation__departement_id",
+                "formations": "formation_id",
+                "annees": "annee_universitaire_id",
+            },
+        )
+
+    def _enseignants_queryset(self):
+        return filter_queryset_by_scopes(
+            EnseignantChercheur.objects.all(),
+            self.request.user,
+            "utilisateurs.view_utilisateur",
+            {
+                "facultes": "departement__faculte_id",
+                "departements": "departement_id",
+            },
+        )
+
+    def _laboratoires_queryset(self):
+        return filter_queryset_by_scopes(
+            Laboratoire.objects.all(),
+            self.request.user,
+            "recherche.view_laboratoire",
+            {
+                "facultes": "faculte_id",
+            },
+        )
+
+    def _theses_queryset(self):
+        return filter_queryset_by_scopes(
+            These.objects.all(),
+            self.request.user,
+            "recherche.view_these",
+            {
+                "facultes": "laboratoire__faculte_id",
+            },
+        )
+
     @action(detail=False, methods=["get"])
     def tableau_bord(self, request):
         """Tableau de bord du doyen."""
         faculte_id = request.query_params.get("faculte_id")
 
-        # Si pas de faculté spécifiée, prendre toutes les stats
+        formations = self._formations_queryset()
+        departements = self._departements_queryset()
+        inscriptions = self._inscriptions_queryset()
+        enseignants = self._enseignants_queryset()
+        laboratoires = self._laboratoires_queryset()
+        theses = self._theses_queryset()
         if faculte_id:
             try:
                 faculte = Faculte.objects.get(id=faculte_id)
             except Faculte.DoesNotExist:
                 return Response({"error": "Faculté non trouvée."}, status=404)
-            formations = Formation.objects.filter(departement__faculte=faculte)
-            departements = faculte.departements.all()
+            formations = formations.filter(departement__faculte=faculte)
+            departements = departements.filter(faculte=faculte)
+            inscriptions = inscriptions.filter(formation__departement__faculte=faculte)
+            enseignants = enseignants.filter(departement__faculte=faculte)
+            laboratoires = laboratoires.filter(faculte=faculte)
+        elif not formations.exists() and not departements.exists():
+            faculte = None
         else:
-            formations = Formation.objects.all()
-            departements = Departement.objects.all()
+            faculte = None
 
-        # Statistiques
         stats = {
             "nb_formations": formations.count(),
             "nb_departements": departements.count(),
-            "nb_etudiants": InscriptionAdministrative.objects.filter(
-                formation__in=formations, active=True
-            ).count(),
-            "nb_enseignants": EnseignantChercheur.objects.filter(
-                departement__in=departements
-            ).count(),
-            "nb_laboratoires": (
-                Laboratoire.objects.filter(faculte_id=faculte_id).count()
-                if faculte_id
-                else Laboratoire.objects.count()
-            ),
-            "nb_theses_en_cours": These.objects.filter(statut="en_cours").count(),
+            "nb_etudiants": inscriptions.filter(formation__in=formations, active=True).count(),
+            "nb_enseignants": enseignants.filter(departement__in=departements).count(),
+            "nb_laboratoires": laboratoires.count(),
+            "nb_theses_en_cours": theses.filter(statut="en_cours").count(),
         }
 
         # Départements
@@ -93,7 +160,7 @@ class PortailDoyenViewSet(viewsets.ViewSet):
         """Statistiques détaillées par formation."""
         faculte_id = request.query_params.get("faculte_id")
 
-        formations = Formation.objects.annotate(
+        formations = self._formations_queryset().annotate(
             nb_inscrits=Count("inscriptions", filter=Q(inscriptions__active=True)),
         )
         if faculte_id:
@@ -117,10 +184,11 @@ class PortailDoyenViewSet(viewsets.ViewSet):
         """Statistiques recherche."""
         faculte_id = request.query_params.get("faculte_id")
 
-        labos = Laboratoire.objects.all()
-        theses = These.objects.all()
+        labos = self._laboratoires_queryset()
+        theses = self._theses_queryset()
         if faculte_id:
             labos = labos.filter(faculte_id=faculte_id)
+            theses = theses.filter(laboratoire__faculte_id=faculte_id)
 
         return Response(
             {
@@ -144,11 +212,20 @@ class PortailDoyenViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def budget(self, request):
         """Informations budgétaires."""
-        from apps.paiements.models import Facture
+        from apps.paiements.models import FactureFrais as Facture
         from django.db.models import Sum
 
-        # Simplifié
-        factures = Facture.objects.filter(annee_universitaire__en_cours=True)
+        factures = filter_queryset_by_scopes(
+            Facture.objects.filter(annee_universitaire__en_cours=True),
+            request.user,
+            "paiements.view_facturefrais",
+            {
+                "facultes": "etudiant__inscriptions_admin__formation__departement__faculte_id",
+                "departements": "etudiant__inscriptions_admin__formation__departement_id",
+                "formations": "etudiant__inscriptions_admin__formation_id",
+                "annees": "annee_universitaire_id",
+            },
+        )
 
         return Response(
             {
