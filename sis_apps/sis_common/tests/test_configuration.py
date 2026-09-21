@@ -251,6 +251,8 @@ class AcademicConfigurationTests(SimpleTestCase):
         self.assertEqual(settings["notification_category"], "submission_deadline")
         self.assertEqual(settings["notification_severity"], "warning")
         self.assertEqual(settings["notification_channels"], ["in_app"])
+        self.assertEqual(settings["sms_gateway_url"], "")
+        self.assertEqual(settings["webhook_urls"], [])
 
     def test_invalid_submission_window_configuration_is_rejected(self):
         configuration = default_academic_configuration()
@@ -288,6 +290,15 @@ class AcademicConfigurationTests(SimpleTestCase):
         with self.assertRaises(ValidationError):
             validate_academic_configuration(configuration)
 
+    def test_invalid_submission_window_channel_endpoints_are_rejected(self):
+        configuration = default_academic_configuration()
+        configuration["submission_windows"] = {
+            "evaluation": {"sms_gateway_url": "notaurl", "webhook_urls": ["https://valid.example/hook", ""]},
+        }
+
+        with self.assertRaises(ValidationError):
+            validate_academic_configuration(configuration)
+
     def test_submission_window_notification_content_uses_configured_templates(self):
         class DummySubmissionObject:
             def __init__(self, fin_soumission):
@@ -305,6 +316,8 @@ class AcademicConfigurationTests(SimpleTestCase):
                 "notification_category": "custom_deadline",
                 "notification_severity": "critical",
                 "notification_channels": ["in_app", "email"],
+                "sms_gateway_url": "https://sms.example.test/send",
+                "webhook_urls": ["https://hooks.example.test/deadline"],
             }
         }
         instance = DummySubmissionObject(timezone.now() + timedelta(hours=3))
@@ -316,6 +329,8 @@ class AcademicConfigurationTests(SimpleTestCase):
         self.assertEqual(notification["category"], "custom_deadline")
         self.assertEqual(notification["severity"], "critical")
         self.assertEqual(notification["channels"], ["in_app", "email"])
+        self.assertEqual(notification["sms_gateway_url"], "https://sms.example.test/send")
+        self.assertEqual(notification["webhook_urls"], ["https://hooks.example.test/deadline"])
 
     def test_resolve_validation_policy_prefers_most_specific_target(self):
         configuration = default_academic_configuration()

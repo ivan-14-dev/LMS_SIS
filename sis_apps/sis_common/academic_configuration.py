@@ -5,6 +5,7 @@ from copy import deepcopy
 from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 
 DIMENSION_AXES = {
     "institutional": "Institutionnel",
@@ -82,6 +83,8 @@ SUBMISSION_WINDOW_NOTIFICATION_CHANNELS = {
     "sms": "SMS",
     "webhook": "Webhook",
 }
+
+_url_validator = URLValidator()
 
 SECONDARY_USER_ROLES = {
     "super_admin": "Super administrateur",
@@ -691,6 +694,8 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             "notification_category": "submission_deadline",
             "notification_severity": "warning",
             "notification_channels": ["in_app"],
+            "sms_gateway_url": "",
+            "webhook_urls": [],
         },
         "exam": {
             "enabled": True,
@@ -705,6 +710,8 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             "notification_category": "submission_deadline",
             "notification_severity": "warning",
             "notification_channels": ["in_app"],
+            "sms_gateway_url": "",
+            "webhook_urls": [],
         },
     },
     "catalogs": {
@@ -1436,6 +1443,30 @@ def _validate_submission_windows(value):
                     + ", ".join(sorted(SUBMISSION_WINDOW_NOTIFICATION_CHANNELS))
                     + "."
                 )
+        sms_gateway_url = settings.get("sms_gateway_url", "")
+        if sms_gateway_url:
+            if not isinstance(sms_gateway_url, str):
+                raise ValidationError(f"submission_windows.{code}.sms_gateway_url doit être une chaîne.")
+            try:
+                _url_validator(sms_gateway_url)
+            except ValidationError as error:
+                raise ValidationError(
+                    f"submission_windows.{code}.sms_gateway_url doit être une URL valide."
+                ) from error
+        webhook_urls = settings.get("webhook_urls", [])
+        if not isinstance(webhook_urls, list):
+            raise ValidationError(f"submission_windows.{code}.webhook_urls doit être une liste.")
+        for index, item in enumerate(webhook_urls):
+            if not isinstance(item, str) or not item.strip():
+                raise ValidationError(
+                    f"submission_windows.{code}.webhook_urls[{index}] doit être une chaîne non vide."
+                )
+            try:
+                _url_validator(item)
+            except ValidationError as error:
+                raise ValidationError(
+                    f"submission_windows.{code}.webhook_urls[{index}] doit être une URL valide."
+                ) from error
 
 
 def _report_dataset_schema(variant=None):

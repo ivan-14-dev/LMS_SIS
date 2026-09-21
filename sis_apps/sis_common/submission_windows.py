@@ -132,6 +132,8 @@ def get_submission_window_notification_content(instance, configuration, window_t
         "category": settings.get("notification_category", "submission_deadline"),
         "severity": settings.get("notification_severity", alert["severity"]),
         "channels": settings.get("notification_channels", ["in_app"]),
+        "sms_gateway_url": settings.get("sms_gateway_url", ""),
+        "webhook_urls": settings.get("webhook_urls", []),
     }
 
 
@@ -208,7 +210,7 @@ def maybe_record_submission_window_alert(request, instance, configuration, windo
     ).exists()
     if already_exists:
         return
-    record_workflow_event(
+    event, created_notifications = record_workflow_event(
         request,
         instance,
         action,
@@ -226,3 +228,18 @@ def maybe_record_submission_window_alert(request, instance, configuration, windo
         },
         notification_category=alert["category"],
     )
+    schema_name = getattr(getattr(request, "tenant", None), "schema_name", "")
+    if not schema_name:
+        return
+    from apps.core import tasks as core_tasks
+
+    if "email" in alert["channels"]:
+        for notification in created_notifications:
+            core_tasks.dispatch_notification_email.delay(notification.id, schema_name)
+    sms_gateway_url = alert.get("sms_gateway_url", "")
+    if "sms" in alert["channels"] and sms_gateway_url:
+        for notification in created_notifications:
+            core_tasks.dispatch_notification_sms.delay(notification.id, schema_name, sms_gateway_url)
+    if "webhook" in alert["channels"]:
+        for webhook_url in alert.get("webhook_urls", []):
+            core_tasks.dispatch_notification_webhook.delay(event.id, schema_name, webhook_url)

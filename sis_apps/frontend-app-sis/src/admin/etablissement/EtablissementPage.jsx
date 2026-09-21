@@ -768,9 +768,37 @@ const EtablissementPage = () => {
                                 ))}
                               </Form.Select>
                               <Form.Text muted>
-                                Le canal centre de notifications reste utilisé immédiatement ; les autres canaux sont conservés comme métadonnées de diffusion.
+                                Le centre de notifications reste alimenté, et les canaux email/SMS/webhook déclenchent aussi des diffusions externes lorsqu'ils sont configurés.
                               </Form.Text>
                             </Form.Group>
+                            <Row className="mt-3">
+                              <Col md={6}>
+                                <Form.Group className="mb-2">
+                                  <Form.Label>Passerelle SMS (URL)</Form.Label>
+                                  <Form.Control
+                                    value={settings.sms_gateway_url || ''}
+                                    onChange={(event) => updateSubmissionWindowField(windowType.code, 'sms_gateway_url', event.target.value)}
+                                    placeholder="https://sms.example.com/send"
+                                  />
+                                  <Form.Text muted>
+                                    Utilisée quand le canal SMS est activé et que le destinataire a un téléphone.
+                                  </Form.Text>
+                                </Form.Group>
+                              </Col>
+                              <Col md={6}>
+                                <Form.Group className="mb-0">
+                                  <Form.Label>Webhooks de diffusion</Form.Label>
+                                  <Form.Control
+                                    value={formatCsv(settings.webhook_urls)}
+                                    onChange={(event) => updateSubmissionWindowField(windowType.code, 'webhook_urls', parseCsv(event.target.value))}
+                                    placeholder="https://example.com/hook-1, https://example.com/hook-2"
+                                  />
+                                  <Form.Text muted>
+                                    Les emails utilisent les adresses des destinataires ; les webhooks sont appelés une fois par événement.
+                                  </Form.Text>
+                                </Form.Group>
+                              </Col>
+                            </Row>
                           </Card.Body>
                         </Card>
                       );
