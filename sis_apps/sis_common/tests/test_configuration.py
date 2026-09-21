@@ -129,7 +129,7 @@ class AcademicConfigurationTests(SimpleTestCase):
         )
 
         self.assertEqual(payments_dataset["label"], "Paiements")
-        self.assertIn({"code": "formation", "label": "Formation"}, payments_dataset["allowed_filters"])
+        self.assertIn({"code": "rubrique", "label": "Rubrique"}, payments_dataset["allowed_filters"])
         self.assertIn({"code": "moyenne", "label": "Moyenne"}, averages_dataset["fields"])
         self.assertNotIn("bulletins", {dataset["code"] for dataset in schema["report_datasets"]})
 

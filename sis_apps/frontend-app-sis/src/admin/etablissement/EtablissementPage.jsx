@@ -808,26 +808,26 @@ const EtablissementPage = () => {
                       return (
                         <Card key={report.code || report.label || JSON.stringify(report)} className="mb-3">
                           <Card.Body>
-                          <Row>
-                            <Col md={6}>
-                              <Form.Group className="mb-2">
-                                <Form.Label>Code</Form.Label>
-                                <Form.Control
-                                  value={report.code || ''}
-                                  onChange={(event) => updateAcademicItemField('reports', index, 'code', event.target.value)}
-                                />
-                              </Form.Group>
-                            </Col>
-                            <Col md={6}>
-                              <Form.Group className="mb-2">
-                                <Form.Label>Libellé</Form.Label>
-                                <Form.Control
-                                  value={report.label || ''}
-                                  onChange={(event) => updateAcademicItemField('reports', index, 'label', event.target.value)}
-                                />
-                              </Form.Group>
-                            </Col>
-                          </Row>
+                            <Row>
+                              <Col md={6}>
+                                <Form.Group className="mb-2">
+                                  <Form.Label>Code</Form.Label>
+                                  <Form.Control
+                                    value={report.code || ''}
+                                    onChange={(event) => updateAcademicItemField('reports', index, 'code', event.target.value)}
+                                  />
+                                </Form.Group>
+                              </Col>
+                              <Col md={6}>
+                                <Form.Group className="mb-2">
+                                  <Form.Label>Libellé</Form.Label>
+                                  <Form.Control
+                                    value={report.label || ''}
+                                    onChange={(event) => updateAcademicItemField('reports', index, 'label', event.target.value)}
+                                  />
+                                </Form.Group>
+                              </Col>
+                            </Row>
                             <Form.Group className="mb-2">
                               <Form.Label>Dataset</Form.Label>
                               <Form.Control
@@ -849,37 +849,37 @@ const EtablissementPage = () => {
                                 </Form.Text>
                               )}
                             </Form.Group>
-                          <Form.Group className="mb-2">
-                            <Form.Label>Champs</Form.Label>
-                            <Form.Control
-                              value={formatCsv(report.fields)}
-                              onChange={(event) => updateAcademicItemField('reports', index, 'fields', parseCsv(event.target.value))}
-                              placeholder="numero, montant, statut"
-                            />
-                          </Form.Group>
-                          <Form.Group className="mb-2">
-                            <Form.Label>Filtres autorisés</Form.Label>
-                            <Form.Control
-                              value={formatCsv(report.allowed_filters)}
-                              onChange={(event) => updateAcademicItemField('reports', index, 'allowed_filters', parseCsv(event.target.value))}
-                              placeholder="annee, formation, statut"
-                            />
-                          </Form.Group>
-                          <Form.Group className="mb-2">
-                            <Form.Label>Permissions requises</Form.Label>
-                            <Form.Control
-                              value={formatCsv(report.required_permissions)}
-                              onChange={(event) => updateAcademicItemField('reports', index, 'required_permissions', parseCsv(event.target.value))}
-                              placeholder="paiements.view_paiementfrais"
-                            />
-                          </Form.Group>
-                          <Form.Group className="mb-2">
-                            <Form.Label>Groupement par défaut</Form.Label>
-                            <Form.Control
-                              value={report.default_group_by || ''}
-                              onChange={(event) => updateAcademicItemField('reports', index, 'default_group_by', event.target.value)}
-                            />
-                          </Form.Group>
+                            <Form.Group className="mb-2">
+                              <Form.Label>Champs</Form.Label>
+                              <Form.Control
+                                value={formatCsv(report.fields)}
+                                onChange={(event) => updateAcademicItemField('reports', index, 'fields', parseCsv(event.target.value))}
+                                placeholder="numero, montant, statut"
+                              />
+                            </Form.Group>
+                            <Form.Group className="mb-2">
+                              <Form.Label>Filtres autorisés</Form.Label>
+                              <Form.Control
+                                value={formatCsv(report.allowed_filters)}
+                                onChange={(event) => updateAcademicItemField('reports', index, 'allowed_filters', parseCsv(event.target.value))}
+                                placeholder="annee, formation, statut"
+                              />
+                            </Form.Group>
+                            <Form.Group className="mb-2">
+                              <Form.Label>Permissions requises</Form.Label>
+                              <Form.Control
+                                value={formatCsv(report.required_permissions)}
+                                onChange={(event) => updateAcademicItemField('reports', index, 'required_permissions', parseCsv(event.target.value))}
+                                placeholder="paiements.view_paiementfrais"
+                              />
+                            </Form.Group>
+                            <Form.Group className="mb-2">
+                              <Form.Label>Groupement par défaut</Form.Label>
+                              <Form.Control
+                                value={report.default_group_by || ''}
+                                onChange={(event) => updateAcademicItemField('reports', index, 'default_group_by', event.target.value)}
+                              />
+                            </Form.Group>
                             <Button type="button" variant="link" className="px-0" onClick={() => removeAcademicItem('reports', index)}>Supprimer</Button>
                           </Card.Body>
                         </Card>
