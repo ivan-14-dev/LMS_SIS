@@ -222,3 +222,27 @@ class AuthorizationTests(SimpleTestCase):
                 tenant_group_codes=("student_manager_superieur",),
             )
         )
+
+    def test_request_helper_supports_remaining_management_groups(self):
+        configuration = {
+            "permission_groups": [
+                {
+                    "code": "research_manager_superieur",
+                    "label": "Recherche",
+                    "permissions": ["recherche.change_laboratoire"],
+                    "attributes": {},
+                }
+            ]
+        }
+        request = FakeRequest(
+            FakeUser(permissions=["recherche.change_laboratoire"]),
+            configuration,
+        )
+
+        self.assertTrue(
+            request_has_business_access(
+                request,
+                "recherche.change_these",
+                tenant_group_codes=("research_manager_superieur",),
+            )
+        )

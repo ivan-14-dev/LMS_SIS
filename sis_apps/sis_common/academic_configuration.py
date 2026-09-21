@@ -349,6 +349,104 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             ],
             "attributes": {},
         },
+        {
+            "code": "boarding_manager_secondary",
+            "label": "Gestion internat secondaire",
+            "permissions": [
+                "internat.change_batimentinternat",
+                "internat.change_chambre",
+                "internat.change_occupantchambre",
+                "internat.change_etudesurveillee",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "canteen_manager_secondary",
+            "label": "Gestion cantine secondaire",
+            "permissions": [
+                "cantine.change_menu",
+                "cantine.change_inscriptioncantine",
+                "cantine.change_presencecantine",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "transport_manager_secondary",
+            "label": "Gestion transport secondaire",
+            "permissions": [
+                "transport.change_lignetransport",
+                "transport.change_arret",
+                "transport.change_vehicule",
+                "transport.change_inscriptiontransport",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "library_manager_secondary",
+            "label": "Gestion bibliothèque secondaire",
+            "permissions": [
+                "bibliotheque.change_livre",
+                "bibliotheque.change_exemplaire",
+                "bibliotheque.change_emprunt",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "health_manager_secondary",
+            "label": "Gestion infirmerie secondaire",
+            "permissions": [
+                "infirmerie.change_dossiermedical",
+                "infirmerie.change_visiteinfirmerie",
+                "infirmerie.change_stockmedicament",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "club_manager_secondary",
+            "label": "Gestion clubs secondaire",
+            "permissions": [
+                "clubs.change_club",
+                "clubs.change_membreclub",
+                "clubs.change_seanceclub",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "ects_manager_superieur",
+            "label": "Gestion ECTS supérieur",
+            "permissions": [
+                "ects.change_bilanects",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "curriculum_manager_superieur",
+            "label": "Gestion maquettes supérieur",
+            "permissions": [
+                "formations.change_maquetteformation",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "enterprise_relations_manager_superieur",
+            "label": "Gestion relations entreprises supérieur",
+            "permissions": [
+                "entreprises.change_entreprise",
+                "entreprises.change_contactentreprise",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "research_manager_superieur",
+            "label": "Gestion recherche supérieur",
+            "permissions": [
+                "recherche.change_laboratoire",
+                "recherche.change_projetrecherche",
+                "recherche.change_productionscientifique",
+                "recherche.change_these",
+            ],
+            "attributes": {},
+        },
     ],
     "validation_policies": [],
     "financial_workflows": [
