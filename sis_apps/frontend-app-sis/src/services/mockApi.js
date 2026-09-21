@@ -76,11 +76,6 @@ const mockHandlers = {
   '/structure': () => mockData.mockStructure,
   '/admin/structure': () => mockData.mockStructure,
   
-  // Portails
-  '/portail-etudiant/mon-profil': () => mockData.mockPortailEtudiant.profil,
-  '/portail-etudiant/mes-notes': () => mockData.mockPortailEtudiant.notes,
-  '/portail-etudiant/emploi-du-temps': () => mockData.mockPortailEtudiant.emploi_du_temps,
-  '/portail-eleve/mon-profil': () => mockData.mockPortailEtudiant.profil,
 };
 
 /**

@@ -2,6 +2,7 @@
 
 from rest_framework import serializers
 from sis_common.exam_files import hash_uploaded_file
+from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 
 from .models import (
     AffectationCorrection,
@@ -10,6 +11,7 @@ from .models import (
     CopieExamen,
     CorrectionCopie,
     EpreuveExamen,
+    ResultatExamen,
     SessionExamen,
 )
 
@@ -53,6 +55,8 @@ class EpreuveExamenListSerializer(serializers.ModelSerializer):
     ecue_nom = serializers.CharField(source="ecue.nom", read_only=True)
     session_numero = serializers.IntegerField(source="session.numero", read_only=True)
     nb_convoques = serializers.SerializerMethodField()
+    soumission_statut = serializers.SerializerMethodField()
+    soumission_alerte = serializers.SerializerMethodField()
 
     class Meta:
         model = EpreuveExamen
@@ -66,17 +70,29 @@ class EpreuveExamenListSerializer(serializers.ModelSerializer):
             "date",
             "heure_debut",
             "duree_minutes",
+            "debut_soumission",
+            "fin_soumission",
             "lieu",
             "places_totales",
             "bareme",
             "nb_convoques",
             "nombre_corrections",
+            "soumission_statut",
+            "soumission_alerte",
         ]
 
     def get_nb_convoques(self, obj):
         if hasattr(obj, "nb_convoques_count"):
             return obj.nb_convoques_count
         return obj.convocations.count()
+
+    def get_soumission_statut(self, obj):
+        return get_submission_window_status(obj)
+
+    def get_soumission_alerte(self, obj):
+        request = self.context.get("request")
+        configuration = getattr(getattr(request, "tenant", None), "configuration_academique", {})
+        return get_submission_window_alert(obj, configuration, "exam")
 
 
 class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
@@ -88,6 +104,8 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
     surveillants_noms = serializers.SerializerMethodField()
     nb_convoques = serializers.SerializerMethodField()
     nb_presents = serializers.SerializerMethodField()
+    soumission_statut = serializers.SerializerMethodField()
+    soumission_alerte = serializers.SerializerMethodField()
 
     class Meta:
         model = EpreuveExamen
@@ -101,6 +119,8 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
             "date",
             "heure_debut",
             "duree_minutes",
+            "debut_soumission",
+            "fin_soumission",
             "lieu",
             "places_totales",
             "bareme",
@@ -110,6 +130,8 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
             "surveillants_noms",
             "nb_convoques",
             "nb_presents",
+            "soumission_statut",
+            "soumission_alerte",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
@@ -126,6 +148,25 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
         if hasattr(obj, "nb_presents_count"):
             return obj.nb_presents_count
         return obj.convocations.filter(statut="present").count()
+
+    def get_soumission_statut(self, obj):
+        return get_submission_window_status(obj)
+
+    def get_soumission_alerte(self, obj):
+        request = self.context.get("request")
+        configuration = getattr(getattr(request, "tenant", None), "configuration_academique", {})
+        return get_submission_window_alert(obj, configuration, "exam")
+
+    def validate(self, attrs):
+        debut_soumission = attrs.get(
+            "debut_soumission", getattr(self.instance, "debut_soumission", None)
+        )
+        fin_soumission = attrs.get("fin_soumission", getattr(self.instance, "fin_soumission", None))
+        if debut_soumission and fin_soumission and fin_soumission < debut_soumission:
+            raise serializers.ValidationError(
+                {"fin_soumission": "La fin de soumission doit être postérieure au début."}
+            )
+        return attrs
 
 
 class ConvocationExamenSerializer(serializers.ModelSerializer):
@@ -159,6 +200,78 @@ class ConvocationExamenSerializer(serializers.ModelSerializer):
             "date_notification",
         ]
         read_only_fields = ["id"]
+
+
+class ResultatExamenSerializer(serializers.ModelSerializer):
+    """Serializer pour les résultats d'examen."""
+
+    session_numero = serializers.IntegerField(source="epreuve.session.numero", read_only=True)
+    session_type = serializers.CharField(source="epreuve.session.get_type_display", read_only=True)
+    ecue_code = serializers.CharField(source="epreuve.ecue.code", read_only=True)
+    ecue_nom = serializers.CharField(source="epreuve.ecue.nom", read_only=True)
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
+    statut_display = serializers.CharField(source="get_statut_display", read_only=True)
+    type_resultat_display = serializers.CharField(
+        source="get_type_resultat_display", read_only=True
+    )
+
+    class Meta:
+        model = ResultatExamen
+        fields = [
+            "id",
+            "epreuve",
+            "session_numero",
+            "session_type",
+            "ecue_code",
+            "ecue_nom",
+            "etudiant",
+            "etudiant_matricule",
+            "etudiant_nom",
+            "note",
+            "appreciation",
+            "numero_anonyme",
+            "statut",
+            "statut_display",
+            "type_resultat",
+            "type_resultat_display",
+            "admis",
+            "mention",
+            "saisi_par",
+            "saisi_le",
+            "verifie_par",
+            "verifie_le",
+            "valide_par",
+            "valide_le",
+            "publie_par",
+            "publie_le",
+            "reouvert_par",
+            "reouvert_le",
+            "cloture_par",
+            "cloture_le",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "numero_anonyme",
+            "admis",
+            "mention",
+            "saisi_par",
+            "saisi_le",
+            "verifie_par",
+            "verifie_le",
+            "valide_par",
+            "valide_le",
+            "publie_par",
+            "publie_le",
+            "reouvert_par",
+            "reouvert_le",
+            "cloture_par",
+            "cloture_le",
+        ]
 
 
 class CopieExamenSerializer(serializers.ModelSerializer):

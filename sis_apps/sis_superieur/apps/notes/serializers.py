@@ -2,6 +2,7 @@
 
 from rest_framework import serializers
 from sis_common.academic_configuration import validate_rule_criteria
+from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 
 from .models import Evaluation, MoyenneECUE, MoyenneUE, Note, RegleValidation
 
@@ -13,6 +14,8 @@ class EvaluationListSerializer(serializers.ModelSerializer):
     ecue_code = serializers.CharField(source="ecue.code", read_only=True)
     modalite_display = serializers.CharField(source="get_modalite_display", read_only=True)
     enseignant_nom = serializers.CharField(source="enseignant.get_full_name", read_only=True)
+    soumission_statut = serializers.SerializerMethodField()
+    soumission_alerte = serializers.SerializerMethodField()
 
     class Meta:
         model = Evaluation
@@ -28,11 +31,23 @@ class EvaluationListSerializer(serializers.ModelSerializer):
             "date",
             "heure_debut",
             "duree_minutes",
+            "debut_soumission",
+            "fin_soumission",
             "bareme",
             "coefficient",
             "ponderation",
             "enseignant_nom",
+            "soumission_statut",
+            "soumission_alerte",
         ]
+
+    def get_soumission_statut(self, obj):
+        return get_submission_window_status(obj)
+
+    def get_soumission_alerte(self, obj):
+        request = self.context.get("request")
+        configuration = getattr(getattr(request, "tenant", None), "configuration_academique", {})
+        return get_submission_window_alert(obj, configuration, "evaluation")
 
 
 class EvaluationDetailSerializer(serializers.ModelSerializer):
@@ -43,6 +58,8 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
     enseignant_nom = serializers.CharField(source="enseignant.get_full_name", read_only=True)
     semestre_libelle = serializers.CharField(source="semestre.libelle", read_only=True)
     nb_notes = serializers.SerializerMethodField()
+    soumission_statut = serializers.SerializerMethodField()
+    soumission_alerte = serializers.SerializerMethodField()
 
     class Meta:
         model = Evaluation
@@ -58,6 +75,8 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
             "date",
             "heure_debut",
             "duree_minutes",
+            "debut_soumission",
+            "fin_soumission",
             "bareme",
             "coefficient",
             "ponderation",
@@ -67,6 +86,8 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
             "enseignant_nom",
             "anonyme",
             "nb_notes",
+            "soumission_statut",
+            "soumission_alerte",
             "created_at",
             "updated_at",
         ]
@@ -74,6 +95,25 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
 
     def get_nb_notes(self, obj):
         return obj.notes.exclude(valeur__isnull=True).count()
+
+    def get_soumission_statut(self, obj):
+        return get_submission_window_status(obj)
+
+    def get_soumission_alerte(self, obj):
+        request = self.context.get("request")
+        configuration = getattr(getattr(request, "tenant", None), "configuration_academique", {})
+        return get_submission_window_alert(obj, configuration, "evaluation")
+
+    def validate(self, attrs):
+        debut_soumission = attrs.get(
+            "debut_soumission", getattr(self.instance, "debut_soumission", None)
+        )
+        fin_soumission = attrs.get("fin_soumission", getattr(self.instance, "fin_soumission", None))
+        if debut_soumission and fin_soumission and fin_soumission < debut_soumission:
+            raise serializers.ValidationError(
+                {"fin_soumission": "La fin de soumission doit être postérieure au début."}
+            )
+        return attrs
 
 
 class NoteSerializer(serializers.ModelSerializer):

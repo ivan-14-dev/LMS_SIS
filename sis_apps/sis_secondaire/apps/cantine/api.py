@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import request_has_business_access
 
 from .models import InscriptionCantine, Menu, PresenceCantine
 from .serializers import (
@@ -26,13 +27,11 @@ class IsIntendanceOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "intendance",
-            "vie_scolaire",
-            "directeur",
-            "proviseur",
-            "principal",
+        return request_has_business_access(
+            request,
+            "cantine.change_menu",
+            ("intendance", "vie_scolaire", "directeur", "proviseur", "principal"),
+            tenant_group_codes=("canteen_manager_secondary",),
         )
 
 

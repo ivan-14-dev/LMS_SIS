@@ -1,7 +1,16 @@
 """API tests for portail_eleve."""
 
-from django.test import TestCase
+from django.test import SimpleTestCase
+from django.urls import resolve
 
 
-class PortailEleveAPITestCase(TestCase):
-    pass
+class PortailEleveAPITestCase(SimpleTestCase):
+    def test_tableau_bord_route_is_registered(self):
+        match = resolve("/api/v1/portail/apprenant/tableau_bord/")
+
+        self.assertEqual(match.url_name, "portail-apprenant-tableau-bord")
+
+    def test_bulletins_route_is_registered(self):
+        match = resolve("/api/v1/portail/apprenant/bulletins/")
+
+        self.assertEqual(match.url_name, "portail-apprenant-bulletins")

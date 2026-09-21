@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import request_has_business_access
 
 from .models import Club, MembreClub, SeanceClub
 from .serializers import ClubDetailSerializer, ClubListSerializer, MembreClubSerializer, SeanceClubSerializer
@@ -20,12 +21,11 @@ class IsVieScolariteOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "vie_scolaire",
-            "cpe",
-            "directeur",
-            "responsable_club",
+        return request_has_business_access(
+            request,
+            "clubs.change_club",
+            ("vie_scolaire", "cpe", "directeur", "responsable_club"),
+            tenant_group_codes=("club_manager_secondary",),
         )
 
 

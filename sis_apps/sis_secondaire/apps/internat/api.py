@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import request_has_business_access
 
 from .models import BatimentInternat, Chambre, EtudeSurveillee, OccupantChambre
 from .serializers import (
@@ -27,14 +28,11 @@ class IsVieScolariteOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "vie_scolaire",
-            "cpe",
-            "directeur",
-            "proviseur",
-            "principal",
-            "surveillant",
+        return request_has_business_access(
+            request,
+            "internat.change_chambre",
+            ("vie_scolaire", "cpe", "directeur", "proviseur", "principal", "surveillant"),
+            tenant_group_codes=("boarding_manager_secondary",),
         )
 
 

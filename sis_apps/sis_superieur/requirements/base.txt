@@ -20,6 +20,8 @@ django-axes==6.1.0
 django-auditlog==2.3.0
 django-simple-history==3.7.0
 django-import-export==3.3.9
+openpyxl==3.1.5
+xlrd==2.0.2
 django-crispy-forms==2.1
 crispy-tailwind==1.0.3
 django-tables2==2.6.0

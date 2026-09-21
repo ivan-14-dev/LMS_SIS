@@ -6,6 +6,7 @@ from rest_framework.routers import DefaultRouter
 router = DefaultRouter()
 
 urlpatterns = [
+    path("core/", include("apps.core.urls_api")),
     path("etablissement/", include("apps.etablissement.urls_api")),
     path("utilisateurs/", include("apps.utilisateurs.urls_api")),
     path("structure/", include("apps.structure.urls_api")),
@@ -31,6 +32,7 @@ urlpatterns = [
     path("bibliotheque/", include("apps.bibliotheque.urls_api")),
     path("entreprises/", include("apps.entreprises.urls_api")),
     path("enseignants/", include("apps.enseignants.urls_api")),
+    path("portail/", include("apps.portail.urls_api")),
     path("integration/", include("apps.integration.urls_api")),
     path("", include(router.urls)),
 ]

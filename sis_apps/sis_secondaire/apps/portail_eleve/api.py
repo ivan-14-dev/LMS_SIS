@@ -1,9 +1,19 @@
 """API views for portail élève (SIS Secondaire) - Agrégation."""
 
+from apps.emplois_du_temps.models import Creneau
+from apps.notes.models import Bulletin, Note
+from apps.presences.models import Presence
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+
+ABSENCE_STATUSES = ("absent", "absent_justifie")
+
+
+def _decimal_to_float(value):
+    return float(value) if value is not None else None
 
 
 class IsEleve(IsAuthenticated):
@@ -12,7 +22,7 @@ class IsEleve(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        return hasattr(request.user, "eleve")
+        return hasattr(request.user, "eleve_profile")
 
 
 class PortailEleveViewSet(viewsets.ViewSet):
@@ -21,61 +31,68 @@ class PortailEleveViewSet(viewsets.ViewSet):
     permission_classes = [IsEleve]
 
     def _get_eleve(self, request):
-        return request.user.eleve
+        return request.user.eleve_profile
+
+    def _latest_bulletin(self, eleve):
+        return (
+            Bulletin.objects.filter(eleve=eleve, publie=True)
+            .select_related("classe__niveau", "periode")
+            .order_by("-periode__date_fin")
+            .first()
+        )
+
+    def _classe_payload(self, eleve):
+        classe = eleve.classe_actuelle
+        if not classe:
+            return None
+        return {
+            "id": classe.id,
+            "nom": classe.nom,
+            "niveau": classe.niveau.nom if classe.niveau else None,
+        }
 
     @action(detail=False, methods=["get"])
     def tableau_bord(self, request):
         """Tableau de bord de l'élève."""
         eleve = self._get_eleve(request)
-
-        # Notes récentes
-        from apps.notes.models import Note
-
+        latest_bulletin = self._latest_bulletin(eleve)
         notes_recentes = (
             Note.objects.filter(eleve=eleve)
-            .select_related("matiere")
-            .order_by("-date")[:5]
+            .select_related("evaluation__matiere", "evaluation__periode")
+            .order_by("-evaluation__date", "-date_saisie")[:5]
         )
-
-        notes_data = [
-            {
-                "matiere": n.matiere.nom,
-                "note": float(n.note) if n.note else None,
-                "type": n.type_evaluation,
-                "date": n.date.isoformat() if n.date else None,
-            }
-            for n in notes_recentes
-        ]
-
-        # Absences
-        from apps.presences.models import Presence
-
-        absences = Presence.objects.filter(eleve=eleve, statut="absent").count()
+        absences = Presence.objects.filter(eleve=eleve, statut__in=ABSENCE_STATUSES).count()
+        retards = Presence.objects.filter(eleve=eleve, statut="retard").count()
 
         return Response(
             {
                 "eleve": {
+                    "id": eleve.id,
                     "matricule": eleve.matricule,
                     "nom": eleve.user.get_full_name(),
                 },
-                "classe": (
-                    {
-                        "nom": eleve.classe.nom if eleve.classe else None,
-                        "niveau": eleve.classe.niveau if eleve.classe else None,
-                    }
-                    if eleve.classe
-                    else None
-                ),
+                "classe": self._classe_payload(eleve),
                 "statistiques": {
-                    "moyenne": (
-                        float(eleve.moyenne_generale)
-                        if eleve.moyenne_generale
-                        else None
+                    "moyenne": _decimal_to_float(
+                        latest_bulletin.moyenne_generale if latest_bulletin else None
                     ),
-                    "rang": eleve.rang,
+                    "rang": latest_bulletin.rang if latest_bulletin else None,
                     "absences": absences,
+                    "retards": retards,
                 },
-                "notes_recentes": notes_data,
+                "notes_recentes": [
+                    {
+                        "id": note.id,
+                        "evaluation": note.evaluation.titre,
+                        "matiere": note.evaluation.matiere.nom,
+                        "note": _decimal_to_float(note.valeur),
+                        "statut": note.statut,
+                        "type": note.evaluation.type,
+                        "periode": note.evaluation.periode.libelle,
+                        "date": note.evaluation.date.isoformat(),
+                    }
+                    for note in notes_recentes
+                ],
             }
         )
 
@@ -83,18 +100,22 @@ class PortailEleveViewSet(viewsets.ViewSet):
     def profil(self, request):
         """Profil complet de l'élève."""
         eleve = self._get_eleve(request)
+        latest_bulletin = self._latest_bulletin(eleve)
+        classe = self._classe_payload(eleve)
 
         return Response(
             {
+                "id": eleve.id,
                 "matricule": eleve.matricule,
                 "nom": eleve.user.get_full_name(),
                 "email": eleve.user.email,
-                "classe": eleve.classe.nom if eleve.classe else None,
-                "niveau": eleve.classe.niveau if eleve.classe else None,
-                "moyenne": (
-                    float(eleve.moyenne_generale) if eleve.moyenne_generale else None
+                "classe": classe["nom"] if classe else None,
+                "niveau": classe["niveau"] if classe else None,
+                "moyenne": _decimal_to_float(
+                    latest_bulletin.moyenne_generale if latest_bulletin else None
                 ),
-                "rang": eleve.rang,
+                "rang": latest_bulletin.rang if latest_bulletin else None,
+                "statut": eleve.statut,
             }
         )
 
@@ -103,54 +124,59 @@ class PortailEleveViewSet(viewsets.ViewSet):
         """Notes de l'élève."""
         eleve = self._get_eleve(request)
         periode_id = request.query_params.get("periode")
-
-        from apps.notes.models import Note
-
-        notes = Note.objects.filter(eleve=eleve).select_related("matiere", "periode")
+        notes = Note.objects.filter(eleve=eleve).select_related(
+            "evaluation__matiere", "evaluation__periode"
+        )
         if periode_id:
-            notes = notes.filter(periode_id=periode_id)
+            notes = notes.filter(evaluation__periode_id=periode_id)
 
         return Response(
             [
                 {
-                    "id": n.id,
-                    "matiere": n.matiere.nom,
-                    "note": float(n.note) if n.note else None,
-                    "coefficient": float(n.coefficient),
-                    "type": n.type_evaluation,
-                    "periode": str(n.periode) if n.periode else None,
-                    "date": n.date.isoformat() if n.date else None,
+                    "id": note.id,
+                    "matiere": note.evaluation.matiere.nom,
+                    "evaluation": note.evaluation.titre,
+                    "note": _decimal_to_float(note.valeur),
+                    "bareme": _decimal_to_float(note.evaluation.bareme),
+                    "coefficient": _decimal_to_float(note.evaluation.coefficient),
+                    "type": note.evaluation.type,
+                    "statut": note.statut,
+                    "periode": note.evaluation.periode.libelle,
+                    "date": note.evaluation.date.isoformat(),
                 }
-                for n in notes.order_by("-date")
+                for note in notes.order_by("-evaluation__date", "-date_saisie")
             ]
         )
 
     @action(detail=False, methods=["get"])
     def bulletins(self, request):
-        """Bulletins de l'élève."""
+        """Bulletins publiés de l'élève."""
         eleve = self._get_eleve(request)
-
-        from apps.bulletins.models import Bulletin
-
         bulletins = (
-            Bulletin.objects.filter(eleve=eleve)
-            .select_related("periode")
+            Bulletin.objects.filter(eleve=eleve, publie=True)
+            .select_related("periode", "classe__niveau")
             .order_by("-periode__date_fin")
         )
 
         return Response(
             [
                 {
-                    "id": b.id,
-                    "periode": str(b.periode),
-                    "moyenne": (
-                        float(b.moyenne_generale) if b.moyenne_generale else None
+                    "id": bulletin.id,
+                    "periode": bulletin.periode.libelle,
+                    "classe": bulletin.classe.nom,
+                    "niveau": bulletin.classe.niveau.nom if bulletin.classe.niveau else None,
+                    "moyenne": _decimal_to_float(bulletin.moyenne_generale),
+                    "rang": bulletin.rang,
+                    "appreciation": bulletin.appreciation_conseil,
+                    "decision": bulletin.decision,
+                    "pdf_disponible": bool(bulletin.pdf_path),
+                    "publie_le": (
+                        bulletin.date_publication.isoformat()
+                        if bulletin.date_publication
+                        else None
                     ),
-                    "rang": b.rang,
-                    "appreciation": b.appreciation_generale,
-                    "pdf_disponible": bool(b.pdf_path),
                 }
-                for b in bulletins
+                for bulletin in bulletins
             ]
         )
 
@@ -158,14 +184,11 @@ class PortailEleveViewSet(viewsets.ViewSet):
     def emploi_du_temps(self, request):
         """Emploi du temps de l'élève."""
         eleve = self._get_eleve(request)
-
-        if not eleve.classe:
+        if not eleve.classe_actuelle:
             return Response({"error": "Pas de classe assignée."}, status=400)
 
-        from apps.emplois_du_temps.models import Creneau
-
         creneaux = (
-            Creneau.objects.filter(classe=eleve.classe)
+            Creneau.objects.filter(classe=eleve.classe_actuelle, actif=True)
             .select_related("matiere", "enseignant__user", "salle")
             .order_by("jour", "heure_debut")
         )
@@ -173,39 +196,45 @@ class PortailEleveViewSet(viewsets.ViewSet):
         return Response(
             [
                 {
-                    "jour": c.jour,
-                    "heure_debut": str(c.heure_debut),
-                    "heure_fin": str(c.heure_fin),
-                    "matiere": c.matiere.nom,
-                    "enseignant": (
-                        c.enseignant.user.get_full_name() if c.enseignant else None
-                    ),
-                    "salle": c.salle.nom if c.salle else None,
+                    "id": creneau.id,
+                    "jour": creneau.jour,
+                    "heure_debut": str(creneau.heure_debut),
+                    "heure_fin": str(creneau.heure_fin),
+                    "matiere": creneau.matiere.nom,
+                    "enseignant": creneau.enseignant.user.get_full_name(),
+                    "salle": creneau.salle.nom if creneau.salle else None,
+                    "type": creneau.type,
                 }
-                for c in creneaux
+                for creneau in creneaux
             ]
         )
 
     @action(detail=False, methods=["get"])
     def absences(self, request):
-        """Absences de l'élève."""
+        """Absences et retards de l'élève."""
         eleve = self._get_eleve(request)
-
-        from apps.presences.models import Presence
-
-        absences = (
-            Presence.objects.filter(eleve=eleve, statut__in=["absent", "retard"])
-            .select_related("appel")
-            .order_by("-appel__date")[:30]
+        presences = (
+            Presence.objects.filter(eleve=eleve, statut__in=ABSENCE_STATUSES + ("retard",))
+            .select_related("appel__creneau", "justificatif")
+            .order_by("-appel__date", "-appel__creneau__heure_debut")[:30]
         )
 
         return Response(
             [
                 {
-                    "date": a.appel.date.isoformat(),
-                    "statut": a.statut,
-                    "justifie": a.justifie,
+                    "date": presence.appel.date.isoformat(),
+                    "statut": presence.statut,
+                    "retard_minutes": presence.retard_minutes,
+                    "commentaire": presence.commentaire,
+                    "justificatif": (
+                        {
+                            "statut": presence.justificatif.statut,
+                            "motif": presence.justificatif.motif,
+                        }
+                        if hasattr(presence, "justificatif")
+                        else None
+                    ),
                 }
-                for a in absences
+                for presence in presences
             ]
         )

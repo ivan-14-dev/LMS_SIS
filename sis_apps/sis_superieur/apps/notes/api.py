@@ -1,6 +1,9 @@
 """API views for notes (ViewSets DRF) - SIS Supérieur."""
 
-from django.db.models import Avg, Count, Q
+from decimal import Decimal
+
+from django.db import transaction
+from django.db.models import Avg, Count, Exists, OuterRef, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
@@ -11,8 +14,15 @@ from rest_framework.response import Response
 from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,
+    request_has_business_access,
+    user_has_any_role,
 )
-from sis_common.reporting import configured_report, export_queryset_csv
+from sis_common.academic_configuration import resolve_validation_policy
+from sis_common.reporting import configured_report, export_queryset
+from sis_common.spreadsheets import load_excel_rows, template_response
+from sis_common.submission_windows import apply_submission_window_defaults
+
+from apps.etudiants.models import AffectationECUEIndividuelle
 
 from .models import Evaluation, MoyenneECUE, MoyenneUE, Note, RegleValidation
 from .serializers import (
@@ -25,7 +35,7 @@ from .serializers import (
     RegleValidationSerializer,
 )
 
-REPORT_FIELDS = {
+NOTE_REPORT_FIELDS = {
     "matricule": ("Matricule", "etudiant__matricule"),
     "etudiant": ("Étudiant", "etudiant__user__last_name"),
     "formation": (
@@ -41,8 +51,9 @@ REPORT_FIELDS = {
     "enseignant": ("Enseignant", "evaluation__enseignant__last_name"),
     "semestre": ("Semestre", "evaluation__semestre__numero"),
     "date": ("Date", "evaluation__date"),
+    "parcours_individualise": ("Parcours individualisé", "parcours_individualise"),
 }
-REPORT_FILTERS = {
+NOTE_REPORT_FILTERS = {
     "annee": "evaluation__semestre__annee_universitaire_id",
     "formation": "etudiant__inscriptions_admin__formation_id",
     "ecue": "evaluation__ecue_id",
@@ -51,13 +62,220 @@ REPORT_FILTERS = {
     "semestre": "evaluation__semestre_id",
     "statut": "statut",
 }
-REPORT_GROUPS = {
+NOTE_REPORT_GROUPS = {
     "formation": "etudiant__inscriptions_admin__formation__nom",
     "ecue": "evaluation__ecue__nom",
     "ue": "evaluation__ecue__ue__nom",
     "enseignant": "evaluation__enseignant__last_name",
     "semestre": "evaluation__semestre__numero",
 }
+EVALUATION_REPORT_FIELDS = {
+    "titre": ("Titre", "titre"),
+    "modalite": ("Modalité", "modalite"),
+    "ecue": ("ECUE", "ecue__nom"),
+    "ue": ("UE", "ecue__ue__nom"),
+    "formation": ("Formation", "semestre__formation__nom"),
+    "semestre": ("Semestre", "semestre__numero"),
+    "enseignant": ("Enseignant", "enseignant__last_name"),
+    "date": ("Date", "date"),
+    "bareme": ("Barème", "bareme"),
+    "coefficient": ("Coefficient", "coefficient"),
+    "ponderation": ("Pondération", "ponderation"),
+    "anonyme": ("Anonyme", "anonyme"),
+}
+EVALUATION_REPORT_FILTERS = {
+    "ecue": "ecue_id",
+    "ue": "ecue__ue_id",
+    "semestre": "semestre_id",
+    "formation": "semestre__formation_id",
+    "modalite": "modalite",
+    "enseignant": "enseignant_id",
+    "anonyme": "anonyme",
+}
+ECUE_AVERAGE_REPORT_FIELDS = {
+    "matricule": ("Matricule", "etudiant__matricule"),
+    "etudiant": ("Étudiant", "etudiant__user__last_name"),
+    "formation": ("Formation", "etudiant__inscriptions_admin__formation__nom"),
+    "ecue": ("ECUE", "ecue__nom"),
+    "ue": ("UE", "ecue__ue__nom"),
+    "semestre": ("Semestre", "semestre__numero"),
+    "moyenne": ("Moyenne", "moyenne"),
+    "valide": ("Validé", "valide"),
+    "parcours_individualise": ("Parcours individualisé", "parcours_individualise"),
+}
+ECUE_AVERAGE_REPORT_FILTERS = {
+    "etudiant": "etudiant_id",
+    "formation": "etudiant__inscriptions_admin__formation_id",
+    "ecue": "ecue_id",
+    "ue": "ecue__ue_id",
+    "semestre": "semestre_id",
+    "valide": "valide",
+}
+UE_AVERAGE_REPORT_FIELDS = {
+    "matricule": ("Matricule", "etudiant__matricule"),
+    "etudiant": ("Étudiant", "etudiant__user__last_name"),
+    "formation": ("Formation", "etudiant__inscriptions_admin__formation__nom"),
+    "ue": ("UE", "ue__nom"),
+    "semestre": ("Semestre", "semestre__numero"),
+    "moyenne": ("Moyenne", "moyenne"),
+    "credits_obtenus": ("Crédits obtenus", "credits_obtenus"),
+    "capitalisee": ("Capitalisée", "capitalisee"),
+    "parcours_individualise": ("Parcours individualisé", "parcours_individualise"),
+}
+UE_AVERAGE_REPORT_FILTERS = {
+    "etudiant": "etudiant_id",
+    "formation": "etudiant__inscriptions_admin__formation_id",
+    "ue": "ue_id",
+    "semestre": "semestre_id",
+    "capitalisee": "capitalisee",
+}
+
+CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS = [
+    "matricule",
+    "note",
+    "appreciation",
+    "statut",
+]
+CONTINUOUS_ASSESSMENT_MODALITIES = {"cc", "tp", "projet"}
+
+
+def _continuous_assessment_template_enabled(request):
+    templates = (
+        getattr(getattr(request, "tenant", None), "configuration_academique", {}) or {}
+    ).get("import_templates", [])
+    return any(template.get("code") == "continuous_assessment_grades" for template in templates)
+
+
+def _ensure_submission_window(obj, label="La période de soumission"):
+    now = timezone.now()
+    if getattr(obj, "debut_soumission", None) and now < obj.debut_soumission:
+        raise serializers.ValidationError(
+            {"soumission": f"{label} n'est pas encore ouverte."}
+        )
+    if getattr(obj, "fin_soumission", None) and now > obj.fin_soumission:
+        raise serializers.ValidationError({"soumission": f"{label} est expirée."})
+
+
+def _ensure_superior_continuous_assessment(evaluation):
+    if evaluation.modalite not in CONTINUOUS_ASSESSMENT_MODALITIES:
+        raise serializers.ValidationError(
+            {
+                "evaluation": (
+                    "Seules les évaluations de contrôle continu peuvent être importées ici."
+                )
+            }
+        )
+    _ensure_submission_window(evaluation)
+    if evaluation.semestre.cloture or evaluation.semestre.annee_universitaire.cloturee:
+        raise serializers.ValidationError(
+            {
+                "evaluation": (
+                    "Cette évaluation est verrouillée car le semestre ou l'année est clôturé."
+                )
+            }
+        )
+
+
+def _superior_eligible_student_map(evaluation, matricules):
+    enrollments = (
+        evaluation.semestre.inscriptions_peda.filter(
+            inscription_admin__etudiant__matricule__in=matricules,
+            statut="validee",
+        )
+        .filter(Q(ecues=evaluation.ecue) | Q(ues=evaluation.ecue.ue))
+        .select_related("inscription_admin__etudiant")
+        .distinct()
+    )
+    eligible = {
+        inscription.inscription_admin.etudiant.matricule: inscription.inscription_admin.etudiant
+        for inscription in enrollments
+    }
+    custom_assignments = (
+        AffectationECUEIndividuelle.objects.filter(
+            inscription_admin__etudiant__matricule__in=matricules,
+            inscription_admin__annee_universitaire=evaluation.semestre.annee_universitaire,
+            ecue=evaluation.ecue,
+        )
+        .select_related("inscription_admin__etudiant")
+        .distinct()
+    )
+    for affectation in custom_assignments:
+        eligible[affectation.inscription_admin.etudiant.matricule] = (
+            affectation.inscription_admin.etudiant
+        )
+    return eligible
+
+
+def _import_superior_notes(evaluation, rows, request):
+    _ensure_superior_continuous_assessment(evaluation)
+    matricules = [str(row["matricule"]).strip() for row in rows]
+    eligible_map = _superior_eligible_student_map(evaluation, matricules)
+    created = 0
+    updated = 0
+    seen = set()
+    valid_statuses = {code for code, _label in Note.STATUT_CHOICES}
+    with transaction.atomic():
+        for row in rows:
+            row_number = row["__row_number__"]
+            matricule = str(row["matricule"]).strip()
+            if not matricule:
+                raise serializers.ValidationError(
+                    {"matricule": f"Ligne {row_number}: matricule requis."}
+                )
+            if matricule in seen:
+                raise serializers.ValidationError(
+                    {"file": f"Ligne {row_number}: doublon incohérent détecté pour {matricule}."}
+                )
+            seen.add(matricule)
+            etudiant = eligible_map.get(matricule)
+            if etudiant is None:
+                raise serializers.ValidationError(
+                    {
+                        "file": (
+                            f"Ligne {row_number}: étudiant hors périmètre pour cette évaluation."
+                        )
+                    }
+                )
+            statut = str(row.get("statut") or "presente").strip() or "presente"
+            if statut not in valid_statuses:
+                raise serializers.ValidationError(
+                    {"statut": f"Ligne {row_number}: statut invalide."}
+                )
+            raw_note = row.get("note")
+            valeur = None
+            if raw_note not in (None, ""):
+                try:
+                    valeur = Decimal(str(raw_note))
+                except (ArithmeticError, TypeError, ValueError):
+                    raise serializers.ValidationError(
+                        {"note": f"Ligne {row_number}: note invalide."}
+                    )
+                if valeur < 0 or valeur > evaluation.bareme:
+                    raise serializers.ValidationError(
+                        {"note": f"Ligne {row_number}: la note doit respecter le barème."}
+                    )
+            elif statut == "presente":
+                raise serializers.ValidationError(
+                    {"note": f"Ligne {row_number}: une note est requise pour une copie présentée."}
+                )
+            note, was_created = Note.objects.update_or_create(
+                evaluation=evaluation,
+                etudiant=etudiant,
+                defaults={
+                    "valeur": valeur,
+                    "statut": statut,
+                    "appreciation": str(row.get("appreciation") or "").strip(),
+                    "saisi_par": request.user,
+                },
+            )
+            if was_created:
+                created += 1
+            else:
+                updated += 1
+                note.modifie_le = timezone.now()
+                note.modifie_par = request.user
+                note.save(update_fields=["modifie_le", "modifie_par"])
+    return created, updated
 
 
 class IsEnseignantOrScolarite(IsAuthenticated):
@@ -106,17 +324,53 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Evaluation.objects.select_related("ecue", "semestre", "enseignant")
         user = self.request.user
-        if not user.is_staff and getattr(user, "role", "") in (
-            "enseignant",
-            "chercheur",
+        if not user.is_staff and user_has_any_role(user, ("enseignant", "chercheur")):
+            return qs.filter(enseignant=user)
+        if not request_has_business_access(
+            self.request,
+            "notes.view_evaluation",
+            ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
         ):
-            qs = qs.filter(enseignant=user)
-        return qs
+            return qs.none()
+        return filter_queryset_by_scopes(
+            qs,
+            user,
+            "notes.view_evaluation",
+            {
+                "formations": "semestre__formation_id",
+                "facultes": "semestre__formation__departement__faculte_id",
+                "departements": "semestre__formation__departement_id",
+                "annees": "semestre__annee_universitaire_id",
+                "semestres": "semestre_id",
+                "ues": "ecue__ue_id",
+                "ecues": "ecue_id",
+            },
+        )
 
     def get_serializer_class(self):
         if self.action == "list":
             return EvaluationListSerializer
         return EvaluationDetailSerializer
+
+    def perform_create(self, serializer):
+        evaluation = serializer.save()
+        changed_fields = apply_submission_window_defaults(
+            evaluation,
+            getattr(getattr(self.request, "tenant", None), "configuration_academique", {}) or {},
+            "evaluation",
+        )
+        if changed_fields:
+            evaluation.save(update_fields=changed_fields)
+
+    def perform_update(self, serializer):
+        evaluation = serializer.save()
+        changed_fields = apply_submission_window_defaults(
+            evaluation,
+            getattr(getattr(self.request, "tenant", None), "configuration_academique", {}) or {},
+            "evaluation",
+        )
+        if changed_fields:
+            evaluation.save(update_fields=changed_fields)
 
     @action(detail=True, methods=["get"])
     def notes(self, request, pk=None):
@@ -132,6 +386,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     def saisir_notes(self, request, pk=None):
         """Saisie en masse des notes."""
         evaluation = self.get_object()
+        _ensure_superior_continuous_assessment(evaluation)
         serializer = NoteSaisieSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
 
@@ -143,6 +398,13 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
             )
             .filter(Q(ecues=evaluation.ecue) | Q(ues=evaluation.ecue.ue))
             .values_list("inscription_admin__etudiant_id", flat=True)
+        )
+        eligible_student_ids.update(
+            AffectationECUEIndividuelle.objects.filter(
+                inscription_admin__etudiant_id__in=student_ids,
+                inscription_admin__annee_universitaire=evaluation.semestre.annee_universitaire,
+                ecue=evaluation.ecue,
+            ).values_list("inscription_admin__etudiant_id", flat=True)
         )
         invalid_student_ids = sorted(student_ids - eligible_student_ids)
         if invalid_student_ids:
@@ -182,6 +444,56 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         )
 
     @action(detail=True, methods=["get"])
+    def modele_import_notes(self, request, pk=None):
+        if not _continuous_assessment_template_enabled(request):
+            raise serializers.ValidationError(
+                {"workflow": "Le modèle d'import des notes de contrôle continu n'est pas activé."}
+            )
+        evaluation = self.get_object()
+        _ensure_superior_continuous_assessment(evaluation)
+        return template_response(
+            CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS,
+            f"modele-notes-evaluation-superieur-{evaluation.pk}.xlsx",
+            sample_row=["SUP-001", "15.25", "Bon travail", "presente"],
+        )
+
+    @action(detail=True, methods=["post"])
+    def importer_notes(self, request, pk=None):
+        if not _continuous_assessment_template_enabled(request):
+            raise serializers.ValidationError(
+                {"workflow": "Le modèle d'import des notes de contrôle continu n'est pas activé."}
+            )
+        evaluation = self.get_object()
+        uploaded_file = request.FILES.get("file")
+        if uploaded_file is None:
+            raise serializers.ValidationError({"file": "Un fichier Excel est requis."})
+        rows = load_excel_rows(uploaded_file, CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS)
+        if not rows:
+            raise serializers.ValidationError(
+                {"file": "Le fichier ne contient aucune ligne exploitable."}
+            )
+        created, updated = _import_superior_notes(evaluation, rows, request)
+        return Response(
+            {
+                "evaluation_id": evaluation.id,
+                "notes_creees": created,
+                "notes_modifiees": updated,
+            }
+        )
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"evaluations"})
+        return export_queryset(
+            request,
+            self.filter_queryset(self.get_queryset()),
+            report,
+            EVALUATION_REPORT_FIELDS,
+            EVALUATION_REPORT_FILTERS,
+            request.data.get("filters", {}),
+        )
+
+    @action(detail=True, methods=["get"])
     def statistiques(self, request, pk=None):
         """Statistiques de l'évaluation."""
         evaluation = self.get_object()
@@ -213,33 +525,26 @@ class NotesViewSet(viewsets.ModelViewSet):
     ordering = ["etudiant__user__last_name"]
 
     def get_queryset(self):
-        qs = Note.objects.select_related("evaluation", "etudiant__user")
-        # Un étudiant ne voit que ses propres notes
+        individualized_assignments = AffectationECUEIndividuelle.objects.filter(
+            inscription_admin__etudiant_id=OuterRef("etudiant_id"),
+            inscription_admin__annee_universitaire_id=OuterRef(
+                "evaluation__semestre__annee_universitaire_id"
+            ),
+            semestre_cible_id=OuterRef("evaluation__semestre_id"),
+            ecue_id=OuterRef("evaluation__ecue_id"),
+        )
+        qs = Note.objects.select_related("evaluation", "etudiant__user").annotate(
+            parcours_individualise=Exists(individualized_assignments)
+        )
         user = self.request.user
-        if not user.is_staff and getattr(user, "role", "") in ("etudiant", "doctorant"):
-            qs = qs.filter(etudiant__user=user)
-        if not user.is_staff and getattr(user, "role", "") in (
-            "enseignant",
-            "chercheur",
-        ):
-            qs = qs.filter(evaluation__enseignant=user)
-        allowed_roles = {
-            "president",
-            "vice_president",
-            "doyen",
-            "directeur_dept",
-            "responsable_formation",
-            "directeur_etudes",
-            "scolarite",
-            "enseignant",
-            "chercheur",
-            "etudiant",
-            "doctorant",
-        }
-        if (
-            not user.is_staff
-            and not user.has_perm("notes.view_note")
-            and getattr(user, "role", "") not in allowed_roles
+        if not user.is_staff and user_has_any_role(user, ("etudiant", "doctorant")):
+            return qs.filter(etudiant__user=user)
+        if not user.is_staff and user_has_any_role(user, ("enseignant", "chercheur")):
+            return qs.filter(evaluation__enseignant=user)
+        if not request_has_business_access(
+            self.request,
+            "notes.view_note",
+            ("president", "vice_president", "doyen", "directeur_dept", "responsable_formation", "directeur_etudes", "scolarite"),
         ):
             return qs.none()
         return filter_queryset_by_scopes(
@@ -264,10 +569,10 @@ class NotesViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def bilan(self, request):
         group_by = request.query_params.get("group_by", "ecue")
-        group_field = REPORT_GROUPS.get(group_by)
+        group_field = NOTE_REPORT_GROUPS.get(group_by)
         if not group_field:
             return Response(
-                {"group_by": f"Valeurs acceptées: {', '.join(REPORT_GROUPS)}."},
+                {"group_by": f"Valeurs acceptées: {', '.join(NOTE_REPORT_GROUPS)}."},
                 status=400,
             )
         rows = (
@@ -290,14 +595,25 @@ class NotesViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"])
     def exporter(self, request):
-        report = configured_report(request, request.data.get("report"))
-        return export_queryset_csv(
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"notes"})
+        return export_queryset(
+            request,
             self.filter_queryset(self.get_queryset()),
             report,
-            REPORT_FIELDS,
-            REPORT_FILTERS,
+            NOTE_REPORT_FIELDS,
+            NOTE_REPORT_FILTERS,
             request.data.get("filters", {}),
         )
+
+    def perform_create(self, serializer):
+        evaluation = serializer.validated_data["evaluation"]
+        _ensure_superior_continuous_assessment(evaluation)
+        serializer.save(saisi_par=self.request.user)
+
+    def perform_update(self, serializer):
+        note = self.get_object()
+        _ensure_superior_continuous_assessment(note.evaluation)
+        serializer.save(modifie_le=timezone.now(), modifie_par=self.request.user)
 
 
 class MoyennesECUEViewSet(viewsets.ReadOnlyModelViewSet):
@@ -309,21 +625,22 @@ class MoyennesECUEViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["etudiant", "ecue", "semestre", "valide"]
 
     def get_queryset(self):
-        qs = MoyenneECUE.objects.select_related("etudiant__user", "ecue", "semestre")
+        individualized_assignments = AffectationECUEIndividuelle.objects.filter(
+            inscription_admin__etudiant_id=OuterRef("etudiant_id"),
+            inscription_admin__annee_universitaire_id=OuterRef("semestre__annee_universitaire_id"),
+            semestre_cible_id=OuterRef("semestre_id"),
+            ecue_id=OuterRef("ecue_id"),
+        )
+        qs = MoyenneECUE.objects.select_related("etudiant__user", "ecue", "semestre").annotate(
+            parcours_individualise=Exists(individualized_assignments)
+        )
         user = self.request.user
-        if not user.is_staff and getattr(user, "role", "") in ("etudiant", "doctorant"):
+        if not user.is_staff and user_has_any_role(user, ("etudiant", "doctorant")):
             return qs.filter(etudiant__user=user)
-        if (
-            not user.is_staff
-            and not user.has_perm("notes.view_moyenneecue")
-            and getattr(user, "role", "")
-            not in (
-                "president",
-                "vice_president",
-                "doyen",
-                "directeur_etudes",
-                "scolarite",
-            )
+        if not request_has_business_access(
+            self.request,
+            "notes.view_moyenneecue",
+            ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
         ):
             return qs.none()
         return filter_queryset_by_scopes(
@@ -341,6 +658,18 @@ class MoyennesECUEViewSet(viewsets.ReadOnlyModelViewSet):
             },
         )
 
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"averages_ecue"})
+        return export_queryset(
+            request,
+            self.filter_queryset(self.get_queryset()),
+            report,
+            ECUE_AVERAGE_REPORT_FIELDS,
+            ECUE_AVERAGE_REPORT_FILTERS,
+            request.data.get("filters", {}),
+        )
+
 
 class MoyennesUEViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet lecture seule pour moyennes UE."""
@@ -351,21 +680,22 @@ class MoyennesUEViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["etudiant", "ue", "semestre", "capitalisee"]
 
     def get_queryset(self):
-        qs = MoyenneUE.objects.select_related("etudiant__user", "ue", "semestre")
+        individualized_assignments = AffectationECUEIndividuelle.objects.filter(
+            inscription_admin__etudiant_id=OuterRef("etudiant_id"),
+            inscription_admin__annee_universitaire_id=OuterRef("semestre__annee_universitaire_id"),
+            semestre_cible_id=OuterRef("semestre_id"),
+            ecue__ue_id=OuterRef("ue_id"),
+        )
+        qs = MoyenneUE.objects.select_related("etudiant__user", "ue", "semestre").annotate(
+            parcours_individualise=Exists(individualized_assignments)
+        )
         user = self.request.user
-        if not user.is_staff and getattr(user, "role", "") in ("etudiant", "doctorant"):
+        if not user.is_staff and user_has_any_role(user, ("etudiant", "doctorant")):
             return qs.filter(etudiant__user=user)
-        if (
-            not user.is_staff
-            and not user.has_perm("notes.view_moyenneue")
-            and getattr(user, "role", "")
-            not in (
-                "president",
-                "vice_president",
-                "doyen",
-                "directeur_etudes",
-                "scolarite",
-            )
+        if not request_has_business_access(
+            self.request,
+            "notes.view_moyenneue",
+            ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
         ):
             return qs.none()
         return filter_queryset_by_scopes(
@@ -380,6 +710,18 @@ class MoyennesUEViewSet(viewsets.ReadOnlyModelViewSet):
                 "semestres": "semestre_id",
                 "ues": "ue_id",
             },
+        )
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"averages_ue"})
+        return export_queryset(
+            request,
+            self.filter_queryset(self.get_queryset()),
+            report,
+            UE_AVERAGE_REPORT_FIELDS,
+            UE_AVERAGE_REPORT_FILTERS,
+            request.data.get("filters", {}),
         )
 
 
@@ -399,7 +741,17 @@ class ReglesValidationViewSet(viewsets.ModelViewSet):
     def evaluer(self, request, pk=None):
         serializer = EvaluationRegleInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response(self.get_object().evaluer(**serializer.validated_data))
+        rule = self.get_object()
+        policy = resolve_validation_policy(
+            getattr(request.tenant, "configuration_academique", {}),
+            [
+                {"scope": "semester", "context": {"semester_id": rule.semestre_id}},
+                {"scope": "formation", "context": {"formation_id": rule.formation_id}},
+                {"scope": "academic_year", "context": {"academic_year_id": rule.annee_universitaire_id}},
+                {"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}},
+            ],
+        )
+        return Response(rule.evaluer(**serializer.validated_data, policy=policy))
 
 
 class EvaluationRegleInputSerializer(serializers.Serializer):

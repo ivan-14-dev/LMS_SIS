@@ -35,5 +35,15 @@ urlpatterns = [
         api.ElevesViewSet.as_view({"post": "changer_classe"}),
         name="changer-classe",
     ),
+    path(
+        "<int:pk>/matieres-individuelles/",
+        api.ElevesViewSet.as_view({"get": "matieres_individuelles", "post": "matieres_individuelles"}),
+        name="matieres-individuelles",
+    ),
+    path(
+        "<int:pk>/retirer-matiere-individuelle/",
+        api.ElevesViewSet.as_view({"post": "retirer_matiere_individuelle"}),
+        name="retirer-matiere-individuelle",
+    ),
     path("search/", api.ElevesViewSet.as_view({"get": "search"}), name="search"),
 ]

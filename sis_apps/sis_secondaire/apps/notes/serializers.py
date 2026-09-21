@@ -1,7 +1,10 @@
 """Serializers for notes (SIS Secondaire)."""
 
+from apps.classes.models import ProgrammeMatiere
+from apps.eleves.models import AffectationMatiereIndividuelle
 from rest_framework import serializers
 from sis_common.academic_configuration import validate_rule_criteria
+from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 
 from .models import Bulletin, Evaluation, Note, RegleValidation
 
@@ -13,6 +16,13 @@ class EvaluationListSerializer(serializers.ModelSerializer):
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
     type_display = serializers.CharField(source="get_type_display", read_only=True)
     enseignant_nom = serializers.CharField(source="enseignant.user.get_full_name", read_only=True)
+    eleve_cible_matricule = serializers.CharField(source="eleve_cible.matricule", read_only=True)
+    eleve_cible_nom = serializers.CharField(source="eleve_cible.user.get_full_name", read_only=True)
+    individualisee = serializers.SerializerMethodField()
+    nb_notes = serializers.SerializerMethodField()
+    notes_saisies = serializers.SerializerMethodField()
+    soumission_statut = serializers.SerializerMethodField()
+    soumission_alerte = serializers.SerializerMethodField()
 
     class Meta:
         model = Evaluation
@@ -28,11 +38,40 @@ class EvaluationListSerializer(serializers.ModelSerializer):
             "date",
             "heure_debut",
             "duree_minutes",
+            "debut_soumission",
+            "fin_soumission",
+            "debut_soumission",
+            "fin_soumission",
             "bareme",
             "coefficient",
             "ponderation",
+            "eleve_cible",
+            "eleve_cible_matricule",
+            "eleve_cible_nom",
+            "individualisee",
+            "nb_notes",
+            "notes_saisies",
+            "soumission_statut",
+            "soumission_alerte",
             "enseignant_nom",
         ]
+
+    def get_individualisee(self, obj):
+        return bool(obj.eleve_cible_id)
+
+    def get_nb_notes(self, obj):
+        return obj.notes.exclude(valeur__isnull=True).count()
+
+    def get_notes_saisies(self, obj):
+        return self.get_nb_notes(obj) > 0
+
+    def get_soumission_statut(self, obj):
+        return get_submission_window_status(obj)
+
+    def get_soumission_alerte(self, obj):
+        request = self.context.get("request")
+        configuration = getattr(getattr(request, "tenant", None), "configuration_academique", {})
+        return get_submission_window_alert(obj, configuration, "evaluation")
 
 
 class EvaluationDetailSerializer(serializers.ModelSerializer):
@@ -44,6 +83,11 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
     enseignant_nom = serializers.CharField(source="enseignant.user.get_full_name", read_only=True)
     periode_libelle = serializers.CharField(source="periode.libelle", read_only=True)
     nb_notes = serializers.SerializerMethodField()
+    eleve_cible_matricule = serializers.CharField(source="eleve_cible.matricule", read_only=True)
+    eleve_cible_nom = serializers.CharField(source="eleve_cible.user.get_full_name", read_only=True)
+    individualisee = serializers.SerializerMethodField()
+    soumission_statut = serializers.SerializerMethodField()
+    soumission_alerte = serializers.SerializerMethodField()
 
     class Meta:
         model = Evaluation
@@ -62,12 +106,20 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
             "date",
             "heure_debut",
             "duree_minutes",
+            "debut_soumission",
+            "fin_soumission",
             "bareme",
             "coefficient",
             "ponderation",
             "enseignant",
             "enseignant_nom",
+            "eleve_cible",
+            "eleve_cible_matricule",
+            "eleve_cible_nom",
+            "individualisee",
             "nb_notes",
+            "soumission_statut",
+            "soumission_alerte",
             "created_at",
             "updated_at",
         ]
@@ -75,6 +127,54 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
 
     def get_nb_notes(self, obj):
         return obj.notes.exclude(valeur__isnull=True).count()
+
+    def get_individualisee(self, obj):
+        return bool(obj.eleve_cible_id)
+
+    def get_soumission_statut(self, obj):
+        return get_submission_window_status(obj)
+
+    def get_soumission_alerte(self, obj):
+        request = self.context.get("request")
+        configuration = getattr(getattr(request, "tenant", None), "configuration_academique", {})
+        return get_submission_window_alert(obj, configuration, "evaluation")
+
+    def validate(self, attrs):
+        classe = attrs.get("classe", getattr(self.instance, "classe", None))
+        matiere = attrs.get("matiere", getattr(self.instance, "matiere", None))
+        eleve_cible = attrs.get("eleve_cible", getattr(self.instance, "eleve_cible", None))
+        debut_soumission = attrs.get(
+            "debut_soumission", getattr(self.instance, "debut_soumission", None)
+        )
+        fin_soumission = attrs.get("fin_soumission", getattr(self.instance, "fin_soumission", None))
+        if debut_soumission and fin_soumission and fin_soumission < debut_soumission:
+            raise serializers.ValidationError(
+                {"fin_soumission": "La fin de soumission doit être postérieure au début."}
+            )
+        if not eleve_cible:
+            return attrs
+        class_member = eleve_cible.classe_actuelle_id == getattr(classe, "id", None) or classe.inscriptions.filter(
+            eleve=eleve_cible,
+            statut__in=("en_cours", "validee"),
+        ).exists()
+        if not class_member:
+            raise serializers.ValidationError(
+                {"eleve_cible": "L'élève ciblé doit appartenir à la classe de l'évaluation."}
+            )
+        subject_in_program = ProgrammeMatiere.objects.filter(classe=classe, matiere=matiere).exists()
+        if not subject_in_program and not AffectationMatiereIndividuelle.objects.filter(
+            eleve=eleve_cible,
+            annee_scolaire=classe.annee_scolaire,
+            matiere=matiere,
+        ).exists():
+            raise serializers.ValidationError(
+                {
+                    "eleve_cible": (
+                        "L'élève ciblé doit avoir cette matière dans son programme de classe ou via une affectation individuelle."
+                    )
+                }
+            )
+        return attrs
 
 
 class NoteSerializer(serializers.ModelSerializer):
@@ -121,6 +221,7 @@ class BulletinListSerializer(serializers.ModelSerializer):
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
     periode_libelle = serializers.CharField(source="periode.libelle", read_only=True)
+    nb_matieres_individualisees = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Bulletin
@@ -139,6 +240,7 @@ class BulletinListSerializer(serializers.ModelSerializer):
             "decision",
             "publie",
             "signe",
+            "nb_matieres_individualisees",
         ]
 
 
@@ -149,6 +251,8 @@ class BulletinDetailSerializer(serializers.ModelSerializer):
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
     periode_libelle = serializers.CharField(source="periode.libelle", read_only=True)
+    nb_matieres_individualisees = serializers.IntegerField(read_only=True, default=0)
+    matieres_individuelles = serializers.SerializerMethodField()
 
     class Meta:
         model = Bulletin
@@ -167,6 +271,8 @@ class BulletinDetailSerializer(serializers.ModelSerializer):
             "appreciation_conseil",
             "decision",
             "pdf_path",
+            "nb_matieres_individualisees",
+            "matieres_individuelles",
             "publie",
             "date_publication",
             "signe",
@@ -175,6 +281,30 @@ class BulletinDetailSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_matieres_individuelles(self, obj):
+        affectations = (
+            AffectationMatiereIndividuelle.objects.filter(
+                eleve=obj.eleve,
+                annee_scolaire=obj.classe.annee_scolaire,
+            )
+            .select_related("matiere", "annee_scolaire")
+            .order_by("matiere__nom")
+        )
+        return [
+            {
+                "id": affectation.id,
+                "matiere": affectation.matiere_id,
+                "matiere_nom": affectation.matiere.nom,
+                "matiere_code": affectation.matiere.code,
+                "annee_scolaire": affectation.annee_scolaire_id,
+                "annee_libelle": affectation.annee_scolaire.libelle,
+                "coefficient": affectation.coefficient,
+                "credits": affectation.credits,
+                "obligatoire": affectation.obligatoire,
+            }
+            for affectation in affectations
+        ]
 
 
 class RegleValidationSerializer(serializers.ModelSerializer):

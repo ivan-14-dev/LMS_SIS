@@ -158,3 +158,60 @@ class EleveTuteur(models.Model):
 
     def __str__(self):
         return f"{self.eleve} ← {self.tuteur}"
+
+
+class AffectationMatiereIndividuelle(models.Model):
+    """Matière affectée individuellement à un élève hors tronc commun de classe."""
+
+    eleve = models.ForeignKey(
+        Eleve,
+        on_delete=models.CASCADE,
+        related_name="affectations_matiere_individuelles",
+    )
+    annee_scolaire = models.ForeignKey(
+        AnneeScolaire,
+        on_delete=models.CASCADE,
+        related_name="affectations_matiere_individuelles",
+    )
+    matiere = models.ForeignKey(
+        "classes.Matiere",
+        on_delete=models.PROTECT,
+        related_name="affectations_individuelles",
+    )
+    programme_source = models.ForeignKey(
+        "classes.ProgrammeMatiere",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="affectations_individuelles",
+    )
+    coefficient = models.DecimalField(max_digits=4, decimal_places=2, default=1)
+    credits = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    heures_semaine = models.DecimalField(max_digits=4, decimal_places=2, default=0)
+    obligatoire = models.BooleanField(default=True)
+    enseignant_principal = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="affectations_individuelles_principales",
+        limit_choices_to={"role": "enseignant"},
+    )
+    enseignants = models.ManyToManyField(
+        Utilisateur,
+        blank=True,
+        related_name="affectations_individuelles_secondaire",
+        limit_choices_to={"role": "enseignant"},
+    )
+    commentaire = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("eleve", "annee_scolaire", "matiere")]
+        ordering = ["annee_scolaire__date_debut", "matiere__nom"]
+        verbose_name = "Affectation matière individuelle"
+        verbose_name_plural = "Affectations matières individuelles"
+
+    def __str__(self):
+        return f"{self.eleve} - {self.matiere} ({self.annee_scolaire})"

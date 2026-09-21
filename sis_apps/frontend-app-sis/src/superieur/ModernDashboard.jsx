@@ -331,38 +331,20 @@ const ModernDashboard = () => {
               <Grid container spacing={2} sx={{ mt: 1 }}>
                 <Grid item xs={6}>
                   <QuickActionCard
-                    title="Portail Étudiant"
-                    description="Accès étudiants"
+                    title="Portail Apprenant/Famille"
+                    description="Accès étudiant"
                     icon={<PeopleIcon />}
                     color="primary"
-                    onClick={() => navigate('/superieur/portail-etudiant')}
+                    onClick={() => navigate('/superieur/portail-apprenant')}
                   />
                 </Grid>
                 <Grid item xs={6}>
                   <QuickActionCard
-                    title="Portail Enseignant"
-                    description="Accès professeurs"
+                    title="Portail Staff/Admin"
+                    description="Accès personnel et administration"
                     icon={<SchoolIcon />}
                     color="secondary"
-                    onClick={() => navigate('/superieur/portail-enseignant')}
-                  />
-                </Grid>
-                <Grid item xs={6}>
-                  <QuickActionCard
-                    title="Portail Scolarité"
-                    description="Gestion administrative"
-                    icon={<AssignmentIcon />}
-                    color="success"
-                    onClick={() => navigate('/superieur/portail-scolarite')}
-                  />
-                </Grid>
-                <Grid item xs={6}>
-                  <QuickActionCard
-                    title="Portail Doyen"
-                    description="Direction faculté"
-                    icon={<SchoolIcon />}
-                    color="warning"
-                    onClick={() => navigate('/superieur/portail-doyen')}
+                    onClick={() => navigate('/superieur/portail-staff')}
                   />
                 </Grid>
               </Grid>

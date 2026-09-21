@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from apps.notes.api import BulletinsViewSet as _BulletinsViewSet
 
 from .models import AppreciationMatiere
 from .serializers import AppreciationMatiereCreateSerializer, AppreciationMatiereSerializer
@@ -63,6 +64,10 @@ class AppreciationsMatiereViewSet(viewsets.ModelViewSet):
         )
         serializer = AppreciationMatiereSerializer(appreciations, many=True)
         return Response(serializer.data)
+
+
+class BulletinsViewSet(_BulletinsViewSet):
+    """Compatibility viewset aligned with active notes bulletins."""
 
     @action(detail=False, methods=["get"])
     def par_classe(self, request):

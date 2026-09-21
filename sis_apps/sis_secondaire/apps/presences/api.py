@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import request_has_business_access, user_has_any_role
 
 from .models import Appel, Justificatif, Presence
 from .serializers import (
@@ -27,14 +28,11 @@ class IsEnseignantOrVieScolarite(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "enseignant",
-            "vie_scolaire",
-            "cpe",
-            "directeur",
-            "proviseur",
-            "principal",
+        return request_has_business_access(
+            request,
+            "presences.change_appel",
+            ("enseignant", "vie_scolaire", "cpe", "directeur", "proviseur", "principal"),
+            tenant_group_codes=("attendance_manager_secondary",),
         )
 
 
@@ -49,12 +47,19 @@ class AppelsViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Appel.objects.select_related("creneau", "enseignant__user")
-        # Un enseignant ne voit que ses appels
         user = self.request.user
-        if not user.is_staff and getattr(user, "role", "") == "enseignant":
+        if not user.is_staff and user_has_any_role(user, ("enseignant",)):
             if hasattr(user, "personnel_profile"):
-                qs = qs.filter(enseignant=user.personnel_profile)
-        return qs
+                return qs.filter(enseignant=user.personnel_profile)
+            return qs.none()
+        if request_has_business_access(
+            self.request,
+            "presences.view_appel",
+            ("vie_scolaire", "cpe", "directeur", "proviseur", "principal"),
+            tenant_group_codes=("attendance_manager_secondary",),
+        ):
+            return qs
+        return qs.none()
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -155,19 +160,28 @@ class PresencesViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Presence.objects.select_related("appel", "eleve__user")
         user = self.request.user
-        # Un élève ne voit que ses propres présences
         if hasattr(user, "eleve_profile"):
-            if not user.is_staff and getattr(user, "role", "") == "eleve":
-                qs = qs.filter(eleve__user=user)
-        # Un parent ne voit que les présences de ses enfants
+            if not user.is_staff and user_has_any_role(user, ("eleve",)):
+                return qs.filter(eleve__user=user)
         if hasattr(user, "tuteur_profile"):
             from apps.eleves.models import EleveTuteur
 
             eleves_ids = EleveTuteur.objects.filter(
                 tuteur=user.tuteur_profile, autorise_acces_portail=True
             ).values_list("eleve_id", flat=True)
-            qs = qs.filter(eleve_id__in=eleves_ids)
-        return qs
+            return qs.filter(eleve_id__in=eleves_ids)
+        if not user.is_staff and user_has_any_role(user, ("enseignant",)):
+            if hasattr(user, "personnel_profile"):
+                return qs.filter(appel__enseignant=user.personnel_profile)
+            return qs.none()
+        if request_has_business_access(
+            self.request,
+            "presences.view_presence",
+            ("vie_scolaire", "cpe", "directeur", "proviseur", "principal"),
+            tenant_group_codes=("attendance_manager_secondary",),
+        ):
+            return qs
+        return qs.none()
 
 
 class JustificatifsViewSet(viewsets.ModelViewSet):
@@ -180,9 +194,31 @@ class JustificatifsViewSet(viewsets.ModelViewSet):
     ordering = ["-date_depot"]
 
     def get_queryset(self):
-        return Justificatif.objects.select_related(
+        qs = Justificatif.objects.select_related(
             "presence__eleve__user", "presence__appel", "valide_par__user"
         )
+        user = self.request.user
+        if hasattr(user, "eleve_profile") and not user.is_staff and user_has_any_role(user, ("eleve",)):
+            return qs.filter(presence__eleve__user=user)
+        if hasattr(user, "tuteur_profile"):
+            from apps.eleves.models import EleveTuteur
+
+            eleves_ids = EleveTuteur.objects.filter(
+                tuteur=user.tuteur_profile, autorise_acces_portail=True
+            ).values_list("eleve_id", flat=True)
+            return qs.filter(presence__eleve_id__in=eleves_ids)
+        if not user.is_staff and user_has_any_role(user, ("enseignant",)):
+            if hasattr(user, "personnel_profile"):
+                return qs.filter(presence__appel__enseignant=user.personnel_profile)
+            return qs.none()
+        if request_has_business_access(
+            self.request,
+            "presences.view_justificatif",
+            ("vie_scolaire", "cpe", "directeur", "proviseur", "principal"),
+            tenant_group_codes=("attendance_manager_secondary",),
+        ):
+            return qs
+        return qs.none()
 
     @action(detail=True, methods=["post"])
     def accepter(self, request, pk=None):

@@ -37,6 +37,7 @@ class SessionExamen(models.Model):
     nom = models.CharField(max_length=200)
     date_debut = models.DateField()
     date_fin = models.DateField()
+    cloturee = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -61,6 +62,8 @@ class EpreuveExamen(models.Model):
     date = models.DateField()
     heure_debut = models.TimeField()
     duree_minutes = models.PositiveIntegerField()
+    debut_soumission = models.DateTimeField(null=True, blank=True)
+    fin_soumission = models.DateTimeField(null=True, blank=True)
     salle_principale = models.ForeignKey(
         Salle,
         on_delete=models.SET_NULL,
@@ -124,6 +127,20 @@ class ConvocationExamen(models.Model):
 class ResultatExamen(models.Model):
     """Résultat d'un élève à une épreuve."""
 
+    STATUT_CHOICES = [
+        ("draft", "Brouillon"),
+        ("submitted", "Soumis"),
+        ("verified", "Vérifié"),
+        ("validated", "Validé"),
+        ("published", "Publié"),
+        ("reopened", "Réouvert"),
+        ("closed", "Clôturé"),
+    ]
+    TYPE_RESULTAT_CHOICES = [
+        ("normal", "Ordinaire"),
+        ("retake", "Rattrapage"),
+    ]
+
     epreuve = models.ForeignKey(
         EpreuveExamen, on_delete=models.CASCADE, related_name="resultats"
     )
@@ -133,14 +150,70 @@ class ResultatExamen(models.Model):
     note = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     appreciation = models.TextField(blank=True)
     numero_anonyme = models.CharField(max_length=20, blank=True)
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="draft")
+    type_resultat = models.CharField(
+        max_length=20, choices=TYPE_RESULTAT_CHOICES, default="normal"
+    )
     admis = models.BooleanField(default=False)
     mention = models.CharField(max_length=30, blank=True)
+    saisi_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resultats_examens_saisis",
+    )
+    saisi_le = models.DateTimeField(null=True, blank=True)
+    verifie_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resultats_examens_verifies",
+    )
+    verifie_le = models.DateTimeField(null=True, blank=True)
+    valide_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resultats_examens_valides",
+    )
+    valide_le = models.DateTimeField(null=True, blank=True)
+    publie_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resultats_examens_publies",
+    )
+    publie_le = models.DateTimeField(null=True, blank=True)
+    reouvert_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resultats_examens_reouverts",
+    )
+    reouvert_le = models.DateTimeField(null=True, blank=True)
+    cloture_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resultats_examens_clotures",
+    )
+    cloture_le = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
 
     class Meta:
         unique_together = [("epreuve", "eleve")]
         verbose_name = "Résultat d'examen"
         verbose_name_plural = "Résultats d'examen"
+        indexes = [
+            models.Index(fields=["statut", "type_resultat"]),
+        ]
 
     def __str__(self):
         return f"{self.eleve} - {self.epreuve} : {self.note}"

@@ -48,3 +48,20 @@ class NotesModelTestCase(SimpleTestCase):
         )
 
         self.assertEqual(result["motifs"], ["critere:assiduite"])
+
+    def test_validation_rule_applies_tenant_policy_thresholds_and_financial_clearance(self):
+        rule = RegleValidation(seuil_moyenne=Decimal("10"), credits_minimum=Decimal("0"))
+
+        result = rule.evaluer(
+            moyenne=Decimal("11"),
+            donnees={"financial_clearance": False},
+            policy={
+                "thresholds": {"seuil_moyenne": Decimal("12")},
+                "publication": {"requires_financial_clearance": True},
+            },
+        )
+
+        self.assertEqual(
+            result["motifs"],
+            ["moyenne_insuffisante", "financial_clearance_required"],
+        )

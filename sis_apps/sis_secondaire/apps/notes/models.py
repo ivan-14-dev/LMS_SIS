@@ -30,6 +30,8 @@ class Evaluation(models.Model):
     date = models.DateField()
     heure_debut = models.TimeField(null=True, blank=True)
     duree_minutes = models.PositiveIntegerField(null=True, blank=True)
+    debut_soumission = models.DateTimeField(null=True, blank=True)
+    fin_soumission = models.DateTimeField(null=True, blank=True)
     bareme = models.DecimalField(max_digits=5, decimal_places=2, default=20)
     coefficient = models.DecimalField(max_digits=4, decimal_places=2, default=1)
     ponderation = models.DecimalField(
@@ -41,6 +43,13 @@ class Evaluation(models.Model):
     )
     periode = models.ForeignKey(Periode, on_delete=models.PROTECT, related_name="evaluations")
     enseignant = models.ForeignKey(Personnel, on_delete=models.PROTECT, related_name="evaluations")
+    eleve_cible = models.ForeignKey(
+        Eleve,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="evaluations_individualisees",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,6 +58,7 @@ class Evaluation(models.Model):
         indexes = [
             models.Index(fields=["classe", "date"]),
             models.Index(fields=["matiere", "date"]),
+            models.Index(fields=["eleve_cible", "date"]),
         ]
 
     def __str__(self):
@@ -182,15 +192,26 @@ class RegleValidation(models.Model):
         matieres_echouees=0,
         note_minimale=None,
         donnees=None,
+        policy=None,
     ):
+        donnees = donnees or {}
+        thresholds = (policy or {}).get("thresholds", {})
+        publication = (policy or {}).get("publication", {})
+        seuil_moyenne = thresholds.get("seuil_moyenne", self.seuil_moyenne)
+        credits_minimum = thresholds.get("credits_minimum", self.credits_minimum)
+        max_matieres_echouees = thresholds.get("max_matieres_echouees", self.max_matieres_echouees)
+        note_eliminatoire = thresholds.get("note_eliminatoire", self.note_eliminatoire)
+        criteres = {**self.criteres, **(policy or {}).get("criteria", {})}
         motifs = []
-        if moyenne < self.seuil_moyenne:
+        if moyenne < seuil_moyenne:
             motifs.append("moyenne_insuffisante")
-        if credits < self.credits_minimum:
+        if credits < credits_minimum:
             motifs.append("credits_insuffisants")
-        if self.max_matieres_echouees is not None and matieres_echouees > self.max_matieres_echouees:
+        if max_matieres_echouees is not None and matieres_echouees > max_matieres_echouees:
             motifs.append("trop_de_matieres_echouees")
-        if self.note_eliminatoire is not None and note_minimale is not None and note_minimale < self.note_eliminatoire:
+        if note_eliminatoire is not None and note_minimale is not None and note_minimale < note_eliminatoire:
             motifs.append("note_eliminatoire")
-        motifs.extend(evaluate_rule_criteria(self.criteres, donnees))
+        motifs.extend(evaluate_rule_criteria(criteres, donnees))
+        if publication.get("requires_financial_clearance") and not donnees.get("financial_clearance", False):
+            motifs.append("financial_clearance_required")
         return {"reussi": not motifs, "motifs": motifs}

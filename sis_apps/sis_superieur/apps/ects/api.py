@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import request_has_business_access
 
 from .models import BilanECTS
 from .serializers import BilanECTSSerializer
@@ -20,11 +21,11 @@ class IsScolariteOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "scolarite",
-            "responsable_formation",
-            "doyen",
+        return request_has_business_access(
+            request,
+            "ects.change_bilanects",
+            ("scolarite", "responsable_formation", "doyen"),
+            tenant_group_codes=("ects_manager_superieur",),
         )
 
 

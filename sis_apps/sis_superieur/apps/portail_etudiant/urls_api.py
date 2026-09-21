@@ -1,7 +1,12 @@
 """URLs API for portail_etudiant."""
 
+from rest_framework.routers import DefaultRouter
+
+from .api import PortailEtudiantViewSet
+
 app_name = "portail_etudiant_api"
 
-urlpatterns = [
-    # path("", api.PortailEtudiantViewSet.as_view({"get": "list", "post": "create"}), name="list"),
-]
+router = DefaultRouter()
+router.register("", PortailEtudiantViewSet, basename="portail-etudiant")
+
+urlpatterns = router.urls

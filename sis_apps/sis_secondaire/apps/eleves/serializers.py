@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from .models import Eleve, EleveTuteur, Inscription, Tuteur
+from .models import AffectationMatiereIndividuelle, Eleve, EleveTuteur, Inscription, Tuteur
 
 
 class EleveListSerializer(serializers.ModelSerializer):
@@ -232,3 +232,72 @@ class EleveTuteurSerializer(serializers.ModelSerializer):
             "est_contact_urgence",
             "autorise_acces_portail",
         ]
+
+
+class AffectationMatiereIndividuelleSerializer(serializers.ModelSerializer):
+    """Serializer pour les matières individualisées d'un élève."""
+
+    annee_libelle = serializers.CharField(source="annee_scolaire.libelle", read_only=True)
+    matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
+    matiere_code = serializers.CharField(source="matiere.code", read_only=True)
+    programme_source_classe = serializers.CharField(
+        source="programme_source.classe.nom", read_only=True
+    )
+    enseignant_principal_nom = serializers.CharField(
+        source="enseignant_principal.get_full_name", read_only=True
+    )
+
+    class Meta:
+        model = AffectationMatiereIndividuelle
+        fields = [
+            "id",
+            "eleve",
+            "annee_scolaire",
+            "annee_libelle",
+            "matiere",
+            "matiere_nom",
+            "matiere_code",
+            "programme_source",
+            "programme_source_classe",
+            "coefficient",
+            "credits",
+            "heures_semaine",
+            "obligatoire",
+            "enseignant_principal",
+            "enseignant_principal_nom",
+            "enseignants",
+            "commentaire",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "eleve", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        eleve = self.context.get("eleve") or getattr(self.instance, "eleve", None)
+        programme_source = attrs.get("programme_source") or getattr(
+            self.instance, "programme_source", None
+        )
+        matiere = attrs.get("matiere") or getattr(self.instance, "matiere", None)
+        annee_scolaire = attrs.get("annee_scolaire") or getattr(
+            self.instance, "annee_scolaire", None
+        )
+
+        if programme_source:
+            if matiere and programme_source.matiere_id != matiere.id:
+                raise serializers.ValidationError(
+                    {"matiere": "La matière doit correspondre au programme source."}
+                )
+            attrs.setdefault("matiere", programme_source.matiere)
+            attrs.setdefault("annee_scolaire", programme_source.classe.annee_scolaire)
+            attrs.setdefault("coefficient", programme_source.coefficient)
+            attrs.setdefault("credits", programme_source.credits)
+            attrs.setdefault("heures_semaine", programme_source.heures_semaine)
+            attrs.setdefault("enseignant_principal", programme_source.enseignant_principal)
+        elif annee_scolaire is None and eleve and eleve.classe_actuelle_id:
+            attrs["annee_scolaire"] = eleve.classe_actuelle.annee_scolaire
+
+        if attrs.get("annee_scolaire") is None:
+            raise serializers.ValidationError(
+                {"annee_scolaire": "L'année scolaire est obligatoire pour cette affectation."}
+            )
+        return attrs

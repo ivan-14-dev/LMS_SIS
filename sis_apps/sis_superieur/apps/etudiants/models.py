@@ -177,6 +177,41 @@ class InscriptionPedagogique(models.Model):
         return f"IP {self.inscription_admin.etudiant} - {self.semestre}"
 
 
+class AffectationECUEIndividuelle(models.Model):
+    """Affectation personnalisée d'un ECUE à un étudiant pour un semestre cible."""
+
+    inscription_admin = models.ForeignKey(
+        InscriptionAdministrative,
+        on_delete=models.CASCADE,
+        related_name="affectations_ecue_individuelles",
+    )
+    semestre_cible = models.ForeignKey(
+        "etablissement.Semestre",
+        on_delete=models.PROTECT,
+        related_name="affectations_ecue_individuelles",
+    )
+    ecue = models.ForeignKey(
+        "ue_ecue.ECUE",
+        on_delete=models.PROTECT,
+        related_name="affectations_etudiant_individuelles",
+    )
+    obligatoire = models.BooleanField(default=True)
+    groupe_td = models.CharField(max_length=20, blank=True)
+    groupe_tp = models.CharField(max_length=20, blank=True)
+    commentaire = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("inscription_admin", "semestre_cible", "ecue")]
+        ordering = ["semestre_cible__annee_universitaire", "semestre_cible__numero", "ecue__code"]
+        verbose_name = "Affectation ECUE individuelle"
+        verbose_name_plural = "Affectations ECUE individuelles"
+
+    def __str__(self):
+        return f"{self.inscription_admin.etudiant} - {self.ecue} → {self.semestre_cible}"
+
+
 class AcquisitionECTS(models.Model):
     """Acquisition des crédits ECTS pour un étudiant."""
 

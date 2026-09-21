@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import request_has_business_access
 
 from .models import DossierMedical, StockMedicament, VisiteInfirmerie
 from .serializers import (
@@ -24,14 +25,11 @@ class IsInfirmierOrReadRestricted(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        user = request.user
-        # Seuls les infirmiers et la direction ont accès
-        return user.is_staff or getattr(user, "role", "") in (
-            "infirmier",
-            "medecin",
-            "directeur",
-            "proviseur",
-            "principal",
+        return request_has_business_access(
+            request,
+            "infirmerie.change_dossiermedical",
+            ("infirmier", "medecin", "directeur", "proviseur", "principal"),
+            tenant_group_codes=("health_manager_secondary",),
         )
 
 

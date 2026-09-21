@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import request_has_business_access
 
 from .models import JuryMemoire, Memoire, SujetMemoire
 from .serializers import (
@@ -26,11 +27,14 @@ class IsEnseignantOrScolarite(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
         return (
-            user.is_staff
-            or hasattr(user, "personnel_profile")
-            or getattr(user, "role", "") in ("scolarite", "responsable_formation")
+            request_has_business_access(
+                request,
+                "memoires.change_memoire",
+                ("scolarite", "responsable_formation"),
+                tenant_group_codes=("memoire_manager_superieur",),
+            )
+            or hasattr(request.user, "personnel_profile")
         )
 
 

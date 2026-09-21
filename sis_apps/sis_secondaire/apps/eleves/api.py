@@ -7,9 +7,11 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import request_has_business_access
 
-from .models import Eleve, EleveTuteur, Inscription, Tuteur
+from .models import AffectationMatiereIndividuelle, Eleve, EleveTuteur, Inscription, Tuteur
 from .serializers import (
+    AffectationMatiereIndividuelleSerializer,
     EleveCreateSerializer,
     EleveDetailSerializer,
     EleveListSerializer,
@@ -27,13 +29,11 @@ class IsVieScolariteOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "vie_scolaire",
-            "directeur",
-            "proviseur",
-            "principal",
-            "cpe",
+        return request_has_business_access(
+            request,
+            "eleves.change_eleve",
+            ("vie_scolaire", "directeur", "proviseur", "principal", "cpe"),
+            tenant_group_codes=("student_manager_secondary",),
         )
 
 
@@ -162,6 +162,42 @@ class ElevesViewSet(viewsets.ModelViewSet):
                 "detail": f"Élève transféré vers {nouvelle_classe.nom}.",
             }
         )
+
+    @action(detail=True, methods=["get", "post"])
+    def matieres_individuelles(self, request, pk=None):
+        """Liste ou crée des matières individualisées pour un élève."""
+        eleve = self.get_object()
+        if request.method == "GET":
+            affectations = eleve.affectations_matiere_individuelles.select_related(
+                "annee_scolaire",
+                "matiere",
+                "programme_source__classe",
+                "enseignant_principal",
+            ).prefetch_related("enseignants")
+            serializer = AffectationMatiereIndividuelleSerializer(affectations, many=True)
+            return Response(serializer.data)
+
+        serializer = AffectationMatiereIndividuelleSerializer(
+            data=request.data,
+            context={"request": request, "eleve": eleve},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save(eleve=eleve)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def retirer_matiere_individuelle(self, request, pk=None):
+        """Retire une matière individualisée d'un élève."""
+        eleve = self.get_object()
+        affectation_id = request.data.get("affectation_id")
+        affectation = eleve.affectations_matiere_individuelles.filter(id=affectation_id).first()
+        if affectation is None:
+            return Response(
+                {"error": "Affectation individuelle introuvable."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        affectation.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class InscriptionsViewSet(viewsets.ModelViewSet):

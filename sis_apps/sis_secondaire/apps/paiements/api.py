@@ -3,6 +3,7 @@
 import uuid
 from pathlib import Path
 
+from apps.core.serializers import WorkflowEventSerializer
 from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import FileResponse
@@ -13,7 +14,10 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from sis_common.authorization import has_business_permission_or_role
+from sis_common.academic_configuration import resolve_financial_workflow, workflow_transition_allowed
+from sis_common.authorization import has_business_permission_or_role, user_has_any_role
+from sis_common.reporting import configured_report, export_queryset
+from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import Facture, Paiement, TypeFrais
 from .serializers import (
@@ -23,6 +27,68 @@ from .serializers import (
     PaiementSerializer,
     TypeFraisSerializer,
 )
+
+INVOICE_REPORT_FIELDS = {
+    "numero": ("Numéro facture", "numero"),
+    "eleve": ("Élève", "eleve__user__last_name"),
+    "matricule": ("Matricule", "eleve__matricule"),
+    "rubrique": ("Rubrique", "type_frais__libelle"),
+    "annee": ("Année", "type_frais__annee_scolaire__libelle"),
+    "statut": ("Statut", "statut"),
+    "montant": ("Montant", "montant"),
+    "montant_paye": ("Montant payé", "montant_paye"),
+    "date_emission": ("Date émission", "date_emission"),
+    "date_echeance": ("Date échéance", "date_echeance"),
+}
+INVOICE_REPORT_FILTERS = {
+    "annee": "type_frais__annee_scolaire_id",
+    "rubrique": "type_frais_id",
+    "eleve": "eleve_id",
+    "statut": "statut",
+}
+INVOICE_REPORT_GROUPS = {
+    "annee": "type_frais__annee_scolaire__libelle",
+    "rubrique": "type_frais__libelle",
+    "statut": "statut",
+}
+
+PAYMENT_REPORT_FIELDS = {
+    "numero": ("Numéro paiement", "numero"),
+    "facture": ("Numéro facture", "facture__numero"),
+    "eleve": ("Élève", "facture__eleve__user__last_name"),
+    "matricule": ("Matricule", "facture__eleve__matricule"),
+    "rubrique": ("Rubrique", "facture__type_frais__libelle"),
+    "annee": ("Année", "facture__type_frais__annee_scolaire__libelle"),
+    "mode": ("Mode", "mode"),
+    "statut": ("Statut", "statut"),
+    "montant": ("Montant", "montant"),
+    "date_paiement": ("Date paiement", "date_paiement"),
+    "reference_externe": ("Référence externe", "reference_externe"),
+}
+PAYMENT_REPORT_FILTERS = {
+    "annee": "facture__type_frais__annee_scolaire_id",
+    "rubrique": "facture__type_frais_id",
+    "facture": "facture_id",
+    "mode": "mode",
+    "statut": "statut",
+}
+PAYMENT_REPORT_GROUPS = {
+    "annee": "facture__type_frais__annee_scolaire__libelle",
+    "rubrique": "facture__type_frais__libelle",
+    "mode": "mode",
+    "statut": "statut",
+}
+
+
+def _secondary_finance_recipients(request, eleve):
+    recipients = []
+    user = getattr(eleve, "user", None)
+    if user is not None:
+        recipients.append(user)
+    actor = getattr(request, "user", None)
+    if getattr(actor, "is_authenticated", False) and actor not in recipients:
+        recipients.append(actor)
+    return recipients
 
 
 class IsIntendanceOrReadOnly(IsAuthenticated):
@@ -48,6 +114,8 @@ class IsIntendanceOrReadOnly(IsAuthenticated):
                 "comptable",
                 "personnel_administratif",
             ),
+            configuration=getattr(request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("finance_manager_secondary",),
         )
 
 
@@ -62,6 +130,8 @@ class IsFinanceManager(IsAuthenticated):
                 "comptable",
                 "personnel_administratif",
             ),
+            configuration=getattr(request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("finance_manager_secondary",),
         )
 
 
@@ -95,9 +165,9 @@ class FacturesViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if IsFinanceManager().has_permission(self.request, self):
             return queryset
-        if getattr(user, "role", "") == "eleve":
+        if user_has_any_role(user, ("eleve",)):
             return queryset.filter(eleve__user=user)
-        if getattr(user, "role", "") == "parent":
+        if user_has_any_role(user, ("parent",)):
             return queryset.filter(
                 eleve__tuteurs_lies__tuteur__user=user,
                 eleve__tuteurs_lies__autorise_acces_portail=True,
@@ -129,7 +199,27 @@ class FacturesViewSet(viewsets.ModelViewSet):
             return Response({"error": "Facture déjà payée."}, status=400)
         facture.statut = "annulee"
         facture.save(update_fields=["statut"])
+        record_workflow_event(
+            request,
+            facture,
+            "annulation",
+            "Facture annulée",
+            message=f"La facture {facture.numero} a été annulée.",
+            recipients=_secondary_finance_recipients(request, facture.eleve),
+            metadata={
+                "facture_id": facture.id,
+                "eleve_id": facture.eleve_id,
+                "type_frais_id": facture.type_frais_id,
+            },
+        )
         return Response({"detail": "Facture annulée.", "id": facture.id})
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow de la facture."""
+        facture = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(facture), many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=["get"])
     def statistiques(self, request):
@@ -148,6 +238,45 @@ class FacturesViewSet(viewsets.ModelViewSet):
                 "montant_restant": (total["montant_total"] or 0) - (total["montant_paye"] or 0),
                 "par_statut": dict(qs.values_list("statut").annotate(count=Count("id"))),
             }
+        )
+
+    @action(detail=False, methods=["get"])
+    def bilan(self, request):
+        group_by = request.query_params.get("group_by", "rubrique")
+        group_field = INVOICE_REPORT_GROUPS.get(group_by)
+        if not group_field:
+            return Response(
+                {"group_by": f"Valeurs acceptées: {', '.join(INVOICE_REPORT_GROUPS)}."},
+                status=400,
+            )
+        rows = (
+            self.filter_queryset(self.get_queryset())
+            .values(group_field)
+            .annotate(nombre=Count("id"), montant_total=Sum("montant"), montant_paye=Sum("montant_paye"))
+            .order_by(group_field)
+        )
+        return Response(
+            [
+                {
+                    "groupe": row[group_field],
+                    "nombre": row["nombre"],
+                    "montant_total": row["montant_total"] or 0,
+                    "montant_paye": row["montant_paye"] or 0,
+                }
+                for row in rows
+            ]
+        )
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"financial_invoices"})
+        return export_queryset(
+            request,
+            self.filter_queryset(self.get_queryset()),
+            report,
+            INVOICE_REPORT_FIELDS,
+            INVOICE_REPORT_FILTERS,
+            request.data.get("filters", {}),
         )
 
 
@@ -177,9 +306,9 @@ class PaiementsViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if IsFinanceManager().has_permission(self.request, self):
             return queryset
-        if getattr(user, "role", "") == "eleve":
+        if user_has_any_role(user, ("eleve",)):
             return queryset.filter(facture__eleve__user=user)
-        if getattr(user, "role", "") == "parent":
+        if user_has_any_role(user, ("parent",)):
             return queryset.filter(
                 facture__eleve__tuteurs_lies__tuteur__user=user,
                 facture__eleve__tuteurs_lies__autorise_acces_portail=True,
@@ -195,6 +324,16 @@ class PaiementsViewSet(viewsets.ModelViewSet):
         numero = f"PAY-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
         paiement = serializer.save(numero=numero, enregistre_par=self.request.user, statut="en_attente")
         return paiement
+
+    def _workflow_for_facture(self, facture):
+        return resolve_financial_workflow(
+            getattr(self.request.tenant, "configuration_academique", {}),
+            [
+                {"scope": "payment_rubric", "context": {"payment_rubric_id": facture.type_frais_id}},
+                {"scope": "academic_year", "context": {"academic_year_id": facture.type_frais.annee_scolaire_id}},
+                {"scope": "tenant", "context": {"tenant_id": getattr(self.request.tenant, "id", None)}},
+            ],
+        )
 
     @action(detail=True, methods=["get"])
     def justificatif(self, request, pk=None):
@@ -212,8 +351,11 @@ class PaiementsViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             paiement = Paiement.objects.select_for_update().get(pk=self.get_object().pk)
             facture = Facture.objects.select_for_update().get(pk=paiement.facture_id)
+            workflow = self._workflow_for_facture(facture)
             if paiement.statut != "en_attente":
                 return Response({"error": "Ce paiement a déjà été traité."}, status=409)
+            if not workflow_transition_allowed(workflow, "valider", paiement.statut, "valide"):
+                return Response({"error": "Transition non autorisée par le workflow financier."}, status=409)
             reste = facture.montant - facture.montant_paye
             if paiement.montant > reste:
                 return Response({"error": "Le paiement dépasse le solde de la facture."}, status=409)
@@ -225,6 +367,20 @@ class PaiementsViewSet(viewsets.ModelViewSet):
             facture.montant_paye += paiement.montant
             facture.statut = "payee" if facture.montant_paye >= facture.montant else "partielle"
             facture.save(update_fields=["montant_paye", "statut", "updated_at"])
+        record_workflow_event(
+            request,
+            paiement,
+            "validation",
+            "Paiement validé",
+            message=f"Le paiement {paiement.numero} a été validé pour la facture {facture.numero}.",
+            recipients=_secondary_finance_recipients(request, facture.eleve),
+            metadata={
+                "paiement_id": paiement.id,
+                "facture_id": facture.id,
+                "eleve_id": facture.eleve_id,
+                "statut_facture": facture.statut,
+            },
+        )
         return Response(PaiementSerializer(paiement).data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsFinanceManager])
@@ -234,6 +390,9 @@ class PaiementsViewSet(viewsets.ModelViewSet):
             if paiement.statut != "valide":
                 return Response({"error": "Ce paiement ne peut pas être remboursé."}, status=409)
             facture = Facture.objects.select_for_update().get(pk=paiement.facture_id)
+            workflow = self._workflow_for_facture(facture)
+            if not workflow_transition_allowed(workflow, "rembourser", paiement.statut, "rembourse"):
+                return Response({"error": "Transition non autorisée par le workflow financier."}, status=409)
             paiement.statut = "rembourse"
             paiement.verifie_par = request.user
             paiement.verifie_le = timezone.now()
@@ -241,6 +400,20 @@ class PaiementsViewSet(viewsets.ModelViewSet):
             facture.montant_paye = max(facture.montant_paye - paiement.montant, 0)
             facture.statut = "emise" if facture.montant_paye <= 0 else "partielle"
             facture.save(update_fields=["montant_paye", "statut", "updated_at"])
+        record_workflow_event(
+            request,
+            paiement,
+            "remboursement",
+            "Paiement remboursé",
+            message=f"Le paiement {paiement.numero} a été remboursé pour la facture {facture.numero}.",
+            recipients=_secondary_finance_recipients(request, facture.eleve),
+            metadata={
+                "paiement_id": paiement.id,
+                "facture_id": facture.id,
+                "eleve_id": facture.eleve_id,
+                "statut_facture": facture.statut,
+            },
+        )
         return Response(PaiementSerializer(paiement).data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsFinanceManager])
@@ -250,11 +423,73 @@ class PaiementsViewSet(viewsets.ModelViewSet):
             return Response({"motif": "Le motif est obligatoire."}, status=400)
         with transaction.atomic():
             paiement = Paiement.objects.select_for_update().get(pk=self.get_object().pk)
+            workflow = self._workflow_for_facture(paiement.facture)
             if paiement.statut != "en_attente":
                 return Response({"error": "Ce paiement a déjà été traité."}, status=409)
+            if not workflow_transition_allowed(workflow, "rejeter", paiement.statut, "rejete"):
+                return Response({"error": "Transition non autorisée par le workflow financier."}, status=409)
             paiement.statut = "rejete"
             paiement.verifie_par = request.user
             paiement.verifie_le = timezone.now()
             paiement.motif_rejet = motif
             paiement.save(update_fields=["statut", "verifie_par", "verifie_le", "motif_rejet"])
+        record_workflow_event(
+            request,
+            paiement,
+            "rejet",
+            "Paiement rejeté",
+            message=f"Le paiement {paiement.numero} a été rejeté pour la facture {paiement.facture.numero}.",
+            recipients=_secondary_finance_recipients(request, paiement.facture.eleve),
+            metadata={
+                "paiement_id": paiement.id,
+                "facture_id": paiement.facture_id,
+                "eleve_id": paiement.facture.eleve_id,
+                "motif_rejet": motif,
+            },
+        )
         return Response(PaiementSerializer(paiement).data)
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow du paiement."""
+        paiement = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(paiement), many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def bilan(self, request):
+        group_by = request.query_params.get("group_by", "statut")
+        group_field = PAYMENT_REPORT_GROUPS.get(group_by)
+        if not group_field:
+            return Response(
+                {"group_by": f"Valeurs acceptées: {', '.join(PAYMENT_REPORT_GROUPS)}."},
+                status=400,
+            )
+        rows = (
+            self.filter_queryset(self.get_queryset())
+            .values(group_field)
+            .annotate(nombre=Count("id"), montant_total=Sum("montant"))
+            .order_by(group_field)
+        )
+        return Response(
+            [
+                {
+                    "groupe": row[group_field],
+                    "nombre": row["nombre"],
+                    "montant_total": row["montant_total"] or 0,
+                }
+                for row in rows
+            ]
+        )
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"financial_payments"})
+        return export_queryset(
+            request,
+            self.filter_queryset(self.get_queryset()),
+            report,
+            PAYMENT_REPORT_FIELDS,
+            PAYMENT_REPORT_FILTERS,
+            request.data.get("filters", {}),
+        )

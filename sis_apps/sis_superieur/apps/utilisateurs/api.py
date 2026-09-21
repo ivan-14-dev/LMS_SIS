@@ -46,6 +46,8 @@ class CanManageUsers(IsAuthenticated):
                 "directeur_etudes",
                 "scolarite",
             ),
+            configuration=getattr(request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("academic_admin_superieur",),
         )
 
 
@@ -92,6 +94,8 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
                 "directeur_etudes",
                 "scolarite",
             ),
+            configuration=getattr(self.request.tenant, "configuration_academique", {}),
+            tenant_group_codes=("academic_admin_superieur",),
         )
         if not can_list:
             qs = qs.filter(pk=user.pk)
@@ -119,7 +123,12 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def capabilities(self, request):
-        return Response(permission_snapshot(request.user))
+        return Response(
+            permission_snapshot(
+                request.user,
+                getattr(request.tenant, "configuration_academique", {}),
+            )
+        )
 
     @action(detail=False, methods=["patch"])
     def update_profile(self, request):

@@ -61,6 +61,9 @@ class CessionDiplomeListSerializer(serializers.ModelSerializer):
             "date_obtention",
             "mention",
             "moyenne_finale",
+            "numero_serie",
+            "pdf_path",
+            "date_signature",
         ]
 
 

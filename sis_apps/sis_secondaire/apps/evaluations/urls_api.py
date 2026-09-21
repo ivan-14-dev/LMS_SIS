@@ -1,7 +1,12 @@
-"""URLs API for evaluations."""
+"""API URLs for evaluations."""
+
+from rest_framework.routers import DefaultRouter
+
+from .api import EvaluationsViewSet
 
 app_name = "evaluations_api"
 
-urlpatterns = [
-    # path("", api.EvaluationsViewSet.as_view({"get": "list", "post": "create"}), name="list"),
-]
+router = DefaultRouter()
+router.register("", EvaluationsViewSet, basename="evaluation")
+
+urlpatterns = router.urls

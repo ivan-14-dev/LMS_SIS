@@ -1,7 +1,9 @@
 """API views for examens (ViewSets DRF) - SIS Supérieur."""
 
+from datetime import timedelta
 from decimal import Decimal
 
+from apps.core.serializers import WorkflowEventSerializer
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import FileResponse
@@ -13,6 +15,21 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.academic_configuration import resolve_exam_result_workflow
+from sis_common.authorization import (
+    request_has_business_access,
+    user_has_any_role,
+    user_in_configured_groups,
+)
+from sis_common.reporting import configured_report, export_queryset
+from sis_common.spreadsheets import load_excel_rows, template_response
+from sis_common.submission_windows import (
+    apply_submission_window_defaults,
+    maybe_record_submission_window_alert,
+)
+from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
+
+from apps.etudiants.models import AffectationECUEIndividuelle, InscriptionPedagogique
 
 from .models import (
     AffectationCorrection,
@@ -21,6 +38,7 @@ from .models import (
     CopieExamen,
     CorrectionCopie,
     EpreuveExamen,
+    ResultatExamen,
     SessionExamen,
 )
 from .serializers import (
@@ -31,6 +49,7 @@ from .serializers import (
     CorrectionCopieSerializer,
     EpreuveExamenDetailSerializer,
     EpreuveExamenListSerializer,
+    ResultatExamenSerializer,
     SessionExamenSerializer,
 )
 
@@ -43,11 +62,11 @@ class IsScolariteOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "scolarite",
-            "directeur_etudes",
-            "doyen",
+        return request_has_business_access(
+            request,
+            "examens.change_sessionexamen",
+            ("scolarite", "directeur_etudes", "doyen"),
+            tenant_group_codes=("exam_manager_superieur",),
         )
 
 
@@ -57,10 +76,11 @@ class IsExamManager(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        return request.user.is_staff or getattr(request.user, "role", "") in (
-            "scolarite",
-            "directeur_etudes",
-            "doyen",
+        return request_has_business_access(
+            request,
+            "examens.view_convocationexamen",
+            ("scolarite", "directeur_etudes", "doyen"),
+            tenant_group_codes=("exam_manager_superieur",),
         )
 
 
@@ -70,13 +90,197 @@ class IsCorrectionParticipant(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        return request.user.is_staff or getattr(request.user, "role", "") in (
-            "scolarite",
-            "directeur_etudes",
-            "doyen",
-            "enseignant",
-            "chercheur",
+        return request_has_business_access(
+            request,
+            "examens.view_copieexamen",
+            ("scolarite", "directeur_etudes", "doyen", "enseignant", "chercheur"),
+            tenant_group_codes=("exam_manager_superieur",),
         )
+
+
+RESULT_EXPORT_FIELDS = {
+    "session": ("Session", "epreuve__session__numero"),
+    "formation": (
+        "Formation",
+        "etudiant__inscriptions_admin__formation__nom",
+    ),
+    "semestre": ("Semestre", "epreuve__session__semestre__numero"),
+    "ue": ("UE", "epreuve__ecue__ue__code"),
+    "ecue": ("ECUE", "epreuve__ecue__code"),
+    "matricule": ("Matricule", "etudiant__matricule"),
+    "etudiant": ("Étudiant", "etudiant__user__last_name"),
+    "note": ("Note", "note"),
+    "appreciation": ("Appréciation", "appreciation"),
+    "statut": ("Statut", "statut"),
+    "type_resultat": ("Type de résultat", "type_resultat"),
+    "admis": ("Admis", "admis"),
+    "mention": ("Mention", "mention"),
+    "publie_le": ("Publié le", "publie_le"),
+}
+
+RESULT_EXPORT_FILTERS = {
+    "annee": "epreuve__session__semestre__annee_universitaire_id",
+    "session": "epreuve__session_id",
+    "formation": "etudiant__inscriptions_admin__formation_id",
+    "semestre": "epreuve__session__semestre_id",
+    "ue": "epreuve__ecue__ue_id",
+    "ecue": "epreuve__ecue_id",
+    "statut": "statut",
+    "type_resultat": "type_resultat",
+}
+
+RESULT_IMPORT_COLUMNS = [
+    "epreuve_id",
+    "etudiant_matricule",
+    "note",
+    "appreciation",
+    "type_resultat",
+]
+
+
+def _exam_configuration(request):
+    return getattr(getattr(request, "tenant", None), "configuration_academique", {}) or {}
+
+
+def _exam_result_workflow(request, epreuve=None):
+    semestre = getattr(getattr(epreuve, "session", None), "semestre", None)
+    candidates = [
+        {"scope": "session", "context": {"session_id": getattr(getattr(epreuve, "session", None), "id", None)}},
+        {
+            "scope": "academic_year",
+            "context": {"academic_year_id": getattr(semestre, "annee_universitaire_id", None)},
+        },
+        {"scope": "tenant", "context": {"tenant_id": getattr(getattr(request, "tenant", None), "id", None)}},
+    ]
+    return resolve_exam_result_workflow(
+        _exam_configuration(request),
+        candidates,
+        variant="superieur",
+    ) or {}
+
+
+def _workflow_group_codes(workflow, key):
+    return tuple(workflow.get(key) or ("exam_manager_superieur",))
+
+
+def _configured_result_group_codes(configuration):
+    group_codes = {"exam_manager_superieur"}
+    for workflow in configuration.get("exam_result_workflows", []):
+        for key in (
+            "verification_group_codes",
+            "validation_group_codes",
+            "publication_group_codes",
+        ):
+            group_codes.update(workflow.get(key, []))
+    return tuple(sorted(group_codes))
+
+
+def _ensure_submission_window(obj, label="La période de soumission"):
+    now = timezone.now()
+    if getattr(obj, "debut_soumission", None) and now < obj.debut_soumission:
+        raise ValidationError({"workflow": f"{label} n'est pas encore ouverte."})
+    if getattr(obj, "fin_soumission", None) and now > obj.fin_soumission:
+        raise ValidationError({"workflow": f"{label} est expirée."})
+
+
+def _exam_notification_recipients(request):
+    actor = getattr(request, "user", None)
+    return [actor] if getattr(actor, "is_authenticated", False) else []
+
+
+def _ensure_workflow_access(request, workflow, key):
+    if request.user.is_staff or request.user.is_superuser:
+        return
+    configuration = _exam_configuration(request)
+    allowed = user_in_configured_groups(
+        request.user,
+        configuration=configuration,
+        group_codes=_workflow_group_codes(workflow, key),
+    ) or request_has_business_access(
+        request,
+        "examens.change_resultatexamen",
+        ("scolarite", "directeur_etudes", "doyen"),
+        tenant_group_codes=_workflow_group_codes(workflow, key),
+    )
+    if not allowed:
+        raise ValidationError({"workflow": "Vous n'êtes pas autorisé pour cette étape."})
+
+
+def _ensure_result_mutable(result, workflow):
+    if result.statut in ("validated", "published", "closed"):
+        raise ValidationError(
+            {"workflow": "Le résultat est verrouillé. Réouvrez-le explicitement avant modification."}
+        )
+    if result.statut == "reopened":
+        days = workflow.get("correction_window_days", 0)
+        if days and result.reouvert_le and timezone.now() > result.reouvert_le + timedelta(days=days):
+            raise ValidationError({"workflow": "La fenêtre de réouverture est expirée."})
+
+
+def _ensure_entry_allowed(epreuve, type_resultat, workflow):
+    session = epreuve.session
+    if session.cloturee or session.semestre.cloture or session.semestre.annee_universitaire.cloturee:
+        allow_retake = workflow.get("allow_retake_after_closure", False)
+        if not (allow_retake and type_resultat == "retake"):
+            raise ValidationError(
+                {"workflow": "La session, le semestre ou l'année est clôturé; seules les saisies de rattrapage autorisées restent possibles."}
+            )
+    _ensure_submission_window(epreuve, "La période de soumission des résultats")
+
+
+def _apply_result_outcome(result, pass_mark):
+    if result.note is None:
+        result.admis = False
+        result.mention = ""
+        return
+    result.admis = result.note >= pass_mark
+    if result.note >= Decimal("16"):
+        result.mention = "Très bien"
+    elif result.note >= Decimal("14"):
+        result.mention = "Bien"
+    elif result.note >= Decimal("12"):
+        result.mention = "Assez bien"
+    elif result.note >= pass_mark:
+        result.mention = "Passable"
+    else:
+        result.mention = ""
+
+
+def _set_result_status(result, statut, user, pass_mark):
+    now = timezone.now()
+    fields = ["statut", "updated_at"]
+    result.statut = statut
+    if statut == "submitted":
+        result.saisi_par = user
+        result.saisi_le = now
+        fields.extend(["saisi_par", "saisi_le"])
+    elif statut == "verified":
+        result.verifie_par = user
+        result.verifie_le = now
+        fields.extend(["verifie_par", "verifie_le"])
+    elif statut == "validated":
+        result.valide_par = user
+        result.valide_le = now
+        fields.extend(["valide_par", "valide_le"])
+    elif statut == "published":
+        result.publie_par = user
+        result.publie_le = now
+        _apply_result_outcome(result, pass_mark)
+        fields.extend(["publie_par", "publie_le", "admis", "mention"])
+    elif statut == "reopened":
+        result.reouvert_par = user
+        result.reouvert_le = now
+        fields.extend(["reouvert_par", "reouvert_le"])
+    elif statut == "closed":
+        result.cloture_par = user
+        result.cloture_le = now
+        fields.extend(["cloture_par", "cloture_le"])
+    result.save(update_fields=fields)
+
+
+def _pass_mark(request):
+    grading_scale = _exam_configuration(request).get("grading_scale", {})
+    return Decimal(str(grading_scale.get("pass_mark", 10)))
 
 
 class SessionsExamenViewSet(viewsets.ModelViewSet):
@@ -93,6 +297,42 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
         return SessionExamen.objects.select_related("semestre").annotate(
             nb_epreuves_count=Count("epreuves")
         )
+
+    def perform_create(self, serializer):
+        session = serializer.save()
+        record_workflow_event(
+            self.request,
+            session,
+            "creation",
+            "Session d'examen créée",
+            message=f"La session d'examen {session} a été créée.",
+            recipients=_exam_notification_recipients(self.request),
+            metadata={"semestre_id": session.semestre_id, "type": session.type},
+        )
+
+    def perform_update(self, serializer):
+        session = serializer.save()
+        record_workflow_event(
+            self.request,
+            session,
+            "mise_a_jour",
+            "Session d'examen mise à jour",
+            message=f"La session d'examen {session} a été mise à jour.",
+            recipients=_exam_notification_recipients(self.request),
+            metadata={"semestre_id": session.semestre_id, "type": session.type},
+        )
+
+    def perform_destroy(self, instance):
+        record_workflow_event(
+            self.request,
+            instance,
+            "suppression",
+            "Session d'examen supprimée",
+            message=f"La session d'examen {instance} a été supprimée.",
+            recipients=_exam_notification_recipients(self.request),
+            metadata={"semestre_id": instance.semestre_id, "type": instance.type},
+        )
+        instance.delete()
 
     @action(detail=True, methods=["get"])
     def epreuves(self, request, pk=None):
@@ -112,7 +352,35 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
             return Response({"error": "Session déjà clôturée."}, status=400)
         session.cloturee = True
         session.save(update_fields=["cloturee"])
+        record_workflow_event(
+            request,
+            session,
+            "cloture",
+            "Session d'examen clôturée",
+            message=f"La session d'examen {session} a été clôturée.",
+            recipients=_exam_notification_recipients(request),
+            metadata={"semestre_id": session.semestre_id, "type": session.type},
+        )
         return Response({"detail": "Session clôturée.", "id": session.id})
+
+    @action(detail=True, methods=["post"])
+    def reouvrir(self, request, pk=None):
+        """Rouvre la session."""
+        session = self.get_object()
+        if not session.cloturee:
+            return Response({"error": "Session déjà ouverte."}, status=400)
+        session.cloturee = False
+        session.save(update_fields=["cloturee"])
+        record_workflow_event(
+            request,
+            session,
+            "reouverture",
+            "Session d'examen rouverte",
+            message=f"La session d'examen {session} a été rouverte.",
+            recipients=_exam_notification_recipients(request),
+            metadata={"semestre_id": session.semestre_id, "type": session.type},
+        )
+        return Response({"detail": "Session rouverte.", "id": session.id})
 
     @action(detail=True, methods=["get"], permission_classes=[IsExamManager])
     def statistiques(self, request, pk=None):
@@ -140,6 +408,13 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
                 ),
             }
         )
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow de la session."""
+        session = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(session), many=True)
+        return Response(serializer.data)
 
 
 class EpreuvesExamenViewSet(viewsets.ModelViewSet):
@@ -169,6 +444,70 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
             return EpreuveExamenListSerializer
         return EpreuveExamenDetailSerializer
 
+    def perform_create(self, serializer):
+        epreuve = serializer.save()
+        changed_fields = apply_submission_window_defaults(
+            epreuve,
+            _exam_configuration(self.request),
+            "exam",
+        )
+        if changed_fields:
+            epreuve.save(update_fields=changed_fields)
+        record_workflow_event(
+            self.request,
+            epreuve,
+            "creation",
+            "Épreuve créée",
+            message=f"L'épreuve {epreuve} a été créée.",
+            recipients=_exam_notification_recipients(self.request),
+            metadata={"session_id": epreuve.session_id, "ecue_id": epreuve.ecue_id},
+        )
+        maybe_record_submission_window_alert(
+            self.request,
+            epreuve,
+            _exam_configuration(self.request),
+            "exam",
+            _exam_notification_recipients(self.request),
+        )
+
+    def perform_update(self, serializer):
+        epreuve = serializer.save()
+        changed_fields = apply_submission_window_defaults(
+            epreuve,
+            _exam_configuration(self.request),
+            "exam",
+        )
+        if changed_fields:
+            epreuve.save(update_fields=changed_fields)
+        record_workflow_event(
+            self.request,
+            epreuve,
+            "mise_a_jour",
+            "Épreuve mise à jour",
+            message=f"L'épreuve {epreuve} a été mise à jour.",
+            recipients=_exam_notification_recipients(self.request),
+            metadata={"session_id": epreuve.session_id, "ecue_id": epreuve.ecue_id},
+        )
+        maybe_record_submission_window_alert(
+            self.request,
+            epreuve,
+            _exam_configuration(self.request),
+            "exam",
+            _exam_notification_recipients(self.request),
+        )
+
+    def perform_destroy(self, instance):
+        record_workflow_event(
+            self.request,
+            instance,
+            "suppression",
+            "Épreuve supprimée",
+            message=f"L'épreuve {instance} a été supprimée.",
+            recipients=_exam_notification_recipients(self.request),
+            metadata={"session_id": instance.session_id, "ecue_id": instance.ecue_id},
+        )
+        instance.delete()
+
     @action(detail=True, methods=["get"], permission_classes=[IsExamManager])
     def convocations(self, request, pk=None):
         """Liste les convocations de l'épreuve."""
@@ -179,18 +518,44 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
         serializer = ConvocationExamenSerializer(convocations, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=["get"], permission_classes=[IsExamManager])
+    def resultats(self, request, pk=None):
+        """Liste les résultats de l'épreuve."""
+        epreuve = self.get_object()
+        resultats = epreuve.resultats.select_related("etudiant__user").order_by("-note")
+        serializer = ResultatExamenSerializer(resultats, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow de l'épreuve."""
+        epreuve = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(epreuve), many=True)
+        return Response(serializer.data)
+
     @action(detail=True, methods=["post"])
     def generer_convocations(self, request, pk=None):
         """Génère les convocations automatiquement."""
         epreuve = self.get_object()
         # Récupérer les étudiants inscrits à l'ECUE
-        from apps.etudiants.models import InscriptionPedagogique
-
         inscrits = list(
-            InscriptionPedagogique.objects.filter(ecues=epreuve.ecue)
-            .values_list("etudiant_id", flat=True)
+            InscriptionPedagogique.objects.filter(
+                semestre__annee_universitaire=epreuve.session.semestre.annee_universitaire,
+                statut="validee",
+            )
+            .filter(Q(ecues=epreuve.ecue) | Q(ues=epreuve.ecue.ue))
+            .values_list("inscription_admin__etudiant_id", flat=True)
             .distinct()
         )
+        inscrits.extend(
+            AffectationECUEIndividuelle.objects.filter(
+                inscription_admin__annee_universitaire=epreuve.session.semestre.annee_universitaire,
+                ecue=epreuve.ecue,
+            )
+            .values_list("inscription_admin__etudiant_id", flat=True)
+            .distinct()
+        )
+        inscrits = list(dict.fromkeys(inscrits))
         deja_convoques = set(
             epreuve.convocations.filter(etudiant_id__in=inscrits).values_list(
                 "etudiant_id", flat=True
@@ -260,13 +625,9 @@ class ConvocationsExamenViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = ConvocationExamen.objects.select_related("epreuve__ecue", "etudiant__user")
         user = self.request.user
-        if user.is_staff or getattr(user, "role", "") in (
-            "scolarite",
-            "directeur_etudes",
-            "doyen",
-        ):
+        if IsExamManager().has_permission(self.request, self):
             return qs
-        if getattr(user, "role", "") in ("etudiant", "doctorant"):
+        if user_has_any_role(user, ("etudiant", "doctorant")):
             return qs.filter(etudiant__user=user)
         return qs.none()
 
@@ -282,6 +643,245 @@ class ConvocationsExamenViewSet(viewsets.ModelViewSet):
         return Response(
             {"detail": f"Convocation mise à jour: {new_statut}", "id": convocation.id}
         )
+
+
+class ResultatsExamenViewSet(viewsets.ModelViewSet):
+    """ViewSet CRUD pour résultats d'examen."""
+
+    serializer_class = ResultatExamenSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ["epreuve", "etudiant", "admis", "statut", "type_resultat"]
+    ordering = ["-note"]
+
+    def get_permissions(self):
+        if self.action in {
+            "importer",
+            "modele_import",
+            "soumettre",
+            "verifier",
+            "valider",
+            "publier",
+            "reouvrir",
+            "cloturer",
+            "exporter",
+        }:
+            return [IsAuthenticated()]
+        return [IsScolariteOrReadOnly()]
+
+    def get_queryset(self):
+        qs = ResultatExamen.objects.select_related(
+            "epreuve__session__semestre__annee_universitaire",
+            "epreuve__ecue__ue",
+            "etudiant__user",
+        )
+        user = self.request.user
+        configuration = _exam_configuration(self.request)
+        if request_has_business_access(
+            self.request,
+            "examens.view_resultatexamen",
+            ("scolarite", "directeur_etudes", "doyen"),
+            tenant_group_codes=_configured_result_group_codes(configuration),
+        ):
+            return qs
+        if user_has_any_role(user, ("etudiant", "doctorant")):
+            return qs.filter(etudiant__user=user, statut="published")
+        return qs.none()
+
+    def perform_create(self, serializer):
+        epreuve = serializer.validated_data["epreuve"]
+        workflow = _exam_result_workflow(self.request, epreuve)
+        type_resultat = serializer.validated_data.get("type_resultat", "normal")
+        _ensure_entry_allowed(epreuve, type_resultat, workflow)
+        serializer.save(
+            saisi_par=self.request.user,
+            saisi_le=timezone.now(),
+            statut="draft",
+        )
+
+    def perform_update(self, serializer):
+        result = self.get_object()
+        workflow = _exam_result_workflow(self.request, result.epreuve)
+        _ensure_result_mutable(result, workflow)
+        type_resultat = serializer.validated_data.get("type_resultat", result.type_resultat)
+        _ensure_entry_allowed(result.epreuve, type_resultat, workflow)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        workflow = _exam_result_workflow(self.request, instance.epreuve)
+        _ensure_result_mutable(instance, workflow)
+        instance.delete()
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(
+            request,
+            request.data.get("report"),
+            allowed_datasets={"exam_results"},
+        )
+        return export_queryset(
+            request,
+            self.filter_queryset(self.get_queryset()),
+            report,
+            RESULT_EXPORT_FIELDS,
+            RESULT_EXPORT_FILTERS,
+            request.data.get("filters", {}),
+        )
+
+    @action(detail=False, methods=["get"])
+    def modele_import(self, request):
+        workflow = _exam_result_workflow(request)
+        _ensure_workflow_access(request, workflow, "verification_group_codes")
+        if "exam_grades" not in workflow.get("import_template_codes", ["exam_grades"]):
+            raise ValidationError({"workflow": "Le modèle d'import des notes d'examen n'est pas activé."})
+        return template_response(
+            RESULT_IMPORT_COLUMNS,
+            "modele-resultats-examen-superieur.xlsx",
+            sample_row=["123", "UNI-001", "14.5", "Bonne copie", "normal"],
+        )
+
+    @action(detail=False, methods=["post"])
+    def importer(self, request):
+        workflow = _exam_result_workflow(request)
+        _ensure_workflow_access(request, workflow, "verification_group_codes")
+        uploaded_file = request.FILES.get("file")
+        if uploaded_file is None:
+            raise ValidationError({"file": "Un fichier Excel est requis."})
+        rows = load_excel_rows(uploaded_file, RESULT_IMPORT_COLUMNS)
+        if not rows:
+            raise ValidationError({"file": "Le fichier ne contient aucune ligne exploitable."})
+        epreuve_ids = set()
+        for row in rows:
+            try:
+                epreuve_ids.add(int(row["epreuve_id"]))
+            except (TypeError, ValueError):
+                raise ValidationError(
+                    {"epreuve_id": f"Ligne {row['__row_number__']}: identifiant d'épreuve invalide."}
+                )
+        matricules = {str(row["etudiant_matricule"]).strip() for row in rows}
+        convocations = ConvocationExamen.objects.select_related(
+            "epreuve__session__semestre__annee_universitaire",
+            "etudiant",
+        ).filter(epreuve_id__in=epreuve_ids, etudiant__matricule__in=matricules)
+        convocation_map = {
+            (convocation.epreuve_id, convocation.etudiant.matricule): convocation
+            for convocation in convocations
+        }
+        seen = {}
+        created = updated = 0
+        pass_mark = _pass_mark(request)
+        with transaction.atomic():
+            for row in rows:
+                row_number = row.pop("__row_number__")
+                try:
+                    epreuve_id = int(row["epreuve_id"])
+                except (TypeError, ValueError):
+                    raise ValidationError({"epreuve_id": f"Ligne {row_number}: identifiant d'épreuve invalide."})
+                matricule = str(row["etudiant_matricule"]).strip()
+                key = (epreuve_id, matricule)
+                if key in seen:
+                    if seen[key] != row:
+                        raise ValidationError({"file": f"Ligne {row_number}: doublon incohérent détecté pour {matricule}."})
+                    continue
+                seen[key] = row.copy()
+                convocation = convocation_map.get(key)
+                if convocation is None:
+                    raise ValidationError(
+                        {"file": f"Ligne {row_number}: apprenant hors périmètre pour cette épreuve."}
+                    )
+                workflow = _exam_result_workflow(request, convocation.epreuve)
+                result_type = str(row.get("type_resultat") or "normal").strip().lower()
+                if result_type not in {"normal", "retake"}:
+                    raise ValidationError({"type_resultat": f"Ligne {row_number}: type de résultat invalide."})
+                _ensure_entry_allowed(convocation.epreuve, result_type, workflow)
+                try:
+                    note = Decimal(str(row["note"]))
+                except (ArithmeticError, TypeError, ValueError):
+                    raise ValidationError({"note": f"Ligne {row_number}: note invalide."})
+                if note < 0 or note > convocation.epreuve.bareme:
+                    raise ValidationError({"note": f"Ligne {row_number}: la note doit respecter le barème."})
+                result, was_created = ResultatExamen.objects.select_for_update().get_or_create(
+                    epreuve=convocation.epreuve,
+                    etudiant=convocation.etudiant,
+                    defaults={
+                        "numero_anonyme": getattr(getattr(convocation, "copie", None), "numero_anonyme", ""),
+                    },
+                )
+                if not was_created:
+                    _ensure_result_mutable(result, workflow)
+                result.note = note
+                result.appreciation = str(row.get("appreciation") or "").strip()
+                result.type_resultat = result_type
+                result.numero_anonyme = result.numero_anonyme or getattr(
+                    getattr(convocation, "copie", None), "numero_anonyme", ""
+                )
+                result.saisi_par = request.user
+                result.saisi_le = timezone.now()
+                _apply_result_outcome(result, pass_mark)
+                result.statut = "submitted"
+                result.save()
+                created += int(was_created)
+                updated += int(not was_created)
+        return Response({"resultats_crees": created, "resultats_mis_a_jour": updated})
+
+    @action(detail=True, methods=["post"])
+    def soumettre(self, request, pk=None):
+        result = self.get_object()
+        workflow = _exam_result_workflow(request, result.epreuve)
+        _ensure_workflow_access(request, workflow, "verification_group_codes")
+        _ensure_entry_allowed(result.epreuve, result.type_resultat, workflow)
+        _ensure_result_mutable(result, workflow)
+        _set_result_status(result, "submitted", request.user, _pass_mark(request))
+        return Response(self.get_serializer(result).data)
+
+    @action(detail=True, methods=["post"])
+    def verifier(self, request, pk=None):
+        result = self.get_object()
+        workflow = _exam_result_workflow(request, result.epreuve)
+        _ensure_workflow_access(request, workflow, "verification_group_codes")
+        if result.statut not in ("submitted", "reopened"):
+            return Response({"error": "Ce résultat doit être soumis avant vérification."}, status=400)
+        _set_result_status(result, "verified", request.user, _pass_mark(request))
+        return Response(self.get_serializer(result).data)
+
+    @action(detail=True, methods=["post"])
+    def valider(self, request, pk=None):
+        result = self.get_object()
+        workflow = _exam_result_workflow(request, result.epreuve)
+        _ensure_workflow_access(request, workflow, "validation_group_codes")
+        if result.statut != "verified":
+            return Response({"error": "Ce résultat doit être vérifié avant validation."}, status=400)
+        _set_result_status(result, "validated", request.user, _pass_mark(request))
+        return Response(self.get_serializer(result).data)
+
+    @action(detail=True, methods=["post"])
+    def publier(self, request, pk=None):
+        result = self.get_object()
+        workflow = _exam_result_workflow(request, result.epreuve)
+        _ensure_workflow_access(request, workflow, "publication_group_codes")
+        if result.statut != "validated":
+            return Response({"error": "Ce résultat doit être validé avant publication."}, status=400)
+        _set_result_status(result, "published", request.user, _pass_mark(request))
+        return Response(self.get_serializer(result).data)
+
+    @action(detail=True, methods=["post"])
+    def reouvrir(self, request, pk=None):
+        result = self.get_object()
+        workflow = _exam_result_workflow(request, result.epreuve)
+        _ensure_workflow_access(request, workflow, "validation_group_codes")
+        if result.statut not in ("validated", "published", "closed"):
+            return Response({"error": "Seuls les résultats verrouillés peuvent être réouverts."}, status=400)
+        _set_result_status(result, "reopened", request.user, _pass_mark(request))
+        return Response(self.get_serializer(result).data)
+
+    @action(detail=True, methods=["post"])
+    def cloturer(self, request, pk=None):
+        result = self.get_object()
+        workflow = _exam_result_workflow(request, result.epreuve)
+        _ensure_workflow_access(request, workflow, "publication_group_codes")
+        if result.statut not in ("published", "validated", "reopened"):
+            return Response({"error": "Ce résultat ne peut pas être clôturé dans son état actuel."}, status=400)
+        _set_result_status(result, "closed", request.user, _pass_mark(request))
+        return Response(self.get_serializer(result).data)
 
 
 class CopiesExamenViewSet(
@@ -394,6 +994,36 @@ class CopiesExamenViewSet(
                     "motif_moderation",
                     "statut",
                 ]
+            )
+            type_resultat = (
+                "retake"
+                if copie.epreuve.session.type == "rattrapage" or copie.epreuve.session.numero == 2
+                else "normal"
+            )
+            admis = note_finale >= _pass_mark(request)
+            mention = ""
+            if admis:
+                if note_finale >= Decimal("16"):
+                    mention = "Très bien"
+                elif note_finale >= Decimal("14"):
+                    mention = "Bien"
+                elif note_finale >= Decimal("12"):
+                    mention = "Assez bien"
+                else:
+                    mention = "Passable"
+            ResultatExamen.objects.update_or_create(
+                epreuve=copie.epreuve,
+                etudiant=copie.convocation.etudiant,
+                defaults={
+                    "note": note_finale,
+                    "numero_anonyme": copie.numero_anonyme,
+                    "statut": "submitted",
+                    "type_resultat": type_resultat,
+                    "admis": admis,
+                    "mention": mention,
+                    "saisi_par": request.user,
+                    "saisi_le": timezone.now(),
+                },
             )
             AuditCopieExamen.objects.create(
                 copie=copie,

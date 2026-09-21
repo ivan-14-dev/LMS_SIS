@@ -1,5 +1,6 @@
 """API views for conseil de classe (ViewSets DRF) - SIS Secondaire."""
 
+from apps.core.serializers import WorkflowEventSerializer
 from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
@@ -7,6 +8,8 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import request_has_business_access
+from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import AppreciationConseil, ConseilClasse, DecisionConseil
 from .serializers import (
@@ -17,6 +20,18 @@ from .serializers import (
 )
 
 
+def _conseil_notification_recipients(request, conseil):
+    recipients = []
+    for profile in (conseil.president, conseil.secretaire):
+        user = getattr(profile, "user", None)
+        if user is not None and user not in recipients:
+            recipients.append(user)
+    actor = getattr(request, "user", None)
+    if getattr(actor, "is_authenticated", False) and actor not in recipients:
+        recipients.append(actor)
+    return recipients
+
+
 class IsDirectionOrReadOnly(IsAuthenticated):
     """Permission: direction pour écriture."""
 
@@ -25,13 +40,11 @@ class IsDirectionOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "directeur",
-            "proviseur",
-            "principal",
-            "cpe",
-            "pp",
+        return request_has_business_access(
+            request,
+            "conseil_classe.change_conseilclasse",
+            ("directeur", "proviseur", "principal", "cpe", "pp"),
+            tenant_group_codes=("class_council_manager_secondary",),
         )
 
 
@@ -53,6 +66,42 @@ class ConseilsClasseViewSet(viewsets.ModelViewSet):
             return ConseilClasseListSerializer
         return ConseilClasseDetailSerializer
 
+    def perform_create(self, serializer):
+        conseil = serializer.save()
+        record_workflow_event(
+            self.request,
+            conseil,
+            "creation",
+            "Conseil de classe créé",
+            message=f"Le conseil de classe de {conseil.classe} a été créé.",
+            recipients=_conseil_notification_recipients(self.request, conseil),
+            metadata={"classe_id": conseil.classe_id, "periode_id": conseil.periode_id},
+        )
+
+    def perform_update(self, serializer):
+        conseil = serializer.save()
+        record_workflow_event(
+            self.request,
+            conseil,
+            "mise_a_jour",
+            "Conseil de classe mis à jour",
+            message=f"Le conseil de classe de {conseil.classe} a été mis à jour.",
+            recipients=_conseil_notification_recipients(self.request, conseil),
+            metadata={"classe_id": conseil.classe_id, "periode_id": conseil.periode_id},
+        )
+
+    def perform_destroy(self, instance):
+        record_workflow_event(
+            self.request,
+            instance,
+            "suppression",
+            "Conseil de classe supprimé",
+            message=f"Le conseil de classe de {instance.classe} a été supprimé.",
+            recipients=_conseil_notification_recipients(self.request, instance),
+            metadata={"classe_id": instance.classe_id, "periode_id": instance.periode_id},
+        )
+        instance.delete()
+
     @action(detail=True, methods=["get"])
     def decisions(self, request, pk=None):
         """Liste les décisions du conseil."""
@@ -69,6 +118,15 @@ class ConseilsClasseViewSet(viewsets.ModelViewSet):
             return Response({"error": "Le conseil doit d'abord être tenu."}, status=400)
         conseil.statut = "valide"
         conseil.save(update_fields=["statut"])
+        record_workflow_event(
+            request,
+            conseil,
+            "validation",
+            "Conseil validé",
+            message=f"Le conseil de classe de {conseil.classe} a été validé.",
+            recipients=_conseil_notification_recipients(request, conseil),
+            metadata={"classe_id": conseil.classe_id, "periode_id": conseil.periode_id},
+        )
         return Response({"detail": "Conseil validé.", "id": conseil.id})
 
     @action(detail=True, methods=["post"])
@@ -79,6 +137,15 @@ class ConseilsClasseViewSet(viewsets.ModelViewSet):
             return Response({"error": "Statut invalide."}, status=400)
         conseil.statut = "tenu"
         conseil.save(update_fields=["statut"])
+        record_workflow_event(
+            request,
+            conseil,
+            "tenue",
+            "Conseil tenu",
+            message=f"Le conseil de classe de {conseil.classe} a été marqué comme tenu.",
+            recipients=_conseil_notification_recipients(request, conseil),
+            metadata={"classe_id": conseil.classe_id, "periode_id": conseil.periode_id},
+        )
         return Response({"detail": "Conseil marqué comme tenu.", "id": conseil.id})
 
     @action(detail=True, methods=["get"])
@@ -93,6 +160,13 @@ class ConseilsClasseViewSet(viewsets.ModelViewSet):
                 "par_decision": {d["decision"]: d["count"] for d in stats},
             }
         )
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow du conseil de classe."""
+        conseil = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(conseil), many=True)
+        return Response(serializer.data)
 
 
 class DecisionsConseilViewSet(viewsets.ModelViewSet):

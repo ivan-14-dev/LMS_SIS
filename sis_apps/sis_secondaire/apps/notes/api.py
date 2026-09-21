@@ -1,6 +1,10 @@
 """API views for notes (ViewSets DRF) - SIS Secondaire."""
 
-from django.db.models import Avg, Count
+from decimal import Decimal
+
+from apps.core.serializers import WorkflowEventSerializer
+from django.db import transaction
+from django.db.models import Avg, Count, F, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
@@ -11,8 +15,19 @@ from rest_framework.response import Response
 from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,
+    request_has_business_access,
+    user_has_any_role,
 )
-from sis_common.reporting import configured_report, export_queryset_csv
+from sis_common.academic_configuration import resolve_validation_policy
+from sis_common.document_policies import enforce_financial_clearance, get_action_object
+from sis_common.official_documents import render_official_pdf, tenant_identity_rows
+from sis_common.reporting import configured_report, export_queryset
+from sis_common.spreadsheets import load_excel_rows, template_response
+from sis_common.submission_windows import (
+    apply_submission_window_defaults,
+    maybe_record_submission_window_alert,
+)
+from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import Bulletin, Evaluation, Note, RegleValidation
 from .serializers import (
@@ -25,7 +40,7 @@ from .serializers import (
     RegleValidationSerializer,
 )
 
-REPORT_FIELDS = {
+NOTE_REPORT_FIELDS = {
     "matricule": ("Matricule", "eleve__matricule"),
     "eleve": ("Élève", "eleve__user__last_name"),
     "classe": ("Classe", "evaluation__classe__nom"),
@@ -37,8 +52,9 @@ REPORT_FIELDS = {
     "enseignant": ("Enseignant", "evaluation__enseignant__user__last_name"),
     "periode": ("Période", "evaluation__periode__libelle"),
     "date": ("Date", "evaluation__date"),
+    "eleve_cible": ("Élève ciblé", "evaluation__eleve_cible__matricule"),
 }
-REPORT_FILTERS = {
+NOTE_REPORT_FILTERS = {
     "annee": "evaluation__classe__annee_scolaire_id",
     "classe": "evaluation__classe_id",
     "matiere": "evaluation__matiere_id",
@@ -46,12 +62,232 @@ REPORT_FILTERS = {
     "periode": "evaluation__periode_id",
     "statut": "statut",
 }
-REPORT_GROUPS = {
+NOTE_REPORT_GROUPS = {
     "classe": "evaluation__classe__nom",
     "matiere": "evaluation__matiere__nom",
     "enseignant": "evaluation__enseignant__user__last_name",
     "periode": "evaluation__periode__libelle",
 }
+EVALUATION_REPORT_FIELDS = {
+    "titre": ("Titre", "titre"),
+    "type": ("Type", "type"),
+    "classe": ("Classe", "classe__nom"),
+    "matiere": ("Matière", "matiere__nom"),
+    "periode": ("Période", "periode__libelle"),
+    "enseignant": ("Enseignant", "enseignant__user__last_name"),
+    "date": ("Date", "date"),
+    "bareme": ("Barème", "bareme"),
+    "coefficient": ("Coefficient", "coefficient"),
+    "ponderation": ("Pondération", "ponderation"),
+    "eleve_cible": ("Élève ciblé", "eleve_cible__matricule"),
+}
+EVALUATION_REPORT_FILTERS = {
+    "classe": "classe_id",
+    "matiere": "matiere_id",
+    "periode": "periode_id",
+    "type": "type",
+    "enseignant": "enseignant_id",
+    "eleve_cible": "eleve_cible_id",
+}
+BULLETIN_REPORT_FIELDS = {
+    "matricule": ("Matricule", "eleve__matricule"),
+    "eleve": ("Élève", "eleve__user__last_name"),
+    "classe": ("Classe", "classe__nom"),
+    "periode": ("Période", "periode__libelle"),
+    "moyenne_generale": ("Moyenne générale", "moyenne_generale"),
+    "rang": ("Rang", "rang"),
+    "effectif_classe": ("Effectif classe", "effectif_classe"),
+    "decision": ("Décision", "decision"),
+    "publie": ("Publié", "publie"),
+    "signe": ("Signé", "signe"),
+    "nb_matieres_individualisees": ("Nb matières individualisées", "nb_matieres_individualisees"),
+}
+BULLETIN_REPORT_FILTERS = {
+    "eleve": "eleve_id",
+    "classe": "classe_id",
+    "periode": "periode_id",
+    "publie": "publie",
+}
+
+
+def _bulletin_notification_recipients(request, bulletin):
+    recipients = []
+    user = getattr(bulletin.eleve, "user", None)
+    if user is not None:
+        recipients.append(user)
+    actor = getattr(request, "user", None)
+    if getattr(actor, "is_authenticated", False) and actor not in recipients:
+        recipients.append(actor)
+    return recipients
+
+
+def _evaluation_notification_recipients(request, evaluation):
+    recipients = []
+    teacher_user = getattr(getattr(evaluation, "enseignant", None), "user", None)
+    if teacher_user is not None:
+        recipients.append(teacher_user)
+    actor = getattr(request, "user", None)
+    if getattr(actor, "is_authenticated", False) and actor not in recipients:
+        recipients.append(actor)
+    return recipients
+
+
+def _evaluation_configuration(request):
+    return getattr(getattr(request, "tenant", None), "configuration_academique", {}) or {}
+
+CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS = [
+    "matricule",
+    "note",
+    "appreciation",
+    "statut",
+]
+CONTINUOUS_ASSESSMENT_TYPES = {
+    "interrogation",
+    "ds",
+    "dm",
+    "tp",
+    "oral",
+    "projet",
+}
+
+
+def _continuous_assessment_template_enabled(request):
+    templates = (
+        getattr(getattr(request, "tenant", None), "configuration_academique", {}) or {}
+    ).get("import_templates", [])
+    return any(template.get("code") == "continuous_assessment_grades" for template in templates)
+
+
+def _ensure_submission_window(obj, label="La période de soumission"):
+    now = timezone.now()
+    if getattr(obj, "debut_soumission", None) and now < obj.debut_soumission:
+        raise serializers.ValidationError(
+            {"soumission": f"{label} n'est pas encore ouverte."}
+        )
+    if getattr(obj, "fin_soumission", None) and now > obj.fin_soumission:
+        raise serializers.ValidationError({"soumission": f"{label} est expirée."})
+
+
+def _ensure_secondary_continuous_assessment(evaluation):
+    if evaluation.type not in CONTINUOUS_ASSESSMENT_TYPES:
+        raise serializers.ValidationError(
+            {
+                "evaluation": (
+                    "Seules les évaluations de contrôle continu peuvent être importées ici."
+                )
+            }
+        )
+    _ensure_submission_window(evaluation)
+    if evaluation.classe.annee_scolaire.cloturee or evaluation.periode.cloturee:
+        raise serializers.ValidationError(
+            {
+                "evaluation": (
+                    "Cette évaluation est verrouillée car l'année ou la période est clôturée."
+                )
+            }
+        )
+
+
+def _secondary_eligible_student_map(evaluation, matricules):
+    if evaluation.eleve_cible_id:
+        eleve = (
+            evaluation.classe.eleves_actuels.filter(pk=evaluation.eleve_cible_id).first()
+            or evaluation.classe.inscriptions.select_related("eleve")
+            .filter(
+                eleve_id=evaluation.eleve_cible_id,
+                statut__in=("en_cours", "validee"),
+            )
+            .first()
+        )
+        if not eleve:
+            return set(), {}
+        eleve = getattr(eleve, "eleve", eleve)
+        if eleve.matricule not in matricules:
+            return {eleve.pk}, {}
+        return {eleve.pk}, {eleve.matricule: eleve}
+    enrolled = evaluation.classe.eleves_actuels.filter(matricule__in=matricules)
+    enrolled_ids = set(enrolled.values_list("pk", flat=True))
+    enrolled_map = {eleve.matricule: eleve for eleve in enrolled}
+    validated = (
+        evaluation.classe.inscriptions.filter(
+            eleve__matricule__in=matricules,
+            statut__in=("en_cours", "validee"),
+        )
+        .select_related("eleve")
+    )
+    for inscription in validated:
+        enrolled_ids.add(inscription.eleve_id)
+        enrolled_map[inscription.eleve.matricule] = inscription.eleve
+    return enrolled_ids, enrolled_map
+
+
+def _import_secondary_notes(evaluation, rows, request):
+    _ensure_secondary_continuous_assessment(evaluation)
+    matricules = [str(row["matricule"]).strip() for row in rows]
+    _, eligible_map = _secondary_eligible_student_map(evaluation, matricules)
+    created = 0
+    updated = 0
+    seen = set()
+    saisi_par = getattr(request.user, "personnel_profile", None)
+    with transaction.atomic():
+        for row in rows:
+            row_number = row["__row_number__"]
+            matricule = str(row["matricule"]).strip()
+            if not matricule:
+                raise serializers.ValidationError(
+                    {"matricule": f"Ligne {row_number}: matricule requis."}
+                )
+            if matricule in seen:
+                raise serializers.ValidationError(
+                    {"file": f"Ligne {row_number}: doublon incohérent détecté pour {matricule}."}
+                )
+            seen.add(matricule)
+            eleve = eligible_map.get(matricule)
+            if eleve is None:
+                raise serializers.ValidationError(
+                    {"file": f"Ligne {row_number}: élève hors périmètre pour cette évaluation."}
+                )
+            statut = str(row.get("statut") or "presente").strip() or "presente"
+            valid_statuses = {code for code, _label in Note.STATUT_CHOICES}
+            if statut not in valid_statuses:
+                raise serializers.ValidationError(
+                    {"statut": f"Ligne {row_number}: statut invalide."}
+                )
+            raw_note = row.get("note")
+            valeur = None
+            if raw_note not in (None, ""):
+                try:
+                    valeur = Decimal(str(raw_note))
+                except (ArithmeticError, TypeError, ValueError):
+                    raise serializers.ValidationError(
+                        {"note": f"Ligne {row_number}: note invalide."}
+                    )
+                if valeur < 0 or valeur > evaluation.bareme:
+                    raise serializers.ValidationError(
+                        {"note": f"Ligne {row_number}: la note doit respecter le barème."}
+                    )
+            elif statut == "presente":
+                raise serializers.ValidationError(
+                    {"note": f"Ligne {row_number}: une note est requise pour une copie présentée."}
+                )
+            note, was_created = Note.objects.update_or_create(
+                evaluation=evaluation,
+                eleve=eleve,
+                defaults={
+                    "valeur": valeur,
+                    "statut": statut,
+                    "appreciation": str(row.get("appreciation") or "").strip(),
+                    "saisi_par": saisi_par,
+                },
+            )
+            if was_created:
+                created += 1
+            else:
+                updated += 1
+                note.modifie_le = timezone.now()
+                note.modifie_par = saisi_par
+                note.save(update_fields=["modifie_le", "modifie_par"])
+    return created, updated
 
 
 class IsEnseignantOrVieScolarite(IsAuthenticated):
@@ -92,26 +328,118 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     permission_classes = [IsEnseignantOrVieScolarite]
     permission_model = "evaluation"
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["matiere", "classe", "periode", "type", "enseignant"]
+    filterset_fields = ["matiere", "classe", "periode", "type", "enseignant", "eleve_cible"]
     search_fields = ["titre", "description"]
     ordering_fields = ["date", "titre", "created_at"]
     ordering = ["-date"]
 
     def get_queryset(self):
         qs = Evaluation.objects.select_related(
-            "matiere", "classe", "periode", "enseignant__user"
+            "matiere", "classe", "periode", "enseignant__user", "eleve_cible__user"
         )
-        # Un enseignant ne voit que ses évaluations
         user = self.request.user
-        if not user.is_staff and getattr(user, "role", "") == "enseignant":
+        if not user.is_staff and user_has_any_role(user, ("enseignant",)):
             if hasattr(user, "personnel_profile"):
-                qs = qs.filter(enseignant=user.personnel_profile)
-        return qs
+                return qs.filter(enseignant=user.personnel_profile)
+            return qs.none()
+        if request_has_business_access(
+            self.request,
+            "notes.view_evaluation",
+            ("direction", "responsable_pedagogique", "vie_scolaire"),
+        ):
+            return filter_queryset_by_scopes(
+                qs,
+                user,
+                "notes.view_evaluation",
+                {
+                    "classes": "classe_id",
+                    "matieres": "matiere_id",
+                    "annees": "classe__annee_scolaire_id",
+                    "periodes": "periode_id",
+                },
+            )
+        return qs.none()
 
     def get_serializer_class(self):
         if self.action == "list":
             return EvaluationListSerializer
         return EvaluationDetailSerializer
+
+    def perform_create(self, serializer):
+        evaluation = serializer.save()
+        changed_fields = apply_submission_window_defaults(
+            evaluation,
+            _evaluation_configuration(self.request),
+            "evaluation",
+        )
+        if changed_fields:
+            evaluation.save(update_fields=changed_fields)
+        record_workflow_event(
+            self.request,
+            evaluation,
+            "creation",
+            "Évaluation créée",
+            message=f"L'évaluation {evaluation.titre} a été créée.",
+            recipients=_evaluation_notification_recipients(self.request, evaluation),
+            metadata={
+                "classe_id": evaluation.classe_id,
+                "matiere_id": evaluation.matiere_id,
+                "periode_id": evaluation.periode_id,
+            },
+        )
+        maybe_record_submission_window_alert(
+            self.request,
+            evaluation,
+            _evaluation_configuration(self.request),
+            "evaluation",
+            _evaluation_notification_recipients(self.request, evaluation),
+        )
+
+    def perform_update(self, serializer):
+        evaluation = serializer.save()
+        changed_fields = apply_submission_window_defaults(
+            evaluation,
+            _evaluation_configuration(self.request),
+            "evaluation",
+        )
+        if changed_fields:
+            evaluation.save(update_fields=changed_fields)
+        record_workflow_event(
+            self.request,
+            evaluation,
+            "mise_a_jour",
+            "Évaluation mise à jour",
+            message=f"L'évaluation {evaluation.titre} a été mise à jour.",
+            recipients=_evaluation_notification_recipients(self.request, evaluation),
+            metadata={
+                "classe_id": evaluation.classe_id,
+                "matiere_id": evaluation.matiere_id,
+                "periode_id": evaluation.periode_id,
+            },
+        )
+        maybe_record_submission_window_alert(
+            self.request,
+            evaluation,
+            _evaluation_configuration(self.request),
+            "evaluation",
+            _evaluation_notification_recipients(self.request, evaluation),
+        )
+
+    def perform_destroy(self, instance):
+        record_workflow_event(
+            self.request,
+            instance,
+            "suppression",
+            "Évaluation supprimée",
+            message=f"L'évaluation {instance.titre} a été supprimée.",
+            recipients=_evaluation_notification_recipients(self.request, instance),
+            metadata={
+                "classe_id": instance.classe_id,
+                "matiere_id": instance.matiere_id,
+                "periode_id": instance.periode_id,
+            },
+        )
+        instance.delete()
 
     @action(detail=True, methods=["get"])
     def notes(self, request, pk=None):
@@ -127,26 +455,32 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     def saisir_notes(self, request, pk=None):
         """Saisie en masse des notes."""
         evaluation = self.get_object()
+        _ensure_secondary_continuous_assessment(evaluation)
         serializer = NoteSaisieSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
 
         student_ids = {item["eleve_id"] for item in serializer.validated_data}
-        eligible_student_ids = set(
-            evaluation.classe.eleves_actuels.filter(pk__in=student_ids).values_list(
-                "pk", flat=True
+        if evaluation.eleve_cible_id:
+            eligible_student_ids = {evaluation.eleve_cible_id} if evaluation.eleve_cible_id in student_ids else set()
+        else:
+            eligible_student_ids = set(
+                evaluation.classe.eleves_actuels.filter(pk__in=student_ids).values_list(
+                    "pk", flat=True
+                )
             )
-        )
-        eligible_student_ids.update(
-            evaluation.classe.inscriptions.filter(
-                eleve_id__in=student_ids,
-                statut__in=("en_cours", "validee"),
-            ).values_list("eleve_id", flat=True)
-        )
+            eligible_student_ids.update(
+                evaluation.classe.inscriptions.filter(
+                    eleve_id__in=student_ids,
+                    statut__in=("en_cours", "validee"),
+                ).values_list("eleve_id", flat=True)
+            )
         invalid_student_ids = sorted(student_ids - eligible_student_ids)
         if invalid_student_ids:
             raise serializers.ValidationError(
                 {
-                    "eleve_id": f"Élèves non inscrits dans cette classe: {invalid_student_ids}."
+                    "eleve_id": (
+                        f"Élèves non autorisés pour cette évaluation: {invalid_student_ids}."
+                    )
                 }
             )
 
@@ -175,12 +509,91 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
                 note.modifie_par = saisi_par
                 note.save(update_fields=["modifie_le", "modifie_par"])
 
+        record_workflow_event(
+            request,
+            evaluation,
+            "saisie_notes",
+            "Notes saisies",
+            message=f"Des notes ont été saisies pour l'évaluation {evaluation.titre}.",
+            recipients=_evaluation_notification_recipients(request, evaluation),
+            metadata={
+                "notes_creees": created,
+                "notes_modifiees": updated,
+                "classe_id": evaluation.classe_id,
+                "matiere_id": evaluation.matiere_id,
+            },
+        )
+
         return Response(
             {
                 "evaluation_id": evaluation.id,
                 "notes_creees": created,
                 "notes_modifiees": updated,
             }
+        )
+
+    @action(detail=True, methods=["get"])
+    def modele_import_notes(self, request, pk=None):
+        if not _continuous_assessment_template_enabled(request):
+            raise serializers.ValidationError(
+                {"workflow": "Le modèle d'import des notes de contrôle continu n'est pas activé."}
+            )
+        evaluation = self.get_object()
+        _ensure_secondary_continuous_assessment(evaluation)
+        return template_response(
+            CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS,
+            f"modele-notes-evaluation-{evaluation.pk}.xlsx",
+            sample_row=["MAT-001", "14.5", "Bon travail", "presente"],
+        )
+
+    @action(detail=True, methods=["post"])
+    def importer_notes(self, request, pk=None):
+        if not _continuous_assessment_template_enabled(request):
+            raise serializers.ValidationError(
+                {"workflow": "Le modèle d'import des notes de contrôle continu n'est pas activé."}
+            )
+        evaluation = self.get_object()
+        uploaded_file = request.FILES.get("file")
+        if uploaded_file is None:
+            raise serializers.ValidationError({"file": "Un fichier Excel est requis."})
+        rows = load_excel_rows(uploaded_file, CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS)
+        if not rows:
+            raise serializers.ValidationError(
+                {"file": "Le fichier ne contient aucune ligne exploitable."}
+            )
+        created, updated = _import_secondary_notes(evaluation, rows, request)
+        record_workflow_event(
+            request,
+            evaluation,
+            "import_notes",
+            "Notes importées",
+            message=f"Des notes ont été importées pour l'évaluation {evaluation.titre}.",
+            recipients=_evaluation_notification_recipients(request, evaluation),
+            metadata={
+                "notes_creees": created,
+                "notes_modifiees": updated,
+                "classe_id": evaluation.classe_id,
+                "matiere_id": evaluation.matiere_id,
+            },
+        )
+        return Response(
+            {
+                "evaluation_id": evaluation.id,
+                "notes_creees": created,
+                "notes_modifiees": updated,
+            }
+        )
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"evaluations"})
+        return export_queryset(
+            request,
+            self.filter_queryset(self.get_queryset()),
+            report,
+            EVALUATION_REPORT_FIELDS,
+            EVALUATION_REPORT_FILTERS,
+            request.data.get("filters", {}),
         )
 
     @action(detail=True, methods=["get"])
@@ -203,6 +616,16 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow de l'évaluation."""
+        evaluation = self.get_object()
+        serializer = WorkflowEventSerializer(
+            workflow_history_queryset(evaluation),
+            many=True,
+        )
+        return Response(serializer.data)
+
 
 class NotesViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour notes."""
@@ -217,36 +640,26 @@ class NotesViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Note.objects.select_related("evaluation", "eleve__user")
         user = self.request.user
-        # Un élève ne voit que ses propres notes
         if hasattr(user, "eleve_profile"):
-            if not user.is_staff and getattr(user, "role", "") == "eleve":
-                qs = qs.filter(eleve__user=user)
+            if not user.is_staff and user_has_any_role(user, ("eleve",)):
+                return qs.filter(eleve__user=user)
         if (
             not user.is_staff
-            and getattr(user, "role", "") == "enseignant"
+            and user_has_any_role(user, ("enseignant",))
             and hasattr(user, "personnel_profile")
         ):
-            qs = qs.filter(evaluation__enseignant=user.personnel_profile)
-        # Un parent ne voit que les notes de ses enfants
+            return qs.filter(evaluation__enseignant=user.personnel_profile)
         if hasattr(user, "tuteur_profile"):
             from apps.eleves.models import EleveTuteur
 
             eleves_ids = EleveTuteur.objects.filter(
                 tuteur=user.tuteur_profile, autorise_acces_portail=True
             ).values_list("eleve_id", flat=True)
-            qs = qs.filter(eleve_id__in=eleves_ids)
-        allowed_roles = {
-            "direction",
-            "responsable_pedagogique",
-            "vie_scolaire",
-            "enseignant",
-            "eleve",
-            "parent",
-        }
-        if (
-            not user.is_staff
-            and not user.has_perm("notes.view_note")
-            and getattr(user, "role", "") not in allowed_roles
+            return qs.filter(eleve_id__in=eleves_ids)
+        if not request_has_business_access(
+            self.request,
+            "notes.view_note",
+            ("direction", "responsable_pedagogique", "vie_scolaire"),
         ):
             return qs.none()
         return filter_queryset_by_scopes(
@@ -264,10 +677,10 @@ class NotesViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def bilan(self, request):
         group_by = request.query_params.get("group_by", "matiere")
-        group_field = REPORT_GROUPS.get(group_by)
+        group_field = NOTE_REPORT_GROUPS.get(group_by)
         if not group_field:
             return Response(
-                {"group_by": f"Valeurs acceptées: {', '.join(REPORT_GROUPS)}."},
+                {"group_by": f"Valeurs acceptées: {', '.join(NOTE_REPORT_GROUPS)}."},
                 status=400,
             )
         rows = (
@@ -290,14 +703,25 @@ class NotesViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"])
     def exporter(self, request):
-        report = configured_report(request, request.data.get("report"))
-        return export_queryset_csv(
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"notes"})
+        return export_queryset(
+            request,
             self.filter_queryset(self.get_queryset()),
             report,
-            REPORT_FIELDS,
-            REPORT_FILTERS,
+            NOTE_REPORT_FIELDS,
+            NOTE_REPORT_FILTERS,
             request.data.get("filters", {}),
         )
+
+    def perform_create(self, serializer):
+        evaluation = serializer.validated_data["evaluation"]
+        _ensure_secondary_continuous_assessment(evaluation)
+        serializer.save(saisi_par=getattr(self.request.user, "personnel_profile", None))
+
+    def perform_update(self, serializer):
+        note = self.get_object()
+        _ensure_secondary_continuous_assessment(note.evaluation)
+        serializer.save(modifie_le=timezone.now(), modifie_par=getattr(self.request.user, "personnel_profile", None))
 
 
 class BulletinsViewSet(viewsets.ModelViewSet):
@@ -310,21 +734,48 @@ class BulletinsViewSet(viewsets.ModelViewSet):
     ordering = ["-periode__date_fin"]
 
     def get_queryset(self):
-        qs = Bulletin.objects.select_related("eleve__user", "classe", "periode")
+        qs = Bulletin.objects.select_related("eleve__user", "classe", "periode").annotate(
+            nb_matieres_individualisees=Count(
+                "eleve__affectations_matiere_individuelles",
+                filter=Q(
+                    eleve__affectations_matiere_individuelles__annee_scolaire_id=F(
+                        "classe__annee_scolaire_id"
+                    )
+                ),
+                distinct=True,
+            )
+        )
         user = self.request.user
-        # Un élève ne voit que ses propres bulletins publiés
         if hasattr(user, "eleve_profile"):
-            if not user.is_staff and getattr(user, "role", "") == "eleve":
-                qs = qs.filter(eleve__user=user, publie=True)
-        # Un parent ne voit que les bulletins publiés de ses enfants
+            if not user.is_staff and user_has_any_role(user, ("eleve",)):
+                return qs.filter(eleve__user=user, publie=True)
         if hasattr(user, "tuteur_profile"):
             from apps.eleves.models import EleveTuteur
 
             eleves_ids = EleveTuteur.objects.filter(
                 tuteur=user.tuteur_profile, autorise_acces_portail=True
             ).values_list("eleve_id", flat=True)
-            qs = qs.filter(eleve_id__in=eleves_ids, publie=True)
-        return qs
+            return qs.filter(eleve_id__in=eleves_ids, publie=True)
+        if not user.is_staff and user_has_any_role(user, ("enseignant",)) and hasattr(
+            user, "personnel_profile"
+        ):
+            return qs.filter(classe__prof_principal=user.personnel_profile)
+        if not request_has_business_access(
+            self.request,
+            "notes.view_bulletin",
+            ("direction", "responsable_pedagogique", "vie_scolaire"),
+        ):
+            return qs.none()
+        return filter_queryset_by_scopes(
+            qs,
+            user,
+            "notes.view_bulletin",
+            {
+                "classes": "classe_id",
+                "annees": "classe__annee_scolaire_id",
+                "periodes": "periode_id",
+            },
+        )
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -332,14 +783,41 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         return BulletinDetailSerializer
 
     @action(detail=True, methods=["post"])
+    @enforce_financial_clearance(
+        candidates_getter=lambda _view, request, bulletin: [
+            {"scope": "class", "context": {"class_id": bulletin.classe_id}},
+            {"scope": "level", "context": {"level_id": bulletin.classe.niveau_id}},
+            {"scope": "academic_year", "context": {"academic_year_id": bulletin.classe.annee_scolaire_id}},
+            {"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}},
+        ],
+        subject_getter=lambda _view, _request, bulletin: bulletin.eleve,
+        academic_year_ids_getter=lambda _view, _request, bulletin: [bulletin.classe.annee_scolaire_id],
+        invoice_model_label="paiements.Facture",
+        invoice_subject_field="eleve",
+        invoice_year_lookup="type_frais__annee_scolaire_id",
+        message="La publication du bulletin exige une situation financière régularisée.",
+    )
     def publier(self, request, pk=None):
         """Publie un bulletin."""
-        bulletin = self.get_object()
+        bulletin = get_action_object(self)
         if bulletin.publie:
             return Response({"error": "Ce bulletin est déjà publié."}, status=400)
         bulletin.publie = True
         bulletin.date_publication = timezone.now()
         bulletin.save(update_fields=["publie", "date_publication", "updated_at"])
+        record_workflow_event(
+            request,
+            bulletin,
+            "publication",
+            "Bulletin publié",
+            message=f"Le bulletin de {bulletin.eleve} pour {bulletin.periode} a été publié.",
+            recipients=_bulletin_notification_recipients(request, bulletin),
+            metadata={
+                "classe_id": bulletin.classe_id,
+                "periode_id": bulletin.periode_id,
+                "eleve_id": bulletin.eleve_id,
+            },
+        )
         return Response({"detail": "Bulletin publié.", "id": bulletin.id})
 
     @action(detail=True, methods=["post"])
@@ -351,7 +829,95 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         bulletin.signe = True
         bulletin.date_signature = timezone.now()
         bulletin.save(update_fields=["signe", "date_signature", "updated_at"])
+        record_workflow_event(
+            request,
+            bulletin,
+            "signature",
+            "Bulletin signé",
+            message=f"Le bulletin de {bulletin.eleve} pour {bulletin.periode} a été signé.",
+            recipients=_bulletin_notification_recipients(request, bulletin),
+            metadata={
+                "classe_id": bulletin.classe_id,
+                "periode_id": bulletin.periode_id,
+                "eleve_id": bulletin.eleve_id,
+            },
+        )
         return Response({"detail": "Bulletin signé.", "id": bulletin.id})
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow du bulletin."""
+        bulletin = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(bulletin), many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"])
+    def pdf_officiel(self, request, pk=None):
+        """Génère un PDF officiel du bulletin."""
+        bulletin = self.get_object()
+        serialized = BulletinDetailSerializer(bulletin).data
+        identity_rows = tenant_identity_rows(
+            request,
+            "Bulletin scolaire",
+            serial=f"BUL-{bulletin.id}",
+            issue_date=bulletin.date_publication or bulletin.created_at.date(),
+        )
+        sections = [
+            {
+                "title": "Identité de l'élève",
+                "rows": [
+                    ("Élève", serialized.get("eleve_nom")),
+                    ("Matricule", serialized.get("eleve_matricule")),
+                    ("Classe", serialized.get("classe_nom")),
+                    ("Période", serialized.get("periode_libelle")),
+                ],
+            },
+            {
+                "title": "Synthèse académique",
+                "rows": [
+                    ("Moyenne générale", serialized.get("moyenne_generale")),
+                    ("Rang", serialized.get("rang")),
+                    ("Effectif classe", serialized.get("effectif_classe")),
+                    ("Décision", serialized.get("decision")),
+                    ("Appréciation du conseil", serialized.get("appreciation_conseil")),
+                ],
+            },
+            {
+                "title": "Matières individualisées",
+                "rows": [
+                    (
+                        item.get("matiere_nom"),
+                        f"coeff {item.get('coefficient')} / crédits {item.get('credits')}",
+                    )
+                    for item in serialized.get("matieres_individuelles", [])
+                ]
+                or [("Aucune", "Aucune matière individualisée enregistrée")],
+            },
+        ]
+        footer_rows = [
+            ("Publié", "Oui" if bulletin.publie else "Non"),
+            ("Signé", "Oui" if bulletin.signe else "Non"),
+            ("Date de signature", bulletin.date_signature),
+        ]
+        return render_official_pdf(
+            f"bulletin-{bulletin.id}.pdf",
+            f"Bulletin - {serialized.get('eleve_nom')}",
+            identity_rows,
+            sections,
+            footer_rows=footer_rows,
+        )
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"bulletins"})
+        return export_queryset(
+            request,
+            self.filter_queryset(self.get_queryset()),
+            report,
+            BULLETIN_REPORT_FIELDS,
+            BULLETIN_REPORT_FILTERS,
+            request.data.get("filters", {}),
+        )
 
 
 class ReglesValidationViewSet(viewsets.ModelViewSet):
@@ -370,7 +936,17 @@ class ReglesValidationViewSet(viewsets.ModelViewSet):
     def evaluer(self, request, pk=None):
         serializer = EvaluationRegleInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response(self.get_object().evaluer(**serializer.validated_data))
+        rule = self.get_object()
+        policy = resolve_validation_policy(
+            getattr(request.tenant, "configuration_academique", {}),
+            [
+                {"scope": "class", "context": {"class_id": rule.classe_id}},
+                {"scope": "level", "context": {"level_id": rule.niveau_id}},
+                {"scope": "academic_year", "context": {"academic_year_id": rule.annee_scolaire_id}},
+                {"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}},
+            ],
+        )
+        return Response(rule.evaluer(**serializer.validated_data, policy=policy))
 
 
 class EvaluationRegleInputSerializer(serializers.Serializer):
