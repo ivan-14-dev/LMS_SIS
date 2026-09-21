@@ -1,5 +1,6 @@
 """API views for examens (ViewSets DRF) - SIS Secondaire."""
 
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db import transaction
@@ -13,7 +14,14 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from sis_common.authorization import request_has_business_access, user_has_any_role
+from sis_common.academic_configuration import resolve_exam_result_workflow
+from sis_common.authorization import (
+    request_has_business_access,
+    user_has_any_role,
+    user_in_configured_groups,
+)
+from sis_common.reporting import configured_report, export_queryset
+from sis_common.spreadsheets import load_excel_rows, template_response
 
 from .models import (
     AffectationCorrection,
@@ -82,6 +90,166 @@ class IsCorrectionParticipant(IsAuthenticated):
         )
 
 
+RESULT_EXPORT_FIELDS = {
+    "session": ("Session", "epreuve__session__nom"),
+    "matiere": ("Matière", "epreuve__matiere__nom"),
+    "classe": ("Classe", "epreuve__classes__nom"),
+    "matricule": ("Matricule", "eleve__matricule"),
+    "eleve": ("Élève", "eleve__user__last_name"),
+    "note": ("Note", "note"),
+    "appreciation": ("Appréciation", "appreciation"),
+    "statut": ("Statut", "statut"),
+    "type_resultat": ("Type de résultat", "type_resultat"),
+    "admis": ("Admis", "admis"),
+    "mention": ("Mention", "mention"),
+    "publie_le": ("Publié le", "publie_le"),
+}
+
+RESULT_EXPORT_FILTERS = {
+    "annee": "epreuve__session__annee_scolaire_id",
+    "session": "epreuve__session_id",
+    "classe": "epreuve__classes__id",
+    "matiere": "epreuve__matiere_id",
+    "statut": "statut",
+    "type_resultat": "type_resultat",
+}
+
+RESULT_IMPORT_COLUMNS = [
+    "epreuve_id",
+    "eleve_matricule",
+    "note",
+    "appreciation",
+    "type_resultat",
+]
+
+
+def _exam_configuration(request):
+    return getattr(getattr(request, "tenant", None), "configuration_academique", {}) or {}
+
+
+def _exam_result_workflow(request, epreuve=None):
+    academic_year_id = getattr(getattr(epreuve, "session", None), "annee_scolaire_id", None)
+    candidates = [
+        {"scope": "academic_year", "context": {"academic_year_id": academic_year_id}},
+        {"scope": "tenant", "context": {"tenant_id": getattr(getattr(request, "tenant", None), "id", None)}},
+    ]
+    return resolve_exam_result_workflow(
+        _exam_configuration(request),
+        candidates,
+        variant="secondaire",
+    ) or {}
+
+
+def _workflow_group_codes(workflow, key):
+    return tuple(workflow.get(key) or ("exam_manager_secondary",))
+
+
+def _configured_result_group_codes(configuration):
+    group_codes = {"exam_manager_secondary"}
+    for workflow in configuration.get("exam_result_workflows", []):
+        for key in (
+            "verification_group_codes",
+            "validation_group_codes",
+            "publication_group_codes",
+        ):
+            group_codes.update(workflow.get(key, []))
+    return tuple(sorted(group_codes))
+
+
+def _ensure_workflow_access(request, workflow, key):
+    if request.user.is_staff or request.user.is_superuser:
+        return
+    configuration = _exam_configuration(request)
+    allowed = user_in_configured_groups(
+        request.user,
+        configuration=configuration,
+        group_codes=_workflow_group_codes(workflow, key),
+    ) or request_has_business_access(
+        request,
+        "examens.change_resultatexamen",
+        ("direction", "responsable_pedagogique", "vie_scolaire"),
+        tenant_group_codes=_workflow_group_codes(workflow, key),
+    )
+    if not allowed:
+        raise ValidationError({"workflow": "Vous n'êtes pas autorisé pour cette étape."})
+
+
+def _ensure_result_mutable(result, workflow):
+    if result.statut in ("validated", "published", "closed"):
+        raise ValidationError(
+            {"workflow": "Le résultat est verrouillé. Réouvrez-le explicitement avant modification."}
+        )
+    if result.statut == "reopened":
+        days = workflow.get("correction_window_days", 0)
+        if days and result.reouvert_le and timezone.now() > result.reouvert_le + timedelta(days=days):
+            raise ValidationError({"workflow": "La fenêtre de réouverture est expirée."})
+
+
+def _ensure_entry_allowed(epreuve, type_resultat, workflow):
+    session = epreuve.session
+    if session.cloturee or session.annee_scolaire.cloturee:
+        allow_retake = workflow.get("allow_retake_after_closure", False)
+        if not (allow_retake and type_resultat == "retake"):
+            raise ValidationError(
+                {"workflow": "La session ou l'année est clôturée; seules les saisies de rattrapage autorisées restent possibles."}
+            )
+
+
+def _apply_result_outcome(result, pass_mark):
+    if result.note is None:
+        result.admis = False
+        result.mention = ""
+        return
+    result.admis = result.note >= pass_mark
+    if result.note >= Decimal("16"):
+        result.mention = "Très bien"
+    elif result.note >= Decimal("14"):
+        result.mention = "Bien"
+    elif result.note >= Decimal("12"):
+        result.mention = "Assez bien"
+    elif result.note >= pass_mark:
+        result.mention = "Passable"
+    else:
+        result.mention = ""
+
+
+def _set_result_status(result, statut, user, pass_mark):
+    now = timezone.now()
+    fields = ["statut", "updated_at"]
+    result.statut = statut
+    if statut == "submitted":
+        result.saisi_par = user
+        result.saisi_le = now
+        fields.extend(["saisi_par", "saisi_le"])
+    elif statut == "verified":
+        result.verifie_par = user
+        result.verifie_le = now
+        fields.extend(["verifie_par", "verifie_le"])
+    elif statut == "validated":
+        result.valide_par = user
+        result.valide_le = now
+        fields.extend(["valide_par", "valide_le"])
+    elif statut == "published":
+        result.publie_par = user
+        result.publie_le = now
+        _apply_result_outcome(result, pass_mark)
+        fields.extend(["publie_par", "publie_le", "admis", "mention"])
+    elif statut == "reopened":
+        result.reouvert_par = user
+        result.reouvert_le = now
+        fields.extend(["reouvert_par", "reouvert_le"])
+    elif statut == "closed":
+        result.cloture_par = user
+        result.cloture_le = now
+        fields.extend(["cloture_par", "cloture_le"])
+    result.save(update_fields=fields)
+
+
+def _pass_mark(request):
+    grading_scale = _exam_configuration(request).get("grading_scale", {})
+    return Decimal(str(grading_scale.get("pass_mark", 10)))
+
+
 class SessionsExamenViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour sessions d'examen."""
 
@@ -106,6 +274,24 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
         )
         serializer = EpreuveExamenListSerializer(epreuves, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def cloturer(self, request, pk=None):
+        session = self.get_object()
+        if session.cloturee:
+            return Response({"error": "Cette session est déjà clôturée."}, status=400)
+        session.cloturee = True
+        session.save(update_fields=["cloturee"])
+        return Response({"detail": "Session clôturée.", "id": session.id})
+
+    @action(detail=True, methods=["post"])
+    def reouvrir(self, request, pk=None):
+        session = self.get_object()
+        if not session.cloturee:
+            return Response({"error": "Cette session est déjà ouverte."}, status=400)
+        session.cloturee = False
+        session.save(update_fields=["cloturee"])
+        return Response({"detail": "Session rouverte.", "id": session.id})
 
 
 class EpreuvesExamenViewSet(viewsets.ModelViewSet):
@@ -205,24 +391,243 @@ class ResultatsExamenViewSet(viewsets.ModelViewSet):
     permission_classes = [IsScolariteOrReadOnly]
     serializer_class = ResultatExamenSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ["epreuve", "eleve", "admis"]
+    filterset_fields = ["epreuve", "eleve", "admis", "statut", "type_resultat"]
     ordering = ["-note"]
+
+    def get_permissions(self):
+        if self.action in {
+            "importer",
+            "modele_import",
+            "soumettre",
+            "verifier",
+            "valider",
+            "publier",
+            "reouvrir",
+            "cloturer",
+            "exporter",
+        }:
+            return [IsAuthenticated()]
+        return super().get_permissions()
 
     def get_queryset(self):
         queryset = ResultatExamen.objects.select_related(
-            "epreuve__matiere", "eleve__user"
+            "epreuve__session__annee_scolaire",
+            "epreuve__matiere",
+            "eleve__user",
         )
         user = self.request.user
-        if IsExamManager().has_permission(self.request, self):
+        configuration = _exam_configuration(self.request)
+        if request_has_business_access(
+            self.request,
+            "examens.view_resultatexamen",
+            ("direction", "responsable_pedagogique", "vie_scolaire"),
+            tenant_group_codes=_configured_result_group_codes(configuration),
+        ):
             return queryset
         if user_has_any_role(user, ("eleve",)):
-            return queryset.filter(eleve__user=user)
+            return queryset.filter(eleve__user=user, statut="published")
         if user_has_any_role(user, ("parent",)):
             return queryset.filter(
                 eleve__tuteurs_lies__tuteur__user=user,
                 eleve__tuteurs_lies__autorise_acces_portail=True,
+                statut="published",
             ).distinct()
         return queryset.none()
+
+    def perform_create(self, serializer):
+        epreuve = serializer.validated_data["epreuve"]
+        workflow = _exam_result_workflow(self.request, epreuve)
+        type_resultat = serializer.validated_data.get("type_resultat", "normal")
+        _ensure_entry_allowed(epreuve, type_resultat, workflow)
+        serializer.save(
+            saisi_par=self.request.user,
+            saisi_le=timezone.now(),
+            statut="draft",
+        )
+
+    def perform_update(self, serializer):
+        result = self.get_object()
+        workflow = _exam_result_workflow(self.request, result.epreuve)
+        _ensure_result_mutable(result, workflow)
+        type_resultat = serializer.validated_data.get("type_resultat", result.type_resultat)
+        _ensure_entry_allowed(result.epreuve, type_resultat, workflow)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        workflow = _exam_result_workflow(self.request, instance.epreuve)
+        _ensure_result_mutable(instance, workflow)
+        instance.delete()
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(
+            request,
+            request.data.get("report"),
+            allowed_datasets={"exam_results"},
+        )
+        return export_queryset(
+            request,
+            self.filter_queryset(self.get_queryset()),
+            report,
+            RESULT_EXPORT_FIELDS,
+            RESULT_EXPORT_FILTERS,
+            request.data.get("filters", {}),
+        )
+
+    @action(detail=False, methods=["get"])
+    def modele_import(self, request):
+        workflow = _exam_result_workflow(request)
+        _ensure_workflow_access(request, workflow, "verification_group_codes")
+        if "exam_grades" not in workflow.get("import_template_codes", ["exam_grades"]):
+            raise ValidationError({"workflow": "Le modèle d'import des notes d'examen n'est pas activé."})
+        return template_response(
+            RESULT_IMPORT_COLUMNS,
+            "modele-resultats-examen.xlsx",
+            sample_row=["123", "MAT-001", "14.5", "Bonne copie", "normal"],
+        )
+
+    @action(detail=False, methods=["post"])
+    def importer(self, request):
+        workflow = _exam_result_workflow(request)
+        _ensure_workflow_access(request, workflow, "verification_group_codes")
+        uploaded_file = request.FILES.get("file")
+        if uploaded_file is None:
+            raise ValidationError({"file": "Un fichier Excel est requis."})
+        rows = load_excel_rows(uploaded_file, RESULT_IMPORT_COLUMNS)
+        if not rows:
+            raise ValidationError({"file": "Le fichier ne contient aucune ligne exploitable."})
+        epreuve_ids = set()
+        for row in rows:
+            try:
+                epreuve_ids.add(int(row["epreuve_id"]))
+            except (TypeError, ValueError):
+                raise ValidationError(
+                    {"epreuve_id": f"Ligne {row['__row_number__']}: identifiant d'épreuve invalide."}
+                )
+        matricules = {str(row["eleve_matricule"]).strip() for row in rows}
+        convocations = ConvocationExamen.objects.select_related(
+            "epreuve__session__annee_scolaire", "eleve"
+        ).filter(epreuve_id__in=epreuve_ids, eleve__matricule__in=matricules)
+        convocation_map = {
+            (convocation.epreuve_id, convocation.eleve.matricule): convocation for convocation in convocations
+        }
+        seen = {}
+        created = updated = 0
+        pass_mark = _pass_mark(request)
+        with transaction.atomic():
+            for row in rows:
+                row_number = row.pop("__row_number__")
+                try:
+                    epreuve_id = int(row["epreuve_id"])
+                except (TypeError, ValueError):
+                    raise ValidationError({"epreuve_id": f"Ligne {row_number}: identifiant d'épreuve invalide."})
+                matricule = str(row["eleve_matricule"]).strip()
+                key = (epreuve_id, matricule)
+                if key in seen:
+                    if seen[key] != row:
+                        raise ValidationError({"file": f"Ligne {row_number}: doublon incohérent détecté pour {matricule}."})
+                    continue
+                seen[key] = row.copy()
+                convocation = convocation_map.get(key)
+                if convocation is None:
+                    raise ValidationError(
+                        {"file": f"Ligne {row_number}: apprenant hors périmètre pour cette épreuve."}
+                    )
+                workflow = _exam_result_workflow(request, convocation.epreuve)
+                _ensure_workflow_access(request, workflow, "verification_group_codes")
+                result_type = str(row.get("type_resultat") or "normal").strip().lower()
+                if result_type not in {"normal", "retake"}:
+                    raise ValidationError({"type_resultat": f"Ligne {row_number}: type de résultat invalide."})
+                _ensure_entry_allowed(convocation.epreuve, result_type, workflow)
+                try:
+                    note = Decimal(str(row["note"]))
+                except (ArithmeticError, TypeError, ValueError):
+                    raise ValidationError({"note": f"Ligne {row_number}: note invalide."})
+                if note < 0 or note > convocation.epreuve.bareme:
+                    raise ValidationError({"note": f"Ligne {row_number}: la note doit respecter le barème."})
+                result, was_created = ResultatExamen.objects.select_for_update().get_or_create(
+                    epreuve=convocation.epreuve,
+                    eleve=convocation.eleve,
+                    defaults={
+                        "numero_anonyme": getattr(getattr(convocation, "copie", None), "numero_anonyme", ""),
+                    },
+                )
+                if not was_created:
+                    _ensure_result_mutable(result, workflow)
+                result.note = note
+                result.appreciation = str(row.get("appreciation") or "").strip()
+                result.type_resultat = result_type
+                result.numero_anonyme = result.numero_anonyme or getattr(
+                    getattr(convocation, "copie", None), "numero_anonyme", ""
+                )
+                result.saisi_par = request.user
+                result.saisi_le = timezone.now()
+                _apply_result_outcome(result, pass_mark)
+                result.statut = "submitted"
+                result.save()
+                created += int(was_created)
+                updated += int(not was_created)
+        return Response({"resultats_crees": created, "resultats_mis_a_jour": updated})
+
+    @action(detail=True, methods=["post"])
+    def soumettre(self, request, pk=None):
+        result = self.get_object()
+        workflow = _exam_result_workflow(request, result.epreuve)
+        _ensure_workflow_access(request, workflow, "verification_group_codes")
+        _ensure_entry_allowed(result.epreuve, result.type_resultat, workflow)
+        _ensure_result_mutable(result, workflow)
+        _set_result_status(result, "submitted", request.user, _pass_mark(request))
+        return Response(self.get_serializer(result).data)
+
+    @action(detail=True, methods=["post"])
+    def verifier(self, request, pk=None):
+        result = self.get_object()
+        workflow = _exam_result_workflow(request, result.epreuve)
+        _ensure_workflow_access(request, workflow, "verification_group_codes")
+        if result.statut not in ("submitted", "reopened"):
+            return Response({"error": "Ce résultat doit être soumis avant vérification."}, status=400)
+        _set_result_status(result, "verified", request.user, _pass_mark(request))
+        return Response(self.get_serializer(result).data)
+
+    @action(detail=True, methods=["post"])
+    def valider(self, request, pk=None):
+        result = self.get_object()
+        workflow = _exam_result_workflow(request, result.epreuve)
+        _ensure_workflow_access(request, workflow, "validation_group_codes")
+        if result.statut != "verified":
+            return Response({"error": "Ce résultat doit être vérifié avant validation."}, status=400)
+        _set_result_status(result, "validated", request.user, _pass_mark(request))
+        return Response(self.get_serializer(result).data)
+
+    @action(detail=True, methods=["post"])
+    def publier(self, request, pk=None):
+        result = self.get_object()
+        workflow = _exam_result_workflow(request, result.epreuve)
+        _ensure_workflow_access(request, workflow, "publication_group_codes")
+        if result.statut != "validated":
+            return Response({"error": "Ce résultat doit être validé avant publication."}, status=400)
+        _set_result_status(result, "published", request.user, _pass_mark(request))
+        return Response(self.get_serializer(result).data)
+
+    @action(detail=True, methods=["post"])
+    def reouvrir(self, request, pk=None):
+        result = self.get_object()
+        workflow = _exam_result_workflow(request, result.epreuve)
+        _ensure_workflow_access(request, workflow, "validation_group_codes")
+        if result.statut not in ("validated", "published", "closed"):
+            return Response({"error": "Seuls les résultats verrouillés peuvent être réouverts."}, status=400)
+        _set_result_status(result, "reopened", request.user, _pass_mark(request))
+        return Response(self.get_serializer(result).data)
+
+    @action(detail=True, methods=["post"])
+    def cloturer(self, request, pk=None):
+        result = self.get_object()
+        workflow = _exam_result_workflow(request, result.epreuve)
+        _ensure_workflow_access(request, workflow, "publication_group_codes")
+        if result.statut not in ("published", "validated", "reopened"):
+            return Response({"error": "Ce résultat ne peut pas être clôturé dans son état actuel."}, status=400)
+        _set_result_status(result, "closed", request.user, _pass_mark(request))
+        return Response(self.get_serializer(result).data)
 
 
 class CopiesExamenViewSet(

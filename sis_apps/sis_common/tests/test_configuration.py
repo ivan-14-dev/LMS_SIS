@@ -4,6 +4,7 @@ from sis_common.academic_configuration import (
     academic_configuration_schema,
     catalog_label,
     default_academic_configuration,
+    resolve_exam_result_workflow,
     merge_academic_configuration,
     resolve_financial_workflow,
     resolve_validation_policy,
@@ -95,6 +96,7 @@ class AcademicConfigurationTests(SimpleTestCase):
                 "label": "Paiements validés",
                 "dataset": "financial_payments",
                 "fields": ["numero", "montant"],
+                "formats": ["csv", "xlsx"],
                 "allowed_filters": ["annee", "statut"],
                 "required_permissions": ["paiements.view_paiement"],
             }
@@ -121,6 +123,11 @@ class AcademicConfigurationTests(SimpleTestCase):
         schema = academic_configuration_schema("superieur")
 
         self.assertIn({"code": "financial", "label": "Financier"}, schema["dimension_axes"])
+        self.assertIn({"code": "pdf", "label": "PDF"}, schema["report_export_formats"])
+        self.assertIn(
+            {"code": "exam_grades", "label": "Notes d'épreuves / examens"},
+            schema["import_template_types"],
+        )
         payments_dataset = next(
             dataset for dataset in schema["report_datasets"] if dataset["code"] == "financial_payments"
         )
@@ -139,10 +146,15 @@ class AcademicConfigurationTests(SimpleTestCase):
         bulletins_dataset = next(
             dataset for dataset in schema["report_datasets"] if dataset["code"] == "bulletins"
         )
+        exam_results_dataset = next(
+            dataset for dataset in schema["report_datasets"] if dataset["code"] == "exam_results"
+        )
 
         self.assertIn("bulletins", dataset_codes)
+        self.assertIn("exam_results", dataset_codes)
         self.assertNotIn("averages_ecue", dataset_codes)
         self.assertIn({"code": "moyenne_generale", "label": "Moyenne générale"}, bulletins_dataset["fields"])
+        self.assertIn({"code": "pdf", "label": "PDF"}, exam_results_dataset["export_formats"])
 
     def test_default_configuration_includes_reusable_permission_groups(self):
         configuration = default_academic_configuration()
@@ -213,3 +225,14 @@ class AcademicConfigurationTests(SimpleTestCase):
 
         self.assertTrue(workflow_transition_allowed(workflow, "valider", "en_attente", "valide"))
         self.assertFalse(workflow_transition_allowed(workflow, "valider", "valide", "rembourse"))
+
+    def test_resolve_exam_result_workflow_prefers_matching_variant(self):
+        configuration = default_academic_configuration()
+
+        workflow = resolve_exam_result_workflow(
+            configuration,
+            {"scope": "tenant", "context": {"tenant_id": 7}},
+            variant="secondaire",
+        )
+
+        self.assertEqual(workflow["code"], "default_secondary_exam_results")

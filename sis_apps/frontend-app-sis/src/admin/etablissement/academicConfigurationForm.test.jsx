@@ -15,6 +15,8 @@ describe('academicConfigurationForm helpers', () => {
       permission_groups: [],
       validation_policies: [],
       financial_workflows: [],
+      import_templates: [],
+      exam_result_workflows: [],
       reports: [],
     });
   });
@@ -35,6 +37,8 @@ describe('academicConfigurationForm helpers', () => {
       permission_groups: [],
       validation_policies: [],
       financial_workflows: [],
+      import_templates: [],
+      exam_result_workflows: [],
     });
   });
 

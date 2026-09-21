@@ -35,6 +35,7 @@ class SessionExamenSerializer(serializers.ModelSerializer):
             "nom",
             "date_debut",
             "date_fin",
+            "cloturee",
             "nb_epreuves",
             "created_at",
         ]
@@ -154,6 +155,10 @@ class ResultatExamenSerializer(serializers.ModelSerializer):
     )
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
+    statut_display = serializers.CharField(source="get_statut_display", read_only=True)
+    type_resultat_display = serializers.CharField(
+        source="get_type_resultat_display", read_only=True
+    )
 
     class Meta:
         model = ResultatExamen
@@ -167,11 +172,47 @@ class ResultatExamenSerializer(serializers.ModelSerializer):
             "note",
             "appreciation",
             "numero_anonyme",
+            "statut",
+            "statut_display",
+            "type_resultat",
+            "type_resultat_display",
             "admis",
             "mention",
+            "saisi_par",
+            "saisi_le",
+            "verifie_par",
+            "verifie_le",
+            "valide_par",
+            "valide_le",
+            "publie_par",
+            "publie_le",
+            "reouvert_par",
+            "reouvert_le",
+            "cloture_par",
+            "cloture_le",
             "created_at",
+            "updated_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "numero_anonyme",
+            "admis",
+            "mention",
+            "saisi_par",
+            "saisi_le",
+            "verifie_par",
+            "verifie_le",
+            "valide_par",
+            "valide_le",
+            "publie_par",
+            "publie_le",
+            "reouvert_par",
+            "reouvert_le",
+            "cloture_par",
+            "cloture_le",
+        ]
 
 
 class CopieExamenSerializer(serializers.ModelSerializer):

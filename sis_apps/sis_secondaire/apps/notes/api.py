@@ -15,7 +15,7 @@ from sis_common.authorization import (
     user_has_any_role,
 )
 from sis_common.academic_configuration import resolve_validation_policy
-from sis_common.reporting import configured_report, export_queryset_csv
+from sis_common.reporting import configured_report, export_queryset
 from sis_common.document_policies import enforce_financial_clearance, get_action_object
 
 from .models import Bulletin, Evaluation, Note, RegleValidation
@@ -243,7 +243,8 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def exporter(self, request):
         report = configured_report(request, request.data.get("report"), allowed_datasets={"evaluations"})
-        return export_queryset_csv(
+        return export_queryset(
+            request,
             self.filter_queryset(self.get_queryset()),
             report,
             EVALUATION_REPORT_FIELDS,
@@ -349,7 +350,8 @@ class NotesViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def exporter(self, request):
         report = configured_report(request, request.data.get("report"), allowed_datasets={"notes"})
-        return export_queryset_csv(
+        return export_queryset(
+            request,
             self.filter_queryset(self.get_queryset()),
             report,
             NOTE_REPORT_FIELDS,
@@ -445,7 +447,8 @@ class BulletinsViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def exporter(self, request):
         report = configured_report(request, request.data.get("report"), allowed_datasets={"bulletins"})
-        return export_queryset_csv(
+        return export_queryset(
+            request,
             self.filter_queryset(self.get_queryset()),
             report,
             BULLETIN_REPORT_FIELDS,

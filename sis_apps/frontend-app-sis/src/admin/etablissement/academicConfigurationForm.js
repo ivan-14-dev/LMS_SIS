@@ -4,6 +4,8 @@ export const normalizeAcademicConfiguration = (value = {}) => ({
   permission_groups: value.permission_groups || [],
   validation_policies: value.validation_policies || [],
   financial_workflows: value.financial_workflows || [],
+  import_templates: value.import_templates || [],
+  exam_result_workflows: value.exam_result_workflows || [],
   reports: value.reports || [],
 });
 

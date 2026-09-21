@@ -38,6 +38,24 @@ VALIDATION_POLICY_SCOPES = {
     "semester": "Semestre",
 }
 
+REPORT_EXPORT_FORMATS = {
+    "csv": "CSV",
+    "xlsx": "Excel (.xlsx)",
+    "pdf": "PDF",
+}
+
+IMPORT_TEMPLATE_TYPES = {
+    "continuous_assessment_grades": "Notes de contrôle continu",
+    "exam_grades": "Notes d'épreuves / examens",
+    "final_results": "Résultats finaux",
+}
+
+EXAM_RESULT_WORKFLOW_SCOPES = {
+    "tenant": "Établissement",
+    "academic_year": "Année académique",
+    "session": "Session d'examen",
+}
+
 REPORT_DATASET_SCHEMAS = {
     "notes": {
         "label": "Notes",
@@ -378,6 +396,42 @@ REPORT_DATASET_SCHEMAS = {
             },
         },
     },
+    "exam_results": {
+        "label": "Résultats d'examen",
+        "variants": {
+            "secondaire": {
+                "fields": [
+                    {"code": "session", "label": "Session"},
+                    {"code": "matiere", "label": "Matière"},
+                    {"code": "classe", "label": "Classe"},
+                    {"code": "matricule", "label": "Matricule"},
+                    {"code": "eleve", "label": "Élève"},
+                    {"code": "note", "label": "Note"},
+                    {"code": "appreciation", "label": "Appréciation"},
+                    {"code": "statut", "label": "Statut"},
+                    {"code": "type_resultat", "label": "Type de résultat"},
+                    {"code": "admis", "label": "Admis"},
+                    {"code": "mention", "label": "Mention"},
+                    {"code": "publie_le", "label": "Publié le"},
+                ],
+                "allowed_filters": [
+                    {"code": "annee", "label": "Année scolaire"},
+                    {"code": "session", "label": "Session"},
+                    {"code": "classe", "label": "Classe"},
+                    {"code": "matiere", "label": "Matière"},
+                    {"code": "statut", "label": "Statut"},
+                    {"code": "type_resultat", "label": "Type de résultat"},
+                ],
+                "group_by_options": [
+                    {"code": "session", "label": "Session"},
+                    {"code": "classe", "label": "Classe"},
+                    {"code": "matiere", "label": "Matière"},
+                    {"code": "statut", "label": "Statut"},
+                    {"code": "type_resultat", "label": "Type de résultat"},
+                ],
+            }
+        },
+    },
 }
 REPORT_DATASET_LABELS = {
     code: details["label"] for code, details in REPORT_DATASET_SCHEMAS.items()
@@ -397,6 +451,57 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
         {"code": "controle", "label": "Contrôle continu"},
         {"code": "composition", "label": "Composition"},
         {"code": "examen", "label": "Examen"},
+    ],
+    "import_templates": [
+        {
+            "code": "continuous_assessment_grades",
+            "label": "Import notes de contrôle continu",
+            "type": "continuous_assessment_grades",
+            "allowed_extensions": ["xlsx", "xls"],
+            "columns": ["evaluation_id", "matricule", "note", "appreciation"],
+            "strict_columns": True,
+        },
+        {
+            "code": "exam_grades",
+            "label": "Import notes d'examen",
+            "type": "exam_grades",
+            "allowed_extensions": ["xlsx", "xls"],
+            "columns": [
+                "epreuve_id",
+                "eleve_matricule",
+                "note",
+                "appreciation",
+                "type_resultat",
+            ],
+            "strict_columns": True,
+        },
+        {
+            "code": "final_results",
+            "label": "Import résultats finaux",
+            "type": "final_results",
+            "allowed_extensions": ["xlsx", "xls"],
+            "columns": ["session_id", "matricule", "resultat", "mention"],
+            "strict_columns": True,
+        },
+    ],
+    "exam_result_workflows": [
+        {
+            "code": "default_secondary_exam_results",
+            "label": "Workflow examens secondaire",
+            "scope": "tenant",
+            "variants": ["secondaire"],
+            "verification_group_codes": [
+                "class_council_manager_secondary",
+                "exam_manager_secondary",
+            ],
+            "validation_group_codes": ["exam_manager_secondary"],
+            "publication_group_codes": ["exam_manager_secondary"],
+            "allowed_export_formats": ["csv", "xlsx", "pdf"],
+            "import_template_codes": ["exam_grades", "final_results"],
+            "correction_window_days": 0,
+            "allow_retake_after_closure": True,
+            "allow_student_submission": False,
+        }
     ],
     "catalogs": {
         "institution_types": [],
@@ -960,6 +1065,13 @@ def _validate_reports(items):
             raise ValidationError(f"reports[{index}].fields doit être une liste non vide.")
         if not isinstance(report.get("allowed_filters", []), list):
             raise ValidationError(f"reports[{index}].allowed_filters doit être une liste.")
+        formats = report.get("formats", ["csv"])
+        _validate_string_list(formats, f"reports[{index}].formats", empty_allowed=False)
+        unknown_formats = set(formats) - set(REPORT_EXPORT_FORMATS)
+        if unknown_formats:
+            raise ValidationError(
+                f"reports[{index}].formats doit être parmi: {', '.join(sorted(REPORT_EXPORT_FORMATS))}."
+            )
         if "required_permissions" in report:
             _validate_string_list(
                 report["required_permissions"],
@@ -969,6 +1081,92 @@ def _validate_reports(items):
         default_group_by = report.get("default_group_by")
         if default_group_by is not None and (not isinstance(default_group_by, str) or not default_group_by.strip()):
             raise ValidationError(f"reports[{index}].default_group_by doit être une chaîne non vide.")
+
+
+def _validate_import_templates(items):
+    _validate_code_items(items, "import_templates")
+    for index, template in enumerate(items):
+        template_type = template.get("type")
+        if template_type not in IMPORT_TEMPLATE_TYPES:
+            raise ValidationError(
+                f"import_templates[{index}].type doit être l'un de: {', '.join(sorted(IMPORT_TEMPLATE_TYPES))}."
+            )
+        columns = template.get("columns", [])
+        _validate_string_list(
+            columns,
+            f"import_templates[{index}].columns",
+            empty_allowed=False,
+        )
+        extensions = template.get("allowed_extensions", ["xlsx"])
+        _validate_string_list(
+            extensions,
+            f"import_templates[{index}].allowed_extensions",
+            empty_allowed=False,
+        )
+        unknown_extensions = set(extensions) - {"xlsx", "xls"}
+        if unknown_extensions:
+            raise ValidationError(
+                f"import_templates[{index}].allowed_extensions doit être parmi: xls, xlsx."
+            )
+        strict_columns = template.get("strict_columns", True)
+        if not isinstance(strict_columns, bool):
+            raise ValidationError(
+                f"import_templates[{index}].strict_columns doit être booléen."
+            )
+
+
+def _validate_exam_result_workflows(items, template_codes=None):
+    _validate_code_items(items, "exam_result_workflows")
+    for index, workflow in enumerate(items):
+        scope = workflow.get("scope")
+        if scope not in EXAM_RESULT_WORKFLOW_SCOPES:
+            raise ValidationError(
+                f"exam_result_workflows[{index}].scope doit être l'un de: {', '.join(sorted(EXAM_RESULT_WORKFLOW_SCOPES))}."
+            )
+        variants = workflow.get("variants", [])
+        _validate_string_list(
+            variants,
+            f"exam_result_workflows[{index}].variants",
+            empty_allowed=False,
+        )
+        unknown_variants = set(variants) - {"secondaire", "superieur"}
+        if unknown_variants:
+            raise ValidationError(
+                f"exam_result_workflows[{index}].variants contient une valeur invalide."
+            )
+        for key in (
+            "verification_group_codes",
+            "validation_group_codes",
+            "publication_group_codes",
+            "allowed_export_formats",
+            "import_template_codes",
+        ):
+            _validate_string_list(workflow.get(key, []), f"exam_result_workflows[{index}].{key}")
+        unknown_formats = set(workflow.get("allowed_export_formats", [])) - set(
+            REPORT_EXPORT_FORMATS
+        )
+        if unknown_formats:
+            raise ValidationError(
+                f"exam_result_workflows[{index}].allowed_export_formats contient un format invalide."
+            )
+        configured_template_codes = set(template_codes or ())
+        unknown_templates = set(workflow.get("import_template_codes", [])) - configured_template_codes
+        if unknown_templates:
+            raise ValidationError(
+                f"exam_result_workflows[{index}].import_template_codes contient un modèle invalide."
+            )
+        correction_window_days = workflow.get("correction_window_days", 0)
+        if not isinstance(correction_window_days, int) or correction_window_days < 0:
+            raise ValidationError(
+                f"exam_result_workflows[{index}].correction_window_days doit être un entier positif."
+            )
+        for key in ("allow_retake_after_closure", "allow_student_submission"):
+            if key in workflow and not isinstance(workflow[key], bool):
+                raise ValidationError(
+                    f"exam_result_workflows[{index}].{key} doit être booléen."
+                )
+        if "targets" in workflow:
+            _validate_targets(workflow["targets"], f"exam_result_workflows[{index}].targets")
 
 
 def _report_dataset_schema(variant=None):
@@ -990,6 +1188,10 @@ def _report_dataset_schema(variant=None):
                 "fields": dataset.get("fields", []),
                 "allowed_filters": dataset.get("allowed_filters", []),
                 "group_by_options": dataset.get("group_by_options", []),
+                "export_formats": [
+                    {"code": code, "label": label}
+                    for code, label in REPORT_EXPORT_FORMATS.items()
+                ],
             }
         )
     return datasets
@@ -1003,6 +1205,16 @@ def academic_configuration_schema(variant=None):
         "report_datasets": _report_dataset_schema(variant),
         "financial_workflow_scopes": [
             {"code": code, "label": label} for code, label in FINANCIAL_WORKFLOW_SCOPES.items()
+        ],
+        "report_export_formats": [
+            {"code": code, "label": label} for code, label in REPORT_EXPORT_FORMATS.items()
+        ],
+        "import_template_types": [
+            {"code": code, "label": label} for code, label in IMPORT_TEMPLATE_TYPES.items()
+        ],
+        "exam_result_workflow_scopes": [
+            {"code": code, "label": label}
+            for code, label in EXAM_RESULT_WORKFLOW_SCOPES.items()
         ],
     }
 
@@ -1061,6 +1273,28 @@ def resolve_financial_workflow(configuration, candidates):
     return None
 
 
+def resolve_exam_result_workflow(configuration, candidates, variant=None):
+    workflows = (configuration or {}).get("exam_result_workflows", [])
+    candidates = candidates if isinstance(candidates, list) else [candidates]
+    for candidate in candidates:
+        scope = candidate.get("scope")
+        context = candidate.get("context", {})
+        matching = [
+            workflow
+            for workflow in workflows
+            if workflow.get("scope") == scope
+            and workflow.get("active", True)
+            and _target_matches(workflow.get("targets", {}), context)
+            and (variant is None or variant in workflow.get("variants", []))
+        ]
+        if matching:
+            return sorted(
+                matching,
+                key=lambda item: (-len(item.get("targets", {})), item.get("priority", 100)),
+            )[0]
+    return None
+
+
 def workflow_transition_allowed(workflow, action, current_status, next_status):
     transitions = (workflow or {}).get("transitions", [])
     if not transitions:
@@ -1105,6 +1339,12 @@ def validate_academic_configuration(value):
     _validate_permission_groups(value.get("permission_groups", []))
     _validate_validation_policies(value.get("validation_policies", []))
     _validate_financial_workflows(value.get("financial_workflows", []))
+    import_templates = value.get("import_templates", [])
+    _validate_import_templates(import_templates)
+    _validate_exam_result_workflows(
+        value.get("exam_result_workflows", []),
+        template_codes={template["code"] for template in import_templates},
+    )
     _validate_reports(value.get("reports", []))
 
 

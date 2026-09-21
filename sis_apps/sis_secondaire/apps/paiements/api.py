@@ -15,7 +15,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from sis_common.academic_configuration import resolve_financial_workflow, workflow_transition_allowed
 from sis_common.authorization import has_business_permission_or_role, user_has_any_role
-from sis_common.reporting import configured_report, export_queryset_csv
+from sis_common.reporting import configured_report, export_queryset
 
 from .models import Facture, Paiement, TypeFrais
 from .serializers import (
@@ -237,7 +237,8 @@ class FacturesViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def exporter(self, request):
         report = configured_report(request, request.data.get("report"), allowed_datasets={"financial_invoices"})
-        return export_queryset_csv(
+        return export_queryset(
+            request,
             self.filter_queryset(self.get_queryset()),
             report,
             INVOICE_REPORT_FIELDS,
@@ -402,7 +403,8 @@ class PaiementsViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def exporter(self, request):
         report = configured_report(request, request.data.get("report"), allowed_datasets={"financial_payments"})
-        return export_queryset_csv(
+        return export_queryset(
+            request,
             self.filter_queryset(self.get_queryset()),
             report,
             PAYMENT_REPORT_FIELDS,

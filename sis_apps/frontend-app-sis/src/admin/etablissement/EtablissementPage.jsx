@@ -794,6 +794,7 @@ const EtablissementPage = () => {
                         label: '',
                         dataset: configurationSchema.report_datasets?.[0]?.code || '',
                         fields: [],
+                        formats: ['csv'],
                         allowed_filters: [],
                         required_permissions: [],
                         default_group_by: '',
@@ -858,6 +859,14 @@ const EtablissementPage = () => {
                               />
                             </Form.Group>
                             <Form.Group className="mb-2">
+                              <Form.Label>Formats autorisés</Form.Label>
+                              <Form.Control
+                                value={formatCsv(report.formats)}
+                                onChange={(event) => updateAcademicItemField('reports', index, 'formats', parseCsv(event.target.value))}
+                                placeholder="csv, xlsx, pdf"
+                              />
+                            </Form.Group>
+                            <Form.Group className="mb-2">
                               <Form.Label>Filtres autorisés</Form.Label>
                               <Form.Control
                                 value={formatCsv(report.allowed_filters)}
@@ -885,6 +894,228 @@ const EtablissementPage = () => {
                         </Card>
                       );
                     })}
+                  </Card.Body>
+                </Card>
+
+                <Card className="mt-3">
+                  <Card.Header className="d-flex justify-content-between align-items-center">
+                    <span>Modèles d’import Excel</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline-primary"
+                      onClick={() => addAcademicItem('import_templates', {
+                        code: '',
+                        label: '',
+                        type: configurationSchema.import_template_types?.[0]?.code || '',
+                        allowed_extensions: ['xlsx', 'xls'],
+                        columns: [],
+                        strict_columns: true,
+                      })}
+                    >
+                      Ajouter
+                    </Button>
+                  </Card.Header>
+                  <Card.Body>
+                    {(academicConfiguration.import_templates || []).map((template, index) => (
+                      <Card key={template.code || template.label || JSON.stringify(template)} className="mb-3">
+                        <Card.Body>
+                          <Row>
+                            <Col md={6}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>Code</Form.Label>
+                                <Form.Control
+                                  value={template.code || ''}
+                                  onChange={(event) => updateAcademicItemField('import_templates', index, 'code', event.target.value)}
+                                />
+                              </Form.Group>
+                            </Col>
+                            <Col md={6}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>Libellé</Form.Label>
+                                <Form.Control
+                                  value={template.label || ''}
+                                  onChange={(event) => updateAcademicItemField('import_templates', index, 'label', event.target.value)}
+                                />
+                              </Form.Group>
+                            </Col>
+                          </Row>
+                          <Form.Group className="mb-2">
+                            <Form.Label>Type</Form.Label>
+                            <Form.Control
+                              as="select"
+                              value={template.type || ''}
+                              onChange={(event) => updateAcademicItemField('import_templates', index, 'type', event.target.value)}
+                            >
+                              {(configurationSchema.import_template_types || []).map((option) => (
+                                <option key={option.code} value={option.code}>{option.label}</option>
+                              ))}
+                            </Form.Control>
+                          </Form.Group>
+                          <Form.Group className="mb-2">
+                            <Form.Label>Extensions autorisées</Form.Label>
+                            <Form.Control
+                              value={formatCsv(template.allowed_extensions)}
+                              onChange={(event) => updateAcademicItemField('import_templates', index, 'allowed_extensions', parseCsv(event.target.value))}
+                              placeholder="xlsx, xls"
+                            />
+                          </Form.Group>
+                          <Form.Group className="mb-2">
+                            <Form.Label>Colonnes strictes</Form.Label>
+                            <Form.Control
+                              value={formatCsv(template.columns)}
+                              onChange={(event) => updateAcademicItemField('import_templates', index, 'columns', parseCsv(event.target.value))}
+                              placeholder="epreuve_id, eleve_matricule, note"
+                            />
+                          </Form.Group>
+                          <Form.Check
+                            type="switch"
+                            id={`import-template-strict-${index}`}
+                            label="Refuser les colonnes inattendues"
+                            checked={Boolean(template.strict_columns)}
+                            onChange={(event) => updateAcademicItemField('import_templates', index, 'strict_columns', event.target.checked)}
+                          />
+                          <Button type="button" variant="link" className="px-0" onClick={() => removeAcademicItem('import_templates', index)}>Supprimer</Button>
+                        </Card.Body>
+                      </Card>
+                    ))}
+                  </Card.Body>
+                </Card>
+
+                <Card className="mt-3">
+                  <Card.Header className="d-flex justify-content-between align-items-center">
+                    <span>Workflow résultats d’examen</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline-primary"
+                      onClick={() => addAcademicItem('exam_result_workflows', {
+                        code: '',
+                        label: '',
+                        scope: configurationSchema.exam_result_workflow_scopes?.[0]?.code || 'tenant',
+                        variants: ['secondaire'],
+                        verification_group_codes: [],
+                        validation_group_codes: [],
+                        publication_group_codes: [],
+                        allowed_export_formats: ['csv', 'xlsx', 'pdf'],
+                        import_template_codes: [],
+                        correction_window_days: 0,
+                        allow_retake_after_closure: true,
+                        allow_student_submission: false,
+                      })}
+                    >
+                      Ajouter
+                    </Button>
+                  </Card.Header>
+                  <Card.Body>
+                    {(academicConfiguration.exam_result_workflows || []).map((workflow, index) => (
+                      <Card key={workflow.code || workflow.label || JSON.stringify(workflow)} className="mb-3">
+                        <Card.Body>
+                          <Row>
+                            <Col md={6}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>Code</Form.Label>
+                                <Form.Control
+                                  value={workflow.code || ''}
+                                  onChange={(event) => updateAcademicItemField('exam_result_workflows', index, 'code', event.target.value)}
+                                />
+                              </Form.Group>
+                            </Col>
+                            <Col md={6}>
+                              <Form.Group className="mb-2">
+                                <Form.Label>Libellé</Form.Label>
+                                <Form.Control
+                                  value={workflow.label || ''}
+                                  onChange={(event) => updateAcademicItemField('exam_result_workflows', index, 'label', event.target.value)}
+                                />
+                              </Form.Group>
+                            </Col>
+                          </Row>
+                          <Form.Group className="mb-2">
+                            <Form.Label>Portée</Form.Label>
+                            <Form.Control
+                              as="select"
+                              value={workflow.scope || 'tenant'}
+                              onChange={(event) => updateAcademicItemField('exam_result_workflows', index, 'scope', event.target.value)}
+                            >
+                              {(configurationSchema.exam_result_workflow_scopes || []).map((option) => (
+                                <option key={option.code} value={option.code}>{option.label}</option>
+                              ))}
+                            </Form.Control>
+                          </Form.Group>
+                          <Form.Group className="mb-2">
+                            <Form.Label>Variantes</Form.Label>
+                            <Form.Control
+                              value={formatCsv(workflow.variants)}
+                              onChange={(event) => updateAcademicItemField('exam_result_workflows', index, 'variants', parseCsv(event.target.value))}
+                              placeholder="secondaire, superieur"
+                            />
+                          </Form.Group>
+                          <Form.Group className="mb-2">
+                            <Form.Label>Groupes de vérification</Form.Label>
+                            <Form.Control
+                              value={formatCsv(workflow.verification_group_codes)}
+                              onChange={(event) => updateAcademicItemField('exam_result_workflows', index, 'verification_group_codes', parseCsv(event.target.value))}
+                            />
+                          </Form.Group>
+                          <Form.Group className="mb-2">
+                            <Form.Label>Groupes de validation</Form.Label>
+                            <Form.Control
+                              value={formatCsv(workflow.validation_group_codes)}
+                              onChange={(event) => updateAcademicItemField('exam_result_workflows', index, 'validation_group_codes', parseCsv(event.target.value))}
+                            />
+                          </Form.Group>
+                          <Form.Group className="mb-2">
+                            <Form.Label>Groupes de publication</Form.Label>
+                            <Form.Control
+                              value={formatCsv(workflow.publication_group_codes)}
+                              onChange={(event) => updateAcademicItemField('exam_result_workflows', index, 'publication_group_codes', parseCsv(event.target.value))}
+                            />
+                          </Form.Group>
+                          <Form.Group className="mb-2">
+                            <Form.Label>Formats d’export</Form.Label>
+                            <Form.Control
+                              value={formatCsv(workflow.allowed_export_formats)}
+                              onChange={(event) => updateAcademicItemField('exam_result_workflows', index, 'allowed_export_formats', parseCsv(event.target.value))}
+                              placeholder="csv, xlsx, pdf"
+                            />
+                          </Form.Group>
+                          <Form.Group className="mb-2">
+                            <Form.Label>Modèles d’import</Form.Label>
+                            <Form.Control
+                              value={formatCsv(workflow.import_template_codes)}
+                              onChange={(event) => updateAcademicItemField('exam_result_workflows', index, 'import_template_codes', parseCsv(event.target.value))}
+                              placeholder="exam_grades, final_results"
+                            />
+                          </Form.Group>
+                          <Form.Group className="mb-2">
+                            <Form.Label>Fenêtre de correction après réouverture (jours)</Form.Label>
+                            <Form.Control
+                              type="number"
+                              min="0"
+                              value={workflow.correction_window_days ?? 0}
+                              onChange={(event) => updateAcademicItemField('exam_result_workflows', index, 'correction_window_days', Number(event.target.value || 0))}
+                            />
+                          </Form.Group>
+                          <Form.Check
+                            type="switch"
+                            id={`exam-result-retake-${index}`}
+                            className="mb-2"
+                            label="Autoriser les rattrapages après clôture"
+                            checked={Boolean(workflow.allow_retake_after_closure)}
+                            onChange={(event) => updateAcademicItemField('exam_result_workflows', index, 'allow_retake_after_closure', event.target.checked)}
+                          />
+                          <Form.Check
+                            type="switch"
+                            id={`exam-result-submission-${index}`}
+                            label="Autoriser le dépôt étudiant"
+                            checked={Boolean(workflow.allow_student_submission)}
+                            onChange={(event) => updateAcademicItemField('exam_result_workflows', index, 'allow_student_submission', event.target.checked)}
+                          />
+                          <Button type="button" variant="link" className="px-0" onClick={() => removeAcademicItem('exam_result_workflows', index)}>Supprimer</Button>
+                        </Card.Body>
+                      </Card>
+                    ))}
                   </Card.Body>
                 </Card>
               </Col>

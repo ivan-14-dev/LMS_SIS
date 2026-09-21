@@ -1,7 +1,7 @@
 from django.test import SimpleTestCase
 from rest_framework.exceptions import ValidationError
 
-from sis_common.reporting import configured_report
+from sis_common.reporting import configured_report, export_queryset
 
 
 class FakeUser:
@@ -73,3 +73,99 @@ class ReportingTests(SimpleTestCase):
 
         with self.assertRaises(ValidationError):
             configured_report(request, "payments", allowed_datasets={"financial_payments"})
+
+    def test_export_queryset_supports_metadata_rich_csv(self):
+        class FakeQuerySet:
+            def __init__(self):
+                self.filters = []
+
+            def filter(self, **kwargs):
+                self.filters.append(kwargs)
+                return self
+
+            def values_list(self, *_fields):
+                return self
+
+            def distinct(self):
+                return [("MAT-001", "14.5")]
+
+        request = type(
+            "Request",
+            (),
+            {
+                "data": {"format": "csv"},
+                "user": FakeUser(),
+                "tenant": type(
+                    "Tenant",
+                    (),
+                    {
+                        "nom": "Lycée Horizon",
+                        "type": "lycee",
+                        "couleur_primaire": "#112233",
+                        "couleur_secondaire": "#FFFFFF",
+                        "get_type_display": lambda self: "Lycée",
+                    },
+                )(),
+            },
+        )()
+        report = {
+            "code": "notes-secondary",
+            "label": "Notes secondaire",
+            "dataset": "notes",
+            "fields": ["matricule", "note"],
+            "allowed_filters": ["classe"],
+            "formats": ["csv", "xlsx", "pdf"],
+        }
+
+        response = export_queryset(
+            request,
+            FakeQuerySet(),
+            report,
+            {"matricule": ("Matricule", "eleve__matricule"), "note": ("Note", "valeur")},
+            {"classe": "evaluation__classe_id"},
+            {"classe": 9},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertIn("Établissement,Lycée Horizon", content)
+        self.assertIn("Rapport,Notes secondaire", content)
+        self.assertIn("Matricule,Note", content)
+        self.assertIn("MAT-001,14.5", content)
+
+    def test_export_queryset_rejects_unauthorized_format(self):
+        request = type(
+            "Request",
+            (),
+            {
+                "data": {"format": "pdf"},
+                "user": FakeUser(),
+                "tenant": type("Tenant", (), {"nom": "Lycée"})(),
+            },
+        )()
+        report = {
+            "code": "notes-secondary",
+            "label": "Notes secondaire",
+            "dataset": "notes",
+            "fields": ["matricule"],
+            "allowed_filters": [],
+            "formats": ["csv"],
+        }
+
+        with self.assertRaises(ValidationError):
+            export_queryset(
+                request,
+                type(
+                    "QuerySet",
+                    (),
+                    {
+                        "filter": lambda self, **_kwargs: self,
+                        "values_list": lambda self, *_fields: self,
+                        "distinct": lambda self: [],
+                    },
+                )(),
+                report,
+                {"matricule": ("Matricule", "eleve__matricule")},
+                {},
+                {},
+            )
