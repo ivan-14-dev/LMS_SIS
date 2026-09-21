@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge, Button } from '@openedx/paragon';
 import { Download } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable } from '../../components/common';
+import { PageHeader, SISDataTable, WorkflowHistoryPanel, WorkflowNotificationsPanel } from '../../components/common';
 import { getSuperieurApiUrl, useDiplomes } from '../../services/api';
 
 const DiplomesPage = () => {
   const { data: diplomes = [], isLoading } = useDiplomes();
+  const [selectedDiplomeId, setSelectedDiplomeId] = useState(null);
 
   const downloadPdf = (id) => window.open(`${getSuperieurApiUrl()}/diplomes/${id}/pdf_officiel/`, '_blank', 'noopener,noreferrer');
 
@@ -25,9 +26,14 @@ const DiplomesPage = () => {
       Header: 'Actions',
       accessor: 'id',
       Cell: ({ value }) => (
-        <Button size="sm" variant="outline-secondary" iconBefore={Download} onClick={() => downloadPdf(value)}>
-          PDF officiel
-        </Button>
+        <>
+          <Button size="sm" variant="outline-secondary" iconBefore={Download} onClick={() => downloadPdf(value)}>
+            PDF officiel
+          </Button>
+          <Button size="sm" variant="outline-info" className="ms-1" onClick={() => setSelectedDiplomeId(value)}>
+            Historique
+          </Button>
+        </>
       ),
     },
   ];
@@ -35,7 +41,13 @@ const DiplomesPage = () => {
   return (
     <div>
       <PageHeader title="Diplômes" subtitle="Délivrances et documents officiels" />
+      <WorkflowNotificationsPanel apiType="superieur" />
       <SISDataTable title="Liste des délivrances de diplômes" data={diplomes} columns={columns} loading={isLoading} searchable exportable />
+      <WorkflowHistoryPanel
+        apiType="superieur"
+        endpoint={selectedDiplomeId ? `diplomes/${selectedDiplomeId}/historique/` : ''}
+        title="Historique du diplôme"
+      />
     </div>
   );
 };

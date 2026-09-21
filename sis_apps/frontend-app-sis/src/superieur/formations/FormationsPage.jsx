@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button } from '@openedx/paragon';
 import { Add } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable } from '../../components/common';
+import { PageHeader, SISDataTable, WorkflowHistoryPanel, WorkflowNotificationsPanel } from '../../components/common';
 import { useFormations } from '../../services/api';
 
 const FormationsPage = () => {
   const navigate = useNavigate();
   const { data: formations = [], isLoading } = useFormations();
+  const [selectedFormationId, setSelectedFormationId] = useState(null);
 
   const columns = [
     { Header: 'Code', accessor: 'code' },
@@ -25,6 +26,15 @@ const FormationsPage = () => {
         </Badge>
       ),
     },
+    {
+      Header: 'Workflow',
+      accessor: 'id',
+      Cell: ({ value }) => (
+        <Button size="sm" variant="outline-info" onClick={(event) => { event.stopPropagation(); setSelectedFormationId(value); }}>
+          Historique
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -38,6 +48,7 @@ const FormationsPage = () => {
           </Button>
         }
       />
+      <WorkflowNotificationsPanel apiType="superieur" />
       <SISDataTable
         title="Liste des formations"
         data={formations}
@@ -46,6 +57,11 @@ const FormationsPage = () => {
         onRowClick={(row) => navigate(`/superieur/formations/${row.original.id}`)}
         searchable
         exportable
+      />
+      <WorkflowHistoryPanel
+        apiType="superieur"
+        endpoint={selectedFormationId ? `formations/formations/${selectedFormationId}/historique/` : ''}
+        title="Historique de la formation"
       />
     </div>
   );

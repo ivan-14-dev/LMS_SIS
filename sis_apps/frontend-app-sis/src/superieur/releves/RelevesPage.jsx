@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge, Button } from '@openedx/paragon';
 import { Print, Download } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable } from '../../components/common';
+import { PageHeader, SISDataTable, WorkflowHistoryPanel, WorkflowNotificationsPanel } from '../../components/common';
 import { getSuperieurApiUrl, useReleves } from '../../services/api';
 
 const RelevesPage = () => {
   const { data: releves = [], isLoading } = useReleves();
+  const [selectedReleveId, setSelectedReleveId] = useState(null);
 
   const downloadPdf = (id) => window.open(`${getSuperieurApiUrl()}/releves/${id}/pdf_officiel/`, '_blank', 'noopener,noreferrer');
 
@@ -33,6 +34,9 @@ const RelevesPage = () => {
           <Button size="sm" variant="outline-secondary" iconBefore={Download} onClick={() => downloadPdf(value)}>
             PDF
           </Button>
+          <Button size="sm" variant="outline-info" className="ms-1" onClick={() => setSelectedReleveId(value)}>
+            Historique
+          </Button>
         </>
       ),
     },
@@ -41,7 +45,13 @@ const RelevesPage = () => {
   return (
     <div>
       <PageHeader title="Relevés de notes" subtitle="Documents officiels semestriels" />
+      <WorkflowNotificationsPanel apiType="superieur" />
       <SISDataTable title="Relevés de notes" data={releves} columns={columns} loading={isLoading} searchable exportable />
+      <WorkflowHistoryPanel
+        apiType="superieur"
+        endpoint={selectedReleveId ? `releves/${selectedReleveId}/historique/` : ''}
+        title="Historique du relevé"
+      />
     </div>
   );
 };

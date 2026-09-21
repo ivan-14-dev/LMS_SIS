@@ -1,5 +1,6 @@
 """API views for classes (ViewSets DRF) - SIS Secondaire."""
 
+from apps.core.serializers import WorkflowEventSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -7,6 +8,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from sis_common.authorization import request_has_business_access
+from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import Classe, Groupe, Matiere, ProgrammeMatiere
 from .serializers import (
@@ -17,6 +19,18 @@ from .serializers import (
     MatiereListSerializer,
     ProgrammeMatiereSerializer,
 )
+
+
+def _classe_workflow_recipients(request, classe):
+    recipients = []
+    prof_principal = getattr(classe, "prof_principal", None)
+    prof_user = getattr(prof_principal, "user", None)
+    if prof_user is not None:
+        recipients.append(prof_user)
+    actor = getattr(request, "user", None)
+    if getattr(actor, "is_authenticated", False) and actor not in recipients:
+        recipients.append(actor)
+    return recipients
 
 
 class IsVieScolariteOrReadOnly(IsAuthenticated):
@@ -56,6 +70,42 @@ class ClassesViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return ClasseListSerializer
         return ClasseDetailSerializer
+
+    def perform_create(self, serializer):
+        classe = serializer.save()
+        record_workflow_event(
+            self.request,
+            classe,
+            "creation",
+            "Classe créée",
+            message=f"La classe {classe.nom} a été créée.",
+            recipients=_classe_workflow_recipients(self.request, classe),
+            metadata={"niveau_id": classe.niveau_id, "annee_scolaire_id": classe.annee_scolaire_id},
+        )
+
+    def perform_update(self, serializer):
+        classe = serializer.save()
+        record_workflow_event(
+            self.request,
+            classe,
+            "mise_a_jour",
+            "Classe mise à jour",
+            message=f"La classe {classe.nom} a été mise à jour.",
+            recipients=_classe_workflow_recipients(self.request, classe),
+            metadata={"niveau_id": classe.niveau_id, "annee_scolaire_id": classe.annee_scolaire_id},
+        )
+
+    def perform_destroy(self, instance):
+        record_workflow_event(
+            self.request,
+            instance,
+            "suppression",
+            "Classe supprimée",
+            message=f"La classe {instance.nom} a été supprimée.",
+            recipients=_classe_workflow_recipients(self.request, instance),
+            metadata={"niveau_id": instance.niveau_id, "annee_scolaire_id": instance.annee_scolaire_id},
+        )
+        instance.delete()
 
     @action(detail=True, methods=["get"])
     def eleves(self, request, pk=None):
@@ -97,6 +147,13 @@ class ClassesViewSet(viewsets.ModelViewSet):
                 "internes": eleves.filter(interne=True).count(),
             }
         )
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow de la classe."""
+        classe = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(classe), many=True)
+        return Response(serializer.data)
 
 
 class GroupesViewSet(viewsets.ModelViewSet):

@@ -93,6 +93,39 @@ export const deleteApi = async (url, options = {}) => {
   return response.data;
 };
 
+const getVariantApiUrl = (apiType = 'superieur') => (apiType === 'secondaire' ? getSecondaireApiUrl() : getSuperieurApiUrl());
+
+export const useWorkflowNotifications = (apiType = 'superieur', onlyUnread = true) => useQuery({
+  queryKey: ['workflow-notifications', apiType, onlyUnread],
+  queryFn: () => fetchApi(`${getVariantApiUrl(apiType)}/core/notifications/${onlyUnread ? '?non_lues=1' : ''}`),
+  select: (data) => {
+    if (Array.isArray(data)) { return data; }
+    if (data?.results && Array.isArray(data.results)) { return data.results; }
+    return [];
+  },
+});
+
+export const useMarkAllWorkflowNotificationsRead = (apiType = 'superieur') => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => postApi(`${getVariantApiUrl(apiType)}/core/notifications/tout_marquer_lu/`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow-notifications', apiType] });
+    },
+  });
+};
+
+export const useWorkflowHistory = (apiType = 'superieur', endpoint = '', enabled = true) => useQuery({
+  queryKey: ['workflow-history', apiType, endpoint],
+  queryFn: () => fetchApi(`${getVariantApiUrl(apiType)}/${endpoint}`),
+  enabled: enabled && Boolean(endpoint),
+  select: (data) => {
+    if (Array.isArray(data)) { return data; }
+    if (data?.results && Array.isArray(data.results)) { return data.results; }
+    return [];
+  },
+});
+
 /**
  * Factory function to create CRUD hooks for a resource
  * @param {string} resourceName - Name of the resource (e.g., 'etudiants')
@@ -214,8 +247,20 @@ export const useDeleteEtudiant = etudiantHooks.useDelete;
 
 // Formations
 export const formationHooks = createResourceHooks('formations', 'superieur');
-export const useFormations = formationHooks.useList;
-export const useFormation = formationHooks.useDetail;
+export const useFormations = () => useQuery({
+  queryKey: ['formations', 'list'],
+  queryFn: () => fetchApi(`${getSuperieurApiUrl()}/formations/formations/`),
+  select: (data) => {
+    if (Array.isArray(data)) { return data; }
+    if (data?.results && Array.isArray(data.results)) { return data.results; }
+    return [];
+  },
+});
+export const useFormation = (id, enabled = true) => useQuery({
+  queryKey: ['formations', 'detail', id],
+  queryFn: () => fetchApi(`${getSuperieurApiUrl()}/formations/formations/${id}/`),
+  enabled: enabled && !!id,
+});
 
 // Inscriptions
 export const inscriptionHooks = createResourceHooks('inscriptions', 'superieur');
@@ -273,7 +318,15 @@ export const useDiplomes = diplomeHooks.useList;
 
 // Paiements
 export const paiementHooks = createResourceHooks('paiements', 'superieur');
-export const usePaiements = paiementHooks.useList;
+export const usePaiements = () => useQuery({
+  queryKey: ['paiements', 'list'],
+  queryFn: () => fetchApi(`${getSuperieurApiUrl()}/paiements/transactions/`),
+  select: (data) => {
+    if (Array.isArray(data)) { return data; }
+    if (data?.results && Array.isArray(data.results)) { return data.results; }
+    return [];
+  },
+});
 
 // Jurys
 export const juryHooks = createResourceHooks('jurys', 'superieur');
@@ -301,8 +354,20 @@ export const useCreateEleve = eleveHooks.useCreate;
 
 // Classes
 export const classeHooks = createResourceHooks('classes', 'secondaire');
-export const useClasses = classeHooks.useList;
-export const useClasse = classeHooks.useDetail;
+export const useClasses = () => useQuery({
+  queryKey: ['classes', 'list'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/classes/classes/`),
+  select: (data) => {
+    if (Array.isArray(data)) { return data; }
+    if (data?.results && Array.isArray(data.results)) { return data.results; }
+    return [];
+  },
+});
+export const useClasse = (id, enabled = true) => useQuery({
+  queryKey: ['classes', 'detail', id],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/classes/classes/${id}/`),
+  enabled: enabled && !!id,
+});
 
 // Évaluations
 export const evaluationHooks = createResourceHooks('evaluations', 'secondaire');
