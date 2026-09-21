@@ -6,6 +6,7 @@ from apps.core.serializers import WorkflowNotificationSerializer
 from rest_framework import mixins, permissions, response, status, viewsets
 from rest_framework.decorators import action
 from sis_common.authorization import has_business_permission_or_role
+from sis_common.notification_channels import notification_matches_delivery_filters
 from sis_common.reporting import configured_report, export_queryset
 from .serializers import WorkflowEventSerializer
 
@@ -120,13 +121,28 @@ class WorkflowNotificationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet
     serializer_class = WorkflowNotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def _apply_delivery_filters(self, queryset):
+        category = self.request.query_params.get("category", "").strip()
+        if category:
+            queryset = queryset.filter(category=category)
+        channel = self.request.query_params.get("delivery_channel", "").strip()
+        delivery_status = self.request.query_params.get("delivery_status", "").strip()
+        if channel or delivery_status:
+            matching_ids = [
+                notification.id
+                for notification in queryset
+                if notification_matches_delivery_filters(notification, channel=channel, status=delivery_status)
+            ]
+            queryset = queryset.filter(id__in=matching_ids)
+        return queryset
+
     def get_queryset(self):
         queryset = WorkflowNotification.objects.filter(
             recipient=self.request.user
         ).select_related("event", "event__actor")
         if self.request.query_params.get("non_lues") == "1":
             queryset = queryset.filter(is_read=False)
-        return queryset.order_by("-created_at")
+        return self._apply_delivery_filters(queryset).order_by("-created_at")
 
     @action(detail=True, methods=["post"])
     def marquer_lue(self, request, pk=None):

@@ -95,9 +95,15 @@ export const deleteApi = async (url, options = {}) => {
 
 const getVariantApiUrl = (apiType = 'superieur') => (apiType === 'secondaire' ? getSecondaireApiUrl() : getSuperieurApiUrl());
 
-export const useWorkflowNotifications = (apiType = 'superieur', onlyUnread = true) => useQuery({
-  queryKey: ['workflow-notifications', apiType, onlyUnread],
-  queryFn: () => fetchApi(`${getVariantApiUrl(apiType)}/core/notifications/${onlyUnread ? '?non_lues=1' : ''}`),
+export const useWorkflowNotifications = (apiType = 'superieur', onlyUnread = true, params = {}) => useQuery({
+  queryKey: ['workflow-notifications', apiType, onlyUnread, params],
+  queryFn: () => {
+    const query = new URLSearchParams({
+      ...(onlyUnread ? { non_lues: '1' } : {}),
+      ...Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '')),
+    }).toString();
+    return fetchApi(`${getVariantApiUrl(apiType)}/core/notifications/${query ? `?${query}` : ''}`);
+  },
   select: (data) => {
     if (Array.isArray(data)) { return data; }
     if (data?.results && Array.isArray(data.results)) { return data.results; }

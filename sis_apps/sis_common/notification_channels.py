@@ -9,6 +9,8 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django_tenants.utils import schema_context
 
+DELIVERY_CHANNELS = ("in_app", "email", "sms", "webhook")
+
 
 def _core_model(model_name):
     return apps.get_model("core", model_name)
@@ -56,6 +58,53 @@ def _aggregate_status(targets):
     if "skipped" in statuses:
         return "skipped"
     return "pending"
+
+
+def delivery_channels(metadata):
+    delivery = (metadata or {}).get("delivery", {})
+    if not isinstance(delivery, dict):
+        return []
+    return [channel for channel in DELIVERY_CHANNELS if channel in delivery]
+
+
+def delivery_status_summary(metadata):
+    delivery = (metadata or {}).get("delivery", {})
+    if not isinstance(delivery, dict):
+        return []
+    summary = []
+    for channel in DELIVERY_CHANNELS:
+        status = (delivery.get(channel) or {}).get("status")
+        if status:
+            summary.append(f"{channel}:{status}")
+    return summary
+
+
+def delivery_last_errors(metadata):
+    delivery = (metadata or {}).get("delivery", {})
+    if not isinstance(delivery, dict):
+        return []
+    errors = []
+    for channel in DELIVERY_CHANNELS:
+        error = (delivery.get(channel) or {}).get("last_error")
+        if error:
+            errors.append(f"{channel}:{error}")
+    return errors
+
+
+def notification_matches_delivery_filters(notification, channel="", status=""):
+    delivery = (getattr(notification, "metadata", {}) or {}).get("delivery", {})
+    if not isinstance(delivery, dict):
+        return not channel and not status
+    if channel:
+        details = delivery.get(channel, {})
+        if not details:
+            return False
+        if status and details.get("status") != status:
+            return False
+        return True
+    if status:
+        return any((details or {}).get("status") == status for details in delivery.values())
+    return True
 
 
 def _update_notification_channel(notification, channel, status, attempts=None, error="", detail="", extra=None):
