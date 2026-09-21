@@ -148,10 +148,9 @@ TENANT_MODEL = "etablissement.Etablissement"
 TENANT_DOMAIN_MODEL = "etablissement.Domain"
 SHARED_APPS = (
     "django_tenants",
-    "apps.core",
     "apps.etablissement",
 )
-TENANT_APPS = tuple(app for app in LOCAL_APPS if app not in ("apps.core", "apps.etablissement")) + tuple(
+TENANT_APPS = tuple(app for app in LOCAL_APPS if app not in ("apps.etablissement",)) + tuple(
     THIRD_PARTY_APPS
 )
 

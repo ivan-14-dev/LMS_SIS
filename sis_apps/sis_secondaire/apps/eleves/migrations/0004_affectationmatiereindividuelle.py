@@ -5,8 +5,8 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("classes", "0003_programmematiere_credits_and_more"),
-        ("eleves", "0003_initial"),
-        ("etablissement", "0003_initial"),
+        ("eleves", "0002_initial"),
+        ("etablissement", "0003_etablissement_configuration_academique_and_more"),
         ("utilisateurs", "0001_initial"),
     ]
 
