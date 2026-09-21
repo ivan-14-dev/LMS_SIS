@@ -1,5 +1,6 @@
 """Core serializers et mixins pour SIS Supérieur."""
 
+from apps.core.models import WorkflowEvent, WorkflowNotification
 from rest_framework import serializers
 
 
@@ -43,3 +44,50 @@ class SuccessResponseSerializer(serializers.Serializer):
 
     detail = serializers.CharField()
     id = serializers.IntegerField(required=False)
+
+
+class WorkflowEventSerializer(serializers.ModelSerializer):
+    """Serializer des événements de workflow."""
+
+    actor_nom = serializers.SerializerMethodField()
+
+    class Meta:
+        model = WorkflowEvent
+        fields = [
+            "id",
+            "app_label",
+            "model",
+            "object_id",
+            "object_repr",
+            "action",
+            "title",
+            "message",
+            "metadata",
+            "tenant_id",
+            "request_id",
+            "actor_nom",
+            "created_at",
+        ]
+
+    def get_actor_nom(self, obj):
+        return obj.actor.get_full_name() if obj.actor else ""
+
+
+class WorkflowNotificationSerializer(serializers.ModelSerializer):
+    """Serializer des notifications de workflow."""
+
+    event = WorkflowEventSerializer(read_only=True)
+
+    class Meta:
+        model = WorkflowNotification
+        fields = [
+            "id",
+            "category",
+            "title",
+            "message",
+            "metadata",
+            "is_read",
+            "read_at",
+            "created_at",
+            "event",
+        ]

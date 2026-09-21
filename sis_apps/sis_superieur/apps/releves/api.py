@@ -7,12 +7,14 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from apps.core.serializers import WorkflowEventSerializer
 from sis_common.document_policies import (
     enforce_financial_clearance,
     get_action_object,
 )
 from sis_common.official_documents import render_official_pdf, tenant_identity_rows
 from sis_common.authorization import has_business_permission_or_role
+from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import Attestation, ReleveNotes, Transcript
 from .serializers import (
@@ -22,6 +24,17 @@ from .serializers import (
     TranscriptDetailSerializer,
     TranscriptListSerializer,
 )
+
+
+def _student_notification_recipients(request, etudiant):
+    recipients = []
+    user = getattr(etudiant, "user", None)
+    if user is not None:
+        recipients.append(user)
+    actor = getattr(request, "user", None)
+    if getattr(actor, "is_authenticated", False) and actor not in recipients:
+        recipients.append(actor)
+    return recipients
 
 
 class IsScolariteOrReadOnly(IsAuthenticated):
@@ -89,7 +102,23 @@ class RelevesNotesViewSet(viewsets.ModelViewSet):
         releve.date_signature = timezone.now()
         releve.signe_par = request.user
         releve.save(update_fields=["signe", "date_signature", "signe_par"])
+        record_workflow_event(
+            request,
+            releve,
+            "signature",
+            "Relevé signé",
+            message=f"Le relevé {releve.numero_serie} de {releve.etudiant} a été signé.",
+            recipients=_student_notification_recipients(request, releve.etudiant),
+            metadata={"etudiant_id": releve.etudiant_id, "semestre_id": releve.semestre_id},
+        )
         return Response({"detail": "Relevé signé.", "id": releve.id})
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow du relevé."""
+        releve = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(releve), many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
     def pdf_officiel(self, request, pk=None):
@@ -206,7 +235,23 @@ class TranscriptsViewSet(viewsets.ModelViewSet):
             return Response({"error": "Déjà signé."}, status=400)
         transcript.signe_par = request.user
         transcript.save(update_fields=["signe_par"])
+        record_workflow_event(
+            request,
+            transcript,
+            "signature",
+            "Transcript signé",
+            message=f"Le transcript {transcript.numero_serie} de {transcript.etudiant} a été signé.",
+            recipients=_student_notification_recipients(request, transcript.etudiant),
+            metadata={"etudiant_id": transcript.etudiant_id},
+        )
         return Response({"detail": "Transcript signé.", "id": transcript.id})
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow du transcript."""
+        transcript = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(transcript), many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
     def pdf_officiel(self, request, pk=None):
@@ -297,7 +342,23 @@ class AttestationsViewSet(viewsets.ModelViewSet):
             return Response({"error": "Déjà signé."}, status=400)
         attestation.signe_par = request.user
         attestation.save(update_fields=["signe_par"])
+        record_workflow_event(
+            request,
+            attestation,
+            "signature",
+            "Attestation signée",
+            message=f"L'attestation {attestation.numero} de {attestation.etudiant} a été signée.",
+            recipients=_student_notification_recipients(request, attestation.etudiant),
+            metadata={"etudiant_id": attestation.etudiant_id, "type": attestation.type},
+        )
         return Response({"detail": "Attestation signée.", "id": attestation.id})
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow de l'attestation."""
+        attestation = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(attestation), many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
     def pdf_officiel(self, request, pk=None):

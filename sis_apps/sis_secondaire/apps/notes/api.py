@@ -11,6 +11,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from apps.core.serializers import WorkflowEventSerializer
 from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,
@@ -22,6 +23,7 @@ from sis_common.document_policies import enforce_financial_clearance, get_action
 from sis_common.official_documents import render_official_pdf, tenant_identity_rows
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
+from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import Bulletin, Evaluation, Note, RegleValidation
 from .serializers import (
@@ -102,6 +104,17 @@ BULLETIN_REPORT_FILTERS = {
     "periode": "periode_id",
     "publie": "publie",
 }
+
+
+def _bulletin_notification_recipients(request, bulletin):
+    recipients = []
+    user = getattr(bulletin.eleve, "user", None)
+    if user is not None:
+        recipients.append(user)
+    actor = getattr(request, "user", None)
+    if getattr(actor, "is_authenticated", False) and actor not in recipients:
+        recipients.append(actor)
+    return recipients
 
 CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS = [
     "matricule",
@@ -637,6 +650,19 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         bulletin.publie = True
         bulletin.date_publication = timezone.now()
         bulletin.save(update_fields=["publie", "date_publication", "updated_at"])
+        record_workflow_event(
+            request,
+            bulletin,
+            "publication",
+            "Bulletin publié",
+            message=f"Le bulletin de {bulletin.eleve} pour {bulletin.periode} a été publié.",
+            recipients=_bulletin_notification_recipients(request, bulletin),
+            metadata={
+                "classe_id": bulletin.classe_id,
+                "periode_id": bulletin.periode_id,
+                "eleve_id": bulletin.eleve_id,
+            },
+        )
         return Response({"detail": "Bulletin publié.", "id": bulletin.id})
 
     @action(detail=True, methods=["post"])
@@ -648,7 +674,27 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         bulletin.signe = True
         bulletin.date_signature = timezone.now()
         bulletin.save(update_fields=["signe", "date_signature", "updated_at"])
+        record_workflow_event(
+            request,
+            bulletin,
+            "signature",
+            "Bulletin signé",
+            message=f"Le bulletin de {bulletin.eleve} pour {bulletin.periode} a été signé.",
+            recipients=_bulletin_notification_recipients(request, bulletin),
+            metadata={
+                "classe_id": bulletin.classe_id,
+                "periode_id": bulletin.periode_id,
+                "eleve_id": bulletin.eleve_id,
+            },
+        )
         return Response({"detail": "Bulletin signé.", "id": bulletin.id})
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow du bulletin."""
+        bulletin = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(bulletin), many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
     def pdf_officiel(self, request, pk=None):

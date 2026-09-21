@@ -9,12 +9,25 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from apps.core.serializers import WorkflowEventSerializer
 from sis_common.authorization import has_business_permission_or_role
 from sis_common.document_policies import enforce_financial_clearance, get_action_object
 from sis_common.official_documents import render_official_pdf, tenant_identity_rows
+from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import CessionDiplome, Diplome
 from .serializers import CessionDiplomeDetailSerializer, CessionDiplomeListSerializer, DiplomeSerializer
+
+
+def _diploma_notification_recipients(request, cession):
+    recipients = []
+    user = getattr(cession.etudiant, "user", None)
+    if user is not None:
+        recipients.append(user)
+    actor = getattr(request, "user", None)
+    if getattr(actor, "is_authenticated", False) and actor not in recipients:
+        recipients.append(actor)
+    return recipients
 
 
 class IsScolariteOrReadOnly(IsAuthenticated):
@@ -132,7 +145,27 @@ class CessionsDiplomesViewSet(viewsets.ModelViewSet):
         cession.date_signature = timezone.now()
         cession.qr_verification = f"https://verif.univ.fr/{cession.numero_serie}"
         cession.save(update_fields=["signe_par", "date_signature", "qr_verification"])
+        record_workflow_event(
+            request,
+            cession,
+            "signature",
+            "Diplôme signé",
+            message=f"Le diplôme {cession.numero_serie} de {cession.etudiant} a été signé.",
+            recipients=_diploma_notification_recipients(request, cession),
+            metadata={
+                "etudiant_id": cession.etudiant_id,
+                "diplome_id": cession.diplome_id,
+                "annee_universitaire_id": cession.annee_universitaire_id,
+            },
+        )
         return Response({"detail": "Diplôme signé.", "id": cession.id})
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow du diplôme."""
+        cession = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(cession), many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
     def verifier(self, request, pk=None):

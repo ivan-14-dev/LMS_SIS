@@ -6,6 +6,7 @@ from rest_framework.routers import DefaultRouter
 router = DefaultRouter()
 
 urlpatterns = [
+    path("core/", include("apps.core.urls_api")),
     path("etablissement/", include("apps.etablissement.urls_api")),
     path("utilisateurs/", include("apps.utilisateurs.urls_api")),
     path("classes/", include("apps.classes.urls_api")),

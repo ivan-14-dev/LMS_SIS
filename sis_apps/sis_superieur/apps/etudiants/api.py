@@ -7,7 +7,9 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from apps.core.serializers import WorkflowEventSerializer
 from sis_common.authorization import request_has_business_access
+from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import AffectationECUEIndividuelle, Etudiant, InscriptionAdministrative
 from .serializers import (
@@ -17,6 +19,17 @@ from .serializers import (
     EtudiantListSerializer,
     InscriptionAdministrativeSerializer,
 )
+
+
+def _inscription_notification_recipients(request, inscription):
+    recipients = []
+    user = getattr(inscription.etudiant, "user", None)
+    if user is not None:
+        recipients.append(user)
+    actor = getattr(request, "user", None)
+    if getattr(actor, "is_authenticated", False) and actor not in recipients:
+        recipients.append(actor)
+    return recipients
 
 
 class IsScolariteOrReadOnly(IsAuthenticated):
@@ -209,6 +222,19 @@ class InscriptionsAdminViewSet(viewsets.ModelViewSet):
             )
         inscription.statut = "validee"
         inscription.save(update_fields=["statut", "updated_at"])
+        record_workflow_event(
+            request,
+            inscription,
+            "validation",
+            "Inscription validée",
+            message=f"L'inscription administrative de {inscription.etudiant} a été validée.",
+            recipients=_inscription_notification_recipients(request, inscription),
+            metadata={
+                "etudiant_id": inscription.etudiant_id,
+                "formation_id": inscription.formation_id,
+                "annee_universitaire_id": inscription.annee_universitaire_id,
+            },
+        )
         return Response({"detail": "Inscription validée.", "id": inscription.id})
 
     @action(detail=True, methods=["post"])
@@ -224,4 +250,25 @@ class InscriptionsAdminViewSet(viewsets.ModelViewSet):
         inscription.statut = "refusee"
         inscription.motif_refus = motif
         inscription.save(update_fields=["statut", "motif_refus", "updated_at"])
+        record_workflow_event(
+            request,
+            inscription,
+            "refus",
+            "Inscription refusée",
+            message=f"L'inscription administrative de {inscription.etudiant} a été refusée.",
+            recipients=_inscription_notification_recipients(request, inscription),
+            metadata={
+                "etudiant_id": inscription.etudiant_id,
+                "formation_id": inscription.formation_id,
+                "annee_universitaire_id": inscription.annee_universitaire_id,
+                "motif_refus": motif,
+            },
+        )
         return Response({"detail": "Inscription refusée.", "id": inscription.id})
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow de l'inscription."""
+        inscription = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(inscription), many=True)
+        return Response(serializer.data)
