@@ -3,7 +3,7 @@ import { Row, Col, Card, Form } from '@openedx/paragon';
 import {
   PageHeader, SISDataTable, StatCard, WorkflowNotificationsPanel,
 } from '../components/common';
-import { useWorkflowEvents, useWorkflowNotifications } from '../services/api';
+import { useWorkflowEvents, useWorkflowNotifications, useWorkflowNotificationSummary } from '../services/api';
 
 const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
   const [action, setAction] = useState('');
@@ -24,6 +24,7 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
     ...(deliveryStatus ? { delivery_status: deliveryStatus } : {}),
   }), [notificationCategory, deliveryChannel, deliveryStatus]);
   const { data: notifications = [], isLoading: notificationsLoading } = useWorkflowNotifications(apiType, false, notificationParams);
+  const { data: notificationSummary = {} } = useWorkflowNotificationSummary(apiType, notificationParams);
 
   const actionOptions = useMemo(
     () => [...new Set(events.map((event) => event.action).filter(Boolean))].sort(),
@@ -80,17 +81,15 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
     })),
     [notifications],
   );
-  const sentCount = useMemo(
-    () => notificationRows.filter((notification) => (notification.delivery_status_summary || []).some((item) => item.endsWith(':sent'))).length,
-    [notificationRows],
-  );
-  const failedCount = useMemo(
-    () => notificationRows.filter((notification) => (notification.delivery_status_summary || []).some((item) => item.endsWith(':failed'))).length,
-    [notificationRows],
-  );
-  const retryingCount = useMemo(
-    () => notificationRows.filter((notification) => (notification.delivery_status_summary || []).some((item) => item.endsWith(':retrying'))).length,
-    [notificationRows],
+  const sentCount = notificationSummary.by_status?.sent || 0;
+  const failedCount = notificationSummary.by_status?.failed || 0;
+  const retryingCount = notificationSummary.by_status?.retrying || 0;
+  const notificationTotal = notificationSummary.total_notifications || notificationRows.length;
+  const channelSummaryText = useMemo(
+    () => Object.entries(notificationSummary.by_channel || {})
+      .map(([channel, count]) => `${channel}: ${count}`)
+      .join(' • '),
+    [notificationSummary],
   );
 
   return (
@@ -183,6 +182,21 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
         </Col>
         <Col md={4}>
           <StatCard title="Notifications en échec" value={failedCount} variant="danger" />
+        </Col>
+      </Row>
+      <Row className="mb-4">
+        <Col md={6}>
+          <StatCard title="Notifications suivies" value={notificationTotal} variant="info" />
+        </Col>
+        <Col md={6}>
+          <Card>
+            <Card.Body>
+              <strong>Répartition par canal</strong>
+              <div className="small text-muted mt-2">
+                {channelSummaryText || 'Aucune livraison enregistrée.'}
+              </div>
+            </Card.Body>
+          </Card>
         </Col>
       </Row>
       <SISDataTable

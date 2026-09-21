@@ -111,6 +111,16 @@ export const useWorkflowNotifications = (apiType = 'superieur', onlyUnread = tru
   },
 });
 
+export const useWorkflowNotificationSummary = (apiType = 'superieur', params = {}) => useQuery({
+  queryKey: ['workflow-notification-summary', apiType, params],
+  queryFn: () => {
+    const query = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '')),
+    ).toString();
+    return fetchApi(`${getVariantApiUrl(apiType)}/core/notifications/bilan_livraison/${query ? `?${query}` : ''}`);
+  },
+});
+
 export const useMarkAllWorkflowNotificationsRead = (apiType = 'superieur') => {
   const queryClient = useQueryClient();
   return useMutation({

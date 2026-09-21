@@ -6,7 +6,10 @@ from apps.core.serializers import WorkflowNotificationSerializer
 from rest_framework import mixins, permissions, response, status, viewsets
 from rest_framework.decorators import action
 from sis_common.authorization import has_business_permission_or_role
-from sis_common.notification_channels import notification_matches_delivery_filters
+from sis_common.notification_channels import (
+    notification_matches_delivery_filters,
+    summarize_notification_deliveries,
+)
 from sis_common.reporting import configured_report, export_queryset
 from .serializers import WorkflowEventSerializer
 
@@ -158,3 +161,8 @@ class WorkflowNotificationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet
         for notification in self.get_queryset().filter(is_read=False):
             notification.mark_read()
         return response.Response({"detail": "Notifications marquées comme lues."})
+
+    @action(detail=False, methods=["get"])
+    def bilan_livraison(self, request):
+        queryset = self.get_queryset()
+        return response.Response(summarize_notification_deliveries(queryset))

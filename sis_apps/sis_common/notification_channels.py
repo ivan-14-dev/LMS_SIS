@@ -107,6 +107,32 @@ def notification_matches_delivery_filters(notification, channel="", status=""):
     return True
 
 
+def summarize_notification_deliveries(notifications):
+    summary = {
+        "total_notifications": 0,
+        "by_category": {},
+        "by_channel": {},
+        "by_status": {},
+        "by_channel_status": {},
+    }
+    for notification in notifications:
+        summary["total_notifications"] += 1
+        category = getattr(notification, "category", "") or "uncategorized"
+        summary["by_category"][category] = summary["by_category"].get(category, 0) + 1
+        delivery = (getattr(notification, "metadata", {}) or {}).get("delivery", {})
+        if not isinstance(delivery, dict):
+            continue
+        for channel, details in delivery.items():
+            status = (details or {}).get("status", "pending")
+            summary["by_channel"][channel] = summary["by_channel"].get(channel, 0) + 1
+            summary["by_status"][status] = summary["by_status"].get(status, 0) + 1
+            channel_status_key = f"{channel}:{status}"
+            summary["by_channel_status"][channel_status_key] = (
+                summary["by_channel_status"].get(channel_status_key, 0) + 1
+            )
+    return summary
+
+
 def _update_notification_channel(notification, channel, status, attempts=None, error="", detail="", extra=None):
     metadata, delivery = _delivery_map(notification.metadata)
     existing = delivery.get(channel, {})
