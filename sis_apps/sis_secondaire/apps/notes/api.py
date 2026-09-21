@@ -3,7 +3,7 @@
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, F, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
@@ -45,6 +45,7 @@ NOTE_REPORT_FIELDS = {
     "enseignant": ("Enseignant", "evaluation__enseignant__user__last_name"),
     "periode": ("Période", "evaluation__periode__libelle"),
     "date": ("Date", "evaluation__date"),
+    "eleve_cible": ("Élève ciblé", "evaluation__eleve_cible__matricule"),
 }
 NOTE_REPORT_FILTERS = {
     "annee": "evaluation__classe__annee_scolaire_id",
@@ -71,6 +72,7 @@ EVALUATION_REPORT_FIELDS = {
     "bareme": ("Barème", "bareme"),
     "coefficient": ("Coefficient", "coefficient"),
     "ponderation": ("Pondération", "ponderation"),
+    "eleve_cible": ("Élève ciblé", "eleve_cible__matricule"),
 }
 EVALUATION_REPORT_FILTERS = {
     "classe": "classe_id",
@@ -78,6 +80,7 @@ EVALUATION_REPORT_FILTERS = {
     "periode": "periode_id",
     "type": "type",
     "enseignant": "enseignant_id",
+    "eleve_cible": "eleve_cible_id",
 }
 BULLETIN_REPORT_FIELDS = {
     "matricule": ("Matricule", "eleve__matricule"),
@@ -90,6 +93,7 @@ BULLETIN_REPORT_FIELDS = {
     "decision": ("Décision", "decision"),
     "publie": ("Publié", "publie"),
     "signe": ("Signé", "signe"),
+    "nb_matieres_individualisees": ("Nb matières individualisées", "nb_matieres_individualisees"),
 }
 BULLETIN_REPORT_FILTERS = {
     "eleve": "eleve_id",
@@ -141,6 +145,22 @@ def _ensure_secondary_continuous_assessment(evaluation):
 
 
 def _secondary_eligible_student_map(evaluation, matricules):
+    if evaluation.eleve_cible_id:
+        eleve = (
+            evaluation.classe.eleves_actuels.filter(pk=evaluation.eleve_cible_id).first()
+            or evaluation.classe.inscriptions.select_related("eleve")
+            .filter(
+                eleve_id=evaluation.eleve_cible_id,
+                statut__in=("en_cours", "validee"),
+            )
+            .first()
+        )
+        if not eleve:
+            return set(), {}
+        eleve = getattr(eleve, "eleve", eleve)
+        if eleve.matricule not in matricules:
+            return {eleve.pk}, {}
+        return {eleve.pk}, {eleve.matricule: eleve}
     enrolled = evaluation.classe.eleves_actuels.filter(matricule__in=matricules)
     enrolled_ids = set(enrolled.values_list("pk", flat=True))
     enrolled_map = {eleve.matricule: eleve for eleve in enrolled}
@@ -264,14 +284,14 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     permission_classes = [IsEnseignantOrVieScolarite]
     permission_model = "evaluation"
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["matiere", "classe", "periode", "type", "enseignant"]
+    filterset_fields = ["matiere", "classe", "periode", "type", "enseignant", "eleve_cible"]
     search_fields = ["titre", "description"]
     ordering_fields = ["date", "titre", "created_at"]
     ordering = ["-date"]
 
     def get_queryset(self):
         qs = Evaluation.objects.select_related(
-            "matiere", "classe", "periode", "enseignant__user"
+            "matiere", "classe", "periode", "enseignant__user", "eleve_cible__user"
         )
         user = self.request.user
         if not user.is_staff and user_has_any_role(user, ("enseignant",)):
@@ -320,22 +340,27 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         student_ids = {item["eleve_id"] for item in serializer.validated_data}
-        eligible_student_ids = set(
-            evaluation.classe.eleves_actuels.filter(pk__in=student_ids).values_list(
-                "pk", flat=True
+        if evaluation.eleve_cible_id:
+            eligible_student_ids = {evaluation.eleve_cible_id} if evaluation.eleve_cible_id in student_ids else set()
+        else:
+            eligible_student_ids = set(
+                evaluation.classe.eleves_actuels.filter(pk__in=student_ids).values_list(
+                    "pk", flat=True
+                )
             )
-        )
-        eligible_student_ids.update(
-            evaluation.classe.inscriptions.filter(
-                eleve_id__in=student_ids,
-                statut__in=("en_cours", "validee"),
-            ).values_list("eleve_id", flat=True)
-        )
+            eligible_student_ids.update(
+                evaluation.classe.inscriptions.filter(
+                    eleve_id__in=student_ids,
+                    statut__in=("en_cours", "validee"),
+                ).values_list("eleve_id", flat=True)
+            )
         invalid_student_ids = sorted(student_ids - eligible_student_ids)
         if invalid_student_ids:
             raise serializers.ValidationError(
                 {
-                    "eleve_id": f"Élèves non inscrits dans cette classe: {invalid_student_ids}."
+                    "eleve_id": (
+                        f"Élèves non autorisés pour cette évaluation: {invalid_student_ids}."
+                    )
                 }
             )
 
@@ -540,7 +565,17 @@ class BulletinsViewSet(viewsets.ModelViewSet):
     ordering = ["-periode__date_fin"]
 
     def get_queryset(self):
-        qs = Bulletin.objects.select_related("eleve__user", "classe", "periode")
+        qs = Bulletin.objects.select_related("eleve__user", "classe", "periode").annotate(
+            nb_matieres_individualisees=Count(
+                "eleve__affectations_matiere_individuelles",
+                filter=Q(
+                    eleve__affectations_matiere_individuelles__annee_scolaire_id=F(
+                        "classe__annee_scolaire_id"
+                    )
+                ),
+                distinct=True,
+            )
+        )
         user = self.request.user
         if hasattr(user, "eleve_profile"):
             if not user.is_staff and user_has_any_role(user, ("eleve",)):

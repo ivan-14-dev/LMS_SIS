@@ -73,6 +73,7 @@ REPORT_DATASET_SCHEMAS = {
                     {"code": "enseignant", "label": "Enseignant"},
                     {"code": "periode", "label": "Période"},
                     {"code": "date", "label": "Date"},
+                    {"code": "eleve_cible", "label": "Élève ciblé"},
                 ],
                 "allowed_filters": [
                     {"code": "annee", "label": "Année scolaire"},
@@ -103,6 +104,7 @@ REPORT_DATASET_SCHEMAS = {
                     {"code": "enseignant", "label": "Enseignant"},
                     {"code": "semestre", "label": "Semestre"},
                     {"code": "date", "label": "Date"},
+                    {"code": "parcours_individualise", "label": "Parcours individualisé"},
                 ],
                 "allowed_filters": [
                     {"code": "annee", "label": "Année universitaire"},
@@ -138,6 +140,7 @@ REPORT_DATASET_SCHEMAS = {
                     {"code": "bareme", "label": "Barème"},
                     {"code": "coefficient", "label": "Coefficient"},
                     {"code": "ponderation", "label": "Pondération"},
+                    {"code": "eleve_cible", "label": "Élève ciblé"},
                 ],
                 "allowed_filters": [
                     {"code": "classe", "label": "Classe"},
@@ -145,6 +148,7 @@ REPORT_DATASET_SCHEMAS = {
                     {"code": "periode", "label": "Période"},
                     {"code": "type", "label": "Type"},
                     {"code": "enseignant", "label": "Enseignant"},
+                    {"code": "eleve_cible", "label": "Élève ciblé"},
                 ],
                 "group_by_options": [
                     {"code": "classe", "label": "Classe"},
@@ -204,6 +208,7 @@ REPORT_DATASET_SCHEMAS = {
                     {"code": "decision", "label": "Décision"},
                     {"code": "publie", "label": "Publié"},
                     {"code": "signe", "label": "Signé"},
+                    {"code": "nb_matieres_individualisees", "label": "Nb matières individualisées"},
                 ],
                 "allowed_filters": [
                     {"code": "eleve", "label": "Élève"},
@@ -347,6 +352,7 @@ REPORT_DATASET_SCHEMAS = {
                     {"code": "semestre", "label": "Semestre"},
                     {"code": "moyenne", "label": "Moyenne"},
                     {"code": "valide", "label": "Validé"},
+                    {"code": "parcours_individualise", "label": "Parcours individualisé"},
                 ],
                 "allowed_filters": [
                     {"code": "etudiant", "label": "Étudiant"},
@@ -379,6 +385,7 @@ REPORT_DATASET_SCHEMAS = {
                     {"code": "moyenne", "label": "Moyenne"},
                     {"code": "credits_obtenus", "label": "Crédits obtenus"},
                     {"code": "capitalisee", "label": "Capitalisée"},
+                    {"code": "parcours_individualise", "label": "Parcours individualisé"},
                 ],
                 "allowed_filters": [
                     {"code": "etudiant", "label": "Étudiant"},

@@ -350,14 +350,91 @@ export const useConseilsClasse = conseilClasseHooks.useList;
 export const useEleveDetail = (id) => eleveHooks.useDetail(id);
 export const useNotesByEleve = (eleveId) => useQuery({
   queryKey: ['notes-eleve', eleveId],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/eleves/${eleveId}/notes/`),
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/notes/notes/?eleve=${eleveId}`),
   enabled: !!eleveId,
+  select: (data) => (Array.isArray(data) ? data : data?.results || []),
 });
 export const usePresencesByEleve = (eleveId) => useQuery({
   queryKey: ['presences-eleve', eleveId],
   queryFn: () => fetchApi(`${getSecondaireApiUrl()}/eleves/${eleveId}/presences/`),
   enabled: !!eleveId,
+  select: (data) => (Array.isArray(data) ? data : data?.results || []),
 });
+export const useSecondaireMatieres = () => useQuery({
+  queryKey: ['secondaire', 'matieres'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/classes/matieres/`),
+  select: (data) => (Array.isArray(data) ? data : data?.results || []),
+});
+export const useEleveMatieresIndividuelles = (eleveId) => useQuery({
+  queryKey: ['eleves', eleveId, 'matieres-individuelles'],
+  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/eleves/${eleveId}/matieres-individuelles/`),
+  enabled: !!eleveId,
+  select: (data) => (Array.isArray(data) ? data : data?.results || []),
+});
+export const useAjouterMatiereIndividuelleEleve = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ eleveId, data }) => postApi(`${getSecondaireApiUrl()}/eleves/${eleveId}/matieres-individuelles/`, data),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['eleves', variables.eleveId, 'matieres-individuelles'] });
+      queryClient.invalidateQueries({ queryKey: ['eleves', 'detail', variables.eleveId] });
+    },
+  });
+};
+export const useRetirerMatiereIndividuelleEleve = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ eleveId, affectationId }) => postApi(`${getSecondaireApiUrl()}/eleves/${eleveId}/retirer-matiere-individuelle/`, { affectation_id: affectationId }),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['eleves', variables.eleveId, 'matieres-individuelles'] });
+      queryClient.invalidateQueries({ queryKey: ['eleves', 'detail', variables.eleveId] });
+    },
+  });
+};
+export const useSemestres = (params = {}) => useQuery({
+  queryKey: ['semestres', params],
+  queryFn: () => {
+    const queryString = new URLSearchParams(params).toString();
+    const url = queryString ? `${getSuperieurApiUrl()}/etablissement/semestres/?${queryString}` : `${getSuperieurApiUrl()}/etablissement/semestres/`;
+    return fetchApi(url);
+  },
+  select: (data) => (Array.isArray(data) ? data : data?.results || []),
+});
+export const useECUEs = (params = {}) => useQuery({
+  queryKey: ['ecues', params],
+  queryFn: () => {
+    const queryString = new URLSearchParams(params).toString();
+    const url = queryString ? `${getSuperieurApiUrl()}/ue-ecue/ecues/?${queryString}` : `${getSuperieurApiUrl()}/ue-ecue/ecues/`;
+    return fetchApi(url);
+  },
+  select: (data) => (Array.isArray(data) ? data : data?.results || []),
+});
+export const useEtudiantMatieresIndividuelles = (etudiantId) => useQuery({
+  queryKey: ['etudiants', etudiantId, 'matieres-individuelles'],
+  queryFn: () => fetchApi(`${getSuperieurApiUrl()}/etudiants/${etudiantId}/matieres-individuelles/`),
+  enabled: !!etudiantId,
+  select: (data) => (Array.isArray(data) ? data : data?.results || []),
+});
+export const useAjouterMatiereIndividuelleEtudiant = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ etudiantId, data }) => postApi(`${getSuperieurApiUrl()}/etudiants/${etudiantId}/matieres-individuelles/`, data),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['etudiants', variables.etudiantId, 'matieres-individuelles'] });
+      queryClient.invalidateQueries({ queryKey: ['etudiants', 'detail', variables.etudiantId] });
+    },
+  });
+};
+export const useRetirerMatiereIndividuelleEtudiant = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ etudiantId, affectationId }) => postApi(`${getSuperieurApiUrl()}/etudiants/${etudiantId}/retirer-matiere-individuelle/`, { affectation_id: affectationId }),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['etudiants', variables.etudiantId, 'matieres-individuelles'] });
+      queryClient.invalidateQueries({ queryKey: ['etudiants', 'detail', variables.etudiantId] });
+    },
+  });
+};
 
 // Cantine extended
 export const useInscritsCantin = () => useQuery({

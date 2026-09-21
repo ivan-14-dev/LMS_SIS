@@ -1,5 +1,6 @@
 """Serializers for releves (SIS Supérieur)."""
 
+from apps.etudiants.models import AffectationECUEIndividuelle
 from rest_framework import serializers
 
 from .models import Attestation, ReleveNotes, Transcript
@@ -50,6 +51,8 @@ class ReleveNotesDetailSerializer(serializers.ModelSerializer):
     signe_par_nom = serializers.CharField(
         source="signe_par.get_full_name", read_only=True
     )
+    nb_matieres_individualisees = serializers.SerializerMethodField()
+    matieres_individuelles = serializers.SerializerMethodField()
 
     class Meta:
         model = ReleveNotes
@@ -65,6 +68,8 @@ class ReleveNotesDetailSerializer(serializers.ModelSerializer):
             "mention",
             "credits_total",
             "credits_valides",
+            "nb_matieres_individualisees",
+            "matieres_individuelles",
             "classement",
             "effectif",
             "date_emission",
@@ -77,6 +82,37 @@ class ReleveNotesDetailSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def _affectations(self, obj):
+        return (
+            AffectationECUEIndividuelle.objects.filter(
+                inscription_admin__etudiant=obj.etudiant,
+                inscription_admin__annee_universitaire=obj.semestre.annee_universitaire,
+                semestre_cible=obj.semestre,
+            )
+            .select_related("ecue__ue", "semestre_cible")
+            .order_by("ecue__ue__code", "ecue__code")
+        )
+
+    def get_nb_matieres_individualisees(self, obj):
+        return self._affectations(obj).count()
+
+    def get_matieres_individuelles(self, obj):
+        return [
+            {
+                "id": affectation.id,
+                "ecue": affectation.ecue_id,
+                "ecue_code": affectation.ecue.code,
+                "ecue_nom": affectation.ecue.nom,
+                "ue_code": affectation.ecue.ue.code,
+                "ue_nom": affectation.ecue.ue.nom,
+                "semestre_cible": affectation.semestre_cible_id,
+                "semestre_cible_libelle": str(affectation.semestre_cible),
+                "source_semestre": str(affectation.ecue.ue.semestre),
+                "obligatoire": affectation.obligatoire,
+            }
+            for affectation in self._affectations(obj)
+        ]
 
 
 class TranscriptListSerializer(serializers.ModelSerializer):

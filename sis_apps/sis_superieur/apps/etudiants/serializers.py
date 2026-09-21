@@ -149,6 +149,9 @@ class InscriptionAdministrativeSerializer(serializers.ModelSerializer):
     )
     formation_nom = serializers.CharField(source="formation.nom", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
+    annee_universitaire_libelle = serializers.CharField(
+        source="annee_universitaire.libelle", read_only=True
+    )
 
     class Meta:
         model = InscriptionAdministrative
@@ -158,6 +161,7 @@ class InscriptionAdministrativeSerializer(serializers.ModelSerializer):
             "etudiant_matricule",
             "etudiant_nom",
             "annee_universitaire",
+            "annee_universitaire_libelle",
             "formation",
             "formation_nom",
             "parcours",

@@ -3,7 +3,7 @@
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, Exists, OuterRef, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, viewsets
@@ -50,6 +50,7 @@ NOTE_REPORT_FIELDS = {
     "enseignant": ("Enseignant", "evaluation__enseignant__last_name"),
     "semestre": ("Semestre", "evaluation__semestre__numero"),
     "date": ("Date", "evaluation__date"),
+    "parcours_individualise": ("Parcours individualisé", "parcours_individualise"),
 }
 NOTE_REPORT_FILTERS = {
     "annee": "evaluation__semestre__annee_universitaire_id",
@@ -99,6 +100,7 @@ ECUE_AVERAGE_REPORT_FIELDS = {
     "semestre": ("Semestre", "semestre__numero"),
     "moyenne": ("Moyenne", "moyenne"),
     "valide": ("Validé", "valide"),
+    "parcours_individualise": ("Parcours individualisé", "parcours_individualise"),
 }
 ECUE_AVERAGE_REPORT_FILTERS = {
     "etudiant": "etudiant_id",
@@ -117,6 +119,7 @@ UE_AVERAGE_REPORT_FIELDS = {
     "moyenne": ("Moyenne", "moyenne"),
     "credits_obtenus": ("Crédits obtenus", "credits_obtenus"),
     "capitalisee": ("Capitalisée", "capitalisee"),
+    "parcours_individualise": ("Parcours individualisé", "parcours_individualise"),
 }
 UE_AVERAGE_REPORT_FILTERS = {
     "etudiant": "etudiant_id",
@@ -490,7 +493,17 @@ class NotesViewSet(viewsets.ModelViewSet):
     ordering = ["etudiant__user__last_name"]
 
     def get_queryset(self):
-        qs = Note.objects.select_related("evaluation", "etudiant__user")
+        individualized_assignments = AffectationECUEIndividuelle.objects.filter(
+            inscription_admin__etudiant_id=OuterRef("etudiant_id"),
+            inscription_admin__annee_universitaire_id=OuterRef(
+                "evaluation__semestre__annee_universitaire_id"
+            ),
+            semestre_cible_id=OuterRef("evaluation__semestre_id"),
+            ecue_id=OuterRef("evaluation__ecue_id"),
+        )
+        qs = Note.objects.select_related("evaluation", "etudiant__user").annotate(
+            parcours_individualise=Exists(individualized_assignments)
+        )
         user = self.request.user
         if not user.is_staff and user_has_any_role(user, ("etudiant", "doctorant")):
             return qs.filter(etudiant__user=user)
@@ -570,7 +583,15 @@ class MoyennesECUEViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["etudiant", "ecue", "semestre", "valide"]
 
     def get_queryset(self):
-        qs = MoyenneECUE.objects.select_related("etudiant__user", "ecue", "semestre")
+        individualized_assignments = AffectationECUEIndividuelle.objects.filter(
+            inscription_admin__etudiant_id=OuterRef("etudiant_id"),
+            inscription_admin__annee_universitaire_id=OuterRef("semestre__annee_universitaire_id"),
+            semestre_cible_id=OuterRef("semestre_id"),
+            ecue_id=OuterRef("ecue_id"),
+        )
+        qs = MoyenneECUE.objects.select_related("etudiant__user", "ecue", "semestre").annotate(
+            parcours_individualise=Exists(individualized_assignments)
+        )
         user = self.request.user
         if not user.is_staff and user_has_any_role(user, ("etudiant", "doctorant")):
             return qs.filter(etudiant__user=user)
@@ -617,7 +638,15 @@ class MoyennesUEViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["etudiant", "ue", "semestre", "capitalisee"]
 
     def get_queryset(self):
-        qs = MoyenneUE.objects.select_related("etudiant__user", "ue", "semestre")
+        individualized_assignments = AffectationECUEIndividuelle.objects.filter(
+            inscription_admin__etudiant_id=OuterRef("etudiant_id"),
+            inscription_admin__annee_universitaire_id=OuterRef("semestre__annee_universitaire_id"),
+            semestre_cible_id=OuterRef("semestre_id"),
+            ecue__ue_id=OuterRef("ue_id"),
+        )
+        qs = MoyenneUE.objects.select_related("etudiant__user", "ue", "semestre").annotate(
+            parcours_individualise=Exists(individualized_assignments)
+        )
         user = self.request.user
         if not user.is_staff and user_has_any_role(user, ("etudiant", "doctorant")):
             return qs.filter(etudiant__user=user)

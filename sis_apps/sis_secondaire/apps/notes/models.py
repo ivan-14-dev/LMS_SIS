@@ -41,6 +41,13 @@ class Evaluation(models.Model):
     )
     periode = models.ForeignKey(Periode, on_delete=models.PROTECT, related_name="evaluations")
     enseignant = models.ForeignKey(Personnel, on_delete=models.PROTECT, related_name="evaluations")
+    eleve_cible = models.ForeignKey(
+        Eleve,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="evaluations_individualisees",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,6 +56,7 @@ class Evaluation(models.Model):
         indexes = [
             models.Index(fields=["classe", "date"]),
             models.Index(fields=["matiere", "date"]),
+            models.Index(fields=["eleve_cible", "date"]),
         ]
 
     def __str__(self):
