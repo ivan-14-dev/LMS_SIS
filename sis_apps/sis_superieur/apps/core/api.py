@@ -9,6 +9,7 @@ from sis_common.authorization import has_business_permission_or_role
 from sis_common.notification_channels import (
     notification_matches_delivery_filters,
     summarize_notification_deliveries,
+    summarize_notification_delivery_trends,
 )
 from sis_common.reporting import configured_report, export_queryset
 from .serializers import WorkflowEventSerializer
@@ -166,3 +167,8 @@ class WorkflowNotificationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet
     def bilan_livraison(self, request):
         queryset = self.get_queryset()
         return response.Response(summarize_notification_deliveries(queryset))
+
+    @action(detail=False, methods=["get"])
+    def tendances_livraison(self, request):
+        queryset = self.get_queryset()
+        return response.Response(summarize_notification_delivery_trends(queryset))

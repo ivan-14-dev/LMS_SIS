@@ -133,6 +133,46 @@ def summarize_notification_deliveries(notifications):
     return summary
 
 
+def _trend_bucket_labels(created_at):
+    dt = timezone.localtime(created_at)
+    iso_year, iso_week, _ = dt.isocalendar()
+    return {
+        "day": dt.strftime("%Y-%m-%d"),
+        "week": f"{iso_year}-S{iso_week:02d}",
+        "month": dt.strftime("%Y-%m"),
+    }
+
+
+def summarize_notification_delivery_trends(notifications):
+    statuses = ("sent", "failed", "retrying", "queued", "skipped", "pending")
+    trend_maps = {"day": {}, "week": {}, "month": {}}
+    for notification in notifications:
+        labels = _trend_bucket_labels(getattr(notification, "created_at"))
+        delivery = (getattr(notification, "metadata", {}) or {}).get("delivery", {})
+        notification_statuses = {
+            (details or {}).get("status", "pending")
+            for details in (delivery.values() if isinstance(delivery, dict) else [])
+        } or {"pending"}
+        for granularity, label in labels.items():
+            bucket = trend_maps[granularity].setdefault(
+                label,
+                {
+                    "period": label,
+                    "total_notifications": 0,
+                    **{status: 0 for status in statuses},
+                },
+            )
+            bucket["total_notifications"] += 1
+            for status in notification_statuses:
+                if status not in bucket:
+                    bucket[status] = 0
+                bucket[status] += 1
+    return {
+        granularity: [trend_maps[granularity][key] for key in sorted(trend_maps[granularity])]
+        for granularity in ("day", "week", "month")
+    }
+
+
 def _update_notification_channel(notification, channel, status, attempts=None, error="", detail="", extra=None):
     metadata, delivery = _delivery_map(notification.metadata)
     existing = delivery.get(channel, {})

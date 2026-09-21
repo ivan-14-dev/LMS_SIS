@@ -6,7 +6,12 @@ import {
 import {
   PageHeader, SISDataTable, StatCard, WorkflowNotificationsPanel,
 } from '../components/common';
-import { useWorkflowEvents, useWorkflowNotifications, useWorkflowNotificationSummary } from '../services/api';
+import {
+  useWorkflowEvents,
+  useWorkflowNotifications,
+  useWorkflowNotificationSummary,
+  useWorkflowNotificationTrends,
+} from '../services/api';
 
 const channelLabels = {
   in_app: 'Centre',
@@ -80,6 +85,35 @@ const SummaryChipCard = ({
   </MuiCard>
 );
 
+const TrendBarsCard = ({
+  title, rows, total, formatValue,
+}) => (
+  <MuiCard sx={{ height: '100%' }}>
+    <CardContent>
+      <Typography variant="h6" gutterBottom>{title}</Typography>
+      {rows.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">Aucune tendance disponible.</Typography>
+      ) : (
+        <Stack spacing={1.5}>
+          {rows.map((row) => {
+            const value = formatValue(row);
+            const ratio = total > 0 ? (value / total) * 100 : 0;
+            return (
+              <Box key={row.period}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mb: 0.75 }}>
+                  <Typography variant="body2">{row.period}</Typography>
+                  <Typography variant="body2" color="text.secondary">{value}</Typography>
+                </Box>
+                <LinearProgress variant="determinate" value={ratio} sx={{ height: 8, borderRadius: 999 }} />
+              </Box>
+            );
+          })}
+        </Stack>
+      )}
+    </CardContent>
+  </MuiCard>
+);
+
 const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
   const [action, setAction] = useState('');
   const [appLabel, setAppLabel] = useState('');
@@ -87,6 +121,7 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
   const [notificationCategory, setNotificationCategory] = useState('');
   const [deliveryChannel, setDeliveryChannel] = useState('');
   const [deliveryStatus, setDeliveryStatus] = useState('');
+  const [trendGranularity, setTrendGranularity] = useState('day');
   const params = useMemo(() => ({
     ...(action ? { action } : {}),
     ...(appLabel ? { app_label: appLabel } : {}),
@@ -100,6 +135,7 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
   }), [notificationCategory, deliveryChannel, deliveryStatus]);
   const { data: notifications = [], isLoading: notificationsLoading } = useWorkflowNotifications(apiType, false, notificationParams);
   const { data: notificationSummary = {} } = useWorkflowNotificationSummary(apiType, notificationParams);
+  const { data: notificationTrends = {} } = useWorkflowNotificationTrends(apiType, notificationParams);
 
   const actionOptions = useMemo(
     () => [...new Set(events.map((event) => event.action).filter(Boolean))].sort(),
@@ -189,6 +225,22 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
       .map(([key, value]) => ({ key, value }))
       .sort((a, b) => b.value - a.value),
     [notificationSummary],
+  );
+  const trendRows = useMemo(
+    () => (notificationTrends?.[trendGranularity] || []).slice(-8),
+    [notificationTrends, trendGranularity],
+  );
+  const trendTotalMax = useMemo(
+    () => Math.max(0, ...trendRows.map((row) => row.total_notifications || 0)),
+    [trendRows],
+  );
+  const trendSentMax = useMemo(
+    () => Math.max(0, ...trendRows.map((row) => row.sent || 0)),
+    [trendRows],
+  );
+  const trendFailedMax = useMemo(
+    () => Math.max(0, ...trendRows.map((row) => row.failed || 0)),
+    [trendRows],
   );
 
   return (
@@ -339,6 +391,47 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
           />
         </Col>
       </Row>
+      <MuiCard sx={{ mb: 4 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center', mb: 3, flexWrap: 'wrap' }}>
+            <Typography variant="h6">Tendances temporelles des livraisons</Typography>
+            <Form.Group className="mb-0">
+              <Form.Label>Granularité</Form.Label>
+              <Form.Control as="select" value={trendGranularity} onChange={(e) => setTrendGranularity(e.target.value)}>
+                <option value="day">Jour</option>
+                <option value="week">Semaine</option>
+                <option value="month">Mois</option>
+              </Form.Control>
+            </Form.Group>
+          </Box>
+          <Row>
+            <Col lg={4} className="mb-3">
+              <TrendBarsCard
+                title="Notifications suivies"
+                rows={trendRows}
+                total={trendTotalMax}
+                formatValue={(row) => row.total_notifications || 0}
+              />
+            </Col>
+            <Col lg={4} className="mb-3">
+              <TrendBarsCard
+                title="Livraisons réussies"
+                rows={trendRows}
+                total={trendSentMax}
+                formatValue={(row) => row.sent || 0}
+              />
+            </Col>
+            <Col lg={4} className="mb-3">
+              <TrendBarsCard
+                title="Livraisons en échec"
+                rows={trendRows}
+                total={trendFailedMax}
+                formatValue={(row) => row.failed || 0}
+              />
+            </Col>
+          </Row>
+        </CardContent>
+      </MuiCard>
       <SISDataTable
         title="Historique global des workflows"
         data={events}

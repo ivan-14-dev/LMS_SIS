@@ -121,6 +121,16 @@ export const useWorkflowNotificationSummary = (apiType = 'superieur', params = {
   },
 });
 
+export const useWorkflowNotificationTrends = (apiType = 'superieur', params = {}) => useQuery({
+  queryKey: ['workflow-notification-trends', apiType, params],
+  queryFn: () => {
+    const query = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '')),
+    ).toString();
+    return fetchApi(`${getVariantApiUrl(apiType)}/core/notifications/tendances_livraison/${query ? `?${query}` : ''}`);
+  },
+});
+
 export const useMarkAllWorkflowNotificationsRead = (apiType = 'superieur') => {
   const queryClient = useQueryClient();
   return useMutation({
