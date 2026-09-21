@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
+from django.utils import timezone
 from sis_common.academic_configuration import (
     academic_configuration_schema,
     catalog_label,
@@ -12,6 +15,7 @@ from sis_common.academic_configuration import (
     validate_academic_configuration,
     workflow_transition_allowed,
 )
+from sis_common.submission_windows import get_submission_window_notification_content
 
 
 class AcademicConfigurationTests(SimpleTestCase):
@@ -137,6 +141,10 @@ class AcademicConfigurationTests(SimpleTestCase):
             {"code": "doyen", "label": "Doyen de faculté"},
             schema["submission_window_recipient_roles"],
         )
+        self.assertIn(
+            {"code": "object_label", "label": "Libellé de l'évaluation / épreuve"},
+            schema["submission_window_template_variables"],
+        )
         payments_dataset = next(
             dataset for dataset in schema["report_datasets"] if dataset["code"] == "financial_payments"
         )
@@ -230,6 +238,8 @@ class AcademicConfigurationTests(SimpleTestCase):
         self.assertTrue(settings["notify_assigned_users"])
         self.assertEqual(settings["recipient_role_codes"], [])
         self.assertEqual(settings["recipient_group_codes"], [])
+        self.assertEqual(settings["title_template"], "Clôture de soumission imminente")
+        self.assertIn("{object_label}", settings["message_template"])
 
     def test_invalid_submission_window_configuration_is_rejected(self):
         configuration = default_academic_configuration()
@@ -248,6 +258,38 @@ class AcademicConfigurationTests(SimpleTestCase):
 
         with self.assertRaises(ValidationError):
             validate_academic_configuration(configuration)
+
+    def test_invalid_submission_window_template_configuration_is_rejected(self):
+        configuration = default_academic_configuration()
+        configuration["submission_windows"] = {
+            "evaluation": {"title_template": ""},
+        }
+
+        with self.assertRaises(ValidationError):
+            validate_academic_configuration(configuration)
+
+    def test_submission_window_notification_content_uses_configured_templates(self):
+        class DummySubmissionObject:
+            def __init__(self, fin_soumission):
+                self.fin_soumission = fin_soumission
+
+            def __str__(self):
+                return "DS Math 6e A"
+
+        configuration = default_academic_configuration()
+        configuration["submission_windows"] = {
+            "evaluation": {
+                "reminder_hours": [24],
+                "title_template": "Rappel {object_type}",
+                "message_template": "{object_label} ferme dans {threshold_hours}h le {deadline}",
+            }
+        }
+        instance = DummySubmissionObject(timezone.now() + timedelta(hours=3))
+
+        notification = get_submission_window_notification_content(instance, configuration, "evaluation")
+
+        self.assertEqual(notification["title"], "Rappel évaluation")
+        self.assertIn("DS Math 6e A", notification["message"])
 
     def test_resolve_validation_policy_prefers_most_specific_target(self):
         configuration = default_academic_configuration()

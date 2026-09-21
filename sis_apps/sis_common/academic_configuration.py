@@ -61,6 +61,14 @@ SUBMISSION_WINDOW_TYPES = {
     "exam": "Examens / résultats",
 }
 
+SUBMISSION_WINDOW_TEMPLATE_VARIABLES = {
+    "object_label": "Libellé de l'évaluation / épreuve",
+    "object_type": "Type d'objet",
+    "window_label": "Libellé de la fenêtre de soumission",
+    "threshold_hours": "Seuil de rappel en heures",
+    "deadline": "Date/heure de fermeture format ISO",
+}
+
 SECONDARY_USER_ROLES = {
     "super_admin": "Super administrateur",
     "direction": "Direction",
@@ -664,6 +672,8 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             "notify_assigned_users": True,
             "recipient_role_codes": [],
             "recipient_group_codes": [],
+            "title_template": "Clôture de soumission imminente",
+            "message_template": "Clôture de la {window_label} de {object_label} dans moins de {threshold_hours}h (limite: {deadline}).",
         },
         "exam": {
             "enabled": True,
@@ -673,6 +683,8 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             "notify_assigned_users": True,
             "recipient_role_codes": [],
             "recipient_group_codes": [],
+            "title_template": "Clôture de soumission imminente",
+            "message_template": "Clôture de la {window_label} de {object_label} dans moins de {threshold_hours}h (limite: {deadline}).",
         },
     },
     "catalogs": {
@@ -1380,6 +1392,10 @@ def _validate_submission_windows(value):
                     raise ValidationError(
                         f"submission_windows.{code}.{key}[{index}] doit être une chaîne non vide."
                     )
+        for key in ("title_template", "message_template"):
+            value = settings.get(key, "")
+            if not isinstance(value, str) or not value.strip():
+                raise ValidationError(f"submission_windows.{code}.{key} doit être une chaîne non vide.")
 
 
 def _report_dataset_schema(variant=None):
@@ -1439,6 +1455,10 @@ def academic_configuration_schema(variant=None):
         ],
         "submission_window_recipient_roles": [
             {"code": code, "label": label} for code, label in role_options.items()
+        ],
+        "submission_window_template_variables": [
+            {"code": code, "label": label}
+            for code, label in SUBMISSION_WINDOW_TEMPLATE_VARIABLES.items()
         ],
     }
 

@@ -223,6 +223,7 @@ const EtablissementPage = () => {
   const configurationSchema = formData.configuration_schema || {};
   const reportDatasets = configurationSchema.report_datasets || [];
   const submissionRecipientRoleOptions = configurationSchema.submission_window_recipient_roles || [];
+  const submissionTemplateVariables = configurationSchema.submission_window_template_variables || [];
   const getReportDatasetDefinition = (datasetCode) => (
     reportDatasets.find((dataset) => dataset.code === datasetCode) || null
   );
@@ -697,6 +698,33 @@ const EtablissementPage = () => {
                                 </Form.Group>
                               </Col>
                             </Row>
+                            <Row className="mt-3">
+                              <Col md={6}>
+                                <Form.Group className="mb-2">
+                                  <Form.Label>Titre de notification</Form.Label>
+                                  <Form.Control
+                                    value={settings.title_template || ''}
+                                    onChange={(event) => updateSubmissionWindowField(windowType.code, 'title_template', event.target.value)}
+                                    placeholder="Clôture de soumission imminente"
+                                  />
+                                </Form.Group>
+                              </Col>
+                              <Col md={6}>
+                                <Form.Group className="mb-0">
+                                  <Form.Label>Message de notification</Form.Label>
+                                  <Form.Control
+                                    as="textarea"
+                                    rows={3}
+                                    value={settings.message_template || ''}
+                                    onChange={(event) => updateSubmissionWindowField(windowType.code, 'message_template', event.target.value)}
+                                    placeholder="Clôture de la {window_label} de {object_label} dans moins de {threshold_hours}h."
+                                  />
+                                </Form.Group>
+                              </Col>
+                            </Row>
+                            <Form.Text muted className="d-block mt-2">
+                              Variables disponibles : {submissionTemplateVariables.map((item) => `{${item.code}}`).join(', ')}
+                            </Form.Text>
                           </Card.Body>
                         </Card>
                       );

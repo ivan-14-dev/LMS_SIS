@@ -1,6 +1,7 @@
 """Shared helpers for submission windows and reminders."""
 
 from datetime import datetime, time, timedelta
+from string import Formatter
 
 from django.apps import apps
 from django.utils import timezone
@@ -12,6 +13,11 @@ from sis_common.workflow_tracking import record_workflow_event
 WINDOW_KIND_LABELS = {
     "evaluation": "soumission",
     "exam": "soumission des résultats",
+}
+
+WINDOW_OBJECT_LABELS = {
+    "evaluation": "évaluation",
+    "exam": "épreuve",
 }
 
 
@@ -67,6 +73,47 @@ def get_submission_window_alert(instance, configuration, window_type, now=None):
     settings = resolve_submission_window_settings(configuration, window_type)
     if not settings.get("enabled", True):
         return None
+
+
+def _submission_window_template_context(instance, alert, window_type):
+        deadline = getattr(instance, "fin_soumission", None)
+        return {
+            "object_label": str(instance),
+            "object_type": WINDOW_OBJECT_LABELS.get(window_type, window_type),
+            "window_label": WINDOW_KIND_LABELS[window_type],
+            "threshold_hours": alert["threshold_hours"],
+            "deadline": deadline.isoformat() if deadline else "",
+        }
+
+
+def _render_submission_window_template(template, context):
+        values = context or {}
+        rendered = template
+        for _, field_name, _, _ in Formatter().parse(template):
+            if field_name:
+                rendered = rendered.replace("{" + field_name + "}", str(values.get(field_name, "")))
+        return rendered
+
+
+def get_submission_window_notification_content(instance, configuration, window_type, alert=None):
+        settings = resolve_submission_window_settings(configuration, window_type)
+        alert = alert or get_submission_window_alert(instance, configuration, window_type)
+        if not alert:
+            return None
+        context = _submission_window_template_context(instance, alert, window_type)
+        title = _render_submission_window_template(
+            settings.get("title_template", "Clôture de soumission imminente"),
+            context,
+        )
+        message = _render_submission_window_template(
+            settings.get("message_template", alert["message"]),
+            context,
+        )
+        return {
+            **alert,
+            "title": title,
+            "message": message,
+        }
     now = now or timezone.now()
     deadline = getattr(instance, "fin_soumission", None)
     if not deadline or now > deadline:
@@ -137,7 +184,7 @@ def resolve_submission_window_recipients(instance, configuration, window_type, a
 
 
 def maybe_record_submission_window_alert(request, instance, configuration, window_type, recipients):
-    alert = get_submission_window_alert(instance, configuration, window_type)
+    alert = get_submission_window_notification_content(instance, configuration, window_type)
     if not alert:
         return
     recipients = resolve_submission_window_recipients(
@@ -162,7 +209,7 @@ def maybe_record_submission_window_alert(request, instance, configuration, windo
         request,
         instance,
         action,
-        "Clôture de soumission imminente",
+        alert["title"],
         message=alert["message"],
         recipients=recipients,
         metadata={
