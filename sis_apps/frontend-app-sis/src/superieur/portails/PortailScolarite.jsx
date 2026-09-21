@@ -1,11 +1,15 @@
 import React from 'react';
 import { Row, Col, Card, Button } from '@openedx/paragon';
 import { useQuery } from '@tanstack/react-query';
-import { PageHeader, StatCard, SISDataTable } from '../../components/common';
+import { useNavigate } from 'react-router-dom';
+import {
+  PageHeader, StatCard, SISDataTable, WorkflowNotificationsPanel,
+} from '../../components/common';
 import { fetchApi, getSuperieurApiUrl } from '../../services/api';
 import { People, Assignment, Money, School } from '@openedx/paragon/icons';
 
 const PortailScolarite = () => {
+  const navigate = useNavigate();
   const { data: stats } = useQuery({
     queryKey: ['portail-scolarite-stats'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail-scolarite/statistiques/`),
@@ -26,7 +30,16 @@ const PortailScolarite = () => {
 
   return (
     <div>
-      <PageHeader title="Portail Scolarité" subtitle="Gestion administrative des étudiants" />
+      <PageHeader
+        title="Portail Scolarité"
+        subtitle="Gestion administrative des étudiants"
+        actions={[
+          { label: 'Inscriptions', variant: 'primary', onClick: () => navigate('/superieur/inscriptions') },
+          { label: 'Paiements', variant: 'secondary', onClick: () => navigate('/superieur/paiements') },
+          { label: 'Workflows', variant: 'secondary', onClick: () => navigate('/superieur/workflows') },
+        ]}
+      />
+      <WorkflowNotificationsPanel apiType="superieur" title="Notifications workflow de la scolarité" />
 
       <Row className="mb-4">
         <Col md={3}>
@@ -63,22 +76,22 @@ const PortailScolarite = () => {
             <Card.Header><Card.Title>Actions rapides</Card.Title></Card.Header>
             <Card.Body>
               <div className="d-grid gap-2">
-                <Button variant="primary">Nouvelle inscription</Button>
-                <Button variant="outline-primary">Valider les paiements</Button>
-                <Button variant="outline-primary">Éditer certificats</Button>
-                <Button variant="outline-primary">Relevés de notes</Button>
+                <Button variant="primary" onClick={() => navigate('/superieur/inscriptions')}>Nouvelle inscription</Button>
+                <Button variant="outline-primary" onClick={() => navigate('/superieur/paiements')}>Valider les paiements</Button>
+                <Button variant="outline-primary" onClick={() => navigate('/superieur/diplomes')}>Éditer certificats</Button>
+                <Button variant="outline-primary" onClick={() => navigate('/superieur/releves')}>Relevés de notes</Button>
               </div>
             </Card.Body>
           </Card>
 
           <Card>
-            <Card.Header><Card.Title>Alertes</Card.Title></Card.Header>
+            <Card.Header><Card.Title>Raccourcis workflow</Card.Title></Card.Header>
             <Card.Body>
-              <ul className="list-unstyled mb-0">
-                <li className="py-2 border-bottom text-warning">⚠️ 12 dossiers incomplets</li>
-                <li className="py-2 border-bottom text-danger">🔴 5 paiements en retard</li>
-                <li className="py-2 text-info">ℹ️ Clôture inscriptions dans 5 jours</li>
-              </ul>
+              <div className="d-grid gap-2">
+                <Button variant="outline-primary" onClick={() => navigate('/superieur/workflows')}>Centre workflow</Button>
+                <Button variant="outline-primary" onClick={() => navigate('/superieur/examens')}>Suivre les examens</Button>
+                <Button variant="outline-primary" onClick={() => navigate('/superieur/notes')}>Suivre les notes</Button>
+              </div>
             </Card.Body>
           </Card>
         </Col>

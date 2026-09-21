@@ -1,11 +1,15 @@
 import React from 'react';
 import { Row, Col, Card, Button } from '@openedx/paragon';
 import { useQuery } from '@tanstack/react-query';
-import { PageHeader, StatCard, SISDataTable } from '../../components/common';
+import { useNavigate } from 'react-router-dom';
+import {
+  PageHeader, StatCard, SISDataTable, WorkflowNotificationsPanel,
+} from '../../components/common';
 import { fetchApi, getSuperieurApiUrl } from '../../services/api';
 import { People, CalendarMonth, Grade, Science } from '@openedx/paragon/icons';
 
 const PortailEnseignant = () => {
+  const navigate = useNavigate();
   const { data: profil } = useQuery({
     queryKey: ['portail-enseignant-profil'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail-enseignant/mon-profil/`),
@@ -29,7 +33,13 @@ const PortailEnseignant = () => {
       <PageHeader
         title="Mon espace enseignant"
         subtitle={profil ? `${profil.nom} ${profil.prenom} - ${profil.grade}` : 'Chargement...'}
+        actions={[
+          { label: 'Notes', variant: 'primary', onClick: () => navigate('/superieur/notes') },
+          { label: 'Examens', variant: 'secondary', onClick: () => navigate('/superieur/examens') },
+          { label: 'Workflows', variant: 'secondary', onClick: () => navigate('/superieur/workflows') },
+        ]}
       />
+      <WorkflowNotificationsPanel apiType="superieur" title="Notifications workflow de l’enseignant" />
 
       <Row className="mb-4">
         <Col md={3}>
@@ -66,10 +76,10 @@ const PortailEnseignant = () => {
             <Card.Header><Card.Title>Actions rapides</Card.Title></Card.Header>
             <Card.Body>
               <div className="d-grid gap-2">
-                <Button variant="primary">Saisir des notes</Button>
-                <Button variant="outline-primary">Consulter mes étudiants</Button>
-                <Button variant="outline-primary">Demande de salle</Button>
-                <Button variant="outline-primary">Mes encadrements</Button>
+                <Button variant="primary" onClick={() => navigate('/superieur/notes')}>Saisir des notes</Button>
+                <Button variant="outline-primary" onClick={() => navigate('/superieur/etudiants')}>Consulter mes étudiants</Button>
+                <Button variant="outline-primary" onClick={() => navigate('/superieur/examens')}>Examens</Button>
+                <Button variant="outline-primary" onClick={() => navigate('/superieur/workflows')}>Centre workflow</Button>
               </div>
             </Card.Body>
           </Card>

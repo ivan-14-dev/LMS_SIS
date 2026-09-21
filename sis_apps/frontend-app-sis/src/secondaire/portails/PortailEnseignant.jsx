@@ -1,11 +1,15 @@
 import React from 'react';
 import { Row, Col, Card, Button } from '@openedx/paragon';
 import { useQuery } from '@tanstack/react-query';
-import { PageHeader, StatCard, SISDataTable } from '../../components/common';
+import { useNavigate } from 'react-router-dom';
+import {
+  PageHeader, StatCard, SISDataTable, WorkflowNotificationsPanel,
+} from '../../components/common';
 import { fetchApi, getSecondaireApiUrl } from '../../services/api';
 import { People, CalendarMonth, Grade, Class } from '@openedx/paragon/icons';
 
 const PortailEnseignantSecondaire = () => {
+  const navigate = useNavigate();
   const { data: profil } = useQuery({
     queryKey: ['portail-enseignant-sec-profil'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail-enseignant/mon-profil/`),
@@ -42,7 +46,12 @@ const PortailEnseignantSecondaire = () => {
       <PageHeader
         title="Mon espace enseignant"
         subtitle={profil ? `${profil.civilite} ${profil.nom} ${profil.prenom}` : 'Chargement...'}
+        actions={[
+          { label: 'Évaluations', variant: 'primary', onClick: () => navigate('/secondaire/evaluations') },
+          { label: 'Workflows', variant: 'secondary', onClick: () => navigate('/secondaire/workflows') },
+        ]}
       />
+      <WorkflowNotificationsPanel apiType="secondaire" title="Notifications workflow de l’enseignant" />
 
       <Row className="mb-4">
         <Col md={3}>
@@ -92,10 +101,10 @@ const PortailEnseignantSecondaire = () => {
             <Card.Header><Card.Title>Actions rapides</Card.Title></Card.Header>
             <Card.Body>
               <div className="d-grid gap-2">
-                <Button variant="primary">Saisir des notes</Button>
-                <Button variant="outline-primary">Saisir les absences</Button>
-                <Button variant="outline-primary">Cahier de textes</Button>
-                <Button variant="outline-primary">Mes documents</Button>
+                <Button variant="primary" onClick={() => navigate('/secondaire/evaluations')}>Saisir des notes</Button>
+                <Button variant="outline-primary" onClick={() => navigate('/secondaire/presences')}>Saisir les absences</Button>
+                <Button variant="outline-primary" onClick={() => navigate('/secondaire/classes')}>Mes classes</Button>
+                <Button variant="outline-primary" onClick={() => navigate('/secondaire/workflows')}>Centre workflow</Button>
               </div>
             </Card.Body>
           </Card>
@@ -113,7 +122,7 @@ const PortailEnseignantSecondaire = () => {
                   'Aucun conseil prévu'
                 )}
               </p>
-              <Button variant="outline-primary" size="sm">Voir tous les conseils</Button>
+              <Button variant="outline-primary" size="sm" onClick={() => navigate('/secondaire/conseil-classe')}>Voir tous les conseils</Button>
             </Card.Body>
           </Card>
         </Col>
