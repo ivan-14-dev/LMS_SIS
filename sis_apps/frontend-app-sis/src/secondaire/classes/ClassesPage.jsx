@@ -11,16 +11,17 @@ const ClassesPage = () => {
   const [selectedClassId, setSelectedClassId] = useState(null);
 
   const columns = [
-    { Header: 'Code', accessor: 'code' },
     { Header: 'Nom', accessor: 'nom' },
     { Header: 'Niveau', accessor: 'niveau_nom' },
+    { Header: 'Année', accessor: 'annee_libelle' },
     { Header: 'Effectif', accessor: 'effectif' },
-    { Header: 'Prof. principal', accessor: 'professeur_principal_nom' },
+    { Header: 'Capacité max', accessor: 'effectif_max' },
+    { Header: 'Prof. principal', accessor: 'prof_principal_nom' },
     {
       Header: 'Statut',
-      accessor: 'statut',
+      accessor: 'effectif',
       Cell: ({ value }) => (
-        <Badge variant={value === 'active' ? 'success' : 'secondary'}>{value}</Badge>
+        <Badge variant={value > 0 ? 'success' : 'secondary'}>{value > 0 ? 'Active' : 'Préparation'}</Badge>
       ),
     },
     {

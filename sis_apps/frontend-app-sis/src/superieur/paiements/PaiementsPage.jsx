@@ -13,12 +13,12 @@ const PaiementsPage = () => {
   const [selectedPaiementId, setSelectedPaiementId] = useState(null);
 
   const columns = [
-    { Header: 'Référence', accessor: 'reference' },
+    { Header: 'Référence', accessor: 'numero' },
     { Header: 'Étudiant', accessor: 'etudiant_nom' },
-    { Header: 'Type', accessor: 'type_frais' },
+    { Header: 'Facture', accessor: 'facture_numero' },
     { Header: 'Montant', accessor: 'montant', Cell: ({ value }) => `${value} €` },
     { Header: 'Date', accessor: 'date_paiement' },
-    { Header: 'Mode', accessor: 'mode_paiement' },
+    { Header: 'Mode', accessor: 'mode_display' },
     {
       Header: 'Statut',
       accessor: 'statut',

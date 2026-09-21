@@ -15,11 +15,11 @@ const FormationsPage = () => {
     { Header: 'Nom', accessor: 'nom' },
     { Header: 'Département', accessor: 'departement_nom' },
     { Header: 'Niveau', accessor: 'niveau_display' },
-    { Header: 'Durée', accessor: 'duree_semestres', Cell: ({ value }) => `${value} semestres` },
-    { Header: 'Crédits ECTS', accessor: 'credits_ects' },
+    { Header: 'Durée', accessor: 'duree_annees', Cell: ({ value }) => `${value} an(s)` },
+    { Header: 'Crédits ECTS', accessor: 'credits_total' },
     {
       Header: 'Statut',
-      accessor: 'active',
+      accessor: 'actif',
       Cell: ({ value }) => (
         <Badge variant={value ? 'success' : 'secondary'}>
           {value ? 'Active' : 'Inactive'}

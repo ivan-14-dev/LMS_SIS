@@ -44,11 +44,13 @@ const FormationDetailPage = () => {
                 <dt>Niveau</dt>
                 <dd>{formation.niveau_display}</dd>
                 <dt>Durée</dt>
-                <dd>{formation.duree_semestres} semestres</dd>
+                <dd>{formation.nb_semestres} semestres</dd>
                 <dt>Crédits ECTS</dt>
-                <dd>{formation.credits_ects}</dd>
+                <dd>{formation.credits_total}</dd>
                 <dt>Responsable</dt>
                 <dd>{formation.responsable_nom || 'Non assigné'}</dd>
+                <dt>Statut</dt>
+                <dd>{formation.actif ? 'Active' : 'Inactive'}</dd>
               </dl>
             </Card.Body>
           </Card>
