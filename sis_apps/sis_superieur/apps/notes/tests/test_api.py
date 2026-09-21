@@ -42,6 +42,13 @@ class NotesAPITestCase(SimpleTestCase):
 
         self.assertEqual(match.url_name, "evaluation-exporter")
 
+    def test_evaluation_import_routes_are_registered(self):
+        template_match = resolve("/api/v1/notes/evaluations/1/modele_import_notes/")
+        import_match = resolve("/api/v1/notes/evaluations/1/importer_notes/")
+
+        self.assertEqual(template_match.url_name, "evaluation-modele-import-notes")
+        self.assertEqual(import_match.url_name, "evaluation-importer-notes")
+
     def test_average_export_routes_are_registered(self):
         ecue_match = resolve("/api/v1/notes/moyennes-ecue/exporter/")
         ue_match = resolve("/api/v1/notes/moyennes-ue/exporter/")
@@ -85,6 +92,33 @@ class NotesAPITestCase(SimpleTestCase):
         self.assertEqual(queryset.filters, [{"modalite": "cc"}])
         self.assertEqual(queryset.selected_fields, ("titre", "modalite"))
         self.assertIn("CC1,cc", response.content.decode())
+
+    @patch("apps.notes.api._import_superior_notes", return_value=(3, 0))
+    @patch("apps.notes.api.load_excel_rows", return_value=[{"matricule": "SUP-001", "note": "15", "appreciation": "", "statut": "presente", "__row_number__": 2}])
+    def test_superior_note_import_uses_excel_template_rules(self, _load_rows, _import_notes):
+        request = self.factory.post("/api/v1/notes/evaluations/1/importer_notes/", {}, format="multipart")
+        request.user = self.user
+        request.tenant = SimpleNamespace(
+            configuration_academique={"import_templates": [{"code": "continuous_assessment_grades"}]}
+        )
+        request.FILES["file"] = SimpleNamespace(name="notes.xlsx")
+        evaluation = SimpleNamespace(
+            pk=1,
+            modalite="cc",
+            semestre=SimpleNamespace(cloture=False, annee_universitaire=SimpleNamespace(cloturee=False)),
+        )
+
+        view = EvaluationsViewSet()
+        view.request = request
+        view.action = "importer_notes"
+        view.get_object = lambda: evaluation
+
+        response = view.importer_notes(request, pk=1)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["evaluation_id"], 1)
+        self.assertEqual(response.data["notes_creees"], 3)
+        self.assertEqual(response.data["notes_modifiees"], 0)
 
     @patch("apps.notes.api.request_has_business_access", return_value=True)
     @patch("apps.notes.api.filter_queryset_by_scopes", side_effect=lambda qs, *_args, **_kwargs: qs)

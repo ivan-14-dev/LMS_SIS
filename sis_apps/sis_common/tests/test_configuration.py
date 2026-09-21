@@ -192,6 +192,20 @@ class AcademicConfigurationTests(SimpleTestCase):
         self.assertIn("transport_manager_secondary", codes)
         self.assertIn("document_signatory_superieur", codes)
 
+    def test_default_configuration_includes_strict_continuous_assessment_import_template(self):
+        configuration = default_academic_configuration()
+        template = next(
+            item
+            for item in configuration["import_templates"]
+            if item["code"] == "continuous_assessment_grades"
+        )
+
+        self.assertEqual(
+            template["columns"],
+            ["matricule", "note", "appreciation", "statut"],
+        )
+        self.assertTrue(template["strict_columns"])
+
     def test_resolve_validation_policy_prefers_most_specific_target(self):
         configuration = default_academic_configuration()
         configuration["validation_policies"] = [

@@ -1,5 +1,8 @@
 """API views for notes (ViewSets DRF) - SIS Secondaire."""
 
+from decimal import Decimal
+
+from django.db import transaction
 from django.db.models import Avg, Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -15,8 +18,9 @@ from sis_common.authorization import (
     user_has_any_role,
 )
 from sis_common.academic_configuration import resolve_validation_policy
-from sis_common.reporting import configured_report, export_queryset
 from sis_common.document_policies import enforce_financial_clearance, get_action_object
+from sis_common.reporting import configured_report, export_queryset
+from sis_common.spreadsheets import load_excel_rows, template_response
 
 from .models import Bulletin, Evaluation, Note, RegleValidation
 from .serializers import (
@@ -93,6 +97,133 @@ BULLETIN_REPORT_FILTERS = {
     "periode": "periode_id",
     "publie": "publie",
 }
+
+CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS = [
+    "matricule",
+    "note",
+    "appreciation",
+    "statut",
+]
+CONTINUOUS_ASSESSMENT_TYPES = {
+    "interrogation",
+    "ds",
+    "dm",
+    "tp",
+    "oral",
+    "projet",
+}
+
+
+def _continuous_assessment_template_enabled(request):
+    templates = (
+        getattr(getattr(request, "tenant", None), "configuration_academique", {}) or {}
+    ).get("import_templates", [])
+    return any(template.get("code") == "continuous_assessment_grades" for template in templates)
+
+
+def _ensure_secondary_continuous_assessment(evaluation):
+    if evaluation.type not in CONTINUOUS_ASSESSMENT_TYPES:
+        raise serializers.ValidationError(
+            {
+                "evaluation": (
+                    "Seules les évaluations de contrôle continu peuvent être importées ici."
+                )
+            }
+        )
+    if evaluation.classe.annee_scolaire.cloturee or evaluation.periode.cloturee:
+        raise serializers.ValidationError(
+            {
+                "evaluation": (
+                    "Cette évaluation est verrouillée car l'année ou la période est clôturée."
+                )
+            }
+        )
+
+
+def _secondary_eligible_student_map(evaluation, matricules):
+    enrolled = evaluation.classe.eleves_actuels.filter(matricule__in=matricules)
+    enrolled_ids = set(enrolled.values_list("pk", flat=True))
+    enrolled_map = {eleve.matricule: eleve for eleve in enrolled}
+    validated = (
+        evaluation.classe.inscriptions.filter(
+            eleve__matricule__in=matricules,
+            statut__in=("en_cours", "validee"),
+        )
+        .select_related("eleve")
+    )
+    for inscription in validated:
+        enrolled_ids.add(inscription.eleve_id)
+        enrolled_map[inscription.eleve.matricule] = inscription.eleve
+    return enrolled_ids, enrolled_map
+
+
+def _import_secondary_notes(evaluation, rows, request):
+    _ensure_secondary_continuous_assessment(evaluation)
+    matricules = [str(row["matricule"]).strip() for row in rows]
+    _, eligible_map = _secondary_eligible_student_map(evaluation, matricules)
+    created = 0
+    updated = 0
+    seen = set()
+    saisi_par = getattr(request.user, "personnel_profile", None)
+    with transaction.atomic():
+        for row in rows:
+            row_number = row["__row_number__"]
+            matricule = str(row["matricule"]).strip()
+            if not matricule:
+                raise serializers.ValidationError(
+                    {"matricule": f"Ligne {row_number}: matricule requis."}
+                )
+            if matricule in seen:
+                raise serializers.ValidationError(
+                    {"file": f"Ligne {row_number}: doublon incohérent détecté pour {matricule}."}
+                )
+            seen.add(matricule)
+            eleve = eligible_map.get(matricule)
+            if eleve is None:
+                raise serializers.ValidationError(
+                    {"file": f"Ligne {row_number}: élève hors périmètre pour cette évaluation."}
+                )
+            statut = str(row.get("statut") or "presente").strip() or "presente"
+            valid_statuses = {code for code, _label in Note.STATUT_CHOICES}
+            if statut not in valid_statuses:
+                raise serializers.ValidationError(
+                    {"statut": f"Ligne {row_number}: statut invalide."}
+                )
+            raw_note = row.get("note")
+            valeur = None
+            if raw_note not in (None, ""):
+                try:
+                    valeur = Decimal(str(raw_note))
+                except (ArithmeticError, TypeError, ValueError):
+                    raise serializers.ValidationError(
+                        {"note": f"Ligne {row_number}: note invalide."}
+                    )
+                if valeur < 0 or valeur > evaluation.bareme:
+                    raise serializers.ValidationError(
+                        {"note": f"Ligne {row_number}: la note doit respecter le barème."}
+                    )
+            elif statut == "presente":
+                raise serializers.ValidationError(
+                    {"note": f"Ligne {row_number}: une note est requise pour une copie présentée."}
+                )
+            note, was_created = Note.objects.update_or_create(
+                evaluation=evaluation,
+                eleve=eleve,
+                defaults={
+                    "valeur": valeur,
+                    "statut": statut,
+                    "appreciation": str(row.get("appreciation") or "").strip(),
+                    "saisi_par": saisi_par,
+                },
+            )
+            if was_created:
+                created += 1
+            else:
+                updated += 1
+                note.modifie_le = timezone.now()
+                note.modifie_par = saisi_par
+                note.save(update_fields=["modifie_le", "modifie_par"])
+    return created, updated
 
 
 class IsEnseignantOrVieScolarite(IsAuthenticated):
@@ -184,6 +315,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     def saisir_notes(self, request, pk=None):
         """Saisie en masse des notes."""
         evaluation = self.get_object()
+        _ensure_secondary_continuous_assessment(evaluation)
         serializer = NoteSaisieSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
 
@@ -232,6 +364,44 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
                 note.modifie_par = saisi_par
                 note.save(update_fields=["modifie_le", "modifie_par"])
 
+        return Response(
+            {
+                "evaluation_id": evaluation.id,
+                "notes_creees": created,
+                "notes_modifiees": updated,
+            }
+        )
+
+    @action(detail=True, methods=["get"])
+    def modele_import_notes(self, request, pk=None):
+        if not _continuous_assessment_template_enabled(request):
+            raise serializers.ValidationError(
+                {"workflow": "Le modèle d'import des notes de contrôle continu n'est pas activé."}
+            )
+        evaluation = self.get_object()
+        _ensure_secondary_continuous_assessment(evaluation)
+        return template_response(
+            CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS,
+            f"modele-notes-evaluation-{evaluation.pk}.xlsx",
+            sample_row=["MAT-001", "14.5", "Bon travail", "presente"],
+        )
+
+    @action(detail=True, methods=["post"])
+    def importer_notes(self, request, pk=None):
+        if not _continuous_assessment_template_enabled(request):
+            raise serializers.ValidationError(
+                {"workflow": "Le modèle d'import des notes de contrôle continu n'est pas activé."}
+            )
+        evaluation = self.get_object()
+        uploaded_file = request.FILES.get("file")
+        if uploaded_file is None:
+            raise serializers.ValidationError({"file": "Un fichier Excel est requis."})
+        rows = load_excel_rows(uploaded_file, CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS)
+        if not rows:
+            raise serializers.ValidationError(
+                {"file": "Le fichier ne contient aucune ligne exploitable."}
+            )
+        created, updated = _import_secondary_notes(evaluation, rows, request)
         return Response(
             {
                 "evaluation_id": evaluation.id,

@@ -495,7 +495,7 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             "label": "Import notes de contrôle continu",
             "type": "continuous_assessment_grades",
             "allowed_extensions": ["xlsx", "xls"],
-            "columns": ["evaluation_id", "matricule", "note", "appreciation"],
+            "columns": ["matricule", "note", "appreciation", "statut"],
             "strict_columns": True,
         },
         {
