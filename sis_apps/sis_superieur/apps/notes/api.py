@@ -20,6 +20,7 @@ from sis_common.authorization import (
 from sis_common.academic_configuration import resolve_validation_policy
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
+from sis_common.submission_windows import apply_submission_window_defaults
 
 from apps.etudiants.models import AffectationECUEIndividuelle
 
@@ -350,6 +351,26 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return EvaluationListSerializer
         return EvaluationDetailSerializer
+
+    def perform_create(self, serializer):
+        evaluation = serializer.save()
+        changed_fields = apply_submission_window_defaults(
+            evaluation,
+            getattr(getattr(self.request, "tenant", None), "configuration_academique", {}) or {},
+            "evaluation",
+        )
+        if changed_fields:
+            evaluation.save(update_fields=changed_fields)
+
+    def perform_update(self, serializer):
+        evaluation = serializer.save()
+        changed_fields = apply_submission_window_defaults(
+            evaluation,
+            getattr(getattr(self.request, "tenant", None), "configuration_academique", {}) or {},
+            "evaluation",
+        )
+        if changed_fields:
+            evaluation.save(update_fields=changed_fields)
 
     @action(detail=True, methods=["get"])
     def notes(self, request, pk=None):

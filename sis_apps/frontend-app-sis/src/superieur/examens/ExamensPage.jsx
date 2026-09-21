@@ -12,17 +12,23 @@ const ExamensPage = () => {
 
   const columns = [
     { Header: 'ECUE', accessor: 'ecue_nom' },
-    { Header: 'Type', accessor: 'type_examen' },
-    { Header: 'Date', accessor: 'date_examen' },
+    { Header: 'Type', accessor: 'session_numero' },
+    { Header: 'Date', accessor: 'date' },
     { Header: 'Heure', accessor: 'heure_debut' },
-    { Header: 'Salle', accessor: 'salle_nom' },
-    { Header: 'Durée', accessor: 'duree', Cell: ({ value }) => `${value} min` },
+    { Header: 'Lieu', accessor: 'lieu' },
+    { Header: 'Durée', accessor: 'duree_minutes', Cell: ({ value }) => `${value} min` },
+    { Header: 'Fin soumission', accessor: 'fin_soumission' },
     {
       Header: 'Statut',
-      accessor: 'statut',
-      Cell: ({ value }) => {
-        const variants = { planifie: 'warning', en_cours: 'info', termine: 'success', annule: 'danger' };
-        return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
+      accessor: 'soumission_statut',
+      Cell: ({ row }) => {
+        const variants = {
+          ouverte: row.original.soumission_alerte ? 'warning' : 'success',
+          a_venir: 'info',
+          fermee: 'danger',
+          non_planifiee: 'light',
+        };
+        return <Badge variant={variants[row.original.soumission_statut] || 'secondary'}>{row.original.soumission_alerte?.message || row.original.soumission_statut}</Badge>;
       },
     },
     {

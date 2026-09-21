@@ -2,6 +2,7 @@
 
 from rest_framework import serializers
 from sis_common.exam_files import hash_uploaded_file
+from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 
 from .models import (
     AffectationCorrection,
@@ -53,6 +54,8 @@ class EpreuveExamenListSerializer(serializers.ModelSerializer):
     session_nom = serializers.CharField(source="session.nom", read_only=True)
     matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
     salle_nom = serializers.CharField(source="salle_principale.nom", read_only=True)
+    soumission_statut = serializers.SerializerMethodField()
+    soumission_alerte = serializers.SerializerMethodField()
 
     class Meta:
         model = EpreuveExamen
@@ -73,7 +76,17 @@ class EpreuveExamenListSerializer(serializers.ModelSerializer):
             "coefficient",
             "anonymat",
             "nombre_corrections",
+            "soumission_statut",
+            "soumission_alerte",
         ]
+
+    def get_soumission_statut(self, obj):
+        return get_submission_window_status(obj)
+
+    def get_soumission_alerte(self, obj):
+        request = self.context.get("request")
+        configuration = getattr(getattr(request, "tenant", None), "configuration_academique", {})
+        return get_submission_window_alert(obj, configuration, "exam")
 
 
 class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
@@ -83,6 +96,8 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
     matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
     classes_list = serializers.SerializerMethodField()
     surveillants_list = serializers.SerializerMethodField()
+    soumission_statut = serializers.SerializerMethodField()
+    soumission_alerte = serializers.SerializerMethodField()
 
     class Meta:
         model = EpreuveExamen
@@ -106,6 +121,8 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
             "surveillants_list",
             "anonymat",
             "nombre_corrections",
+            "soumission_statut",
+            "soumission_alerte",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
@@ -115,6 +132,14 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
 
     def get_surveillants_list(self, obj):
         return [{"id": s.id, "nom": s.get_full_name()} for s in obj.surveillants.all()]
+
+    def get_soumission_statut(self, obj):
+        return get_submission_window_status(obj)
+
+    def get_soumission_alerte(self, obj):
+        request = self.context.get("request")
+        configuration = getattr(getattr(request, "tenant", None), "configuration_academique", {})
+        return get_submission_window_alert(obj, configuration, "exam")
 
     def validate(self, attrs):
         debut_soumission = attrs.get(

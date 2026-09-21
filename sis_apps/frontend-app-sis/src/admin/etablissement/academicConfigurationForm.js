@@ -7,6 +7,7 @@ export const normalizeAcademicConfiguration = (value = {}) => ({
   import_templates: value.import_templates || [],
   exam_result_workflows: value.exam_result_workflows || [],
   reports: value.reports || [],
+  submission_windows: value.submission_windows || {},
 });
 
 export const stringifyAcademicConfiguration = (value = {}) => JSON.stringify(

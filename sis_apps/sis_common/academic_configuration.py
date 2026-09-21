@@ -56,6 +56,11 @@ EXAM_RESULT_WORKFLOW_SCOPES = {
     "session": "Session d'examen",
 }
 
+SUBMISSION_WINDOW_TYPES = {
+    "evaluation": "Évaluations / sujets",
+    "exam": "Examens / résultats",
+}
+
 REPORT_DATASET_SCHEMAS = {
     "notes": {
         "label": "Notes",
@@ -614,6 +619,20 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             "allow_student_submission": False,
         },
     ],
+    "submission_windows": {
+        "evaluation": {
+            "enabled": True,
+            "default_open_offset_hours": 0,
+            "default_close_offset_hours": 72,
+            "reminder_hours": [24, 2],
+        },
+        "exam": {
+            "enabled": True,
+            "default_open_offset_hours": 0,
+            "default_close_offset_hours": 48,
+            "reminder_hours": [24, 2],
+        },
+    },
     "catalogs": {
         "institution_types": [],
         "period_types": [],
@@ -1280,6 +1299,35 @@ def _validate_exam_result_workflows(items, template_codes=None):
             _validate_targets(workflow["targets"], f"exam_result_workflows[{index}].targets")
 
 
+def _validate_submission_windows(value):
+    if not isinstance(value, dict):
+        raise ValidationError("submission_windows doit être un objet.")
+    unknown_types = set(value) - set(SUBMISSION_WINDOW_TYPES)
+    if unknown_types:
+        raise ValidationError(
+            "submission_windows contient un type invalide: "
+            + ", ".join(sorted(unknown_types))
+            + "."
+        )
+    for code, settings in value.items():
+        if not isinstance(settings, dict):
+            raise ValidationError(f"submission_windows.{code} doit être un objet.")
+        enabled = settings.get("enabled", True)
+        if not isinstance(enabled, bool):
+            raise ValidationError(f"submission_windows.{code}.enabled doit être booléen.")
+        for key in ("default_open_offset_hours", "default_close_offset_hours"):
+            if key in settings and not isinstance(settings[key], int):
+                raise ValidationError(f"submission_windows.{code}.{key} doit être un entier.")
+        reminder_hours = settings.get("reminder_hours", [])
+        if not isinstance(reminder_hours, list):
+            raise ValidationError(f"submission_windows.{code}.reminder_hours doit être une liste.")
+        for index, item in enumerate(reminder_hours):
+            if not isinstance(item, int) or item < 0:
+                raise ValidationError(
+                    f"submission_windows.{code}.reminder_hours[{index}] doit être un entier positif ou nul."
+                )
+
+
 def _report_dataset_schema(variant=None):
     datasets = []
     for code, details in REPORT_DATASET_SCHEMAS.items():
@@ -1326,6 +1374,10 @@ def academic_configuration_schema(variant=None):
         "exam_result_workflow_scopes": [
             {"code": code, "label": label}
             for code, label in EXAM_RESULT_WORKFLOW_SCOPES.items()
+        ],
+        "submission_window_types": [
+            {"code": code, "label": label}
+            for code, label in SUBMISSION_WINDOW_TYPES.items()
         ],
     }
 
@@ -1406,6 +1458,16 @@ def resolve_exam_result_workflow(configuration, candidates, variant=None):
     return None
 
 
+def resolve_submission_window_settings(configuration, window_type):
+    defaults = deepcopy(
+        DEFAULT_ACADEMIC_CONFIGURATION.get("submission_windows", {}).get(window_type, {})
+    )
+    current = (configuration or {}).get("submission_windows", {}).get(window_type, {})
+    if not isinstance(current, dict):
+        return defaults
+    return {**defaults, **current}
+
+
 def workflow_transition_allowed(workflow, action, current_status, next_status):
     transitions = (workflow or {}).get("transitions", [])
     if not transitions:
@@ -1456,6 +1518,7 @@ def validate_academic_configuration(value):
         value.get("exam_result_workflows", []),
         template_codes={template["code"] for template in import_templates},
     )
+    _validate_submission_windows(value.get("submission_windows", {}))
     _validate_reports(value.get("reports", []))
 
 
@@ -1475,6 +1538,14 @@ def merge_academic_configuration(current, updates):
             **(current or {}).get("catalogs", {}),
             **updates["catalogs"],
         }
+    if "submission_windows" in updates:
+        merged["submission_windows"] = deepcopy(DEFAULT_ACADEMIC_CONFIGURATION["submission_windows"])
+        for source in ((current or {}).get("submission_windows", {}), updates["submission_windows"]):
+            for window_type, settings in (source or {}).items():
+                merged["submission_windows"][window_type] = {
+                    **merged["submission_windows"].get(window_type, {}),
+                    **(settings or {}),
+                }
     validate_academic_configuration(merged)
     return merged
 

@@ -17,6 +17,7 @@ const EvaluationsPage = () => {
     { Header: 'Type', accessor: 'type_display' },
     { Header: 'Coefficient', accessor: 'coefficient' },
     { Header: 'Date', accessor: 'date' },
+    { Header: 'Fin soumission', accessor: 'fin_soumission' },
     {
       Header: 'Cible',
       accessor: 'individualisee',
@@ -27,11 +28,11 @@ const EvaluationsPage = () => {
       ),
     },
     {
-      Header: 'Statut',
-      accessor: 'notes_saisies',
+      Header: 'Soumission',
+      accessor: 'soumission_statut',
       Cell: ({ row }) => (
-        <Badge variant={row.original.notes_saisies ? 'success' : 'warning'}>
-          {row.original.notes_saisies ? `${row.original.nb_notes || 0} note(s)` : 'En attente'}
+        <Badge variant={row.original.soumission_alerte ? 'warning' : (row.original.notes_saisies ? 'success' : 'light')}>
+          {row.original.soumission_alerte?.message || row.original.soumission_statut}
         </Badge>
       ),
     },

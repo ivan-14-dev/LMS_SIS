@@ -23,6 +23,10 @@ from sis_common.document_policies import enforce_financial_clearance, get_action
 from sis_common.official_documents import render_official_pdf, tenant_identity_rows
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
+from sis_common.submission_windows import (
+    apply_submission_window_defaults,
+    maybe_record_submission_window_alert,
+)
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import Bulletin, Evaluation, Note, RegleValidation
@@ -126,6 +130,10 @@ def _evaluation_notification_recipients(request, evaluation):
     if getattr(actor, "is_authenticated", False) and actor not in recipients:
         recipients.append(actor)
     return recipients
+
+
+def _evaluation_configuration(request):
+    return getattr(getattr(request, "tenant", None), "configuration_academique", {}) or {}
 
 CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS = [
     "matricule",
@@ -359,6 +367,13 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         evaluation = serializer.save()
+        changed_fields = apply_submission_window_defaults(
+            evaluation,
+            _evaluation_configuration(self.request),
+            "evaluation",
+        )
+        if changed_fields:
+            evaluation.save(update_fields=changed_fields)
         record_workflow_event(
             self.request,
             evaluation,
@@ -372,9 +387,23 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
                 "periode_id": evaluation.periode_id,
             },
         )
+        maybe_record_submission_window_alert(
+            self.request,
+            evaluation,
+            _evaluation_configuration(self.request),
+            "evaluation",
+            _evaluation_notification_recipients(self.request, evaluation),
+        )
 
     def perform_update(self, serializer):
         evaluation = serializer.save()
+        changed_fields = apply_submission_window_defaults(
+            evaluation,
+            _evaluation_configuration(self.request),
+            "evaluation",
+        )
+        if changed_fields:
+            evaluation.save(update_fields=changed_fields)
         record_workflow_event(
             self.request,
             evaluation,
@@ -387,6 +416,13 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
                 "matiere_id": evaluation.matiere_id,
                 "periode_id": evaluation.periode_id,
             },
+        )
+        maybe_record_submission_window_alert(
+            self.request,
+            evaluation,
+            _evaluation_configuration(self.request),
+            "evaluation",
+            _evaluation_notification_recipients(self.request, evaluation),
         )
 
     def perform_destroy(self, instance):

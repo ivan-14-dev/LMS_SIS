@@ -4,9 +4,10 @@ from sis_common.academic_configuration import (
     academic_configuration_schema,
     catalog_label,
     default_academic_configuration,
-    resolve_exam_result_workflow,
     merge_academic_configuration,
     resolve_financial_workflow,
+    resolve_exam_result_workflow,
+    resolve_submission_window_settings,
     resolve_validation_policy,
     validate_academic_configuration,
     workflow_transition_allowed,
@@ -128,6 +129,10 @@ class AcademicConfigurationTests(SimpleTestCase):
             {"code": "exam_grades", "label": "Notes d'épreuves / examens"},
             schema["import_template_types"],
         )
+        self.assertIn(
+            {"code": "evaluation", "label": "Évaluations / sujets"},
+            schema["submission_window_types"],
+        )
         payments_dataset = next(
             dataset for dataset in schema["report_datasets"] if dataset["code"] == "financial_payments"
         )
@@ -205,6 +210,28 @@ class AcademicConfigurationTests(SimpleTestCase):
             ["matricule", "note", "appreciation", "statut"],
         )
         self.assertTrue(template["strict_columns"])
+
+    def test_submission_window_settings_are_merged_with_defaults(self):
+        configuration = default_academic_configuration()
+        configuration["submission_windows"] = {
+            "evaluation": {"default_close_offset_hours": 12, "reminder_hours": [6, 1]}
+        }
+
+        settings = resolve_submission_window_settings(configuration, "evaluation")
+
+        self.assertTrue(settings["enabled"])
+        self.assertEqual(settings["default_open_offset_hours"], 0)
+        self.assertEqual(settings["default_close_offset_hours"], 12)
+        self.assertEqual(settings["reminder_hours"], [6, 1])
+
+    def test_invalid_submission_window_configuration_is_rejected(self):
+        configuration = default_academic_configuration()
+        configuration["submission_windows"] = {
+            "evaluation": {"reminder_hours": ["24h"]},
+        }
+
+        with self.assertRaises(ValidationError):
+            validate_academic_configuration(configuration)
 
     def test_resolve_validation_policy_prefers_most_specific_target(self):
         configuration = default_academic_configuration()

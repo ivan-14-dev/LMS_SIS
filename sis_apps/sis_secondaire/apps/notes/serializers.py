@@ -4,6 +4,7 @@ from apps.classes.models import ProgrammeMatiere
 from apps.eleves.models import AffectationMatiereIndividuelle
 from rest_framework import serializers
 from sis_common.academic_configuration import validate_rule_criteria
+from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 
 from .models import Bulletin, Evaluation, Note, RegleValidation
 
@@ -20,6 +21,8 @@ class EvaluationListSerializer(serializers.ModelSerializer):
     individualisee = serializers.SerializerMethodField()
     nb_notes = serializers.SerializerMethodField()
     notes_saisies = serializers.SerializerMethodField()
+    soumission_statut = serializers.SerializerMethodField()
+    soumission_alerte = serializers.SerializerMethodField()
 
     class Meta:
         model = Evaluation
@@ -37,6 +40,8 @@ class EvaluationListSerializer(serializers.ModelSerializer):
             "duree_minutes",
             "debut_soumission",
             "fin_soumission",
+            "debut_soumission",
+            "fin_soumission",
             "bareme",
             "coefficient",
             "ponderation",
@@ -46,6 +51,8 @@ class EvaluationListSerializer(serializers.ModelSerializer):
             "individualisee",
             "nb_notes",
             "notes_saisies",
+            "soumission_statut",
+            "soumission_alerte",
             "enseignant_nom",
         ]
 
@@ -57,6 +64,14 @@ class EvaluationListSerializer(serializers.ModelSerializer):
 
     def get_notes_saisies(self, obj):
         return self.get_nb_notes(obj) > 0
+
+    def get_soumission_statut(self, obj):
+        return get_submission_window_status(obj)
+
+    def get_soumission_alerte(self, obj):
+        request = self.context.get("request")
+        configuration = getattr(getattr(request, "tenant", None), "configuration_academique", {})
+        return get_submission_window_alert(obj, configuration, "evaluation")
 
 
 class EvaluationDetailSerializer(serializers.ModelSerializer):
@@ -71,6 +86,8 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
     eleve_cible_matricule = serializers.CharField(source="eleve_cible.matricule", read_only=True)
     eleve_cible_nom = serializers.CharField(source="eleve_cible.user.get_full_name", read_only=True)
     individualisee = serializers.SerializerMethodField()
+    soumission_statut = serializers.SerializerMethodField()
+    soumission_alerte = serializers.SerializerMethodField()
 
     class Meta:
         model = Evaluation
@@ -101,6 +118,8 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
             "eleve_cible_nom",
             "individualisee",
             "nb_notes",
+            "soumission_statut",
+            "soumission_alerte",
             "created_at",
             "updated_at",
         ]
@@ -111,6 +130,14 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
 
     def get_individualisee(self, obj):
         return bool(obj.eleve_cible_id)
+
+    def get_soumission_statut(self, obj):
+        return get_submission_window_status(obj)
+
+    def get_soumission_alerte(self, obj):
+        request = self.context.get("request")
+        configuration = getattr(getattr(request, "tenant", None), "configuration_academique", {})
+        return get_submission_window_alert(obj, configuration, "evaluation")
 
     def validate(self, attrs):
         classe = attrs.get("classe", getattr(self.instance, "classe", None))

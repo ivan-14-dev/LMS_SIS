@@ -2,6 +2,7 @@
 
 from rest_framework import serializers
 from sis_common.exam_files import hash_uploaded_file
+from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 
 from .models import (
     AffectationCorrection,
@@ -54,6 +55,8 @@ class EpreuveExamenListSerializer(serializers.ModelSerializer):
     ecue_nom = serializers.CharField(source="ecue.nom", read_only=True)
     session_numero = serializers.IntegerField(source="session.numero", read_only=True)
     nb_convoques = serializers.SerializerMethodField()
+    soumission_statut = serializers.SerializerMethodField()
+    soumission_alerte = serializers.SerializerMethodField()
 
     class Meta:
         model = EpreuveExamen
@@ -74,12 +77,22 @@ class EpreuveExamenListSerializer(serializers.ModelSerializer):
             "bareme",
             "nb_convoques",
             "nombre_corrections",
+            "soumission_statut",
+            "soumission_alerte",
         ]
 
     def get_nb_convoques(self, obj):
         if hasattr(obj, "nb_convoques_count"):
             return obj.nb_convoques_count
         return obj.convocations.count()
+
+    def get_soumission_statut(self, obj):
+        return get_submission_window_status(obj)
+
+    def get_soumission_alerte(self, obj):
+        request = self.context.get("request")
+        configuration = getattr(getattr(request, "tenant", None), "configuration_academique", {})
+        return get_submission_window_alert(obj, configuration, "exam")
 
 
 class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
@@ -91,6 +104,8 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
     surveillants_noms = serializers.SerializerMethodField()
     nb_convoques = serializers.SerializerMethodField()
     nb_presents = serializers.SerializerMethodField()
+    soumission_statut = serializers.SerializerMethodField()
+    soumission_alerte = serializers.SerializerMethodField()
 
     class Meta:
         model = EpreuveExamen
@@ -115,6 +130,8 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
             "surveillants_noms",
             "nb_convoques",
             "nb_presents",
+            "soumission_statut",
+            "soumission_alerte",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
@@ -131,6 +148,14 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
         if hasattr(obj, "nb_presents_count"):
             return obj.nb_presents_count
         return obj.convocations.filter(statut="present").count()
+
+    def get_soumission_statut(self, obj):
+        return get_submission_window_status(obj)
+
+    def get_soumission_alerte(self, obj):
+        request = self.context.get("request")
+        configuration = getattr(getattr(request, "tenant", None), "configuration_academique", {})
+        return get_submission_window_alert(obj, configuration, "exam")
 
     def validate(self, attrs):
         debut_soumission = attrs.get(

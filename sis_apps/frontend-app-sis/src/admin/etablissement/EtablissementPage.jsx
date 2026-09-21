@@ -152,6 +152,19 @@ const EtablissementPage = () => {
     }
   };
 
+  const updateSubmissionWindowField = (windowType, field, value) => {
+    syncAcademicConfiguration({
+      ...academicConfiguration,
+      submission_windows: {
+        ...(academicConfiguration.submission_windows || {}),
+        [windowType]: {
+          ...((academicConfiguration.submission_windows || {})[windowType] || {}),
+          [field]: value,
+        },
+      },
+    });
+  };
+
   const handleSubmit = (event) => {
     event.preventDefault();
     let parsedAcademicConfiguration;
@@ -582,6 +595,66 @@ const EtablissementPage = () => {
             </Row>
 
             <Row>
+              <Col xl={6} className="mb-3">
+                <Card>
+                  <Card.Header>Fenêtres globales de soumission</Card.Header>
+                  <Card.Body>
+                    {(configurationSchema.submission_window_types || []).map((windowType) => {
+                      const settings = (academicConfiguration.submission_windows || {})[windowType.code] || {};
+                      return (
+                        <Card key={windowType.code} className="mb-3">
+                          <Card.Body>
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                              <strong>{windowType.label}</strong>
+                              <Form.Check
+                                type="switch"
+                                id={`submission-window-enabled-${windowType.code}`}
+                                label="Actif"
+                                checked={Boolean(settings.enabled)}
+                                onChange={(event) => updateSubmissionWindowField(windowType.code, 'enabled', event.target.checked)}
+                              />
+                            </div>
+                            <Row>
+                              <Col md={6}>
+                                <Form.Group className="mb-2">
+                                  <Form.Label>Décalage ouverture (heures)</Form.Label>
+                                  <Form.Control
+                                    type="number"
+                                    value={settings.default_open_offset_hours ?? 0}
+                                    onChange={(event) => updateSubmissionWindowField(windowType.code, 'default_open_offset_hours', Number(event.target.value || 0))}
+                                  />
+                                </Form.Group>
+                              </Col>
+                              <Col md={6}>
+                                <Form.Group className="mb-2">
+                                  <Form.Label>Décalage fermeture (heures)</Form.Label>
+                                  <Form.Control
+                                    type="number"
+                                    value={settings.default_close_offset_hours ?? 0}
+                                    onChange={(event) => updateSubmissionWindowField(windowType.code, 'default_close_offset_hours', Number(event.target.value || 0))}
+                                  />
+                                </Form.Group>
+                              </Col>
+                            </Row>
+                            <Form.Group className="mb-0">
+                              <Form.Label>Alertes avant fermeture (heures)</Form.Label>
+                              <Form.Control
+                                value={formatCsv(settings.reminder_hours)}
+                                onChange={(event) => updateSubmissionWindowField(windowType.code, 'reminder_hours', parseCsv(event.target.value).map((item) => Number(item)).filter((item) => !Number.isNaN(item) && item >= 0))}
+                                placeholder="24, 2"
+                              />
+                            </Form.Group>
+                          </Card.Body>
+                        </Card>
+                      );
+                    })}
+                    <Alert variant="info" className="mb-0">
+                      Les décalages sont appliqués automatiquement si une évaluation ou une épreuve ne définit pas ses propres dates de soumission.
+                    </Alert>
+                  </Card.Body>
+                </Card>
+              </Col>
+
               <Col xl={6} className="mb-3">
                 <Card>
                   <Card.Header className="d-flex justify-content-between align-items-center">

@@ -23,6 +23,10 @@ from sis_common.authorization import (
 )
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
+from sis_common.submission_windows import (
+    apply_submission_window_defaults,
+    maybe_record_submission_window_alert,
+)
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from apps.etudiants.models import AffectationECUEIndividuelle, InscriptionPedagogique
@@ -442,6 +446,13 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         epreuve = serializer.save()
+        changed_fields = apply_submission_window_defaults(
+            epreuve,
+            _exam_configuration(self.request),
+            "exam",
+        )
+        if changed_fields:
+            epreuve.save(update_fields=changed_fields)
         record_workflow_event(
             self.request,
             epreuve,
@@ -451,9 +462,23 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
             recipients=_exam_notification_recipients(self.request),
             metadata={"session_id": epreuve.session_id, "ecue_id": epreuve.ecue_id},
         )
+        maybe_record_submission_window_alert(
+            self.request,
+            epreuve,
+            _exam_configuration(self.request),
+            "exam",
+            _exam_notification_recipients(self.request),
+        )
 
     def perform_update(self, serializer):
         epreuve = serializer.save()
+        changed_fields = apply_submission_window_defaults(
+            epreuve,
+            _exam_configuration(self.request),
+            "exam",
+        )
+        if changed_fields:
+            epreuve.save(update_fields=changed_fields)
         record_workflow_event(
             self.request,
             epreuve,
@@ -462,6 +487,13 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
             message=f"L'épreuve {epreuve} a été mise à jour.",
             recipients=_exam_notification_recipients(self.request),
             metadata={"session_id": epreuve.session_id, "ecue_id": epreuve.ecue_id},
+        )
+        maybe_record_submission_window_alert(
+            self.request,
+            epreuve,
+            _exam_configuration(self.request),
+            "exam",
+            _exam_notification_recipients(self.request),
         )
 
     def perform_destroy(self, instance):
