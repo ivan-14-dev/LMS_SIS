@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from sis_common.authorization import configured_permission_groups
 from sis_common.academic_configuration import resolve_submission_window_settings
+from sis_common.notification_channels import initialize_event_delivery, initialize_notification_delivery
 from sis_common.workflow_tracking import record_workflow_event
 
 WINDOW_KIND_LABELS = {
@@ -227,6 +228,17 @@ def maybe_record_submission_window_alert(request, instance, configuration, windo
             else "",
         },
         notification_category=alert["category"],
+    )
+    initialize_notification_delivery(
+        created_notifications,
+        alert["channels"],
+        sms_gateway_url=alert.get("sms_gateway_url", ""),
+        webhook_urls=alert.get("webhook_urls", []),
+    )
+    initialize_event_delivery(
+        event,
+        alert["channels"],
+        webhook_urls=alert.get("webhook_urls", []),
     )
     schema_name = getattr(getattr(request, "tenant", None), "schema_name", "")
     if not schema_name:

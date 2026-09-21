@@ -45,7 +45,7 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
         title={title}
         subtitle={subtitle}
       />
-      <WorkflowNotificationsPanel apiType={apiType} title="Notifications workflow récentes" />
+      <WorkflowNotificationsPanel apiType={apiType} title="Notifications workflow récentes" onlyUnread={false} />
       <Card className="mb-4">
         <Card.Header><Card.Title className="mb-0">Filtres</Card.Title></Card.Header>
         <Card.Body>
