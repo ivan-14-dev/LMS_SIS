@@ -476,6 +476,57 @@ REPORT_DATASET_SCHEMAS = {
             },
         },
     },
+    "workflow_events": {
+        "label": "Historique workflows",
+        "variants": {
+            "secondaire": {
+                "fields": [
+                    {"code": "action", "label": "Action"},
+                    {"code": "title", "label": "Titre"},
+                    {"code": "app_label", "label": "Module"},
+                    {"code": "model", "label": "Modèle"},
+                    {"code": "object_repr", "label": "Objet"},
+                    {"code": "actor", "label": "Acteur"},
+                    {"code": "tenant_id", "label": "Tenant"},
+                    {"code": "request_id", "label": "Requête"},
+                    {"code": "created_at", "label": "Date"},
+                ],
+                "allowed_filters": [
+                    {"code": "action", "label": "Action"},
+                    {"code": "app_label", "label": "Module"},
+                    {"code": "model", "label": "Modèle"},
+                ],
+                "group_by_options": [
+                    {"code": "action", "label": "Action"},
+                    {"code": "app_label", "label": "Module"},
+                    {"code": "model", "label": "Modèle"},
+                ],
+            },
+            "superieur": {
+                "fields": [
+                    {"code": "action", "label": "Action"},
+                    {"code": "title", "label": "Titre"},
+                    {"code": "app_label", "label": "Module"},
+                    {"code": "model", "label": "Modèle"},
+                    {"code": "object_repr", "label": "Objet"},
+                    {"code": "actor", "label": "Acteur"},
+                    {"code": "tenant_id", "label": "Tenant"},
+                    {"code": "request_id", "label": "Requête"},
+                    {"code": "created_at", "label": "Date"},
+                ],
+                "allowed_filters": [
+                    {"code": "action", "label": "Action"},
+                    {"code": "app_label", "label": "Module"},
+                    {"code": "model", "label": "Modèle"},
+                ],
+                "group_by_options": [
+                    {"code": "action", "label": "Action"},
+                    {"code": "app_label", "label": "Module"},
+                    {"code": "model", "label": "Modèle"},
+                ],
+            },
+        },
+    },
 }
 REPORT_DATASET_LABELS = {
     code: details["label"] for code, details in REPORT_DATASET_SCHEMAS.items()

@@ -5,6 +5,15 @@ from django.urls import resolve
 
 
 class CoreAPITestCase(SimpleTestCase):
+    def test_workflow_event_routes_are_registered(self):
+        list_match = resolve("/api/v1/core/workflow-events/")
+        summary_match = resolve("/api/v1/core/workflow-events/bilan/")
+        export_match = resolve("/api/v1/core/workflow-events/exporter/")
+
+        self.assertEqual(list_match.url_name, "workflow-event-list")
+        self.assertEqual(summary_match.url_name, "workflow-event-bilan")
+        self.assertEqual(export_match.url_name, "workflow-event-exporter")
+
     def test_notification_routes_are_registered(self):
         list_match = resolve("/api/v1/core/notifications/")
         read_match = resolve("/api/v1/core/notifications/1/marquer_lue/")

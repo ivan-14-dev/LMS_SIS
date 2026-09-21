@@ -3,6 +3,7 @@
 import uuid
 from pathlib import Path
 
+from apps.core.serializers import WorkflowEventSerializer
 from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import FileResponse
@@ -16,6 +17,7 @@ from rest_framework.response import Response
 from sis_common.academic_configuration import resolve_financial_workflow, workflow_transition_allowed
 from sis_common.authorization import has_business_permission_or_role, user_has_any_role
 from sis_common.reporting import configured_report, export_queryset
+from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import Facture, Paiement, TypeFrais
 from .serializers import (
@@ -76,6 +78,17 @@ PAYMENT_REPORT_GROUPS = {
     "mode": "mode",
     "statut": "statut",
 }
+
+
+def _secondary_finance_recipients(request, eleve):
+    recipients = []
+    user = getattr(eleve, "user", None)
+    if user is not None:
+        recipients.append(user)
+    actor = getattr(request, "user", None)
+    if getattr(actor, "is_authenticated", False) and actor not in recipients:
+        recipients.append(actor)
+    return recipients
 
 
 class IsIntendanceOrReadOnly(IsAuthenticated):
@@ -186,7 +199,27 @@ class FacturesViewSet(viewsets.ModelViewSet):
             return Response({"error": "Facture déjà payée."}, status=400)
         facture.statut = "annulee"
         facture.save(update_fields=["statut"])
+        record_workflow_event(
+            request,
+            facture,
+            "annulation",
+            "Facture annulée",
+            message=f"La facture {facture.numero} a été annulée.",
+            recipients=_secondary_finance_recipients(request, facture.eleve),
+            metadata={
+                "facture_id": facture.id,
+                "eleve_id": facture.eleve_id,
+                "type_frais_id": facture.type_frais_id,
+            },
+        )
         return Response({"detail": "Facture annulée.", "id": facture.id})
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow de la facture."""
+        facture = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(facture), many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=["get"])
     def statistiques(self, request):
@@ -334,6 +367,20 @@ class PaiementsViewSet(viewsets.ModelViewSet):
             facture.montant_paye += paiement.montant
             facture.statut = "payee" if facture.montant_paye >= facture.montant else "partielle"
             facture.save(update_fields=["montant_paye", "statut", "updated_at"])
+        record_workflow_event(
+            request,
+            paiement,
+            "validation",
+            "Paiement validé",
+            message=f"Le paiement {paiement.numero} a été validé pour la facture {facture.numero}.",
+            recipients=_secondary_finance_recipients(request, facture.eleve),
+            metadata={
+                "paiement_id": paiement.id,
+                "facture_id": facture.id,
+                "eleve_id": facture.eleve_id,
+                "statut_facture": facture.statut,
+            },
+        )
         return Response(PaiementSerializer(paiement).data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsFinanceManager])
@@ -353,6 +400,20 @@ class PaiementsViewSet(viewsets.ModelViewSet):
             facture.montant_paye = max(facture.montant_paye - paiement.montant, 0)
             facture.statut = "emise" if facture.montant_paye <= 0 else "partielle"
             facture.save(update_fields=["montant_paye", "statut", "updated_at"])
+        record_workflow_event(
+            request,
+            paiement,
+            "remboursement",
+            "Paiement remboursé",
+            message=f"Le paiement {paiement.numero} a été remboursé pour la facture {facture.numero}.",
+            recipients=_secondary_finance_recipients(request, facture.eleve),
+            metadata={
+                "paiement_id": paiement.id,
+                "facture_id": facture.id,
+                "eleve_id": facture.eleve_id,
+                "statut_facture": facture.statut,
+            },
+        )
         return Response(PaiementSerializer(paiement).data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsFinanceManager])
@@ -372,7 +433,28 @@ class PaiementsViewSet(viewsets.ModelViewSet):
             paiement.verifie_le = timezone.now()
             paiement.motif_rejet = motif
             paiement.save(update_fields=["statut", "verifie_par", "verifie_le", "motif_rejet"])
+        record_workflow_event(
+            request,
+            paiement,
+            "rejet",
+            "Paiement rejeté",
+            message=f"Le paiement {paiement.numero} a été rejeté pour la facture {paiement.facture.numero}.",
+            recipients=_secondary_finance_recipients(request, paiement.facture.eleve),
+            metadata={
+                "paiement_id": paiement.id,
+                "facture_id": paiement.facture_id,
+                "eleve_id": paiement.facture.eleve_id,
+                "motif_rejet": motif,
+            },
+        )
         return Response(PaiementSerializer(paiement).data)
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow du paiement."""
+        paiement = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(paiement), many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=["get"])
     def bilan(self, request):
