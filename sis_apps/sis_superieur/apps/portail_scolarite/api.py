@@ -37,6 +37,7 @@ class PortailScolariteViewSet(viewsets.ViewSet):
     permission_classes = [IsScolarite]
 
     UNPAID_STATUSES = ("emise", "partielle", "en_retard")
+    ACTIVE_STUDENT_STATUSES = ("pre_inscrit", "inscrit", "redoublant")
 
     def _etudiants_queryset(self):
         return filter_queryset_by_scopes(
@@ -98,7 +99,12 @@ class PortailScolariteViewSet(viewsets.ViewSet):
         inscriptions = self._inscriptions_queryset()
         factures = self._factures_queryset()
         stats = {
-            "total_etudiants": etudiants.filter(actif=True).count(),
+            "total_etudiants": etudiants.filter(
+                statut__in=self.ACTIVE_STUDENT_STATUSES
+            )
+            .values("id")
+            .distinct()
+            .count(),
             "inscriptions_annee": inscriptions.filter(annee_universitaire__en_cours=True).count(),
             "factures_impayees": factures.filter(statut__in=self.UNPAID_STATUSES).count(),
             "montant_impaye": float(
@@ -134,7 +140,11 @@ class PortailScolariteViewSet(viewsets.ViewSet):
     def statistiques_formations(self, request):
         """Statistiques par formation."""
         formations = self._formations_queryset().annotate(
-            nb_inscrits=Count("inscriptions", filter=Q(inscriptions__active=True)),
+            nb_inscrits=Count(
+                "inscriptions_admin",
+                filter=Q(inscriptions_admin__statut="validee"),
+                distinct=True,
+            ),
         ).values("id", "nom", "nb_inscrits")
 
         return Response(list(formations))
@@ -162,7 +172,7 @@ class PortailScolariteViewSet(viewsets.ViewSet):
                     "matricule": e.matricule,
                     "nom": e.user.get_full_name(),
                     "email": e.user.email,
-                    "actif": e.actif,
+                    "statut": e.statut,
                 }
                 for e in etudiants
             ]
@@ -187,7 +197,7 @@ class PortailScolariteViewSet(viewsets.ViewSet):
                 "formation": i.formation.nom,
                 "annee": str(i.annee_universitaire),
                 "statut": i.statut,
-                "active": i.active,
+                "annee_en_cours": i.annee_universitaire.en_cours,
             }
             for i in etudiant.inscriptions_admin.select_related(
                 "formation", "annee_universitaire"
@@ -212,7 +222,7 @@ class PortailScolariteViewSet(viewsets.ViewSet):
                     "matricule": etudiant.matricule,
                     "nom": etudiant.user.get_full_name(),
                     "email": etudiant.user.email,
-                    "actif": etudiant.actif,
+                    "statut": etudiant.statut,
                 },
                 "inscriptions": inscriptions,
                 "factures": factures,

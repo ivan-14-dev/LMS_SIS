@@ -31,6 +31,10 @@ urlpatterns = [
     path("bibliotheque/", include("apps.bibliotheque.urls_api")),
     path("entreprises/", include("apps.entreprises.urls_api")),
     path("enseignants/", include("apps.enseignants.urls_api")),
+    path("portail/etudiant/", include("apps.portail_etudiant.urls_api")),
+    path("portail/enseignant/", include("apps.portail_enseignant.urls_api")),
+    path("portail/doyen/", include("apps.portail_doyen.urls_api")),
+    path("portail/scolarite/", include("apps.portail_scolarite.urls_api")),
     path("integration/", include("apps.integration.urls_api")),
     path("", include(router.urls)),
 ]

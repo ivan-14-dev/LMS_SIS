@@ -1,10 +1,18 @@
 """API views for portail enseignant (SIS Secondaire) - Agrégation."""
 
+from apps.classes.models import Classe
+from apps.emplois_du_temps.models import Creneau
+from apps.enseignants.models import AffectationEnseignant
+from apps.presences.models import Appel
 from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+
+def _decimal_to_float(value):
+    return float(value) if value is not None else None
 
 
 class IsEnseignant(IsAuthenticated):
@@ -13,7 +21,7 @@ class IsEnseignant(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        return hasattr(request.user, "enseignant_secondaire")
+        return hasattr(request.user, "personnel_profile")
 
 
 class PortailEnseignantViewSet(viewsets.ViewSet):
@@ -22,39 +30,72 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
     permission_classes = [IsEnseignant]
 
     def _get_enseignant(self, request):
-        return request.user.enseignant_secondaire
+        return request.user.personnel_profile
+
+    def _affectations_queryset(self, enseignant):
+        return (
+            AffectationEnseignant.objects.filter(enseignant=enseignant)
+            .select_related("matiere", "annee_scolaire")
+            .prefetch_related("classes__niveau")
+        )
+
+    def _accessible_classes(self, request):
+        enseignant = self._get_enseignant(request)
+        classe_ids = {
+            classe.id
+            for affectation in self._affectations_queryset(enseignant)
+            for classe in affectation.classes.all()
+        }
+        classe_ids.update(
+            Classe.objects.filter(prof_principal=request.user).values_list("id", flat=True)
+        )
+        return Classe.objects.filter(id__in=classe_ids).select_related("niveau")
 
     @action(detail=False, methods=["get"])
     def tableau_bord(self, request):
         """Tableau de bord de l'enseignant."""
         enseignant = self._get_enseignant(request)
-
-        # Classes de l'enseignant
+        affectations = list(self._affectations_queryset(enseignant))
         classes = []
-        for affectation in enseignant.classes.all():
-            classes.append(
-                {
-                    "classe_id": affectation.classe.id,
-                    "classe_nom": affectation.classe.nom,
-                    "matiere": affectation.matiere.nom,
-                    "nb_eleves": affectation.classe.eleves.count(),
-                }
-            )
+        total_eleves = 0
+        for affectation in affectations:
+            for classe in affectation.classes.all():
+                nb_eleves = classe.eleves_actuels.count()
+                total_eleves += nb_eleves
+                classes.append(
+                    {
+                        "classe_id": classe.id,
+                        "classe_nom": classe.nom,
+                        "niveau": classe.niveau.nom if classe.niveau else None,
+                        "matiere": affectation.matiere.nom,
+                        "annee_scolaire": affectation.annee_scolaire.libelle,
+                        "nb_eleves": nb_eleves,
+                        "heures_semaine": _decimal_to_float(affectation.heures_semaine),
+                    }
+                )
 
-        # Classes où il est PP
-        classes_pp = enseignant.classes_pp.all()
+        classes_pp = (
+            Classe.objects.filter(prof_principal=request.user)
+            .select_related("niveau")
+            .order_by("niveau__ordre", "nom")
+        )
 
         return Response(
             {
                 "enseignant": {
                     "nom": enseignant.user.get_full_name(),
                     "matricule": enseignant.matricule,
+                    "statut": enseignant.statut,
                 },
                 "classes": classes,
-                "classes_pp": [{"id": c.id, "nom": c.nom} for c in classes_pp],
+                "classes_pp": [
+                    {"id": classe.id, "nom": classe.nom, "niveau": classe.niveau.nom if classe.niveau else None}
+                    for classe in classes_pp
+                ],
                 "statistiques": {
-                    "nb_classes": len(classes),
-                    "nb_eleves_total": sum(c["nb_eleves"] for c in classes),
+                    "nb_affectations": len(affectations),
+                    "nb_classes": len({item["classe_id"] for item in classes}),
+                    "nb_eleves_total": total_eleves,
                 },
             }
         )
@@ -62,47 +103,43 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def mes_classes(self, request):
         """Liste détaillée des classes."""
-        enseignant = self._get_enseignant(request)
-
         classes = []
-        for affectation in enseignant.classes.select_related("classe", "matiere"):
-            classe = affectation.classe
-            classes.append(
-                {
-                    "id": classe.id,
-                    "nom": classe.nom,
-                    "niveau": classe.niveau,
-                    "matiere": affectation.matiere.nom,
-                    "nb_eleves": classe.eleves.count(),
-                    "heures_semaine": affectation.heures_semaine,
-                }
-            )
-
+        for affectation in self._affectations_queryset(self._get_enseignant(request)):
+            for classe in affectation.classes.all():
+                classes.append(
+                    {
+                        "id": classe.id,
+                        "nom": classe.nom,
+                        "niveau": classe.niveau.nom if classe.niveau else None,
+                        "matiere": affectation.matiere.nom,
+                        "nb_eleves": classe.eleves_actuels.count(),
+                        "heures_semaine": _decimal_to_float(affectation.heures_semaine),
+                        "annee_scolaire": affectation.annee_scolaire.libelle,
+                    }
+                )
         return Response(classes)
 
     @action(detail=False, methods=["get"])
     def eleves_classe(self, request):
-        """Élèves d'une classe."""
+        """Élèves d'une classe accessible par l'enseignant."""
         classe_id = request.query_params.get("classe_id")
         if not classe_id:
             return Response({"error": "classe_id requis."}, status=400)
 
-        from apps.classes.models import Classe
+        classe = self._accessible_classes(request).filter(id=classe_id).first()
+        if not classe:
+            return Response({"error": "Classe non trouvée ou non autorisée."}, status=404)
 
-        try:
-            classe = Classe.objects.get(id=classe_id)
-        except Classe.DoesNotExist:
-            return Response({"error": "Classe non trouvée."}, status=404)
-
-        eleves = classe.eleves.select_related("user").order_by("user__last_name")
+        eleves = classe.eleves_actuels.select_related("user").order_by("user__last_name")
         return Response(
             [
                 {
-                    "id": e.id,
-                    "matricule": e.matricule,
-                    "nom": e.user.get_full_name(),
+                    "id": eleve.id,
+                    "matricule": eleve.matricule,
+                    "nom": eleve.user.get_full_name(),
+                    "statut": eleve.statut,
                 }
-                for e in eleves
+                for eleve in eleves
             ]
         )
 
@@ -110,27 +147,26 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
     def emploi_du_temps(self, request):
         """Emploi du temps de l'enseignant."""
         enseignant = self._get_enseignant(request)
-
-        from apps.emplois_du_temps.models import Creneau
-
         creneaux = (
-            Creneau.objects.filter(enseignant=enseignant)
-            .select_related("classe", "matiere", "salle")
+            Creneau.objects.filter(enseignant=enseignant, actif=True)
+            .select_related("classe__niveau", "matiere", "salle")
             .order_by("jour", "heure_debut")
         )
 
         return Response(
             [
                 {
-                    "id": c.id,
-                    "jour": c.jour,
-                    "heure_debut": str(c.heure_debut),
-                    "heure_fin": str(c.heure_fin),
-                    "classe": c.classe.nom,
-                    "matiere": c.matiere.nom,
-                    "salle": c.salle.nom if c.salle else None,
+                    "id": creneau.id,
+                    "jour": creneau.jour,
+                    "heure_debut": str(creneau.heure_debut),
+                    "heure_fin": str(creneau.heure_fin),
+                    "classe": creneau.classe.nom,
+                    "niveau": creneau.classe.niveau.nom if creneau.classe.niveau else None,
+                    "matiere": creneau.matiere.nom,
+                    "salle": creneau.salle.nom if creneau.salle else None,
+                    "type": creneau.type,
                 }
-                for c in creneaux
+                for creneau in creneaux
             ]
         )
 
@@ -139,28 +175,22 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
         """Appels à faire."""
         enseignant = self._get_enseignant(request)
         today = timezone.now().date()
-
-        # Cours du jour sans appel fait
-        from apps.emplois_du_temps.models import Creneau
-        from apps.presences.models import Appel
-
-        jour_semaine = today.weekday()  # 0=lundi
+        jour_semaine = today.weekday() + 1
         creneaux = Creneau.objects.filter(
-            enseignant=enseignant, jour=jour_semaine
+            enseignant=enseignant,
+            jour=jour_semaine,
+            actif=True,
         ).select_related("classe", "matiere")
 
         a_saisir = []
-        for c in creneaux:
-            appel_existe = Appel.objects.filter(
-                classe=c.classe, date=today, creneau=c
-            ).exists()
-            if not appel_existe:
+        for creneau in creneaux:
+            if not Appel.objects.filter(creneau=creneau, date=today).exists():
                 a_saisir.append(
                     {
-                        "creneau_id": c.id,
-                        "classe": c.classe.nom,
-                        "matiere": c.matiere.nom,
-                        "heure": str(c.heure_debut),
+                        "creneau_id": creneau.id,
+                        "classe": creneau.classe.nom,
+                        "matiere": creneau.matiere.nom,
+                        "heure": str(creneau.heure_debut),
                     }
                 )
 

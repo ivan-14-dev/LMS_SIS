@@ -1,6 +1,6 @@
 """API views for portail doyen (SIS Supérieur) - Agrégation."""
 
-from apps.enseignants.models import EnseignantChercheur
+from apps.enseignants.models import AffectationEnseignement, EnseignantChercheur
 from apps.etudiants.models import InscriptionAdministrative
 from apps.formations.models import Formation
 from apps.recherche.models import Laboratoire, These
@@ -75,8 +75,8 @@ class PortailDoyenViewSet(viewsets.ViewSet):
             self.request.user,
             "utilisateurs.view_utilisateur",
             {
-                "facultes": "departement__faculte_id",
-                "departements": "departement_id",
+                "facultes": "affectations__ecue__ue__formation__departement__faculte_id",
+                "departements": "affectations__ecue__ue__formation__departement_id",
             },
         )
 
@@ -119,7 +119,11 @@ class PortailDoyenViewSet(viewsets.ViewSet):
             formations = formations.filter(departement__faculte=faculte)
             departements = departements.filter(faculte=faculte)
             inscriptions = inscriptions.filter(formation__departement__faculte=faculte)
-            enseignants = enseignants.filter(departement__faculte=faculte)
+            enseignants = enseignants.filter(
+                Q(affectations__ecue__ue__formation__departement__faculte=faculte)
+                | Q(affectations__ue__formation__departement__faculte=faculte)
+                | Q(laboratoire__faculte=faculte)
+            ).distinct()
             laboratoires = laboratoires.filter(faculte=faculte)
         elif not formations.exists() and not departements.exists():
             faculte = None
@@ -129,8 +133,10 @@ class PortailDoyenViewSet(viewsets.ViewSet):
         stats = {
             "nb_formations": formations.count(),
             "nb_departements": departements.count(),
-            "nb_etudiants": inscriptions.filter(formation__in=formations, active=True).count(),
-            "nb_enseignants": enseignants.filter(departement__in=departements).count(),
+            "nb_etudiants": inscriptions.filter(
+                formation__in=formations, statut="validee"
+            ).values("etudiant_id").distinct().count(),
+            "nb_enseignants": enseignants.distinct().count(),
             "nb_laboratoires": laboratoires.count(),
             "nb_theses_en_cours": theses.filter(statut="en_cours").count(),
         }
@@ -140,8 +146,14 @@ class PortailDoyenViewSet(viewsets.ViewSet):
             {
                 "id": d.id,
                 "nom": d.nom,
-                "chef": d.chef.user.get_full_name() if d.chef else None,
-                "nb_enseignants": d.enseignants.count(),
+                "directeur": d.directeur.get_full_name() if d.directeur else None,
+                "nb_formations": d.formations.count(),
+                "nb_enseignants": AffectationEnseignement.objects.filter(
+                    Q(ecue__ue__formation__departement=d) | Q(ue__formation__departement=d)
+                )
+                .values("enseignant_id")
+                .distinct()
+                .count(),
             }
             for d in departements[:10]
         ]
@@ -162,7 +174,11 @@ class PortailDoyenViewSet(viewsets.ViewSet):
         faculte_id = request.query_params.get("faculte_id")
 
         formations = self._formations_queryset().annotate(
-            nb_inscrits=Count("inscriptions", filter=Q(inscriptions__active=True)),
+            nb_inscrits=Count(
+                "inscriptions_admin",
+                filter=Q(inscriptions_admin__statut="validee"),
+                distinct=True,
+            ),
         )
         if faculte_id:
             formations = formations.filter(departement__faculte_id=faculte_id)
