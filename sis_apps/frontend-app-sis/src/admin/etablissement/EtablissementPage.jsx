@@ -222,6 +222,7 @@ const EtablissementPage = () => {
 
   const configurationSchema = formData.configuration_schema || {};
   const reportDatasets = configurationSchema.report_datasets || [];
+  const submissionRecipientRoleOptions = configurationSchema.submission_window_recipient_roles || [];
   const getReportDatasetDefinition = (datasetCode) => (
     reportDatasets.find((dataset) => dataset.code === datasetCode) || null
   );
@@ -644,6 +645,58 @@ const EtablissementPage = () => {
                                 placeholder="24, 2"
                               />
                             </Form.Group>
+                            <Form.Check
+                              className="mt-3"
+                              type="switch"
+                              id={`submission-window-assigned-${windowType.code}`}
+                              label="Notifier aussi les responsables directement affectés"
+                              checked={settings.notify_assigned_users ?? true}
+                              onChange={(event) => updateSubmissionWindowField(windowType.code, 'notify_assigned_users', event.target.checked)}
+                            />
+                            <Row className="mt-3">
+                              <Col md={6}>
+                                <Form.Group className="mb-2">
+                                  <Form.Label>Rôles à notifier</Form.Label>
+                                  <Form.Select
+                                    multiple
+                                    value={settings.recipient_role_codes || []}
+                                    onChange={(event) => updateSubmissionWindowField(
+                                      windowType.code,
+                                      'recipient_role_codes',
+                                      Array.from(event.target.selectedOptions, (option) => option.value),
+                                    )}
+                                  >
+                                    {submissionRecipientRoleOptions.map((option) => (
+                                      <option key={option.code} value={option.code}>{option.label}</option>
+                                    ))}
+                                  </Form.Select>
+                                  <Form.Text muted>
+                                    Maintenez Ctrl/Cmd pour sélectionner plusieurs rôles.
+                                  </Form.Text>
+                                </Form.Group>
+                              </Col>
+                              <Col md={6}>
+                                <Form.Group className="mb-0">
+                                  <Form.Label>Groupes dynamiques à notifier</Form.Label>
+                                  <Form.Select
+                                    multiple
+                                    value={settings.recipient_group_codes || []}
+                                    onChange={(event) => updateSubmissionWindowField(
+                                      windowType.code,
+                                      'recipient_group_codes',
+                                      Array.from(event.target.selectedOptions, (option) => option.value),
+                                    )}
+                                  >
+                                    {(academicConfiguration.permission_groups || []).map((group) => (
+                                      <option key={group.code} value={group.code}>{group.label || group.code}</option>
+                                    ))}
+                                  </Form.Select>
+                                  <Form.Text muted>
+                                    Les groupes proviennent de la section « Groupes de permissions dynamiques ».
+                                  </Form.Text>
+                                </Form.Group>
+                              </Col>
+                            </Row>
                           </Card.Body>
                         </Card>
                       );

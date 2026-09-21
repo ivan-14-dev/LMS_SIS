@@ -61,6 +61,42 @@ SUBMISSION_WINDOW_TYPES = {
     "exam": "Examens / résultats",
 }
 
+SECONDARY_USER_ROLES = {
+    "super_admin": "Super administrateur",
+    "direction": "Direction",
+    "responsable_pedagogique": "Responsable pédagogique",
+    "enseignant": "Enseignant",
+    "personnel_administratif": "Personnel administratif",
+    "comptable": "Comptable",
+    "bibliothecaire": "Bibliothécaire",
+    "infirmier": "Infirmier",
+    "surveillant": "Surveillant",
+    "vie_scolaire": "Vie scolaire",
+    "eleve": "Élève",
+    "parent": "Parent",
+}
+
+SUPERIOR_USER_ROLES = {
+    "super_admin": "Super administrateur",
+    "president": "Président d'université",
+    "vice_president": "Vice-président",
+    "doyen": "Doyen de faculté",
+    "directeur_dept": "Directeur de département",
+    "responsable_formation": "Responsable de formation",
+    "directeur_etudes": "Directeur des études",
+    "enseignant": "Enseignant",
+    "chercheur": "Chercheur",
+    "personnel_administratif": "Personnel administratif",
+    "scolarite": "Service scolarité",
+    "service_social": "Service social",
+    "service_ri": "Service relations internationales",
+    "bibliothecaire": "Bibliothécaire",
+    "comptable": "Comptable",
+    "etudiant": "Étudiant",
+    "doctorant": "Doctorant",
+    "parent": "Parent",
+}
+
 REPORT_DATASET_SCHEMAS = {
     "notes": {
         "label": "Notes",
@@ -625,12 +661,18 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             "default_open_offset_hours": 0,
             "default_close_offset_hours": 72,
             "reminder_hours": [24, 2],
+            "notify_assigned_users": True,
+            "recipient_role_codes": [],
+            "recipient_group_codes": [],
         },
         "exam": {
             "enabled": True,
             "default_open_offset_hours": 0,
             "default_close_offset_hours": 48,
             "reminder_hours": [24, 2],
+            "notify_assigned_users": True,
+            "recipient_role_codes": [],
+            "recipient_group_codes": [],
         },
     },
     "catalogs": {
@@ -1315,6 +1357,9 @@ def _validate_submission_windows(value):
         enabled = settings.get("enabled", True)
         if not isinstance(enabled, bool):
             raise ValidationError(f"submission_windows.{code}.enabled doit être booléen.")
+        notify_assigned_users = settings.get("notify_assigned_users", True)
+        if not isinstance(notify_assigned_users, bool):
+            raise ValidationError(f"submission_windows.{code}.notify_assigned_users doit être booléen.")
         for key in ("default_open_offset_hours", "default_close_offset_hours"):
             if key in settings and not isinstance(settings[key], int):
                 raise ValidationError(f"submission_windows.{code}.{key} doit être un entier.")
@@ -1326,6 +1371,15 @@ def _validate_submission_windows(value):
                 raise ValidationError(
                     f"submission_windows.{code}.reminder_hours[{index}] doit être un entier positif ou nul."
                 )
+        for key in ("recipient_role_codes", "recipient_group_codes"):
+            values = settings.get(key, [])
+            if not isinstance(values, list):
+                raise ValidationError(f"submission_windows.{code}.{key} doit être une liste.")
+            for index, item in enumerate(values):
+                if not isinstance(item, str) or not item.strip():
+                    raise ValidationError(
+                        f"submission_windows.{code}.{key}[{index}] doit être une chaîne non vide."
+                    )
 
 
 def _report_dataset_schema(variant=None):
@@ -1357,6 +1411,10 @@ def _report_dataset_schema(variant=None):
 
 
 def academic_configuration_schema(variant=None):
+    role_options = {
+        "secondaire": SECONDARY_USER_ROLES,
+        "superieur": SUPERIOR_USER_ROLES,
+    }.get(variant, {**SECONDARY_USER_ROLES, **SUPERIOR_USER_ROLES})
     return {
         "dimension_axes": [{"code": code, "label": label} for code, label in DIMENSION_AXES.items()],
         "dimension_scopes": [{"code": code, "label": label} for code, label in DIMENSION_SCOPES.items()],
@@ -1378,6 +1436,9 @@ def academic_configuration_schema(variant=None):
         "submission_window_types": [
             {"code": code, "label": label}
             for code, label in SUBMISSION_WINDOW_TYPES.items()
+        ],
+        "submission_window_recipient_roles": [
+            {"code": code, "label": label} for code, label in role_options.items()
         ],
     }
 

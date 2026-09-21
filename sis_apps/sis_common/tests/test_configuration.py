@@ -133,6 +133,10 @@ class AcademicConfigurationTests(SimpleTestCase):
             {"code": "evaluation", "label": "Évaluations / sujets"},
             schema["submission_window_types"],
         )
+        self.assertIn(
+            {"code": "doyen", "label": "Doyen de faculté"},
+            schema["submission_window_recipient_roles"],
+        )
         payments_dataset = next(
             dataset for dataset in schema["report_datasets"] if dataset["code"] == "financial_payments"
         )
@@ -223,11 +227,23 @@ class AcademicConfigurationTests(SimpleTestCase):
         self.assertEqual(settings["default_open_offset_hours"], 0)
         self.assertEqual(settings["default_close_offset_hours"], 12)
         self.assertEqual(settings["reminder_hours"], [6, 1])
+        self.assertTrue(settings["notify_assigned_users"])
+        self.assertEqual(settings["recipient_role_codes"], [])
+        self.assertEqual(settings["recipient_group_codes"], [])
 
     def test_invalid_submission_window_configuration_is_rejected(self):
         configuration = default_academic_configuration()
         configuration["submission_windows"] = {
             "evaluation": {"reminder_hours": ["24h"]},
+        }
+
+        with self.assertRaises(ValidationError):
+            validate_academic_configuration(configuration)
+
+    def test_invalid_submission_window_recipient_configuration_is_rejected(self):
+        configuration = default_academic_configuration()
+        configuration["submission_windows"] = {
+            "evaluation": {"recipient_group_codes": ["", "finance_manager_secondary"]},
         }
 
         with self.assertRaises(ValidationError):
