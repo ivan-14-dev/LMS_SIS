@@ -283,7 +283,19 @@ export const useInscription = inscriptionHooks.useDetail;
 
 // Notes
 export const noteHooks = createResourceHooks('notes', 'superieur');
-export const useNotes = noteHooks.useList;
+export const useNotes = (params = {}) => useQuery({
+  queryKey: ['notes', 'list', params],
+  queryFn: () => {
+    const queryString = new URLSearchParams(params).toString();
+    const url = queryString ? `${getSuperieurApiUrl()}/notes/notes/?${queryString}` : `${getSuperieurApiUrl()}/notes/notes/`;
+    return fetchApi(url);
+  },
+  select: (data) => {
+    if (Array.isArray(data)) { return data; }
+    if (data?.results && Array.isArray(data.results)) { return data.results; }
+    return [];
+  },
+});
 
 // Examens
 export const examenHooks = createResourceHooks('examens/epreuves', 'superieur');
@@ -385,7 +397,19 @@ export const useClasse = (id, enabled = true) => useQuery({
 
 // Évaluations
 export const evaluationHooks = createResourceHooks('evaluations', 'secondaire');
-export const useEvaluations = evaluationHooks.useList;
+export const useEvaluations = (params = {}) => useQuery({
+  queryKey: ['evaluations', 'list', params],
+  queryFn: () => {
+    const queryString = new URLSearchParams(params).toString();
+    const url = queryString ? `${getSecondaireApiUrl()}/notes/evaluations/?${queryString}` : `${getSecondaireApiUrl()}/notes/evaluations/`;
+    return fetchApi(url);
+  },
+  select: (data) => {
+    if (Array.isArray(data)) { return data; }
+    if (data?.results && Array.isArray(data.results)) { return data.results; }
+    return [];
+  },
+});
 
 // Bulletins
 export const bulletinHooks = createResourceHooks('bulletins', 'secondaire');
@@ -423,7 +447,19 @@ export const useClubs = clubHooks.useList;
 
 // Conseil de classe
 export const conseilClasseHooks = createResourceHooks('conseils-classe', 'secondaire');
-export const useConseilsClasse = conseilClasseHooks.useList;
+export const useConseilsClasse = (params = {}) => useQuery({
+  queryKey: ['conseils-classe', 'list', params],
+  queryFn: () => {
+    const queryString = new URLSearchParams(params).toString();
+    const url = queryString ? `${getSecondaireApiUrl()}/conseils/conseils-classe/?${queryString}` : `${getSecondaireApiUrl()}/conseils/conseils-classe/`;
+    return fetchApi(url);
+  },
+  select: (data) => {
+    if (Array.isArray(data)) { return data; }
+    if (data?.results && Array.isArray(data.results)) { return data.results; }
+    return [];
+  },
+});
 
 // Additional hooks for specific views
 export const useEleveDetail = (id) => eleveHooks.useDetail(id);

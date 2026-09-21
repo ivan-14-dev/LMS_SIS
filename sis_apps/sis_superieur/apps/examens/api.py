@@ -3,6 +3,7 @@
 from datetime import timedelta
 from decimal import Decimal
 
+from apps.core.serializers import WorkflowEventSerializer
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import FileResponse
@@ -22,6 +23,7 @@ from sis_common.authorization import (
 )
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
+from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from apps.etudiants.models import AffectationECUEIndividuelle, InscriptionPedagogique
 
@@ -169,6 +171,11 @@ def _configured_result_group_codes(configuration):
     return tuple(sorted(group_codes))
 
 
+def _exam_notification_recipients(request):
+    actor = getattr(request, "user", None)
+    return [actor] if getattr(actor, "is_authenticated", False) else []
+
+
 def _ensure_workflow_access(request, workflow, key):
     if request.user.is_staff or request.user.is_superuser:
         return
@@ -278,6 +285,42 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
             nb_epreuves_count=Count("epreuves")
         )
 
+    def perform_create(self, serializer):
+        session = serializer.save()
+        record_workflow_event(
+            self.request,
+            session,
+            "creation",
+            "Session d'examen créée",
+            message=f"La session d'examen {session} a été créée.",
+            recipients=_exam_notification_recipients(self.request),
+            metadata={"semestre_id": session.semestre_id, "type": session.type},
+        )
+
+    def perform_update(self, serializer):
+        session = serializer.save()
+        record_workflow_event(
+            self.request,
+            session,
+            "mise_a_jour",
+            "Session d'examen mise à jour",
+            message=f"La session d'examen {session} a été mise à jour.",
+            recipients=_exam_notification_recipients(self.request),
+            metadata={"semestre_id": session.semestre_id, "type": session.type},
+        )
+
+    def perform_destroy(self, instance):
+        record_workflow_event(
+            self.request,
+            instance,
+            "suppression",
+            "Session d'examen supprimée",
+            message=f"La session d'examen {instance} a été supprimée.",
+            recipients=_exam_notification_recipients(self.request),
+            metadata={"semestre_id": instance.semestre_id, "type": instance.type},
+        )
+        instance.delete()
+
     @action(detail=True, methods=["get"])
     def epreuves(self, request, pk=None):
         """Liste les épreuves de la session."""
@@ -296,6 +339,15 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
             return Response({"error": "Session déjà clôturée."}, status=400)
         session.cloturee = True
         session.save(update_fields=["cloturee"])
+        record_workflow_event(
+            request,
+            session,
+            "cloture",
+            "Session d'examen clôturée",
+            message=f"La session d'examen {session} a été clôturée.",
+            recipients=_exam_notification_recipients(request),
+            metadata={"semestre_id": session.semestre_id, "type": session.type},
+        )
         return Response({"detail": "Session clôturée.", "id": session.id})
 
     @action(detail=True, methods=["post"])
@@ -306,6 +358,15 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
             return Response({"error": "Session déjà ouverte."}, status=400)
         session.cloturee = False
         session.save(update_fields=["cloturee"])
+        record_workflow_event(
+            request,
+            session,
+            "reouverture",
+            "Session d'examen rouverte",
+            message=f"La session d'examen {session} a été rouverte.",
+            recipients=_exam_notification_recipients(request),
+            metadata={"semestre_id": session.semestre_id, "type": session.type},
+        )
         return Response({"detail": "Session rouverte.", "id": session.id})
 
     @action(detail=True, methods=["get"], permission_classes=[IsExamManager])
@@ -335,6 +396,13 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow de la session."""
+        session = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(session), many=True)
+        return Response(serializer.data)
+
 
 class EpreuvesExamenViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour épreuves d'examens."""
@@ -363,6 +431,42 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
             return EpreuveExamenListSerializer
         return EpreuveExamenDetailSerializer
 
+    def perform_create(self, serializer):
+        epreuve = serializer.save()
+        record_workflow_event(
+            self.request,
+            epreuve,
+            "creation",
+            "Épreuve créée",
+            message=f"L'épreuve {epreuve} a été créée.",
+            recipients=_exam_notification_recipients(self.request),
+            metadata={"session_id": epreuve.session_id, "ecue_id": epreuve.ecue_id},
+        )
+
+    def perform_update(self, serializer):
+        epreuve = serializer.save()
+        record_workflow_event(
+            self.request,
+            epreuve,
+            "mise_a_jour",
+            "Épreuve mise à jour",
+            message=f"L'épreuve {epreuve} a été mise à jour.",
+            recipients=_exam_notification_recipients(self.request),
+            metadata={"session_id": epreuve.session_id, "ecue_id": epreuve.ecue_id},
+        )
+
+    def perform_destroy(self, instance):
+        record_workflow_event(
+            self.request,
+            instance,
+            "suppression",
+            "Épreuve supprimée",
+            message=f"L'épreuve {instance} a été supprimée.",
+            recipients=_exam_notification_recipients(self.request),
+            metadata={"session_id": instance.session_id, "ecue_id": instance.ecue_id},
+        )
+        instance.delete()
+
     @action(detail=True, methods=["get"], permission_classes=[IsExamManager])
     def convocations(self, request, pk=None):
         """Liste les convocations de l'épreuve."""
@@ -379,6 +483,13 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
         epreuve = self.get_object()
         resultats = epreuve.resultats.select_related("etudiant__user").order_by("-note")
         serializer = ResultatExamenSerializer(resultats, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow de l'épreuve."""
+        epreuve = self.get_object()
+        serializer = WorkflowEventSerializer(workflow_history_queryset(epreuve), many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])

@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge, Button, Row, Col, Card } from '@openedx/paragon';
 import { Add, Grade } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable, StatCard } from '../../components/common';
+import {
+  PageHeader, SISDataTable, StatCard, WorkflowHistoryPanel, WorkflowNotificationsPanel,
+} from '../../components/common';
 import { useEvaluations } from '../../services/api';
 
 const EvaluationsPage = () => {
   const { data: evaluations = [], isLoading } = useEvaluations();
+  const [selectedEvaluationId, setSelectedEvaluationId] = useState(null);
 
   const columns = [
     { Header: 'Titre', accessor: 'titre' },
@@ -35,8 +38,11 @@ const EvaluationsPage = () => {
     {
       Header: 'Actions',
       accessor: 'id',
-      Cell: () => (
-        <Button size="sm" variant="outline-primary" iconBefore={Grade}>Saisir notes</Button>
+      Cell: ({ value }) => (
+        <div className="d-flex gap-2">
+          <Button size="sm" variant="outline-primary" iconBefore={Grade}>Saisir notes</Button>
+          <Button size="sm" variant="outline-info" onClick={() => setSelectedEvaluationId(value)}>Historique</Button>
+        </div>
       ),
     },
   ];
@@ -50,6 +56,7 @@ const EvaluationsPage = () => {
           { label: 'Nouvelle évaluation', icon: <Add />, variant: 'primary', onClick: () => {} },
         ]}
       />
+      <WorkflowNotificationsPanel apiType="secondaire" />
       <Row className="mb-4">
         <Col md={4}>
           <StatCard title="Total évaluations" value={evaluations.length} variant="primary" />
@@ -62,6 +69,11 @@ const EvaluationsPage = () => {
         </Col>
       </Row>
       <SISDataTable title="Liste des évaluations" data={evaluations} columns={columns} loading={isLoading} searchable exportable />
+      <WorkflowHistoryPanel
+        apiType="secondaire"
+        endpoint={selectedEvaluationId ? `notes/evaluations/${selectedEvaluationId}/historique/` : ''}
+        title="Historique de l'évaluation"
+      />
     </div>
   );
 };

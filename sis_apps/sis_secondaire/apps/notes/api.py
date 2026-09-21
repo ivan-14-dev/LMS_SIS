@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 
+from apps.core.serializers import WorkflowEventSerializer
 from django.db import transaction
 from django.db.models import Avg, Count, F, Q
 from django.utils import timezone
@@ -111,6 +112,17 @@ def _bulletin_notification_recipients(request, bulletin):
     user = getattr(bulletin.eleve, "user", None)
     if user is not None:
         recipients.append(user)
+    actor = getattr(request, "user", None)
+    if getattr(actor, "is_authenticated", False) and actor not in recipients:
+        recipients.append(actor)
+    return recipients
+
+
+def _evaluation_notification_recipients(request, evaluation):
+    recipients = []
+    teacher_user = getattr(getattr(evaluation, "enseignant", None), "user", None)
+    if teacher_user is not None:
+        recipients.append(teacher_user)
     actor = getattr(request, "user", None)
     if getattr(actor, "is_authenticated", False) and actor not in recipients:
         recipients.append(actor)
@@ -335,6 +347,54 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
             return EvaluationListSerializer
         return EvaluationDetailSerializer
 
+    def perform_create(self, serializer):
+        evaluation = serializer.save()
+        record_workflow_event(
+            self.request,
+            evaluation,
+            "creation",
+            "Évaluation créée",
+            message=f"L'évaluation {evaluation.titre} a été créée.",
+            recipients=_evaluation_notification_recipients(self.request, evaluation),
+            metadata={
+                "classe_id": evaluation.classe_id,
+                "matiere_id": evaluation.matiere_id,
+                "periode_id": evaluation.periode_id,
+            },
+        )
+
+    def perform_update(self, serializer):
+        evaluation = serializer.save()
+        record_workflow_event(
+            self.request,
+            evaluation,
+            "mise_a_jour",
+            "Évaluation mise à jour",
+            message=f"L'évaluation {evaluation.titre} a été mise à jour.",
+            recipients=_evaluation_notification_recipients(self.request, evaluation),
+            metadata={
+                "classe_id": evaluation.classe_id,
+                "matiere_id": evaluation.matiere_id,
+                "periode_id": evaluation.periode_id,
+            },
+        )
+
+    def perform_destroy(self, instance):
+        record_workflow_event(
+            self.request,
+            instance,
+            "suppression",
+            "Évaluation supprimée",
+            message=f"L'évaluation {instance.titre} a été supprimée.",
+            recipients=_evaluation_notification_recipients(self.request, instance),
+            metadata={
+                "classe_id": instance.classe_id,
+                "matiere_id": instance.matiere_id,
+                "periode_id": instance.periode_id,
+            },
+        )
+        instance.delete()
+
     @action(detail=True, methods=["get"])
     def notes(self, request, pk=None):
         """Liste les notes d'une évaluation."""
@@ -403,6 +463,21 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
                 note.modifie_par = saisi_par
                 note.save(update_fields=["modifie_le", "modifie_par"])
 
+        record_workflow_event(
+            request,
+            evaluation,
+            "saisie_notes",
+            "Notes saisies",
+            message=f"Des notes ont été saisies pour l'évaluation {evaluation.titre}.",
+            recipients=_evaluation_notification_recipients(request, evaluation),
+            metadata={
+                "notes_creees": created,
+                "notes_modifiees": updated,
+                "classe_id": evaluation.classe_id,
+                "matiere_id": evaluation.matiere_id,
+            },
+        )
+
         return Response(
             {
                 "evaluation_id": evaluation.id,
@@ -441,6 +516,20 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
                 {"file": "Le fichier ne contient aucune ligne exploitable."}
             )
         created, updated = _import_secondary_notes(evaluation, rows, request)
+        record_workflow_event(
+            request,
+            evaluation,
+            "import_notes",
+            "Notes importées",
+            message=f"Des notes ont été importées pour l'évaluation {evaluation.titre}.",
+            recipients=_evaluation_notification_recipients(request, evaluation),
+            metadata={
+                "notes_creees": created,
+                "notes_modifiees": updated,
+                "classe_id": evaluation.classe_id,
+                "matiere_id": evaluation.matiere_id,
+            },
+        )
         return Response(
             {
                 "evaluation_id": evaluation.id,
@@ -480,6 +569,16 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
                 "bareme": float(evaluation.bareme),
             }
         )
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        """Historique workflow de l'évaluation."""
+        evaluation = self.get_object()
+        serializer = WorkflowEventSerializer(
+            workflow_history_queryset(evaluation),
+            many=True,
+        )
+        return Response(serializer.data)
 
 
 class NotesViewSet(viewsets.ModelViewSet):

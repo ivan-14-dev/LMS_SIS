@@ -45,9 +45,11 @@ class NotesAPITestCase(SimpleTestCase):
     def test_evaluation_import_routes_are_registered(self):
         template_match = resolve("/api/v1/notes/evaluations/1/modele_import_notes/")
         import_match = resolve("/api/v1/notes/evaluations/1/importer_notes/")
+        history_match = resolve("/api/v1/notes/evaluations/1/historique/")
 
         self.assertEqual(template_match.url_name, "evaluation-modele-import-notes")
         self.assertEqual(import_match.url_name, "evaluation-importer-notes")
+        self.assertEqual(history_match.url_name, "evaluation-historique")
 
     def test_bulletin_export_route_is_registered(self):
         match = resolve("/api/v1/notes/bulletins/exporter/")

@@ -23,6 +23,14 @@ class ExamensAPITestCase(TestCase):
             "epreuve-examen-list",
         )
         self.assertEqual(
+            resolve("/api/v1/examens/epreuves/1/historique/").url_name,
+            "epreuve-examen-historique",
+        )
+        self.assertEqual(
+            resolve("/api/v1/examens/sessions/1/historique/").url_name,
+            "session-examen-historique",
+        )
+        self.assertEqual(
             resolve("/api/v1/examens/resultats/").url_name,
             "resultat-examen-list",
         )

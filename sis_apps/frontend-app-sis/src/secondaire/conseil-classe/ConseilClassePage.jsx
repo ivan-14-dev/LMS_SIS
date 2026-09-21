@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge, Button, Row, Col, Card } from '@openedx/paragon';
 import { Add, Forum, Print } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable, StatCard } from '../../components/common';
+import {
+  PageHeader, SISDataTable, StatCard, WorkflowHistoryPanel, WorkflowNotificationsPanel,
+} from '../../components/common';
 import { useConseilsClasse } from '../../services/api';
 
 const ConseilClassePage = () => {
   const { data: conseils = [], isLoading } = useConseilsClasse();
+  const [selectedConseilId, setSelectedConseilId] = useState(null);
 
   const columns = [
     { Header: 'Date', accessor: 'date' },
@@ -37,9 +40,12 @@ const ConseilClassePage = () => {
       Header: 'Actions',
       accessor: 'id',
       Cell: ({ row }) => (
-        row.original.statut === 'planifie' ? (
-          <Button size="sm" variant="outline-primary">Démarrer</Button>
-        ) : null
+        <div className="d-flex gap-2">
+          {row.original.statut === 'planifie' ? (
+            <Button size="sm" variant="outline-primary">Démarrer</Button>
+          ) : null}
+          <Button size="sm" variant="outline-info" onClick={() => setSelectedConseilId(row.original.id)}>Historique</Button>
+        </div>
       ),
     },
   ];
@@ -56,6 +62,7 @@ const ConseilClassePage = () => {
           { label: 'Planifier conseil', icon: <Add />, variant: 'primary', onClick: () => {} },
         ]}
       />
+      <WorkflowNotificationsPanel apiType="secondaire" />
       <Row className="mb-4">
         <Col md={3}>
           <StatCard title="Total conseils" value={conseils.length} icon={<Forum />} variant="primary" />
@@ -72,6 +79,11 @@ const ConseilClassePage = () => {
       </Row>
 
       <SISDataTable title="Conseils de classe" data={conseils} columns={columns} loading={isLoading} searchable exportable />
+      <WorkflowHistoryPanel
+        apiType="secondaire"
+        endpoint={selectedConseilId ? `conseils/conseils-classe/${selectedConseilId}/historique/` : ''}
+        title="Historique du conseil de classe"
+      />
 
       <Row className="mt-4">
         <Col md={6}>

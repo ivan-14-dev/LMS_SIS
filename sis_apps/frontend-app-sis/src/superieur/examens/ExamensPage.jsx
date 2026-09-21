@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge, Button } from '@openedx/paragon';
 import { Add } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable } from '../../components/common';
+import {
+  PageHeader, SISDataTable, WorkflowHistoryPanel, WorkflowNotificationsPanel,
+} from '../../components/common';
 import { useExamens } from '../../services/api';
 
 const ExamensPage = () => {
   const { data: examens = [], isLoading } = useExamens();
+  const [selectedExamenId, setSelectedExamenId] = useState(null);
 
   const columns = [
     { Header: 'ECUE', accessor: 'ecue_nom' },
@@ -22,6 +25,15 @@ const ExamensPage = () => {
         return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
       },
     },
+    {
+      Header: 'Workflow',
+      accessor: 'id',
+      Cell: ({ value }) => (
+        <Button size="sm" variant="outline-info" onClick={() => setSelectedExamenId(value)}>
+          Historique
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -31,7 +43,13 @@ const ExamensPage = () => {
         subtitle="Planning et organisation des examens"
         actions={<Button variant="primary" iconBefore={Add}>Planifier un examen</Button>}
       />
+      <WorkflowNotificationsPanel apiType="superieur" />
       <SISDataTable title="Liste des examens" data={examens} columns={columns} loading={isLoading} searchable exportable />
+      <WorkflowHistoryPanel
+        apiType="superieur"
+        endpoint={selectedExamenId ? `examens/epreuves/${selectedExamenId}/historique/` : ''}
+        title="Historique de l'épreuve"
+      />
     </div>
   );
 };
