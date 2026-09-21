@@ -40,10 +40,8 @@ import RelevesPage from './superieur/releves/RelevesPage';
 import WorkflowCenterPage from './workflow/WorkflowCenterPage';
 
 // Portails Supérieur
-import PortailEtudiant from './superieur/portails/PortailEtudiant';
-import PortailEnseignant from './superieur/portails/PortailEnseignant';
-import PortailScolarite from './superieur/portails/PortailScolarite';
-import PortailDoyen from './superieur/portails/PortailDoyen';
+import PortailApprenantFamilleSuperieur from './superieur/portails/PortailApprenantFamille';
+import PortailStaffAdminSuperieur from './superieur/portails/PortailStaffAdmin';
 
 // === SIS Secondaire Modules ===
 import ElevesPage from './secondaire/eleves/ElevesPage';
@@ -61,9 +59,8 @@ import ClubsPage from './secondaire/clubs/ClubsPage';
 import ConseilClassePage from './secondaire/conseil-classe/ConseilClassePage';
 
 // Portails Secondaire
-import PortailEleve from './secondaire/portails/PortailEleve';
-import PortailParent from './secondaire/portails/PortailParent';
-import PortailEnseignantSec from './secondaire/portails/PortailEnseignant';
+import PortailApprenantFamilleSecondaire from './secondaire/portails/PortailApprenantFamille';
+import PortailStaffAdminSecondaire from './secondaire/portails/PortailStaffAdmin';
 
 // Administration
 import EtablissementPage from './admin/etablissement/EtablissementPage';
@@ -139,10 +136,12 @@ const App = () => (
             />
 
             {/* Portails */}
-            <Route path="portail-etudiant" element={<PortailEtudiant />} />
-            <Route path="portail-enseignant" element={<PortailEnseignant />} />
-            <Route path="portail-scolarite" element={<PortailScolarite />} />
-            <Route path="portail-doyen" element={<PortailDoyen />} />
+            <Route path="portail-apprenant" element={<PortailApprenantFamilleSuperieur />} />
+            <Route path="portail-staff" element={<PortailStaffAdminSuperieur />} />
+            <Route path="portail-etudiant" element={<Navigate to="/superieur/portail-apprenant" replace />} />
+            <Route path="portail-enseignant" element={<Navigate to="/superieur/portail-staff" replace />} />
+            <Route path="portail-scolarite" element={<Navigate to="/superieur/portail-staff" replace />} />
+            <Route path="portail-doyen" element={<Navigate to="/superieur/portail-staff" replace />} />
           </Route>
 
           {/* ============ SIS SECONDAIRE ============ */}
@@ -182,9 +181,11 @@ const App = () => (
             <Route path="clubs" element={<ClubsPage />} />
 
             {/* Portails */}
-            <Route path="portail-eleve" element={<PortailEleve />} />
-            <Route path="portail-parent" element={<PortailParent />} />
-            <Route path="portail-enseignant" element={<PortailEnseignantSec />} />
+            <Route path="portail-apprenant" element={<PortailApprenantFamilleSecondaire />} />
+            <Route path="portail-staff" element={<PortailStaffAdminSecondaire />} />
+            <Route path="portail-eleve" element={<Navigate to="/secondaire/portail-apprenant" replace />} />
+            <Route path="portail-parent" element={<Navigate to="/secondaire/portail-apprenant" replace />} />
+            <Route path="portail-enseignant" element={<Navigate to="/secondaire/portail-staff" replace />} />
           </Route>
 
           {/* ============ ADMINISTRATION COMMUNE ============ */}

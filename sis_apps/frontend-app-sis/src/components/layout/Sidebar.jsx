@@ -8,7 +8,7 @@ import {
   Business, Person, AccountBalance, Settings,
   ChildCare, Class, Assessment, EventNote, Restaurant,
   DirectionsBus, LocalHospital, Hotel, SportsEsports,
-  Groups, FamilyRestroom, Face
+  Groups, Face
 } from '@openedx/paragon/icons';
 
 const menuSuperieur = [
@@ -53,10 +53,8 @@ const menuSuperieur = [
   {
     title: 'Portails',
     items: [
-      { path: '/superieur/portail-etudiant', label: 'Portail Étudiant', icon: Face },
-      { path: '/superieur/portail-enseignant', label: 'Portail Enseignant', icon: Person },
-      { path: '/superieur/portail-scolarite', label: 'Portail Scolarité', icon: Group },
-      { path: '/superieur/portail-doyen', label: 'Portail Doyen', icon: AccountBalance },
+      { path: '/superieur/portail-apprenant', label: 'Portail Apprenant/Famille', icon: Face },
+      { path: '/superieur/portail-staff', label: 'Portail Staff/Admin', icon: Group },
     ],
   },
 ];
@@ -94,9 +92,8 @@ const menuSecondaire = [
   {
     title: 'Portails',
     items: [
-      { path: '/secondaire/portail-eleve', label: 'Portail Élève', icon: Face },
-      { path: '/secondaire/portail-parent', label: 'Portail Parent', icon: FamilyRestroom },
-      { path: '/secondaire/portail-enseignant', label: 'Portail Enseignant', icon: Person },
+      { path: '/secondaire/portail-apprenant', label: 'Portail Apprenant/Famille', icon: Face },
+      { path: '/secondaire/portail-staff', label: 'Portail Staff/Admin', icon: Group },
     ],
   },
 ];
