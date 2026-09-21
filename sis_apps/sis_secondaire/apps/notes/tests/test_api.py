@@ -1,13 +1,21 @@
 """API integration-style tests for tenant-driven note exports."""
 
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
 from django.urls import resolve
+from django.utils import timezone
 from rest_framework.test import APIRequestFactory
 
-from apps.notes.api import BulletinsViewSet, EvaluationsViewSet, NotesViewSet
+from apps.notes.api import (
+    BulletinsViewSet,
+    EvaluationsViewSet,
+    NotesViewSet,
+    _ensure_secondary_continuous_assessment,
+)
+from rest_framework import serializers
 
 
 class FakeQuerySet:
@@ -155,3 +163,17 @@ class NotesAPITestCase(SimpleTestCase):
         self.assertEqual(queryset.filters, [{"publie": True}])
         self.assertEqual(queryset.selected_fields, ("eleve__matricule", "decision"))
         self.assertIn("MAT-002,passage", response.content.decode())
+
+    def test_secondary_continuous_assessment_blocks_submission_before_window(self):
+        evaluation = SimpleNamespace(
+            type="ds",
+            debut_soumission=timezone.now() + timedelta(hours=2),
+            fin_soumission=None,
+            classe=SimpleNamespace(annee_scolaire=SimpleNamespace(cloturee=False)),
+            periode=SimpleNamespace(cloturee=False),
+        )
+
+        with self.assertRaises(serializers.ValidationError) as context:
+            _ensure_secondary_continuous_assessment(evaluation)
+
+        self.assertIn("soumission", context.exception.detail)

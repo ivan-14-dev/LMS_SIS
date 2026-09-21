@@ -150,6 +150,16 @@ def _continuous_assessment_template_enabled(request):
     return any(template.get("code") == "continuous_assessment_grades" for template in templates)
 
 
+def _ensure_submission_window(obj, label="La période de soumission"):
+    now = timezone.now()
+    if getattr(obj, "debut_soumission", None) and now < obj.debut_soumission:
+        raise serializers.ValidationError(
+            {"soumission": f"{label} n'est pas encore ouverte."}
+        )
+    if getattr(obj, "fin_soumission", None) and now > obj.fin_soumission:
+        raise serializers.ValidationError({"soumission": f"{label} est expirée."})
+
+
 def _ensure_secondary_continuous_assessment(evaluation):
     if evaluation.type not in CONTINUOUS_ASSESSMENT_TYPES:
         raise serializers.ValidationError(
@@ -159,6 +169,7 @@ def _ensure_secondary_continuous_assessment(evaluation):
                 )
             }
         )
+    _ensure_submission_window(evaluation)
     if evaluation.classe.annee_scolaire.cloturee or evaluation.periode.cloturee:
         raise serializers.ValidationError(
             {
@@ -665,6 +676,16 @@ class NotesViewSet(viewsets.ModelViewSet):
             NOTE_REPORT_FILTERS,
             request.data.get("filters", {}),
         )
+
+    def perform_create(self, serializer):
+        evaluation = serializer.validated_data["evaluation"]
+        _ensure_secondary_continuous_assessment(evaluation)
+        serializer.save(saisi_par=getattr(self.request.user, "personnel_profile", None))
+
+    def perform_update(self, serializer):
+        note = self.get_object()
+        _ensure_secondary_continuous_assessment(note.evaluation)
+        serializer.save(modifie_le=timezone.now(), modifie_par=getattr(self.request.user, "personnel_profile", None))
 
 
 class BulletinsViewSet(viewsets.ModelViewSet):

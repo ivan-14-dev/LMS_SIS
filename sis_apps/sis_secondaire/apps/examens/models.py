@@ -62,6 +62,8 @@ class EpreuveExamen(models.Model):
     date = models.DateField()
     heure_debut = models.TimeField()
     duree_minutes = models.PositiveIntegerField()
+    debut_soumission = models.DateTimeField(null=True, blank=True)
+    fin_soumission = models.DateTimeField(null=True, blank=True)
     salle_principale = models.ForeignKey(
         Salle,
         on_delete=models.SET_NULL,

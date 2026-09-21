@@ -1,11 +1,13 @@
 """API tests for examens."""
 
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
-from apps.examens.api import IsExamManager, ResultatsExamenViewSet
+from apps.examens.api import IsExamManager, ResultatsExamenViewSet, _ensure_entry_allowed
 from django.urls import resolve
+from django.utils import timezone
 from rest_framework.test import APIRequestFactory
 
 
@@ -100,3 +102,19 @@ class ExamensAPITestCase(TestCase):
 
         self.assertIs(result, queryset)
         self.assertEqual(queryset.filters, [{"etudiant__user": student, "statut": "published"}])
+
+    def test_superior_exam_result_submission_allows_active_window(self):
+        now = timezone.now()
+        epreuve = SimpleNamespace(
+            debut_soumission=now - timedelta(hours=1),
+            fin_soumission=now + timedelta(hours=1),
+            session=SimpleNamespace(
+                cloturee=False,
+                semestre=SimpleNamespace(
+                    cloture=False,
+                    annee_universitaire=SimpleNamespace(cloturee=False),
+                ),
+            ),
+        )
+
+        _ensure_entry_allowed(epreuve, "normal", {})

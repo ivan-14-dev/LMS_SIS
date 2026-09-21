@@ -1,13 +1,20 @@
 """API integration-style tests for tenant-driven superior note exports."""
 
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
 from django.urls import resolve
+from django.utils import timezone
 from rest_framework.test import APIRequestFactory
 
-from apps.notes.api import EvaluationsViewSet, MoyennesECUEViewSet, MoyennesUEViewSet
+from apps.notes.api import (
+    EvaluationsViewSet,
+    MoyennesECUEViewSet,
+    MoyennesUEViewSet,
+    _ensure_superior_continuous_assessment,
+)
 
 
 class FakeQuerySet:
@@ -190,3 +197,14 @@ class NotesAPITestCase(SimpleTestCase):
         self.assertEqual(ue_queryset.filters, [{"capitalisee": True}])
         self.assertEqual(ue_queryset.selected_fields, ("etudiant__matricule", "credits_obtenus"))
         self.assertIn("SUP-001,30.0", ue_response.content.decode())
+
+    def test_superior_continuous_assessment_allows_submission_inside_window(self):
+        now = timezone.now()
+        evaluation = SimpleNamespace(
+            modalite="cc",
+            debut_soumission=now - timedelta(hours=1),
+            fin_soumission=now + timedelta(hours=1),
+            semestre=SimpleNamespace(cloture=False, annee_universitaire=SimpleNamespace(cloturee=False)),
+        )
+
+        _ensure_superior_continuous_assessment(evaluation)

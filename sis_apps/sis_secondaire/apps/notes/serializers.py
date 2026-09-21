@@ -35,6 +35,8 @@ class EvaluationListSerializer(serializers.ModelSerializer):
             "date",
             "heure_debut",
             "duree_minutes",
+            "debut_soumission",
+            "fin_soumission",
             "bareme",
             "coefficient",
             "ponderation",
@@ -87,6 +89,8 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
             "date",
             "heure_debut",
             "duree_minutes",
+            "debut_soumission",
+            "fin_soumission",
             "bareme",
             "coefficient",
             "ponderation",
@@ -112,6 +116,14 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
         classe = attrs.get("classe", getattr(self.instance, "classe", None))
         matiere = attrs.get("matiere", getattr(self.instance, "matiere", None))
         eleve_cible = attrs.get("eleve_cible", getattr(self.instance, "eleve_cible", None))
+        debut_soumission = attrs.get(
+            "debut_soumission", getattr(self.instance, "debut_soumission", None)
+        )
+        fin_soumission = attrs.get("fin_soumission", getattr(self.instance, "fin_soumission", None))
+        if debut_soumission and fin_soumission and fin_soumission < debut_soumission:
+            raise serializers.ValidationError(
+                {"fin_soumission": "La fin de soumission doit être postérieure au début."}
+            )
         if not eleve_cible:
             return attrs
         class_member = eleve_cible.classe_actuelle_id == getattr(classe, "id", None) or classe.inscriptions.filter(

@@ -1,5 +1,6 @@
 """API tests for examens."""
 
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
@@ -8,8 +9,11 @@ from apps.examens.api import (
     IsExamManager,
     IsScolariteOrReadOnly,
     ResultatsExamenViewSet,
+    _ensure_entry_allowed,
 )
 from django.urls import resolve
+from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory
 
 
@@ -89,3 +93,18 @@ class ExamensAPITestCase(TestCase):
 
         self.assertIs(result, queryset)
         self.assertEqual(queryset.filters, [{"eleve__user": student, "statut": "published"}])
+
+    def test_secondary_exam_result_submission_blocks_expired_window(self):
+        epreuve = SimpleNamespace(
+            debut_soumission=None,
+            fin_soumission=timezone.now() - timedelta(minutes=5),
+            session=SimpleNamespace(
+                cloturee=False,
+                annee_scolaire=SimpleNamespace(cloturee=False),
+            ),
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            _ensure_entry_allowed(epreuve, "normal", {})
+
+        self.assertIn("workflow", context.exception.detail)

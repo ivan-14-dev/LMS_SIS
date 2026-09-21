@@ -27,6 +27,8 @@ class Evaluation(models.Model):
     date = models.DateField()
     heure_debut = models.TimeField(null=True, blank=True)
     duree_minutes = models.PositiveIntegerField(null=True, blank=True)
+    debut_soumission = models.DateTimeField(null=True, blank=True)
+    fin_soumission = models.DateTimeField(null=True, blank=True)
     bareme = models.DecimalField(max_digits=5, decimal_places=2, default=20)
     coefficient = models.DecimalField(max_digits=4, decimal_places=2, default=1)
     ponderation = models.DecimalField(

@@ -65,6 +65,8 @@ class EpreuveExamenListSerializer(serializers.ModelSerializer):
             "date",
             "heure_debut",
             "duree_minutes",
+            "debut_soumission",
+            "fin_soumission",
             "salle_principale",
             "salle_nom",
             "bareme",
@@ -95,6 +97,8 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
             "date",
             "heure_debut",
             "duree_minutes",
+            "debut_soumission",
+            "fin_soumission",
             "salle_principale",
             "bareme",
             "coefficient",
@@ -111,6 +115,17 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
 
     def get_surveillants_list(self, obj):
         return [{"id": s.id, "nom": s.get_full_name()} for s in obj.surveillants.all()]
+
+    def validate(self, attrs):
+        debut_soumission = attrs.get(
+            "debut_soumission", getattr(self.instance, "debut_soumission", None)
+        )
+        fin_soumission = attrs.get("fin_soumission", getattr(self.instance, "fin_soumission", None))
+        if debut_soumission and fin_soumission and fin_soumission < debut_soumission:
+            raise serializers.ValidationError(
+                {"fin_soumission": "La fin de soumission doit être postérieure au début."}
+            )
+        return attrs
 
 
 class ConvocationExamenSerializer(serializers.ModelSerializer):

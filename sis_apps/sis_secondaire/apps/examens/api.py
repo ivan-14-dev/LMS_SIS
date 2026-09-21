@@ -158,6 +158,14 @@ def _configured_result_group_codes(configuration):
     return tuple(sorted(group_codes))
 
 
+def _ensure_submission_window(obj, label="La période de soumission"):
+    now = timezone.now()
+    if getattr(obj, "debut_soumission", None) and now < obj.debut_soumission:
+        raise ValidationError({"workflow": f"{label} n'est pas encore ouverte."})
+    if getattr(obj, "fin_soumission", None) and now > obj.fin_soumission:
+        raise ValidationError({"workflow": f"{label} est expirée."})
+
+
 def _exam_notification_recipients(request):
     actor = getattr(request, "user", None)
     return [actor] if getattr(actor, "is_authenticated", False) else []
@@ -200,6 +208,7 @@ def _ensure_entry_allowed(epreuve, type_resultat, workflow):
             raise ValidationError(
                 {"workflow": "La session ou l'année est clôturée; seules les saisies de rattrapage autorisées restent possibles."}
             )
+    _ensure_submission_window(epreuve, "La période de soumission des résultats")
 
 
 def _apply_result_outcome(result, pass_mark):

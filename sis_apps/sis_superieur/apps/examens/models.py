@@ -55,6 +55,8 @@ class EpreuveExamen(models.Model):
     date = models.DateField()
     heure_debut = models.TimeField()
     duree_minutes = models.PositiveIntegerField()
+    debut_soumission = models.DateTimeField(null=True, blank=True)
+    fin_soumission = models.DateTimeField(null=True, blank=True)
     lieu = models.CharField(max_length=200, help_text="Bâtiment / amphithéâtre")
     places_totales = models.PositiveIntegerField(default=0)
     bareme = models.DecimalField(max_digits=5, decimal_places=2, default=20)
