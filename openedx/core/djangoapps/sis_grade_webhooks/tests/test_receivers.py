@@ -23,10 +23,10 @@ class QueueAssessmentGradeTest(SimpleTestCase):
         )
 
         payload = delay.call_args.args[0]
-        self.assertEqual(payload["user"], {"id": 42, "username": "learner"})
-        self.assertEqual(payload["score"], 8.0)
-        self.assertEqual(payload["max_score"], 10.0)
-        self.assertEqual(len(payload["event_id"]), 64)
+        assert payload["user"] == {"id": 42, "username": "learner"}
+        assert payload["score"] == 8.0
+        assert payload["max_score"] == 10.0
+        assert len(payload["event_id"]) == 64
 
     @patch(
         "openedx.core.djangoapps.sis_grade_webhooks.receivers."

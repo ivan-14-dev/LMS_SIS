@@ -26,9 +26,9 @@ class OfficialDocumentsTests(SimpleTestCase):
 
         rows = tenant_identity_rows(request, "Relevé", serial="REL-01", issue_date="2026-09-21")
 
-        self.assertIn(("Établissement", "Université Horizon"), rows)
-        self.assertIn(("Type d'établissement", "Université"), rows)
-        self.assertIn(("Numéro / série", "REL-01"), rows)
+        assert ("Établissement", "Université Horizon") in rows
+        assert ("Type d'établissement", "Université") in rows
+        assert ("Numéro / série", "REL-01") in rows
 
     def test_render_official_pdf_streams_pdf_response(self):
         fake_module = ModuleType("weasyprint")
@@ -51,6 +51,6 @@ class OfficialDocumentsTests(SimpleTestCase):
                 footer_rows=[("Signé", "Oui")],
             )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response["Content-Disposition"], 'attachment; filename="document.pdf"')
-        self.assertEqual(response.content, b"%PDF-test")
+        assert response.status_code == 200
+        assert response["Content-Disposition"] == 'attachment; filename="document.pdf"'
+        assert response.content == b"%PDF-test"

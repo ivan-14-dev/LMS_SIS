@@ -10,6 +10,6 @@ class StructureAPITestCase(SimpleTestCase):
         departement_history = resolve("/api/v1/structure/departements/1/historique/")
         ecole_history = resolve("/api/v1/structure/ecoles-doctorales/1/historique/")
 
-        self.assertEqual(faculte_history.url_name, "faculte-historique")
-        self.assertEqual(departement_history.url_name, "departement-historique")
-        self.assertEqual(ecole_history.url_name, "ecole-doctorale-historique")
+        assert faculte_history.url_name == "faculte-historique"
+        assert departement_history.url_name == "departement-historique"
+        assert ecole_history.url_name == "ecole-doctorale-historique"

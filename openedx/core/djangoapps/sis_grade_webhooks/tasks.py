@@ -8,6 +8,7 @@ import requests
 from celery import shared_task
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from edx_django_utils.monitoring import set_code_owner_attribute
 
 EVENT_TYPE = "org.openedx.learning.course.assessment.grade.changed.v1"
 logger = logging.getLogger(__name__)
@@ -50,6 +51,7 @@ def _validate_target(target):
     retry_jitter=True,
     max_retries=5,
 )
+@set_code_owner_attribute
 def publish_assessment_grade(payload):
     """Publish one normalized assessment grade to its configured SIS targets."""
     body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()

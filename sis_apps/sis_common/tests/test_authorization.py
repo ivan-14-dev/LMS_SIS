@@ -1,4 +1,5 @@
 from django.test import SimpleTestCase
+
 from sis_common.authorization import (
     configured_permission_groups,
     has_business_permission,
@@ -57,19 +58,19 @@ class AuthorizationTests(SimpleTestCase):
             attributes={"permission_scopes": {permission: {"classes": [1, 2]}}},
         )
 
-        self.assertFalse(has_business_permission(user, permission))
-        self.assertTrue(has_business_permission(user, permission, {"classes": 2}))
-        self.assertFalse(has_business_permission(user, permission, {"classes": 3}))
+        assert not has_business_permission(user, permission)
+        assert has_business_permission(user, permission, {"classes": 2})
+        assert not has_business_permission(user, permission, {"classes": 3})
 
     def test_dynamic_permission_precedes_legacy_role_fallback(self):
         permission = "notes.change_reglevalidation"
         user = FakeUser(permissions=[permission])
 
-        self.assertTrue(has_business_permission_or_role(user, permission, ("direction",)))
+        assert has_business_permission_or_role(user, permission, ("direction",))
 
         legacy_user = FakeUser()
         legacy_user.role = "direction"
-        self.assertTrue(has_business_permission_or_role(legacy_user, permission, ("direction",)))
+        assert has_business_permission_or_role(legacy_user, permission, ("direction",))
 
     def test_configured_permission_groups_are_resolved_from_permissions_and_attributes(self):
         configuration = {
@@ -87,7 +88,7 @@ class AuthorizationTests(SimpleTestCase):
             attributes={"domains": ["finance"]},
         )
 
-        self.assertEqual(configured_permission_groups(user, configuration), ["finance_manager"])
+        assert configured_permission_groups(user, configuration) == ["finance_manager"]
 
     def test_permission_snapshot_merges_django_and_configured_groups(self):
         configuration = {
@@ -108,7 +109,7 @@ class AuthorizationTests(SimpleTestCase):
 
         snapshot = permission_snapshot(user, configuration)
 
-        self.assertEqual(snapshot["groups"], ["finance_manager", "staff"])
+        assert snapshot["groups"] == ["finance_manager", "staff"]
 
     def test_user_in_configured_groups_supports_backend_authorization(self):
         configuration = {
@@ -126,8 +127,8 @@ class AuthorizationTests(SimpleTestCase):
             attributes={"campus": "centre"},
         )
 
-        self.assertTrue(user_in_configured_groups(user, configuration, ("academic_admin_superieur",)))
-        self.assertFalse(user_in_configured_groups(user, configuration, ("finance_manager_superieur",)))
+        assert user_in_configured_groups(user, configuration, ("academic_admin_superieur",))
+        assert not user_in_configured_groups(user, configuration, ("finance_manager_superieur",))
 
     def test_tenant_group_can_authorize_when_permission_is_missing(self):
         configuration = {
@@ -142,14 +143,7 @@ class AuthorizationTests(SimpleTestCase):
         }
         user = FakeUser(permissions=["diplomes.change_cessiondiplome"])
 
-        self.assertTrue(
-            has_business_permission_or_role(
-                user,
-                "releves.change_transcript",
-                configuration=configuration,
-                tenant_group_codes=("document_signatory_superieur",),
-            )
-        )
+        assert has_business_permission_or_role(user, "releves.change_transcript", configuration=configuration, tenant_group_codes=("document_signatory_superieur",))
 
     def test_request_helper_reads_tenant_configuration(self):
         configuration = {
@@ -167,13 +161,7 @@ class AuthorizationTests(SimpleTestCase):
             configuration,
         )
 
-        self.assertTrue(
-            request_has_business_access(
-                request,
-                "examens.view_convocationexamen",
-                tenant_group_codes=("exam_manager_secondary",),
-            )
-        )
+        assert request_has_business_access(request, "examens.view_convocationexamen", tenant_group_codes=("exam_manager_secondary",))
 
     def test_request_helper_supports_new_workflow_groups(self):
         configuration = {
@@ -191,13 +179,7 @@ class AuthorizationTests(SimpleTestCase):
             configuration,
         )
 
-        self.assertTrue(
-            request_has_business_access(
-                request,
-                "memoires.change_jurymemoire",
-                tenant_group_codes=("memoire_manager_superieur",),
-            )
-        )
+        assert request_has_business_access(request, "memoires.change_jurymemoire", tenant_group_codes=("memoire_manager_superieur",))
 
     def test_request_helper_supports_core_management_groups(self):
         configuration = {
@@ -215,13 +197,7 @@ class AuthorizationTests(SimpleTestCase):
             configuration,
         )
 
-        self.assertTrue(
-            request_has_business_access(
-                request,
-                "etudiants.change_inscriptionadministrative",
-                tenant_group_codes=("student_manager_superieur",),
-            )
-        )
+        assert request_has_business_access(request, "etudiants.change_inscriptionadministrative", tenant_group_codes=("student_manager_superieur",))
 
     def test_request_helper_supports_remaining_management_groups(self):
         configuration = {
@@ -239,25 +215,13 @@ class AuthorizationTests(SimpleTestCase):
             configuration,
         )
 
-        self.assertTrue(
-            request_has_business_access(
-                request,
-                "recherche.change_these",
-                tenant_group_codes=("research_manager_superieur",),
-            )
-        )
+        assert request_has_business_access(request, "recherche.change_these", tenant_group_codes=("research_manager_superieur",))
 
     def test_request_helper_supports_legacy_read_roles(self):
         request = FakeRequest(FakeUser())
         request.user.role = "parent"
 
-        self.assertTrue(
-            request_has_business_access(
-                request,
-                "notes.view_note",
-                ("parent",),
-            )
-        )
+        assert request_has_business_access(request, "notes.view_note", ("parent",))
 
     def test_request_helper_supports_portal_group_access(self):
         configuration = {
@@ -278,10 +242,4 @@ class AuthorizationTests(SimpleTestCase):
             configuration,
         )
 
-        self.assertTrue(
-            request_has_business_access(
-                request,
-                "etudiants.view_etudiant",
-                tenant_group_codes=("portal_admin",),
-            )
-        )
+        assert request_has_business_access(request, "etudiants.view_etudiant", tenant_group_codes=("portal_admin",))

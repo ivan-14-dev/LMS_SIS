@@ -15,11 +15,11 @@ class RelevesAPITestCase(SimpleTestCase):
         attestation_pdf_match = resolve("/api/v1/releves/attestations/1/pdf_officiel/")
         attestation_history_match = resolve("/api/v1/releves/attestations/1/historique/")
 
-        self.assertEqual(list_match.url_name, "releve-list")
-        self.assertEqual(detail_match.url_name, "releve-detail")
-        self.assertEqual(pdf_match.url_name, "releve-pdf-officiel")
-        self.assertEqual(history_match.url_name, "releve-historique")
-        self.assertEqual(transcript_pdf_match.url_name, "transcript-pdf-officiel")
-        self.assertEqual(transcript_history_match.url_name, "transcript-historique")
-        self.assertEqual(attestation_pdf_match.url_name, "attestation-pdf-officiel")
-        self.assertEqual(attestation_history_match.url_name, "attestation-historique")
+        assert list_match.url_name == "releve-list"
+        assert detail_match.url_name == "releve-detail"
+        assert pdf_match.url_name == "releve-pdf-officiel"
+        assert history_match.url_name == "releve-historique"
+        assert transcript_pdf_match.url_name == "transcript-pdf-officiel"
+        assert transcript_history_match.url_name == "transcript-historique"
+        assert attestation_pdf_match.url_name == "attestation-pdf-officiel"
+        assert attestation_history_match.url_name == "attestation-historique"

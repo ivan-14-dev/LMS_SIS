@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
 from sis_common.authorization import request_has_business_access, user_has_any_role
 
 from .models import Appel, Justificatif, Presence

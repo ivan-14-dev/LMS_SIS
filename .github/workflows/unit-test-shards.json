@@ -142,6 +142,7 @@
       "openedx/core/djangoapps/service_status/",
       "openedx/core/djangoapps/session_inactivity_timeout/",
       "openedx/core/djangoapps/signals/",
+      "openedx/core/djangoapps/sis_grade_webhooks/",
       "openedx/core/djangoapps/site_configuration/",
       "openedx/core/djangoapps/system_wide_roles/",
       "openedx/core/djangoapps/theming/",

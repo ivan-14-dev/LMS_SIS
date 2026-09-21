@@ -32,7 +32,7 @@ class EdxJWTAuthentication(BaseAuthentication):
             try:
                 token = header[1].decode("ascii")
             except UnicodeDecodeError:
-                raise AuthenticationFailed("Jeton JWT Open edX invalide.")
+                raise AuthenticationFailed("Jeton JWT Open edX invalide.") from None
         else:
             return None
 
@@ -62,7 +62,7 @@ class EdxJWTAuthentication(BaseAuthentication):
         except AuthenticationFailed:
             raise
         except (UnicodeDecodeError, ValueError, jwt.PyJWTError):
-            raise AuthenticationFailed("Jeton JWT Open edX invalide.")
+            raise AuthenticationFailed("Jeton JWT Open edX invalide.") from None
 
         user = self._get_user(payload)
         if uses_cookie:
@@ -87,7 +87,7 @@ class EdxJWTAuthentication(BaseAuthentication):
         try:
             jwk_set = jwt.PyJWKSet.from_json(settings.EDX_JWT_PUBLIC_SIGNING_JWK_SET)
         except (json.JSONDecodeError, jwt.PyJWTError, ValueError, TypeError):
-            raise AuthenticationFailed("Configuration JWT Open edX invalide.")
+            raise AuthenticationFailed("Configuration JWT Open edX invalide.") from None
 
         matching_keys = [key for key in jwk_set.keys if key.key_id == key_id]
         if key_id is None and len(jwk_set.keys) == 1:
@@ -106,7 +106,7 @@ class EdxJWTAuthentication(BaseAuthentication):
                 actif=True,
             )
         except mapping_model.DoesNotExist:
-            raise AuthenticationFailed("Aucun compte SIS actif n'est associé à cet utilisateur.")
+            raise AuthenticationFailed("Aucun compte SIS actif n'est associé à cet utilisateur.") from None
 
         edx_user_id = payload.get("user_id")
         if (

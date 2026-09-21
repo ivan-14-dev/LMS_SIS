@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
+
 from sis_common.document_policies import enforce_financial_clearance
 
 
@@ -44,8 +45,8 @@ class DocumentPoliciesTests(SimpleTestCase):
         ):
             response = decorated(FakeView(type("Obj", (), {"id": 7})()), FakeRequest())
 
-        self.assertEqual(response.status_code, 409)
-        self.assertEqual(response.data["error"], "blocked")
+        assert response.status_code == 409
+        assert response.data["error"] == "blocked"
 
     def test_decorator_allows_action_when_clearance_is_not_required(self):
         decorated = enforce_financial_clearance(
@@ -61,4 +62,4 @@ class DocumentPoliciesTests(SimpleTestCase):
         with patch("sis_common.document_policies.requires_financial_clearance", return_value=False):
             result = decorated(FakeView(type("Obj", (), {"id": 9})()), FakeRequest())
 
-        self.assertEqual(result, 9)
+        assert result == 9

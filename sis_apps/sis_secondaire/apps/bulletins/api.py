@@ -1,12 +1,12 @@
 """API views for bulletins (ViewSets DRF) - SIS Secondaire."""
 
+from apps.notes.api import BulletinsViewSet as _BulletinsViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from apps.notes.api import BulletinsViewSet as _BulletinsViewSet
 
 from .models import AppreciationMatiere
 from .serializers import AppreciationMatiereCreateSerializer, AppreciationMatiereSerializer

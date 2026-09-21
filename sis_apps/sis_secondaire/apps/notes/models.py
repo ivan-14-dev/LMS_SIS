@@ -6,6 +6,7 @@ from apps.enseignants.models import Personnel
 from apps.etablissement.models import Periode
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+
 from sis_common.academic_configuration import evaluate_rule_criteria
 
 
@@ -184,6 +185,9 @@ class RegleValidation(models.Model):
                 name="unique_regle_validation_secondaire",
             )
         ]
+
+    def __str__(self):
+        return f"{self.code} - {self.libelle}"
 
     def evaluer(
         self,

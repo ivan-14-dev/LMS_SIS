@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import pytest
 from django.test import SimpleTestCase
 from rest_framework.exceptions import ValidationError
 
@@ -12,7 +13,7 @@ class SpreadsheetImportTests(SimpleTestCase):
         mocked_loader.return_value = [["epreuve_id", "eleve_matricule"], [1, "MAT-001"]]
         uploaded_file = type("File", (), {"name": "resultats.xlsx", "read": lambda self: b""})()
 
-        with self.assertRaises(ValidationError):
+        with pytest.raises(ValidationError):
             load_excel_rows(
                 uploaded_file,
                 ["epreuve_id", "eleve_matricule", "note"],
@@ -26,5 +27,5 @@ class SpreadsheetImportTests(SimpleTestCase):
         ]
         uploaded_file = type("File", (), {"name": "resultats.xlsx", "read": lambda self: b""})()
 
-        with self.assertRaises(ValidationError):
+        with pytest.raises(ValidationError):
             load_excel_rows(uploaded_file, ["epreuve_id", "eleve_matricule", "note"])

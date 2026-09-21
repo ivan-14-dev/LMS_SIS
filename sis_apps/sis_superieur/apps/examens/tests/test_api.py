@@ -16,30 +16,12 @@ class ExamensAPITestCase(TestCase):
         self.factory = APIRequestFactory()
 
     def test_exam_routes_are_exposed(self):
-        self.assertEqual(
-            resolve("/api/v1/examens/epreuves/").url_name,
-            "epreuve-examen-list",
-        )
-        self.assertEqual(
-            resolve("/api/v1/examens/epreuves/1/historique/").url_name,
-            "epreuve-examen-historique",
-        )
-        self.assertEqual(
-            resolve("/api/v1/examens/sessions/1/historique/").url_name,
-            "session-examen-historique",
-        )
-        self.assertEqual(
-            resolve("/api/v1/examens/convocations/").url_name,
-            "convocation-examen-list",
-        )
-        self.assertEqual(
-            resolve("/api/v1/examens/resultats/").url_name,
-            "resultat-examen-list",
-        )
-        self.assertEqual(
-            resolve("/api/v1/examens/resultats/exporter/").url_name,
-            "resultat-examen-exporter",
-        )
+        assert resolve("/api/v1/examens/epreuves/").url_name == "epreuve-examen-list"
+        assert resolve("/api/v1/examens/epreuves/1/historique/").url_name == "epreuve-examen-historique"
+        assert resolve("/api/v1/examens/sessions/1/historique/").url_name == "session-examen-historique"
+        assert resolve("/api/v1/examens/convocations/").url_name == "convocation-examen-list"
+        assert resolve("/api/v1/examens/resultats/").url_name == "resultat-examen-list"
+        assert resolve("/api/v1/examens/resultats/exporter/").url_name == "resultat-examen-exporter"
 
     def test_exam_manager_role_can_access_sensitive_actions(self):
         request = SimpleNamespace(
@@ -49,7 +31,7 @@ class ExamensAPITestCase(TestCase):
             ),
         )
 
-        self.assertTrue(IsExamManager().has_permission(request, None))
+        assert IsExamManager().has_permission(request, None)
 
     def test_student_cannot_access_sensitive_exam_actions(self):
         request = SimpleNamespace(
@@ -59,7 +41,7 @@ class ExamensAPITestCase(TestCase):
             ),
         )
 
-        self.assertFalse(IsExamManager().has_permission(request, None))
+        assert not IsExamManager().has_permission(request, None)
 
     def test_default_configuration_resolves_superior_exam_workflow(self):
         from sis_common.academic_configuration import (
@@ -73,10 +55,10 @@ class ExamensAPITestCase(TestCase):
             variant="superieur",
         )
 
-        self.assertEqual(workflow["code"], "default_superior_exam_results")
+        assert workflow["code"] == "default_superior_exam_results"
 
     @patch("apps.examens.api.request_has_business_access", return_value=False)
-    def test_student_queryset_only_returns_published_results(self, _business_access):
+    def test_student_queryset_only_returns_published_results(self, _business_access):  # noqa: PT019
         request = self.factory.get("/api/v1/examens/resultats/")
         student = SimpleNamespace(is_authenticated=True, is_staff=False, role="etudiant")
         request.user = student
@@ -100,8 +82,8 @@ class ExamensAPITestCase(TestCase):
         with patch("apps.examens.api.ResultatExamen.objects", SimpleNamespace(select_related=lambda *_args: queryset)):
             result = view.get_queryset()
 
-        self.assertIs(result, queryset)
-        self.assertEqual(queryset.filters, [{"etudiant__user": student, "statut": "published"}])
+        assert result is queryset
+        assert queryset.filters == [{"etudiant__user": student, "statut": "published"}]
 
     def test_superior_exam_result_submission_allows_active_window(self):
         now = timezone.now()

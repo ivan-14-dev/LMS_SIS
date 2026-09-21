@@ -4,8 +4,8 @@ from datetime import timedelta
 from types import SimpleNamespace
 
 from celery import shared_task
-from django_tenants.utils import get_tenant_model, schema_context
 from django.utils import timezone
+from django_tenants.utils import get_tenant_model, schema_context
 
 from sis_common.academic_configuration import resolve_submission_window_settings
 from sis_common.submission_windows import maybe_record_submission_window_alert

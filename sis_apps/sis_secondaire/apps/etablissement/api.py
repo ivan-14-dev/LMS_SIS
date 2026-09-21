@@ -7,6 +7,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
 from sis_common.authorization import has_business_permission_or_role
 
 from .models import AnneeScolaire, Etablissement, Niveau, Periode

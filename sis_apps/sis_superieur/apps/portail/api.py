@@ -1,15 +1,15 @@
 """Consolidated learner/family and staff/admin portal APIs for SIS Supérieur."""
 
-from rest_framework import viewsets
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from sis_common.authorization import permission_snapshot, request_has_business_access
-
 from apps.portail_doyen.api import PortailDoyenViewSet
 from apps.portail_enseignant.api import PortailEnseignantViewSet
 from apps.portail_etudiant.api import PortailEtudiantViewSet
 from apps.portail_scolarite.api import PortailScolariteViewSet
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from sis_common.authorization import permission_snapshot, request_has_business_access
 
 
 def _delegate(viewset_class, request, action_name):

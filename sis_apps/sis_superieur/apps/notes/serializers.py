@@ -1,6 +1,7 @@
 """Serializers for notes (SIS Supérieur)."""
 
 from rest_framework import serializers
+
 from sis_common.academic_configuration import validate_rule_criteria
 from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 

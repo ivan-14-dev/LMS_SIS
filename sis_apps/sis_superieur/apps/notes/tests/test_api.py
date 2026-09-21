@@ -4,17 +4,16 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.test import SimpleTestCase
-from django.urls import resolve
-from django.utils import timezone
-from rest_framework.test import APIRequestFactory
-
 from apps.notes.api import (
     EvaluationsViewSet,
     MoyennesECUEViewSet,
     MoyennesUEViewSet,
     _ensure_superior_continuous_assessment,
 )
+from django.test import SimpleTestCase
+from django.urls import resolve
+from django.utils import timezone
+from rest_framework.test import APIRequestFactory
 
 
 class FakeQuerySet:
@@ -41,27 +40,28 @@ class NotesAPITestCase(SimpleTestCase):
         self.user = SimpleNamespace(
             is_authenticated=True,
             is_superuser=False,
-            has_perm=lambda permission: permission in {"notes.view_evaluation", "notes.view_moyenneecue", "notes.view_moyenneue"},
+            has_perm=lambda permission: permission
+            in {"notes.view_evaluation", "notes.view_moyenneecue", "notes.view_moyenneue"},
         )
 
     def test_evaluation_export_route_is_registered(self):
         match = resolve("/api/v1/notes/evaluations/exporter/")
 
-        self.assertEqual(match.url_name, "evaluation-exporter")
+        assert match.url_name == "evaluation-exporter"
 
     def test_evaluation_import_routes_are_registered(self):
         template_match = resolve("/api/v1/notes/evaluations/1/modele_import_notes/")
         import_match = resolve("/api/v1/notes/evaluations/1/importer_notes/")
 
-        self.assertEqual(template_match.url_name, "evaluation-modele-import-notes")
-        self.assertEqual(import_match.url_name, "evaluation-importer-notes")
+        assert template_match.url_name == "evaluation-modele-import-notes"
+        assert import_match.url_name == "evaluation-importer-notes"
 
     def test_average_export_routes_are_registered(self):
         ecue_match = resolve("/api/v1/notes/moyennes-ecue/exporter/")
         ue_match = resolve("/api/v1/notes/moyennes-ue/exporter/")
 
-        self.assertEqual(ecue_match.url_name, "moyenne-ecue-exporter")
-        self.assertEqual(ue_match.url_name, "moyenne-ue-exporter")
+        assert ecue_match.url_name == "moyenne-ecue-exporter"
+        assert ue_match.url_name == "moyenne-ue-exporter"
 
     def test_evaluation_export_uses_tenant_report_configuration(self):
         request = self.factory.post(
@@ -95,14 +95,19 @@ class NotesAPITestCase(SimpleTestCase):
 
         response = view.exporter(request)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(queryset.filters, [{"modalite": "cc"}])
-        self.assertEqual(queryset.selected_fields, ("titre", "modalite"))
-        self.assertIn("CC1,cc", response.content.decode())
+        assert response.status_code == 200
+        assert queryset.filters == [{"modalite": "cc"}]
+        assert queryset.selected_fields == ("titre", "modalite")
+        assert "CC1,cc" in response.content.decode()
 
     @patch("apps.notes.api._import_superior_notes", return_value=(3, 0))
-    @patch("apps.notes.api.load_excel_rows", return_value=[{"matricule": "SUP-001", "note": "15", "appreciation": "", "statut": "presente", "__row_number__": 2}])
-    def test_superior_note_import_uses_excel_template_rules(self, _load_rows, _import_notes):
+    @patch(
+        "apps.notes.api.load_excel_rows",
+        return_value=[
+            {"matricule": "SUP-001", "note": "15", "appreciation": "", "statut": "presente", "__row_number__": 2}
+        ],
+    )
+    def test_superior_note_import_uses_excel_template_rules(self, _load_rows, _import_notes):  # noqa: PT019
         request = self.factory.post("/api/v1/notes/evaluations/1/importer_notes/", {}, format="multipart")
         request.user = self.user
         request.tenant = SimpleNamespace(
@@ -122,14 +127,14 @@ class NotesAPITestCase(SimpleTestCase):
 
         response = view.importer_notes(request, pk=1)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["evaluation_id"], 1)
-        self.assertEqual(response.data["notes_creees"], 3)
-        self.assertEqual(response.data["notes_modifiees"], 0)
+        assert response.status_code == 200
+        assert response.data["evaluation_id"] == 1
+        assert response.data["notes_creees"] == 3
+        assert response.data["notes_modifiees"] == 0
 
     @patch("apps.notes.api.request_has_business_access", return_value=True)
     @patch("apps.notes.api.filter_queryset_by_scopes", side_effect=lambda qs, *_args, **_kwargs: qs)
-    def test_average_exports_use_tenant_report_configuration(self, _scoped_queryset, _business_access):
+    def test_average_exports_use_tenant_report_configuration(self, _scoped_queryset, _business_access):  # noqa: PT019
         ecue_request = self.factory.post(
             "/api/v1/notes/moyennes-ecue/exporter/",
             {
@@ -188,15 +193,15 @@ class NotesAPITestCase(SimpleTestCase):
         ecue_response = ecue_view.exporter(ecue_request)
         ue_response = ue_view.exporter(ue_request)
 
-        self.assertEqual(ecue_response.status_code, 200)
-        self.assertEqual(ecue_queryset.filters, [{"valide": True}])
-        self.assertEqual(ecue_queryset.selected_fields, ("etudiant__matricule", "moyenne"))
-        self.assertIn("SUP-001,15.25", ecue_response.content.decode())
+        assert ecue_response.status_code == 200
+        assert ecue_queryset.filters == [{"valide": True}]
+        assert ecue_queryset.selected_fields == ("etudiant__matricule", "moyenne")
+        assert "SUP-001,15.25" in ecue_response.content.decode()
 
-        self.assertEqual(ue_response.status_code, 200)
-        self.assertEqual(ue_queryset.filters, [{"capitalisee": True}])
-        self.assertEqual(ue_queryset.selected_fields, ("etudiant__matricule", "credits_obtenus"))
-        self.assertIn("SUP-001,30.0", ue_response.content.decode())
+        assert ue_response.status_code == 200
+        assert ue_queryset.filters == [{"capitalisee": True}]
+        assert ue_queryset.selected_fields == ("etudiant__matricule", "credits_obtenus")
+        assert "SUP-001,30.0" in ue_response.content.decode()
 
     def test_superior_continuous_assessment_allows_submission_inside_window(self):
         now = timezone.now()

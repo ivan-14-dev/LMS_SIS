@@ -12,8 +12,8 @@ class BulletinsAPITestCase(SimpleTestCase):
         history_match = resolve("/api/v1/bulletins/1/historique/")
         appreciations_match = resolve("/api/v1/bulletins/appreciations/")
 
-        self.assertEqual(list_match.url_name, "bulletin-list")
-        self.assertEqual(detail_match.url_name, "bulletin-detail")
-        self.assertEqual(pdf_match.url_name, "bulletin-pdf-officiel")
-        self.assertEqual(history_match.url_name, "bulletin-historique")
-        self.assertEqual(appreciations_match.url_name, "appreciation-matiere-list")
+        assert list_match.url_name == "bulletin-list"
+        assert detail_match.url_name == "bulletin-detail"
+        assert pdf_match.url_name == "bulletin-pdf-officiel"
+        assert history_match.url_name == "bulletin-historique"
+        assert appreciations_match.url_name == "appreciation-matiere-list"

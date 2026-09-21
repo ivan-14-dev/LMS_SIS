@@ -3,9 +3,10 @@
 import apps.examens.models
 import django.core.validators
 import django.db.models.deletion
-import sis_common.exam_files
 from django.conf import settings
 from django.db import migrations, models
+
+import sis_common.exam_files
 
 
 class Migration(migrations.Migration):

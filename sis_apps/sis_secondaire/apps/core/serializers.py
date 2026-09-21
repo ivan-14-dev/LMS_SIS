@@ -2,6 +2,7 @@
 
 from apps.core.models import WorkflowEvent, WorkflowNotification
 from rest_framework import serializers
+
 from sis_common.notification_channels import delivery_channels, delivery_last_errors, delivery_status_summary
 
 

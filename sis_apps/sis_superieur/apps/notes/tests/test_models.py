@@ -22,7 +22,7 @@ class NotesModelTestCase(SimpleTestCase):
             note_minimale=Decimal("8"),
         )
 
-        self.assertEqual(result, {"reussi": True, "motifs": []})
+        assert result == {"reussi": True, "motifs": []}
 
     def test_validation_rule_requires_custom_criterion_data(self):
         rule = RegleValidation(
@@ -33,7 +33,7 @@ class NotesModelTestCase(SimpleTestCase):
 
         result = rule.evaluer(moyenne=Decimal("12"))
 
-        self.assertEqual(result["motifs"], ["critere:memoire"])
+        assert result["motifs"] == ["critere:memoire"]
 
     def test_validation_rule_applies_policy_overrides_and_financial_clearance(self):
         rule = RegleValidation(seuil_moyenne=Decimal("10"), credits_minimum=Decimal("30"))
@@ -48,7 +48,4 @@ class NotesModelTestCase(SimpleTestCase):
             },
         )
 
-        self.assertEqual(
-            result["motifs"],
-            ["moyenne_insuffisante", "credits_insuffisants", "financial_clearance_required"],
-        )
+        assert result["motifs"] == ["moyenne_insuffisante", "credits_insuffisants", "financial_clearance_required"]

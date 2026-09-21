@@ -147,7 +147,7 @@ def summarize_notification_delivery_trends(notifications):
     statuses = ("sent", "failed", "retrying", "queued", "skipped", "pending")
     trend_maps = {"day": {}, "week": {}, "month": {}}
     for notification in notifications:
-        labels = _trend_bucket_labels(getattr(notification, "created_at"))
+        labels = _trend_bucket_labels(notification.created_at)
         delivery = (getattr(notification, "metadata", {}) or {}).get("delivery", {})
         notification_statuses = {
             (details or {}).get("status", "pending")

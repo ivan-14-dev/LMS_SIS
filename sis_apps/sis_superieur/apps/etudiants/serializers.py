@@ -249,7 +249,8 @@ class AffectationECUEIndividuelleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {
                     "semestre_cible": (
-                        "Le semestre cible doit appartenir à la même année universitaire que l'inscription administrative."
+                        "Le semestre cible doit appartenir à la même année universitaire "
+                        "que l'inscription administrative."
                     )
                 }
             )

@@ -227,9 +227,13 @@ ignore = [
     "E721",  # use `isinstance()` for type comparisons
 ]
 
+[tool.ruff.lint.isort]
+known-first-party = ["sis_common"]
+
 [tool.isort]
 profile = "black"
 line_length = 120
+known_first_party = ["sis_common"]
 
 [tool.importlinter]
 root_packages = ["lms", "cms", "openedx", "openedx_content", "openedx_catalog"]

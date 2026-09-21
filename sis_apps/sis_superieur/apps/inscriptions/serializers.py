@@ -5,4 +5,3 @@ from apps.etudiants.serializers import InscriptionAdministrativeSerializer
 
 class InscriptionSerializer(InscriptionAdministrativeSerializer):
     """Backward-compatible serializer aligned with active enrollment models."""
-

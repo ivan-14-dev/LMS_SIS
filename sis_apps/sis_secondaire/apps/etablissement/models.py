@@ -3,6 +3,7 @@
 from django.core.validators import RegexValidator
 from django.db import models
 from django_tenants.models import DomainMixin, TenantMixin
+
 from sis_common.academic_configuration import (
     default_academic_configuration,
     validate_academic_configuration,
