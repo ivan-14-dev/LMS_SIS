@@ -55,34 +55,34 @@ const PortailStaffAdmin = () => {
 
   const { data: teacherDashboard, isLoading: loadingTeacher, isError: teacherError } = useQuery({
     queryKey: ['superieur-portail-staff-teacher-dashboard'],
-    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/enseignant/tableau_bord/`),
+    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/tableau_bord/`),
     enabled: viewMode === 'teacher',
   });
   const { data: notesASaisir = [] } = useQuery({
     queryKey: ['superieur-portail-staff-teacher-notes'],
-    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/enseignant/notes_a_saisir/`),
+    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/notes_a_saisir/`),
     enabled: viewMode === 'teacher',
   });
 
   const { data: registrarDashboard, isLoading: loadingRegistrar, isError: registrarError } = useQuery({
     queryKey: ['superieur-portail-staff-registrar-dashboard'],
-    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/scolarite/tableau_bord/`),
+    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/tableau_bord/`),
     enabled: viewMode === 'registrar',
   });
   const { data: registrarAlerts = [] } = useQuery({
     queryKey: ['superieur-portail-staff-registrar-alerts'],
-    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/scolarite/alertes/`),
+    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/alertes/`),
     enabled: viewMode === 'registrar',
   });
 
   const { data: leadershipDashboard, isLoading: loadingLeadership, isError: leadershipError } = useQuery({
     queryKey: ['superieur-portail-staff-leadership-dashboard'],
-    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/doyen/tableau_bord/`),
+    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/tableau_bord/`),
     enabled: viewMode === 'leadership',
   });
   const { data: formationStats = [] } = useQuery({
     queryKey: ['superieur-portail-staff-leadership-formations'],
-    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/doyen/statistiques_formations/`),
+    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/statistiques_formations/`),
     enabled: viewMode === 'leadership',
   });
 

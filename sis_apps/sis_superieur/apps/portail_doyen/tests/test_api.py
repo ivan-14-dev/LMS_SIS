@@ -14,14 +14,14 @@ class PortailDoyenAPITestCase(SimpleTestCase):
         self.factory = APIRequestFactory()
 
     def test_tableau_bord_route_is_registered(self):
-        match = resolve("/api/v1/portail/doyen/tableau_bord/")
+        match = resolve("/api/v1/portail/staff/tableau_bord/")
 
-        self.assertEqual(match.url_name, "portail-doyen-tableau-bord")
+        self.assertEqual(match.url_name, "portail-staff-tableau-bord")
 
-    def test_budget_route_is_registered(self):
-        match = resolve("/api/v1/portail/doyen/budget/")
+    def test_statistiques_formations_route_is_registered(self):
+        match = resolve("/api/v1/portail/staff/statistiques_formations/")
 
-        self.assertEqual(match.url_name, "portail-doyen-budget")
+        self.assertEqual(match.url_name, "portail-staff-statistiques-formations")
 
     def test_tableau_bord_rejects_invalid_faculte_id(self):
         request = self.factory.get("/api/v1/portail/doyen/tableau_bord/?faculte_id=abc")

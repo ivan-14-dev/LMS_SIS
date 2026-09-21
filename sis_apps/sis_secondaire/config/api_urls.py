@@ -29,9 +29,7 @@ urlpatterns = [
     path("infirmerie/", include("apps.infirmerie.urls_api")),
     path("clubs/", include("apps.clubs.urls_api")),
     path("stages/", include("apps.stages.urls_api")),
-    path("portail/eleve/", include("apps.portail_eleve.urls_api")),
-    path("portail/parent/", include("apps.portail_parent.urls_api")),
-    path("portail/enseignant/", include("apps.portail_enseignant.urls_api")),
+    path("portail/", include("apps.portail.urls_api")),
     path("integration/", include("apps.integration.urls_api")),
     path("", include(router.urls)),
 ]

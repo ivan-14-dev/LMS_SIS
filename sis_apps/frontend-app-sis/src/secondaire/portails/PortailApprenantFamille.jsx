@@ -22,19 +22,19 @@ const PortailApprenantFamille = () => {
 
   const { data: eleveDashboard, isLoading: loadingEleve } = useQuery({
     queryKey: ['secondaire-portail-apprenant-eleve-dashboard'],
-    queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/eleve/tableau_bord/`),
+    queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/apprenant/tableau_bord/`),
     enabled: isEleve,
   });
 
   const { data: bulletins = [] } = useQuery({
     queryKey: ['secondaire-portail-apprenant-eleve-bulletins'],
-    queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/eleve/bulletins/`),
+    queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/apprenant/bulletins/`),
     enabled: isEleve,
   });
 
   const { data: parentDashboard, isLoading: loadingParent } = useQuery({
     queryKey: ['secondaire-portail-apprenant-parent-dashboard'],
-    queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/parent/tableau_bord/`),
+    queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/apprenant/tableau_bord/`),
     enabled: isParent,
   });
 

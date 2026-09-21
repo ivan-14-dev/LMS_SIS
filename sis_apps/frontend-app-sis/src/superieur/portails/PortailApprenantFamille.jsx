@@ -21,13 +21,13 @@ const PortailApprenantFamille = () => {
 
   const { data: dashboard, isLoading: loadingDashboard } = useQuery({
     queryKey: ['superieur-portail-apprenant-dashboard'],
-    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/etudiant/tableau_bord/`),
+    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/apprenant/tableau_bord/`),
     enabled: isLearner,
   });
 
   const { data: releves = [] } = useQuery({
     queryKey: ['superieur-portail-apprenant-releves'],
-    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/etudiant/releves/`),
+    queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/apprenant/releves/`),
     enabled: isLearner,
   });
 

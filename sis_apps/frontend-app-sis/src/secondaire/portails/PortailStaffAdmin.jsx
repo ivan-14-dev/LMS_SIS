@@ -46,19 +46,19 @@ const PortailStaffAdmin = () => {
 
   const { data: dashboard, isLoading: loadingDashboard, isError: dashboardError } = useQuery({
     queryKey: ['secondaire-portail-staff-dashboard'],
-    queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/enseignant/tableau_bord/`),
+    queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/staff/tableau_bord/`),
     enabled: isStaffPortalCandidate,
   });
 
   const { data: classes = [] } = useQuery({
     queryKey: ['secondaire-portail-staff-classes'],
-    queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/enseignant/mes_classes/`),
+    queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/staff/mes_classes/`),
     enabled: isStaffPortalCandidate,
   });
 
   const { data: absences = [] } = useQuery({
     queryKey: ['secondaire-portail-staff-absences'],
-    queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/enseignant/absences_a_saisir/`),
+    queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/staff/absences_a_saisir/`),
     enabled: isStaffPortalCandidate,
   });
 

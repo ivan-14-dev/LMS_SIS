@@ -6,11 +6,11 @@ from django.urls import resolve
 
 class PortailEtudiantAPITestCase(SimpleTestCase):
     def test_tableau_bord_route_is_registered(self):
-        match = resolve("/api/v1/portail/etudiant/tableau_bord/")
+        match = resolve("/api/v1/portail/apprenant/tableau_bord/")
 
-        self.assertEqual(match.url_name, "portail-etudiant-tableau-bord")
+        self.assertEqual(match.url_name, "portail-apprenant-tableau-bord")
 
-    def test_factures_route_is_registered(self):
-        match = resolve("/api/v1/portail/etudiant/factures/")
+    def test_releves_route_is_registered(self):
+        match = resolve("/api/v1/portail/apprenant/releves/")
 
-        self.assertEqual(match.url_name, "portail-etudiant-factures")
+        self.assertEqual(match.url_name, "portail-apprenant-releves")

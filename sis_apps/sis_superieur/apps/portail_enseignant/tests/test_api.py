@@ -15,14 +15,14 @@ class PortailEnseignantAPITestCase(SimpleTestCase):
         self.user = SimpleNamespace(enseignant_profile=object())
 
     def test_tableau_bord_route_is_registered(self):
-        match = resolve("/api/v1/portail/enseignant/tableau_bord/")
+        match = resolve("/api/v1/portail/staff/tableau_bord/")
 
-        self.assertEqual(match.url_name, "portail-enseignant-tableau-bord")
+        self.assertEqual(match.url_name, "portail-staff-tableau-bord")
 
-    def test_etudiants_cours_route_is_registered(self):
-        match = resolve("/api/v1/portail/enseignant/etudiants_cours/")
+    def test_notes_a_saisir_route_is_registered(self):
+        match = resolve("/api/v1/portail/staff/notes_a_saisir/")
 
-        self.assertEqual(match.url_name, "portail-enseignant-etudiants-cours")
+        self.assertEqual(match.url_name, "portail-staff-notes-a-saisir")
 
     def test_etudiants_cours_rejects_unassigned_ecue(self):
         request = self.factory.get("/api/v1/portail/enseignant/etudiants_cours/?ecue_id=9")
