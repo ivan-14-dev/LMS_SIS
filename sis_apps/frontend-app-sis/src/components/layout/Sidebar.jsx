@@ -23,6 +23,7 @@ const menuSuperieur = [
       { path: '/superieur/jurys', label: 'Jurys', icon: Gavel },
       { path: '/superieur/releves', label: 'Relevés', icon: Description },
       { path: '/superieur/diplomes', label: 'Diplômes', icon: School },
+      { path: '/superieur/workflows', label: 'Workflows', icon: EventNote },
     ],
   },
   {
@@ -69,6 +70,7 @@ const menuSecondaire = [
       { path: '/secondaire/evaluations', label: 'Évaluations', icon: Assessment },
       { path: '/secondaire/bulletins', label: 'Bulletins', icon: Description },
       { path: '/secondaire/conseil-classe', label: 'Conseil de classe', icon: Groups },
+      { path: '/secondaire/workflows', label: 'Workflows', icon: EventNote },
     ],
   },
   {

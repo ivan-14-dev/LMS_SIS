@@ -126,6 +126,20 @@ export const useWorkflowHistory = (apiType = 'superieur', endpoint = '', enabled
   },
 });
 
+export const useWorkflowEvents = (apiType = 'superieur', params = {}) => useQuery({
+  queryKey: ['workflow-events', apiType, params],
+  queryFn: () => {
+    const queryString = new URLSearchParams(params).toString();
+    const suffix = queryString ? `?${queryString}` : '';
+    return fetchApi(`${getVariantApiUrl(apiType)}/core/workflow-events/${suffix}`);
+  },
+  select: (data) => {
+    if (Array.isArray(data)) { return data; }
+    if (data?.results && Array.isArray(data.results)) { return data.results; }
+    return [];
+  },
+});
+
 /**
  * Factory function to create CRUD hooks for a resource
  * @param {string} resourceName - Name of the resource (e.g., 'etudiants')

@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge, Button } from '@openedx/paragon';
 import { Add } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable } from '../../components/common';
+import {
+  PageHeader, SISDataTable, WorkflowHistoryPanel, WorkflowNotificationsPanel,
+} from '../../components/common';
 import { useInscriptions } from '../../services/api';
 
 const InscriptionsPage = () => {
   const { data: inscriptions = [], isLoading } = useInscriptions();
+  const [selectedInscriptionId, setSelectedInscriptionId] = useState(null);
 
   const columns = [
     { Header: 'Matricule', accessor: 'etudiant_matricule' },
@@ -26,6 +29,15 @@ const InscriptionsPage = () => {
         return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
       },
     },
+    {
+      Header: 'Workflow',
+      accessor: 'id',
+      Cell: ({ value }) => (
+        <Button size="sm" variant="outline-info" onClick={() => setSelectedInscriptionId(value)}>
+          Historique
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -35,6 +47,7 @@ const InscriptionsPage = () => {
         subtitle={`${inscriptions.length} inscriptions`}
         actions={<Button variant="primary" iconBefore={Add}>Nouvelle inscription</Button>}
       />
+      <WorkflowNotificationsPanel apiType="superieur" />
       <SISDataTable
         title="Liste des inscriptions"
         data={inscriptions}
@@ -42,6 +55,11 @@ const InscriptionsPage = () => {
         loading={isLoading}
         searchable
         exportable
+      />
+      <WorkflowHistoryPanel
+        apiType="superieur"
+        endpoint={selectedInscriptionId ? `inscriptions/${selectedInscriptionId}/historique/` : ''}
+        title="Historique de l'inscription"
       />
     </div>
   );

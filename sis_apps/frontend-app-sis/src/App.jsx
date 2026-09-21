@@ -37,6 +37,7 @@ import BibliothequePage from './superieur/bibliotheque/BibliothequePage';
 import MobilitePage from './superieur/mobilite/MobilitePage';
 import JurysPage from './superieur/jurys/JurysPage';
 import RelevesPage from './superieur/releves/RelevesPage';
+import WorkflowCenterPage from './workflow/WorkflowCenterPage';
 
 // Portails Supérieur
 import PortailEtudiant from './superieur/portails/PortailEtudiant';
@@ -109,6 +110,7 @@ const App = () => (
             <Route path="jurys" element={<JurysPage />} />
             <Route path="releves" element={<RelevesPage />} />
             <Route path="diplomes" element={<DiplomesPage />} />
+            <Route path="workflows" element={<WorkflowCenterPage apiType="superieur" title="Centre workflow supérieur" subtitle="Notifications et historique global des workflows du supérieur" />} />
 
             {/* Vie étudiante */}
             <Route path="bourses" element={<BoursesPage />} />
@@ -164,6 +166,7 @@ const App = () => (
               )}
             />
             <Route path="bulletins" element={<BulletinsPage />} />
+            <Route path="workflows" element={<WorkflowCenterPage apiType="secondaire" title="Centre workflow secondaire" subtitle="Notifications et historique global des workflows du secondaire" />} />
             <Route path="conseil-classe" element={<ConseilClassePage />} />
 
             {/* Vie scolaire */}
