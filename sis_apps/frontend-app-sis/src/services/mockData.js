@@ -139,29 +139,3 @@ export const mockStructure = {
     { id: 2, nom: 'Mathématiques', faculte: 'Faculté des Sciences', chef: 'Pr. TAHIRI', enseignants: 20 },
   ],
 };
-
-// Portail Etudiant
-export const mockPortailEtudiant = {
-  profil: {
-    matricule: 'ETU-2026-001',
-    nom: 'BENNANI',
-    prenom: 'Ahmed',
-    email: 'ahmed.bennani@univ.ma',
-    filiere: 'Sciences Informatiques',
-    niveau: 'Licence 2',
-    photo: null,
-  },
-  notes: [
-    { cours: 'Algorithmique Avancée', note: 15.5, credits: 6, statut: 'Validé' },
-    { cours: 'Bases de données', note: 14.0, credits: 4, statut: 'Validé' },
-    { cours: 'Analyse numérique', note: 12.5, credits: 5, statut: 'Validé' },
-  ],
-  emploi_du_temps: [
-    { jour: 'Lundi', heure: '08:30-10:30', cours: 'Algorithmique', salle: 'A101' },
-    { jour: 'Lundi', heure: '14:00-16:00', cours: 'TP Bases de données', salle: 'Labo 3' },
-    { jour: 'Mardi', heure: '10:30-12:30', cours: 'Analyse numérique', salle: 'B205' },
-  ],
-  solde_scolarite: 5000,
-  credits_valides: 45,
-  credits_requis: 180,
-};
