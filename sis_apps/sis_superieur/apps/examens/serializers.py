@@ -10,6 +10,7 @@ from .models import (
     CopieExamen,
     CorrectionCopie,
     EpreuveExamen,
+    ResultatExamen,
     SessionExamen,
 )
 
@@ -159,6 +160,78 @@ class ConvocationExamenSerializer(serializers.ModelSerializer):
             "date_notification",
         ]
         read_only_fields = ["id"]
+
+
+class ResultatExamenSerializer(serializers.ModelSerializer):
+    """Serializer pour les résultats d'examen."""
+
+    session_numero = serializers.IntegerField(source="epreuve.session.numero", read_only=True)
+    session_type = serializers.CharField(source="epreuve.session.get_type_display", read_only=True)
+    ecue_code = serializers.CharField(source="epreuve.ecue.code", read_only=True)
+    ecue_nom = serializers.CharField(source="epreuve.ecue.nom", read_only=True)
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
+    statut_display = serializers.CharField(source="get_statut_display", read_only=True)
+    type_resultat_display = serializers.CharField(
+        source="get_type_resultat_display", read_only=True
+    )
+
+    class Meta:
+        model = ResultatExamen
+        fields = [
+            "id",
+            "epreuve",
+            "session_numero",
+            "session_type",
+            "ecue_code",
+            "ecue_nom",
+            "etudiant",
+            "etudiant_matricule",
+            "etudiant_nom",
+            "note",
+            "appreciation",
+            "numero_anonyme",
+            "statut",
+            "statut_display",
+            "type_resultat",
+            "type_resultat_display",
+            "admis",
+            "mention",
+            "saisi_par",
+            "saisi_le",
+            "verifie_par",
+            "verifie_le",
+            "valide_par",
+            "valide_le",
+            "publie_par",
+            "publie_le",
+            "reouvert_par",
+            "reouvert_le",
+            "cloture_par",
+            "cloture_le",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "numero_anonyme",
+            "admis",
+            "mention",
+            "saisi_par",
+            "saisi_le",
+            "verifie_par",
+            "verifie_le",
+            "valide_par",
+            "valide_le",
+            "publie_par",
+            "publie_le",
+            "reouvert_par",
+            "reouvert_le",
+            "cloture_par",
+            "cloture_le",
+        ]
 
 
 class CopieExamenSerializer(serializers.ModelSerializer):

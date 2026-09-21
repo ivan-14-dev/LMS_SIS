@@ -134,10 +134,14 @@ class AcademicConfigurationTests(SimpleTestCase):
         averages_dataset = next(
             dataset for dataset in schema["report_datasets"] if dataset["code"] == "averages_ecue"
         )
+        exam_results_dataset = next(
+            dataset for dataset in schema["report_datasets"] if dataset["code"] == "exam_results"
+        )
 
         self.assertEqual(payments_dataset["label"], "Paiements")
         self.assertIn({"code": "rubrique", "label": "Rubrique"}, payments_dataset["allowed_filters"])
         self.assertIn({"code": "moyenne", "label": "Moyenne"}, averages_dataset["fields"])
+        self.assertIn({"code": "ecue", "label": "ECUE"}, exam_results_dataset["fields"])
         self.assertNotIn("bulletins", {dataset["code"] for dataset in schema["report_datasets"]})
 
     def test_secondary_schema_exposes_bulletins_without_university_average_datasets(self):
@@ -236,3 +240,11 @@ class AcademicConfigurationTests(SimpleTestCase):
         )
 
         self.assertEqual(workflow["code"], "default_secondary_exam_results")
+
+        superior_workflow = resolve_exam_result_workflow(
+            configuration,
+            {"scope": "tenant", "context": {"tenant_id": 7}},
+            variant="superieur",
+        )
+
+        self.assertEqual(superior_workflow["code"], "default_superior_exam_results")

@@ -113,6 +113,101 @@ class ConvocationExamen(models.Model):
         return f"Convocation {self.etudiant} - {self.epreuve}"
 
 
+class ResultatExamen(models.Model):
+    """Résultat d'un étudiant à une épreuve."""
+
+    STATUT_CHOICES = [
+        ("draft", "Brouillon"),
+        ("submitted", "Soumis"),
+        ("verified", "Vérifié"),
+        ("validated", "Validé"),
+        ("published", "Publié"),
+        ("reopened", "Réouvert"),
+        ("closed", "Clôturé"),
+    ]
+    TYPE_RESULTAT_CHOICES = [
+        ("normal", "Ordinaire"),
+        ("retake", "Rattrapage"),
+    ]
+
+    epreuve = models.ForeignKey(
+        EpreuveExamen, on_delete=models.CASCADE, related_name="resultats"
+    )
+    etudiant = models.ForeignKey(
+        "etudiants.Etudiant", on_delete=models.CASCADE, related_name="resultats_examen"
+    )
+    note = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    appreciation = models.TextField(blank=True)
+    numero_anonyme = models.CharField(max_length=20, blank=True)
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="draft")
+    type_resultat = models.CharField(
+        max_length=20, choices=TYPE_RESULTAT_CHOICES, default="normal"
+    )
+    admis = models.BooleanField(default=False)
+    mention = models.CharField(max_length=30, blank=True)
+    saisi_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resultats_examens_superieur_saisis",
+    )
+    saisi_le = models.DateTimeField(null=True, blank=True)
+    verifie_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resultats_examens_superieur_verifies",
+    )
+    verifie_le = models.DateTimeField(null=True, blank=True)
+    valide_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resultats_examens_superieur_valides",
+    )
+    valide_le = models.DateTimeField(null=True, blank=True)
+    publie_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resultats_examens_superieur_publies",
+    )
+    publie_le = models.DateTimeField(null=True, blank=True)
+    reouvert_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resultats_examens_superieur_reouverts",
+    )
+    reouvert_le = models.DateTimeField(null=True, blank=True)
+    cloture_par = models.ForeignKey(
+        Utilisateur,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="resultats_examens_superieur_clotures",
+    )
+    cloture_le = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
+
+    class Meta:
+        unique_together = [("epreuve", "etudiant")]
+        verbose_name = "Résultat d'examen"
+        verbose_name_plural = "Résultats d'examen"
+        indexes = [
+            models.Index(fields=["statut", "type_resultat"]),
+        ]
+
+    def __str__(self):
+        return f"{self.etudiant} - {self.epreuve} : {self.note}"
+
+
 class CopieExamen(models.Model):
     """Copie PDF privée, identifiée uniquement par un numéro anonyme."""
 

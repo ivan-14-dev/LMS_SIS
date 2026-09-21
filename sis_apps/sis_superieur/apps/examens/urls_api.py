@@ -8,6 +8,7 @@ from .api import (
     CopiesExamenViewSet,
     CorrectionsCopieViewSet,
     EpreuvesExamenViewSet,
+    ResultatsExamenViewSet,
     SessionsExamenViewSet,
 )
 
@@ -19,6 +20,7 @@ router.register("epreuves", EpreuvesExamenViewSet, basename="epreuve-examen")
 router.register(
     "convocations", ConvocationsExamenViewSet, basename="convocation-examen"
 )
+router.register("resultats", ResultatsExamenViewSet, basename="resultat-examen")
 router.register("copies", CopiesExamenViewSet, basename="copie-examen")
 router.register(
     "affectations-correction",
