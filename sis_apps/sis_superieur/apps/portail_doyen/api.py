@@ -31,6 +31,7 @@ class PortailDoyenViewSet(viewsets.ViewSet):
     """ViewSet d'agrégation pour le portail doyen."""
 
     permission_classes = [IsDoyen]
+    UNPAID_STATUSES = ("emise", "partielle", "en_retard")
 
     def _formations_queryset(self):
         return filter_queryset_by_scopes(
@@ -216,30 +217,30 @@ class PortailDoyenViewSet(viewsets.ViewSet):
         from django.db.models import Sum
 
         factures = filter_queryset_by_scopes(
-            Facture.objects.filter(annee_universitaire__en_cours=True),
+            Facture.objects.filter(type_frais__annee_universitaire__en_cours=True),
             request.user,
             "paiements.view_facturefrais",
             {
                 "facultes": "etudiant__inscriptions_admin__formation__departement__faculte_id",
                 "departements": "etudiant__inscriptions_admin__formation__departement_id",
                 "formations": "etudiant__inscriptions_admin__formation_id",
-                "annees": "annee_universitaire_id",
+                "annees": "type_frais__annee_universitaire_id",
             },
         )
 
         return Response(
             {
                 "total_facture": float(
-                    factures.aggregate(t=Sum("montant_total"))["t"] or 0
+                    factures.aggregate(t=Sum("montant"))["t"] or 0
                 ),
                 "total_paye": float(
-                    factures.filter(statut="payee").aggregate(t=Sum("montant_total"))[
+                    factures.filter(statut="payee").aggregate(t=Sum("montant"))[
                         "t"
                     ]
                     or 0
                 ),
                 "total_impaye": float(
-                    factures.filter(statut="impayee").aggregate(t=Sum("montant_total"))[
+                    factures.filter(statut__in=self.UNPAID_STATUSES).aggregate(t=Sum("montant"))[
                         "t"
                     ]
                     or 0

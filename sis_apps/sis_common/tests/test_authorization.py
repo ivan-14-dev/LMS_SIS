@@ -258,3 +258,30 @@ class AuthorizationTests(SimpleTestCase):
                 ("parent",),
             )
         )
+
+    def test_request_helper_supports_portal_group_access(self):
+        configuration = {
+            "permission_groups": [
+                {
+                    "code": "portal_admin",
+                    "label": "Portail",
+                    "permissions": ["formations.view_formation"],
+                    "attributes": {"facultes": [4]},
+                }
+            ]
+        }
+        request = FakeRequest(
+            FakeUser(
+                permissions=["formations.view_formation"],
+                attributes={"facultes": [4]},
+            ),
+            configuration,
+        )
+
+        self.assertTrue(
+            request_has_business_access(
+                request,
+                "etudiants.view_etudiant",
+                tenant_group_codes=("portal_admin",),
+            )
+        )

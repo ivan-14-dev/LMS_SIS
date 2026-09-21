@@ -36,6 +36,8 @@ class PortailScolariteViewSet(viewsets.ViewSet):
 
     permission_classes = [IsScolarite]
 
+    UNPAID_STATUSES = ("emise", "partielle", "en_retard")
+
     def _etudiants_queryset(self):
         return filter_queryset_by_scopes(
             Etudiant.objects.all(),
@@ -98,9 +100,9 @@ class PortailScolariteViewSet(viewsets.ViewSet):
         stats = {
             "total_etudiants": etudiants.filter(actif=True).count(),
             "inscriptions_annee": inscriptions.filter(annee_universitaire__en_cours=True).count(),
-            "factures_impayees": factures.filter(statut="impayee").count(),
+            "factures_impayees": factures.filter(statut__in=self.UNPAID_STATUSES).count(),
             "montant_impaye": float(
-                factures.filter(statut="impayee").aggregate(total=Sum("montant"))["total"]
+                factures.filter(statut__in=self.UNPAID_STATUSES).aggregate(total=Sum("montant"))["total"]
                 or 0
             ),
         }
@@ -197,7 +199,7 @@ class PortailScolariteViewSet(viewsets.ViewSet):
             {
                 "id": f.id,
                 "numero": f.numero,
-                "montant": float(f.montant_total),
+                "montant": float(f.montant),
                 "statut": f.statut,
             }
             for f in self._factures_queryset().filter(etudiant=etudiant)[:10]
@@ -224,7 +226,7 @@ class PortailScolariteViewSet(viewsets.ViewSet):
 
         # Factures en retard
         factures_retard = self._factures_queryset().filter(
-            statut="impayee", date_echeance__lt=timezone.now().date()
+            statut__in=self.UNPAID_STATUSES, date_echeance__lt=timezone.now().date()
         ).count()
         if factures_retard > 0:
             alertes.append(
