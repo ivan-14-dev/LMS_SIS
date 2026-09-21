@@ -12,6 +12,10 @@ def _group_names(user):
     return []
 
 
+def user_has_any_role(user, roles=()):
+    return getattr(user, "role", "") in roles
+
+
 def _attribute_matches(expected, actual):
     if isinstance(expected, list):
         if isinstance(actual, list):
@@ -125,6 +129,23 @@ def request_has_business_access(
         configuration=getattr(getattr(request, "tenant", None), "configuration_academique", {}),
         tenant_group_codes=tenant_group_codes,
     )
+
+
+def request_has_role_or_business_access(
+    request,
+    permission,
+    legacy_roles=(),
+    *,
+    context=None,
+    tenant_group_codes=(),
+):
+    return request_has_business_access(
+        request,
+        permission,
+        legacy_roles,
+        context=context,
+        tenant_group_codes=tenant_group_codes,
+    ) or user_has_any_role(request.user, legacy_roles)
 
 
 def filter_queryset_by_scopes(queryset, user, permission, scope_fields):

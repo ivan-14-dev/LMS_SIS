@@ -11,6 +11,8 @@ from rest_framework.response import Response
 from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,
+    request_has_business_access,
+    user_has_any_role,
 )
 from sis_common.academic_configuration import resolve_validation_policy
 from sis_common.reporting import configured_report, export_queryset_csv
@@ -103,12 +105,28 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         qs = Evaluation.objects.select_related(
             "matiere", "classe", "periode", "enseignant__user"
         )
-        # Un enseignant ne voit que ses évaluations
         user = self.request.user
-        if not user.is_staff and getattr(user, "role", "") == "enseignant":
+        if not user.is_staff and user_has_any_role(user, ("enseignant",)):
             if hasattr(user, "personnel_profile"):
-                qs = qs.filter(enseignant=user.personnel_profile)
-        return qs
+                return qs.filter(enseignant=user.personnel_profile)
+            return qs.none()
+        if request_has_business_access(
+            self.request,
+            "notes.view_evaluation",
+            ("direction", "responsable_pedagogique", "vie_scolaire"),
+        ):
+            return filter_queryset_by_scopes(
+                qs,
+                user,
+                "notes.view_evaluation",
+                {
+                    "classes": "classe_id",
+                    "matieres": "matiere_id",
+                    "annees": "classe__annee_scolaire_id",
+                    "periodes": "periode_id",
+                },
+            )
+        return qs.none()
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -219,36 +237,26 @@ class NotesViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Note.objects.select_related("evaluation", "eleve__user")
         user = self.request.user
-        # Un élève ne voit que ses propres notes
         if hasattr(user, "eleve_profile"):
-            if not user.is_staff and getattr(user, "role", "") == "eleve":
-                qs = qs.filter(eleve__user=user)
+            if not user.is_staff and user_has_any_role(user, ("eleve",)):
+                return qs.filter(eleve__user=user)
         if (
             not user.is_staff
-            and getattr(user, "role", "") == "enseignant"
+            and user_has_any_role(user, ("enseignant",))
             and hasattr(user, "personnel_profile")
         ):
-            qs = qs.filter(evaluation__enseignant=user.personnel_profile)
-        # Un parent ne voit que les notes de ses enfants
+            return qs.filter(evaluation__enseignant=user.personnel_profile)
         if hasattr(user, "tuteur_profile"):
             from apps.eleves.models import EleveTuteur
 
             eleves_ids = EleveTuteur.objects.filter(
                 tuteur=user.tuteur_profile, autorise_acces_portail=True
             ).values_list("eleve_id", flat=True)
-            qs = qs.filter(eleve_id__in=eleves_ids)
-        allowed_roles = {
-            "direction",
-            "responsable_pedagogique",
-            "vie_scolaire",
-            "enseignant",
-            "eleve",
-            "parent",
-        }
-        if (
-            not user.is_staff
-            and not user.has_perm("notes.view_note")
-            and getattr(user, "role", "") not in allowed_roles
+            return qs.filter(eleve_id__in=eleves_ids)
+        if not request_has_business_access(
+            self.request,
+            "notes.view_note",
+            ("direction", "responsable_pedagogique", "vie_scolaire"),
         ):
             return qs.none()
         return filter_queryset_by_scopes(
@@ -314,19 +322,36 @@ class BulletinsViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Bulletin.objects.select_related("eleve__user", "classe", "periode")
         user = self.request.user
-        # Un élève ne voit que ses propres bulletins publiés
         if hasattr(user, "eleve_profile"):
-            if not user.is_staff and getattr(user, "role", "") == "eleve":
-                qs = qs.filter(eleve__user=user, publie=True)
-        # Un parent ne voit que les bulletins publiés de ses enfants
+            if not user.is_staff and user_has_any_role(user, ("eleve",)):
+                return qs.filter(eleve__user=user, publie=True)
         if hasattr(user, "tuteur_profile"):
             from apps.eleves.models import EleveTuteur
 
             eleves_ids = EleveTuteur.objects.filter(
                 tuteur=user.tuteur_profile, autorise_acces_portail=True
             ).values_list("eleve_id", flat=True)
-            qs = qs.filter(eleve_id__in=eleves_ids, publie=True)
-        return qs
+            return qs.filter(eleve_id__in=eleves_ids, publie=True)
+        if not user.is_staff and user_has_any_role(user, ("enseignant",)) and hasattr(
+            user, "personnel_profile"
+        ):
+            return qs.filter(classe__prof_principal=user.personnel_profile)
+        if not request_has_business_access(
+            self.request,
+            "notes.view_bulletin",
+            ("direction", "responsable_pedagogique", "vie_scolaire"),
+        ):
+            return qs.none()
+        return filter_queryset_by_scopes(
+            qs,
+            user,
+            "notes.view_bulletin",
+            {
+                "classes": "classe_id",
+                "annees": "classe__annee_scolaire_id",
+                "periodes": "periode_id",
+            },
+        )
 
     def get_serializer_class(self):
         if self.action == "list":

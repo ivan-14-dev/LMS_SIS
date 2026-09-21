@@ -13,7 +13,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from sis_common.authorization import request_has_business_access
+from sis_common.authorization import request_has_business_access, user_has_any_role
 
 from .models import (
     AffectationCorrection,
@@ -171,15 +171,11 @@ class ConvocationsExamenViewSet(viewsets.ModelViewSet):
             "epreuve__matiere", "eleve__user"
         )
         user = self.request.user
-        if user.is_staff or getattr(user, "role", "") in (
-            "direction",
-            "responsable_pedagogique",
-            "vie_scolaire",
-        ):
+        if IsExamManager().has_permission(self.request, self):
             return queryset
-        if getattr(user, "role", "") == "eleve":
+        if user_has_any_role(user, ("eleve",)):
             return queryset.filter(eleve__user=user)
-        if getattr(user, "role", "") == "parent":
+        if user_has_any_role(user, ("parent",)):
             return queryset.filter(
                 eleve__tuteurs_lies__tuteur__user=user,
                 eleve__tuteurs_lies__autorise_acces_portail=True,
@@ -217,15 +213,11 @@ class ResultatsExamenViewSet(viewsets.ModelViewSet):
             "epreuve__matiere", "eleve__user"
         )
         user = self.request.user
-        if user.is_staff or getattr(user, "role", "") in (
-            "direction",
-            "responsable_pedagogique",
-            "vie_scolaire",
-        ):
+        if IsExamManager().has_permission(self.request, self):
             return queryset
-        if getattr(user, "role", "") == "eleve":
+        if user_has_any_role(user, ("eleve",)):
             return queryset.filter(eleve__user=user)
-        if getattr(user, "role", "") == "parent":
+        if user_has_any_role(user, ("parent",)):
             return queryset.filter(
                 eleve__tuteurs_lies__tuteur__user=user,
                 eleve__tuteurs_lies__autorise_acces_portail=True,

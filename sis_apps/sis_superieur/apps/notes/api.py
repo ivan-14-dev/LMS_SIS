@@ -11,6 +11,8 @@ from rest_framework.response import Response
 from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,
+    request_has_business_access,
+    user_has_any_role,
 )
 from sis_common.academic_configuration import resolve_validation_policy
 from sis_common.reporting import configured_report, export_queryset_csv
@@ -107,12 +109,28 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Evaluation.objects.select_related("ecue", "semestre", "enseignant")
         user = self.request.user
-        if not user.is_staff and getattr(user, "role", "") in (
-            "enseignant",
-            "chercheur",
+        if not user.is_staff and user_has_any_role(user, ("enseignant", "chercheur")):
+            return qs.filter(enseignant=user)
+        if not request_has_business_access(
+            self.request,
+            "notes.view_evaluation",
+            ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
         ):
-            qs = qs.filter(enseignant=user)
-        return qs
+            return qs.none()
+        return filter_queryset_by_scopes(
+            qs,
+            user,
+            "notes.view_evaluation",
+            {
+                "formations": "semestre__formation_id",
+                "facultes": "semestre__formation__departement__faculte_id",
+                "departements": "semestre__formation__departement_id",
+                "annees": "semestre__annee_universitaire_id",
+                "semestres": "semestre_id",
+                "ues": "ecue__ue_id",
+                "ecues": "ecue_id",
+            },
+        )
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -215,32 +233,15 @@ class NotesViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Note.objects.select_related("evaluation", "etudiant__user")
-        # Un étudiant ne voit que ses propres notes
         user = self.request.user
-        if not user.is_staff and getattr(user, "role", "") in ("etudiant", "doctorant"):
-            qs = qs.filter(etudiant__user=user)
-        if not user.is_staff and getattr(user, "role", "") in (
-            "enseignant",
-            "chercheur",
-        ):
-            qs = qs.filter(evaluation__enseignant=user)
-        allowed_roles = {
-            "president",
-            "vice_president",
-            "doyen",
-            "directeur_dept",
-            "responsable_formation",
-            "directeur_etudes",
-            "scolarite",
-            "enseignant",
-            "chercheur",
-            "etudiant",
-            "doctorant",
-        }
-        if (
-            not user.is_staff
-            and not user.has_perm("notes.view_note")
-            and getattr(user, "role", "") not in allowed_roles
+        if not user.is_staff and user_has_any_role(user, ("etudiant", "doctorant")):
+            return qs.filter(etudiant__user=user)
+        if not user.is_staff and user_has_any_role(user, ("enseignant", "chercheur")):
+            return qs.filter(evaluation__enseignant=user)
+        if not request_has_business_access(
+            self.request,
+            "notes.view_note",
+            ("president", "vice_president", "doyen", "directeur_dept", "responsable_formation", "directeur_etudes", "scolarite"),
         ):
             return qs.none()
         return filter_queryset_by_scopes(
@@ -312,19 +313,12 @@ class MoyennesECUEViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = MoyenneECUE.objects.select_related("etudiant__user", "ecue", "semestre")
         user = self.request.user
-        if not user.is_staff and getattr(user, "role", "") in ("etudiant", "doctorant"):
+        if not user.is_staff and user_has_any_role(user, ("etudiant", "doctorant")):
             return qs.filter(etudiant__user=user)
-        if (
-            not user.is_staff
-            and not user.has_perm("notes.view_moyenneecue")
-            and getattr(user, "role", "")
-            not in (
-                "president",
-                "vice_president",
-                "doyen",
-                "directeur_etudes",
-                "scolarite",
-            )
+        if not request_has_business_access(
+            self.request,
+            "notes.view_moyenneecue",
+            ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
         ):
             return qs.none()
         return filter_queryset_by_scopes(
@@ -354,19 +348,12 @@ class MoyennesUEViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = MoyenneUE.objects.select_related("etudiant__user", "ue", "semestre")
         user = self.request.user
-        if not user.is_staff and getattr(user, "role", "") in ("etudiant", "doctorant"):
+        if not user.is_staff and user_has_any_role(user, ("etudiant", "doctorant")):
             return qs.filter(etudiant__user=user)
-        if (
-            not user.is_staff
-            and not user.has_perm("notes.view_moyenneue")
-            and getattr(user, "role", "")
-            not in (
-                "president",
-                "vice_president",
-                "doyen",
-                "directeur_etudes",
-                "scolarite",
-            )
+        if not request_has_business_access(
+            self.request,
+            "notes.view_moyenneue",
+            ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
         ):
             return qs.none()
         return filter_queryset_by_scopes(

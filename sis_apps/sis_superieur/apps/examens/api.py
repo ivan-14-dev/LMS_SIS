@@ -13,7 +13,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from sis_common.authorization import request_has_business_access
+from sis_common.authorization import request_has_business_access, user_has_any_role
 
 from .models import (
     AffectationCorrection,
@@ -261,13 +261,9 @@ class ConvocationsExamenViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = ConvocationExamen.objects.select_related("epreuve__ecue", "etudiant__user")
         user = self.request.user
-        if user.is_staff or getattr(user, "role", "") in (
-            "scolarite",
-            "directeur_etudes",
-            "doyen",
-        ):
+        if IsExamManager().has_permission(self.request, self):
             return qs
-        if getattr(user, "role", "") in ("etudiant", "doctorant"):
+        if user_has_any_role(user, ("etudiant", "doctorant")):
             return qs.filter(etudiant__user=user)
         return qs.none()
 

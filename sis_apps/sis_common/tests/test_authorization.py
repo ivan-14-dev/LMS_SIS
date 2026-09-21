@@ -246,3 +246,15 @@ class AuthorizationTests(SimpleTestCase):
                 tenant_group_codes=("research_manager_superieur",),
             )
         )
+
+    def test_request_helper_supports_legacy_read_roles(self):
+        request = FakeRequest(FakeUser())
+        request.user.role = "parent"
+
+        self.assertTrue(
+            request_has_business_access(
+                request,
+                "notes.view_note",
+                ("parent",),
+            )
+        )
