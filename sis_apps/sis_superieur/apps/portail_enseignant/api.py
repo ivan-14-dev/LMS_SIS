@@ -15,6 +15,18 @@ def _decimal_to_float(value):
     return float(value) if value is not None else None
 
 
+def _parse_positive_int(value, field_name, *, minimum=1):
+    if value in (None, ""):
+        return None, None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None, Response({"error": f"{field_name} invalide."}, status=400)
+    if parsed < minimum:
+        return None, Response({"error": f"{field_name} invalide."}, status=400)
+    return parsed, None
+
+
 class IsEnseignant(IsAuthenticated):
     """Permission: uniquement pour les enseignants."""
 
@@ -38,6 +50,15 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
             "ue__formation__departement",
             "annee_universitaire",
         )
+
+    def _accessible_ecue_ids(self, request):
+        ecue_ids = set()
+        for affectation in self._affectations_queryset(self._get_enseignant(request)):
+            if affectation.ecue_id:
+                ecue_ids.add(affectation.ecue_id)
+            elif affectation.ue_id:
+                ecue_ids.update(affectation.ue.ecues.values_list("id", flat=True))
+        return ecue_ids
 
     @action(detail=False, methods=["get"])
     def tableau_bord(self, request):
@@ -88,7 +109,12 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def mes_cours(self, request):
         """Liste des cours de l'enseignant."""
-        semestre_id = request.query_params.get("semestre")
+        semestre_id, error = _parse_positive_int(
+            request.query_params.get("semestre"),
+            "semestre",
+        )
+        if error:
+            return error
         affectations = self._affectations_queryset(self._get_enseignant(request))
         if semestre_id:
             affectations = affectations.filter(
@@ -125,10 +151,22 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def etudiants_cours(self, request):
         """Liste des étudiants pour un cours."""
-        ecue_id = request.query_params.get("ecue_id")
-        semestre_id = request.query_params.get("semestre_id")
+        ecue_id, error = _parse_positive_int(
+            request.query_params.get("ecue_id"),
+            "ecue_id",
+        )
+        if error:
+            return error
         if not ecue_id:
             return Response({"error": "ecue_id requis."}, status=400)
+        semestre_id, error = _parse_positive_int(
+            request.query_params.get("semestre_id"),
+            "semestre_id",
+        )
+        if error:
+            return error
+        if ecue_id not in self._accessible_ecue_ids(request):
+            return Response({"error": "ECUE non trouvé ou non autorisé."}, status=404)
 
         inscriptions = InscriptionPedagogique.objects.filter(statut="validee").select_related(
             "inscription_admin__etudiant__user",
@@ -184,8 +222,18 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
     def emploi_du_temps(self, request):
         """Emploi du temps de l'enseignant."""
         enseignant = self._get_enseignant(request)
-        semaine = request.query_params.get("semaine")
-        semestre_id = request.query_params.get("semestre_id")
+        semaine, error = _parse_positive_int(
+            request.query_params.get("semaine"),
+            "semaine",
+        )
+        if error:
+            return error
+        semestre_id, error = _parse_positive_int(
+            request.query_params.get("semestre_id"),
+            "semestre_id",
+        )
+        if error:
+            return error
         creneaux = CreneauCours.objects.filter(enseignant=enseignant).select_related(
             "semestre",
             "formation",
@@ -198,8 +246,7 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
         else:
             creneaux = creneaux.filter(semestre__annee_universitaire__en_cours=True)
         if semaine:
-            semaine_value = int(semaine)
-            creneaux = creneaux.filter(semaine_debut__lte=semaine_value, semaine_fin__gte=semaine_value)
+            creneaux = creneaux.filter(semaine_debut__lte=semaine, semaine_fin__gte=semaine)
         emploi = {i: [] for i in range(7)}
         for creneau in creneaux.order_by("jour", "creneau_horaire__ordre"):
             emploi[creneau.jour].append(
@@ -217,7 +264,7 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
 
         return Response(
             {
-                "semaine": int(semaine) if semaine else None,
+                "semaine": semaine,
                 "emploi_du_temps": emploi,
             }
         )

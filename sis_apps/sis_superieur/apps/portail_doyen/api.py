@@ -33,6 +33,15 @@ class PortailDoyenViewSet(viewsets.ViewSet):
     permission_classes = [IsDoyen]
     UNPAID_STATUSES = ("emise", "partielle", "en_retard")
 
+    def _parse_faculte_id(self):
+        value = self.request.query_params.get("faculte_id")
+        if value in (None, ""):
+            return None, None
+        try:
+            return int(value), None
+        except (TypeError, ValueError):
+            return None, Response({"error": "faculte_id invalide."}, status=400)
+
     def _formations_queryset(self):
         return filter_queryset_by_scopes(
             Formation.objects.all(),
@@ -103,7 +112,9 @@ class PortailDoyenViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def tableau_bord(self, request):
         """Tableau de bord du doyen."""
-        faculte_id = request.query_params.get("faculte_id")
+        faculte_id, error = self._parse_faculte_id()
+        if error:
+            return error
 
         formations = self._formations_queryset()
         departements = self._departements_queryset()
@@ -171,7 +182,9 @@ class PortailDoyenViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def statistiques_formations(self, request):
         """Statistiques détaillées par formation."""
-        faculte_id = request.query_params.get("faculte_id")
+        faculte_id, error = self._parse_faculte_id()
+        if error:
+            return error
 
         formations = self._formations_queryset().annotate(
             nb_inscrits=Count(
@@ -199,7 +212,9 @@ class PortailDoyenViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def recherche(self, request):
         """Statistiques recherche."""
-        faculte_id = request.query_params.get("faculte_id")
+        faculte_id, error = self._parse_faculte_id()
+        if error:
+            return error
 
         labos = self._laboratoires_queryset()
         theses = self._theses_queryset()
