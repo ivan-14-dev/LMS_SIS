@@ -17,6 +17,9 @@ class EvaluationListSerializer(serializers.ModelSerializer):
     enseignant_nom = serializers.CharField(source="enseignant.user.get_full_name", read_only=True)
     eleve_cible_matricule = serializers.CharField(source="eleve_cible.matricule", read_only=True)
     eleve_cible_nom = serializers.CharField(source="eleve_cible.user.get_full_name", read_only=True)
+    individualisee = serializers.SerializerMethodField()
+    nb_notes = serializers.SerializerMethodField()
+    notes_saisies = serializers.SerializerMethodField()
 
     class Meta:
         model = Evaluation
@@ -38,8 +41,20 @@ class EvaluationListSerializer(serializers.ModelSerializer):
             "eleve_cible",
             "eleve_cible_matricule",
             "eleve_cible_nom",
+            "individualisee",
+            "nb_notes",
+            "notes_saisies",
             "enseignant_nom",
         ]
+
+    def get_individualisee(self, obj):
+        return bool(obj.eleve_cible_id)
+
+    def get_nb_notes(self, obj):
+        return obj.notes.exclude(valeur__isnull=True).count()
+
+    def get_notes_saisies(self, obj):
+        return self.get_nb_notes(obj) > 0
 
 
 class EvaluationDetailSerializer(serializers.ModelSerializer):

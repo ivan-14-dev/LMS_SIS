@@ -11,13 +11,18 @@ const InscriptionsPage = () => {
     { Header: 'Matricule', accessor: 'etudiant_matricule' },
     { Header: 'Étudiant', accessor: 'etudiant_nom' },
     { Header: 'Formation', accessor: 'formation_nom' },
-    { Header: 'Année', accessor: 'annee_universitaire' },
+    { Header: 'Année', accessor: 'annee_universitaire_libelle' },
     { Header: 'Date inscription', accessor: 'date_inscription' },
     {
       Header: 'Statut',
-      accessor: 'statut',
+      accessor: 'statut_display',
       Cell: ({ value }) => {
-        const variants = { validee: 'success', en_attente: 'warning', refusee: 'danger', annulee: 'secondary' };
+        const variants = {
+          Validée: 'success',
+          Provisoire: 'warning',
+          Refusée: 'danger',
+          Annulée: 'secondary',
+        };
         return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
       },
     },

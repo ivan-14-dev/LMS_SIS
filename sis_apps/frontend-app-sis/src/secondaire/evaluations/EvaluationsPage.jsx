@@ -11,15 +11,24 @@ const EvaluationsPage = () => {
     { Header: 'Titre', accessor: 'titre' },
     { Header: 'Matière', accessor: 'matiere_nom' },
     { Header: 'Classe', accessor: 'classe_nom' },
-    { Header: 'Type', accessor: 'type' },
+    { Header: 'Type', accessor: 'type_display' },
     { Header: 'Coefficient', accessor: 'coefficient' },
     { Header: 'Date', accessor: 'date' },
+    {
+      Header: 'Cible',
+      accessor: 'individualisee',
+      Cell: ({ row }) => (
+        row.original.individualisee
+          ? `Individuelle (${row.original.eleve_cible_nom || row.original.eleve_cible_matricule || 'élève ciblé'})`
+          : 'Classe entière'
+      ),
+    },
     {
       Header: 'Statut',
       accessor: 'notes_saisies',
       Cell: ({ row }) => (
         <Badge variant={row.original.notes_saisies ? 'success' : 'warning'}>
-          {row.original.notes_saisies ? 'Notes saisies' : 'En attente'}
+          {row.original.notes_saisies ? `${row.original.nb_notes || 0} note(s)` : 'En attente'}
         </Badge>
       ),
     },
@@ -49,7 +58,7 @@ const EvaluationsPage = () => {
           <StatCard title="Notes saisies" value={evaluations.filter(e => e.notes_saisies).length} variant="success" />
         </Col>
         <Col md={4}>
-          <StatCard title="En attente" value={evaluations.filter(e => !e.notes_saisies).length} variant="warning" />
+          <StatCard title="Évaluations individuelles" value={evaluations.filter(e => e.individualisee).length} variant="warning" />
         </Col>
       </Row>
       <SISDataTable title="Liste des évaluations" data={evaluations} columns={columns} loading={isLoading} searchable exportable />

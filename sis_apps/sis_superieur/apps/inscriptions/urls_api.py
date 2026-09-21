@@ -1,7 +1,12 @@
-"""URLs API for inscriptions."""
+"""API URLs for inscriptions."""
+
+from rest_framework.routers import DefaultRouter
+
+from .api import InscriptionsViewSet
 
 app_name = "inscriptions_api"
 
-urlpatterns = [
-    # path("", api.InscriptionsViewSet.as_view({"get": "list", "post": "create"}), name="list"),
-]
+router = DefaultRouter()
+router.register("", InscriptionsViewSet, basename="inscription")
+
+urlpatterns = router.urls
