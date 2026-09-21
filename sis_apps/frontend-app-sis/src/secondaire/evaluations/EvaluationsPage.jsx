@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Badge, Button, Row, Col, Card } from '@openedx/paragon';
+import { Badge, Button, Row, Col } from '@openedx/paragon';
 import { Add, Grade } from '@openedx/paragon/icons';
 import {
   PageHeader, SISDataTable, StatCard, WorkflowHistoryPanel, WorkflowNotificationsPanel,

@@ -12,7 +12,6 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from apps.core.serializers import WorkflowEventSerializer
 from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,

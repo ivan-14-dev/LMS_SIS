@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Row, Col, Card, Form, Button, Tabs, Tab } from '@openedx/paragon';
+import { Row, Col, Card, Form, Button } from '@openedx/paragon';
 import { PageHeader, SISDataTable, WorkflowNotificationsPanel } from '../../components/common';
 import { useNotes, useFormations } from '../../services/api';
 
