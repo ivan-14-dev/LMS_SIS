@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from sis_common.authorization import has_business_permission_or_role
 from sis_common.document_policies import enforce_financial_clearance, get_action_object
+from sis_common.official_documents import render_official_pdf, tenant_identity_rows
 
 from .models import CessionDiplome, Diplome
 from .serializers import CessionDiplomeDetailSerializer, CessionDiplomeListSerializer, DiplomeSerializer
@@ -146,4 +147,42 @@ class CessionsDiplomesViewSet(viewsets.ModelViewSet):
                 "mention": cession.mention,
                 "signe_le": cession.date_signature,
             }
+        )
+
+    @action(detail=True, methods=["get"])
+    def pdf_officiel(self, request, pk=None):
+        """Génère le PDF officiel du diplôme délivré."""
+        cession = self.get_object()
+        serialized = CessionDiplomeDetailSerializer(cession).data
+        return render_official_pdf(
+            f"diplome-{cession.id}.pdf",
+            f"Diplôme - {serialized.get('etudiant_nom')}",
+            tenant_identity_rows(
+                request,
+                "Diplôme officiel",
+                serial=cession.numero_serie,
+                issue_date=cession.date_obtention,
+            ),
+            [
+                {
+                    "title": "Titulaire",
+                    "rows": [
+                        ("Étudiant", serialized.get("etudiant_nom")),
+                        ("Matricule", serialized.get("etudiant_matricule")),
+                        ("Année universitaire", serialized.get("annee_libelle")),
+                    ],
+                },
+                {
+                    "title": "Diplôme",
+                    "rows": [
+                        ("Diplôme", serialized.get("diplome_nom")),
+                        ("Mention", serialized.get("mention")),
+                        ("Moyenne finale", serialized.get("moyenne_finale")),
+                    ],
+                },
+            ],
+            footer_rows=[
+                ("Signé par", serialized.get("signe_par_nom")),
+                ("QR vérification", serialized.get("qr_verification")),
+            ],
         )

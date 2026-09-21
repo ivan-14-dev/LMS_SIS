@@ -11,6 +11,7 @@ from sis_common.document_policies import (
     enforce_financial_clearance,
     get_action_object,
 )
+from sis_common.official_documents import render_official_pdf, tenant_identity_rows
 from sis_common.authorization import has_business_permission_or_role
 
 from .models import Attestation, ReleveNotes, Transcript
@@ -90,6 +91,59 @@ class RelevesNotesViewSet(viewsets.ModelViewSet):
         releve.save(update_fields=["signe", "date_signature", "signe_par"])
         return Response({"detail": "Relevé signé.", "id": releve.id})
 
+    @action(detail=True, methods=["get"])
+    def pdf_officiel(self, request, pk=None):
+        """Génère le PDF officiel du relevé."""
+        releve = self.get_object()
+        serialized = ReleveNotesDetailSerializer(releve).data
+        return render_official_pdf(
+            f"releve-{releve.id}.pdf",
+            f"Relevé de notes - {serialized.get('etudiant_nom')}",
+            tenant_identity_rows(
+                request,
+                "Relevé de notes",
+                serial=releve.numero_serie,
+                issue_date=releve.date_emission,
+            ),
+            [
+                {
+                    "title": "Étudiant",
+                    "rows": [
+                        ("Étudiant", serialized.get("etudiant_nom")),
+                        ("Matricule", serialized.get("etudiant_matricule")),
+                        ("Semestre", serialized.get("semestre_nom")),
+                    ],
+                },
+                {
+                    "title": "Résultats",
+                    "rows": [
+                        ("Moyenne générale", serialized.get("moyenne_generale")),
+                        ("Mention", serialized.get("mention")),
+                        ("Crédits validés", serialized.get("credits_valides")),
+                        ("Crédits totaux", serialized.get("credits_total")),
+                        ("Classement", serialized.get("classement")),
+                        ("Effectif", serialized.get("effectif")),
+                    ],
+                },
+                {
+                    "title": "ECUE individualisés",
+                    "rows": [
+                        (
+                            item.get("ecue_nom"),
+                            f"{item.get('ue_nom')} • {item.get('semestre_cible_libelle')}",
+                        )
+                        for item in serialized.get("matieres_individuelles", [])
+                    ]
+                    or [("Aucun", "Aucun ECUE individualisé pour ce semestre")],
+                },
+            ],
+            footer_rows=[
+                ("Signé", "Oui" if releve.signe else "Non"),
+                ("Signé par", serialized.get("signe_par_nom")),
+                ("QR vérification", serialized.get("qr_verification")),
+            ],
+        )
+
     @action(detail=False, methods=["get"])
     def mes_releves(self, request):
         """Relevés de l'étudiant connecté."""
@@ -154,6 +208,49 @@ class TranscriptsViewSet(viewsets.ModelViewSet):
         transcript.save(update_fields=["signe_par"])
         return Response({"detail": "Transcript signé.", "id": transcript.id})
 
+    @action(detail=True, methods=["get"])
+    def pdf_officiel(self, request, pk=None):
+        """Génère le PDF officiel du transcript."""
+        transcript = self.get_object()
+        serialized = TranscriptDetailSerializer(transcript).data
+        return render_official_pdf(
+            f"transcript-{transcript.id}.pdf",
+            f"Transcript - {serialized.get('etudiant_nom')}",
+            tenant_identity_rows(
+                request,
+                "Transcript officiel",
+                serial=transcript.numero_serie,
+                issue_date=transcript.date_emission,
+            ),
+            [
+                {
+                    "title": "Étudiant",
+                    "rows": [
+                        ("Étudiant", serialized.get("etudiant_nom")),
+                        ("Matricule", serialized.get("etudiant_matricule")),
+                        ("Diplôme préparé", serialized.get("diplome_prepare")),
+                    ],
+                },
+                {
+                    "title": "Synthèse",
+                    "rows": [
+                        ("Crédits validés", serialized.get("credits_valides")),
+                        ("Crédits totaux", serialized.get("credits_total")),
+                        ("Moyenne pondérée", serialized.get("moyenne_ponderee")),
+                        ("Mention finale", serialized.get("mention_finale")),
+                    ],
+                },
+                {
+                    "title": "Années couvertes",
+                    "rows": [
+                        (item.get("libelle"), item.get("id"))
+                        for item in serialized.get("annees_list", [])
+                    ],
+                },
+            ],
+            footer_rows=[("Signé par", serialized.get("signe_par_nom"))],
+        )
+
 
 class AttestationsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour attestations."""
@@ -201,3 +298,37 @@ class AttestationsViewSet(viewsets.ModelViewSet):
         attestation.signe_par = request.user
         attestation.save(update_fields=["signe_par"])
         return Response({"detail": "Attestation signée.", "id": attestation.id})
+
+    @action(detail=True, methods=["get"])
+    def pdf_officiel(self, request, pk=None):
+        """Génère le PDF officiel de l'attestation."""
+        attestation = self.get_object()
+        serialized = AttestationSerializer(attestation).data
+        return render_official_pdf(
+            f"attestation-{attestation.id}.pdf",
+            f"{serialized.get('type_display')} - {serialized.get('etudiant_nom')}",
+            tenant_identity_rows(
+                request,
+                serialized.get("type_display") or "Attestation",
+                serial=attestation.numero,
+                issue_date=attestation.date_emission,
+            ),
+            [
+                {
+                    "title": "Bénéficiaire",
+                    "rows": [
+                        ("Étudiant", serialized.get("etudiant_nom")),
+                        ("Matricule", serialized.get("etudiant_matricule")),
+                    ],
+                },
+                {
+                    "title": "Document",
+                    "rows": [
+                        ("Type", serialized.get("type_display")),
+                        ("Date de validité", serialized.get("date_validite")),
+                        ("Numéro", serialized.get("numero")),
+                    ],
+                },
+            ],
+            footer_rows=[("Signé par", serialized.get("signe_par_nom"))],
+        )

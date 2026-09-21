@@ -1,7 +1,13 @@
 """URLs API for diplomes."""
 
+from rest_framework.routers import DefaultRouter
+
+from .api import CessionsDiplomesViewSet, DiplomesViewSet
+
 app_name = "diplomes_api"
 
-urlpatterns = [
-    # path("", api.DiplomesViewSet.as_view({"get": "list", "post": "create"}), name="list"),
-]
+router = DefaultRouter()
+router.register("catalogue", DiplomesViewSet, basename="diplome-catalogue")
+router.register("", CessionsDiplomesViewSet, basename="diplome")
+
+urlpatterns = router.urls

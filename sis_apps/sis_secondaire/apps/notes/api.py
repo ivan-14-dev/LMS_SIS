@@ -19,6 +19,7 @@ from sis_common.authorization import (
 )
 from sis_common.academic_configuration import resolve_validation_policy
 from sis_common.document_policies import enforce_financial_clearance, get_action_object
+from sis_common.official_documents import render_official_pdf, tenant_identity_rows
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
 
@@ -648,6 +649,62 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         bulletin.date_signature = timezone.now()
         bulletin.save(update_fields=["signe", "date_signature", "updated_at"])
         return Response({"detail": "Bulletin signé.", "id": bulletin.id})
+
+    @action(detail=True, methods=["get"])
+    def pdf_officiel(self, request, pk=None):
+        """Génère un PDF officiel du bulletin."""
+        bulletin = self.get_object()
+        serialized = BulletinDetailSerializer(bulletin).data
+        identity_rows = tenant_identity_rows(
+            request,
+            "Bulletin scolaire",
+            serial=f"BUL-{bulletin.id}",
+            issue_date=bulletin.date_publication or bulletin.created_at.date(),
+        )
+        sections = [
+            {
+                "title": "Identité de l'élève",
+                "rows": [
+                    ("Élève", serialized.get("eleve_nom")),
+                    ("Matricule", serialized.get("eleve_matricule")),
+                    ("Classe", serialized.get("classe_nom")),
+                    ("Période", serialized.get("periode_libelle")),
+                ],
+            },
+            {
+                "title": "Synthèse académique",
+                "rows": [
+                    ("Moyenne générale", serialized.get("moyenne_generale")),
+                    ("Rang", serialized.get("rang")),
+                    ("Effectif classe", serialized.get("effectif_classe")),
+                    ("Décision", serialized.get("decision")),
+                    ("Appréciation du conseil", serialized.get("appreciation_conseil")),
+                ],
+            },
+            {
+                "title": "Matières individualisées",
+                "rows": [
+                    (
+                        item.get("matiere_nom"),
+                        f"coeff {item.get('coefficient')} / crédits {item.get('credits')}",
+                    )
+                    for item in serialized.get("matieres_individuelles", [])
+                ]
+                or [("Aucune", "Aucune matière individualisée enregistrée")],
+            },
+        ]
+        footer_rows = [
+            ("Publié", "Oui" if bulletin.publie else "Non"),
+            ("Signé", "Oui" if bulletin.signe else "Non"),
+            ("Date de signature", bulletin.date_signature),
+        ]
+        return render_official_pdf(
+            f"bulletin-{bulletin.id}.pdf",
+            f"Bulletin - {serialized.get('eleve_nom')}",
+            identity_rows,
+            sections,
+            footer_rows=footer_rows,
+        )
 
     @action(detail=False, methods=["post"])
     def exporter(self, request):
