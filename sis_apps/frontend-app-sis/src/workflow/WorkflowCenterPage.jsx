@@ -1,9 +1,84 @@
 import React, { useMemo, useState } from 'react';
 import { Row, Col, Card, Form } from '@openedx/paragon';
 import {
+  Box, Card as MuiCard, CardContent, Chip, LinearProgress, Stack, Typography,
+} from '@mui/material';
+import {
   PageHeader, SISDataTable, StatCard, WorkflowNotificationsPanel,
 } from '../components/common';
 import { useWorkflowEvents, useWorkflowNotifications, useWorkflowNotificationSummary } from '../services/api';
+
+const channelLabels = {
+  in_app: 'Centre',
+  email: 'Email',
+  sms: 'SMS',
+  webhook: 'Webhook',
+};
+
+const statusLabels = {
+  sent: 'Livré',
+  queued: 'En file',
+  retrying: 'Reprise',
+  failed: 'Échec',
+  skipped: 'Ignoré',
+  pending: 'En attente',
+};
+
+const statusColor = {
+  sent: 'success',
+  queued: 'info',
+  retrying: 'warning',
+  failed: 'error',
+  skipped: 'default',
+  pending: 'primary',
+};
+
+const SummaryBarCard = ({
+  title, items, total, formatLabel,
+}) => (
+  <MuiCard sx={{ height: '100%' }}>
+    <CardContent>
+      <Typography variant="h6" gutterBottom>{title}</Typography>
+      {items.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">Aucune donnée disponible.</Typography>
+      ) : (
+        <Stack spacing={2}>
+          {items.map(({ key, value }) => {
+            const ratio = total > 0 ? (value / total) * 100 : 0;
+            return (
+              <Box key={key}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mb: 0.75 }}>
+                  <Typography variant="body2">{formatLabel(key)}</Typography>
+                  <Typography variant="body2" color="text.secondary">{value}</Typography>
+                </Box>
+                <LinearProgress variant="determinate" value={ratio} sx={{ height: 8, borderRadius: 999 }} />
+              </Box>
+            );
+          })}
+        </Stack>
+      )}
+    </CardContent>
+  </MuiCard>
+);
+
+const SummaryChipCard = ({
+  title, items, formatLabel, chipColor,
+}) => (
+  <MuiCard sx={{ height: '100%' }}>
+    <CardContent>
+      <Typography variant="h6" gutterBottom>{title}</Typography>
+      {items.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">Aucune donnée disponible.</Typography>
+      ) : (
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          {items.map(({ key, value }) => (
+            <Chip key={key} label={`${formatLabel(key)} • ${value}`} size="small" color={chipColor ? chipColor(key) : 'default'} />
+          ))}
+        </Stack>
+      )}
+    </CardContent>
+  </MuiCard>
+);
 
 const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
   const [action, setAction] = useState('');
@@ -89,6 +164,30 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
     () => Object.entries(notificationSummary.by_channel || {})
       .map(([channel, count]) => `${channel}: ${count}`)
       .join(' • '),
+    [notificationSummary],
+  );
+  const statusSummaryItems = useMemo(
+    () => Object.entries(notificationSummary.by_status || {})
+      .map(([key, value]) => ({ key, value }))
+      .sort((a, b) => b.value - a.value),
+    [notificationSummary],
+  );
+  const channelSummaryItems = useMemo(
+    () => Object.entries(notificationSummary.by_channel || {})
+      .map(([key, value]) => ({ key, value }))
+      .sort((a, b) => b.value - a.value),
+    [notificationSummary],
+  );
+  const categorySummaryItems = useMemo(
+    () => Object.entries(notificationSummary.by_category || {})
+      .map(([key, value]) => ({ key, value }))
+      .sort((a, b) => b.value - a.value),
+    [notificationSummary],
+  );
+  const channelStatusSummaryItems = useMemo(
+    () => Object.entries(notificationSummary.by_channel_status || {})
+      .map(([key, value]) => ({ key, value }))
+      .sort((a, b) => b.value - a.value),
     [notificationSummary],
   );
 
@@ -197,6 +296,47 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
               </div>
             </Card.Body>
           </Card>
+        </Col>
+      </Row>
+      <Row className="mb-4">
+        <Col lg={6} className="mb-3">
+          <SummaryBarCard
+            title="Répartition par statut"
+            items={statusSummaryItems}
+            total={Object.values(notificationSummary.by_status || {}).reduce((sum, value) => sum + value, 0)}
+            formatLabel={(key) => statusLabels[key] || key}
+          />
+        </Col>
+        <Col lg={6} className="mb-3">
+          <SummaryBarCard
+            title="Répartition par canal"
+            items={channelSummaryItems}
+            total={Object.values(notificationSummary.by_channel || {}).reduce((sum, value) => sum + value, 0)}
+            formatLabel={(key) => channelLabels[key] || key}
+          />
+        </Col>
+      </Row>
+      <Row className="mb-4">
+        <Col lg={6} className="mb-3">
+          <SummaryChipCard
+            title="Catégories de notifications"
+            items={categorySummaryItems}
+            formatLabel={(key) => key}
+          />
+        </Col>
+        <Col lg={6} className="mb-3">
+          <SummaryChipCard
+            title="Détail canal / statut"
+            items={channelStatusSummaryItems}
+            formatLabel={(key) => {
+              const [channel, status] = key.split(':');
+              return `${channelLabels[channel] || channel} / ${statusLabels[status] || status}`;
+            }}
+            chipColor={(key) => {
+              const [, status] = key.split(':');
+              return statusColor[status] || 'default';
+            }}
+          />
         </Col>
       </Row>
       <SISDataTable
