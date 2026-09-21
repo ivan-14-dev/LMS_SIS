@@ -9,8 +9,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from sis_common.authorization import request_has_business_access
 
-from .models import Etudiant, InscriptionAdministrative
+from .models import AffectationECUEIndividuelle, Etudiant, InscriptionAdministrative
 from .serializers import (
+    AffectationECUEIndividuelleSerializer,
     EtudiantCreateSerializer,
     EtudiantDetailSerializer,
     EtudiantListSerializer,
@@ -141,6 +142,46 @@ class EtudiantsViewSet(viewsets.ModelViewSet):
                 "detail": f"Statut modifié de '{ancien_statut}' à '{nouveau_statut}'.",
             }
         )
+
+    @action(detail=True, methods=["get", "post"])
+    def matieres_individuelles(self, request, pk=None):
+        """Liste ou crée des ECUE individualisés pour un étudiant."""
+        etudiant = self.get_object()
+        if request.method == "GET":
+            affectations = AffectationECUEIndividuelle.objects.filter(
+                inscription_admin__etudiant=etudiant
+            ).select_related(
+                "inscription_admin__annee_universitaire",
+                "semestre_cible__annee_universitaire",
+                "ecue__ue__semestre",
+            )
+            serializer = AffectationECUEIndividuelleSerializer(affectations, many=True)
+            return Response(serializer.data)
+
+        serializer = AffectationECUEIndividuelleSerializer(
+            data=request.data,
+            context={"request": request, "etudiant": etudiant},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def retirer_matiere_individuelle(self, request, pk=None):
+        """Retire une affectation ECUE individualisée d'un étudiant."""
+        etudiant = self.get_object()
+        affectation_id = request.data.get("affectation_id")
+        affectation = AffectationECUEIndividuelle.objects.filter(
+            id=affectation_id,
+            inscription_admin__etudiant=etudiant,
+        ).first()
+        if affectation is None:
+            return Response(
+                {"error": "Affectation individuelle introuvable."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        affectation.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class InscriptionsAdminViewSet(viewsets.ModelViewSet):

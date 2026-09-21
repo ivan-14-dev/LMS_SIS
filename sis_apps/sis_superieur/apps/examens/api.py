@@ -23,6 +23,8 @@ from sis_common.authorization import (
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
 
+from apps.etudiants.models import AffectationECUEIndividuelle, InscriptionPedagogique
+
 from .models import (
     AffectationCorrection,
     AuditCopieExamen,
@@ -384,13 +386,24 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
         """Génère les convocations automatiquement."""
         epreuve = self.get_object()
         # Récupérer les étudiants inscrits à l'ECUE
-        from apps.etudiants.models import InscriptionPedagogique
-
         inscrits = list(
-            InscriptionPedagogique.objects.filter(ecues=epreuve.ecue)
-            .values_list("etudiant_id", flat=True)
+            InscriptionPedagogique.objects.filter(
+                semestre__annee_universitaire=epreuve.session.semestre.annee_universitaire,
+                statut="validee",
+            )
+            .filter(Q(ecues=epreuve.ecue) | Q(ues=epreuve.ecue.ue))
+            .values_list("inscription_admin__etudiant_id", flat=True)
             .distinct()
         )
+        inscrits.extend(
+            AffectationECUEIndividuelle.objects.filter(
+                inscription_admin__annee_universitaire=epreuve.session.semestre.annee_universitaire,
+                ecue=epreuve.ecue,
+            )
+            .values_list("inscription_admin__etudiant_id", flat=True)
+            .distinct()
+        )
+        inscrits = list(dict.fromkeys(inscrits))
         deja_convoques = set(
             epreuve.convocations.filter(etudiant_id__in=inscrits).values_list(
                 "etudiant_id", flat=True

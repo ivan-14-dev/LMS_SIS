@@ -21,6 +21,8 @@ from sis_common.academic_configuration import resolve_validation_policy
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
 
+from apps.etudiants.models import AffectationECUEIndividuelle
+
 from .models import Evaluation, MoyenneECUE, MoyenneUE, Note, RegleValidation
 from .serializers import (
     EvaluationDetailSerializer,
@@ -169,10 +171,24 @@ def _superior_eligible_student_map(evaluation, matricules):
         .select_related("inscription_admin__etudiant")
         .distinct()
     )
-    return {
+    eligible = {
         inscription.inscription_admin.etudiant.matricule: inscription.inscription_admin.etudiant
         for inscription in enrollments
     }
+    custom_assignments = (
+        AffectationECUEIndividuelle.objects.filter(
+            inscription_admin__etudiant__matricule__in=matricules,
+            inscription_admin__annee_universitaire=evaluation.semestre.annee_universitaire,
+            ecue=evaluation.ecue,
+        )
+        .select_related("inscription_admin__etudiant")
+        .distinct()
+    )
+    for affectation in custom_assignments:
+        eligible[affectation.inscription_admin.etudiant.matricule] = (
+            affectation.inscription_admin.etudiant
+        )
+    return eligible
 
 
 def _import_superior_notes(evaluation, rows, request):
@@ -347,6 +363,13 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
             )
             .filter(Q(ecues=evaluation.ecue) | Q(ues=evaluation.ecue.ue))
             .values_list("inscription_admin__etudiant_id", flat=True)
+        )
+        eligible_student_ids.update(
+            AffectationECUEIndividuelle.objects.filter(
+                inscription_admin__etudiant_id__in=student_ids,
+                inscription_admin__annee_universitaire=evaluation.semestre.annee_universitaire,
+                ecue=evaluation.ecue,
+            ).values_list("inscription_admin__etudiant_id", flat=True)
         )
         invalid_student_ids = sorted(student_ids - eligible_student_ids)
         if invalid_student_ids:

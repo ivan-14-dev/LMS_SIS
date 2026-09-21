@@ -32,5 +32,15 @@ urlpatterns = [
         api.EtudiantsViewSet.as_view({"post": "changer_statut"}),
         name="changer-statut",
     ),
+    path(
+        "<int:pk>/matieres-individuelles/",
+        api.EtudiantsViewSet.as_view({"get": "matieres_individuelles", "post": "matieres_individuelles"}),
+        name="matieres-individuelles",
+    ),
+    path(
+        "<int:pk>/retirer-matiere-individuelle/",
+        api.EtudiantsViewSet.as_view({"post": "retirer_matiere_individuelle"}),
+        name="retirer-matiere-individuelle",
+    ),
     path("search/", api.EtudiantsViewSet.as_view({"get": "search"}), name="search"),
 ]
