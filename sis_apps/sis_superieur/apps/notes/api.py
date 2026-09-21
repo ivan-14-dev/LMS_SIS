@@ -28,7 +28,7 @@ from .serializers import (
     RegleValidationSerializer,
 )
 
-REPORT_FIELDS = {
+NOTE_REPORT_FIELDS = {
     "matricule": ("Matricule", "etudiant__matricule"),
     "etudiant": ("Étudiant", "etudiant__user__last_name"),
     "formation": (
@@ -45,7 +45,7 @@ REPORT_FIELDS = {
     "semestre": ("Semestre", "evaluation__semestre__numero"),
     "date": ("Date", "evaluation__date"),
 }
-REPORT_FILTERS = {
+NOTE_REPORT_FILTERS = {
     "annee": "evaluation__semestre__annee_universitaire_id",
     "formation": "etudiant__inscriptions_admin__formation_id",
     "ecue": "evaluation__ecue_id",
@@ -54,12 +54,70 @@ REPORT_FILTERS = {
     "semestre": "evaluation__semestre_id",
     "statut": "statut",
 }
-REPORT_GROUPS = {
+NOTE_REPORT_GROUPS = {
     "formation": "etudiant__inscriptions_admin__formation__nom",
     "ecue": "evaluation__ecue__nom",
     "ue": "evaluation__ecue__ue__nom",
     "enseignant": "evaluation__enseignant__last_name",
     "semestre": "evaluation__semestre__numero",
+}
+EVALUATION_REPORT_FIELDS = {
+    "titre": ("Titre", "titre"),
+    "modalite": ("Modalité", "modalite"),
+    "ecue": ("ECUE", "ecue__nom"),
+    "ue": ("UE", "ecue__ue__nom"),
+    "formation": ("Formation", "semestre__formation__nom"),
+    "semestre": ("Semestre", "semestre__numero"),
+    "enseignant": ("Enseignant", "enseignant__last_name"),
+    "date": ("Date", "date"),
+    "bareme": ("Barème", "bareme"),
+    "coefficient": ("Coefficient", "coefficient"),
+    "ponderation": ("Pondération", "ponderation"),
+    "anonyme": ("Anonyme", "anonyme"),
+}
+EVALUATION_REPORT_FILTERS = {
+    "ecue": "ecue_id",
+    "ue": "ecue__ue_id",
+    "semestre": "semestre_id",
+    "formation": "semestre__formation_id",
+    "modalite": "modalite",
+    "enseignant": "enseignant_id",
+    "anonyme": "anonyme",
+}
+ECUE_AVERAGE_REPORT_FIELDS = {
+    "matricule": ("Matricule", "etudiant__matricule"),
+    "etudiant": ("Étudiant", "etudiant__user__last_name"),
+    "formation": ("Formation", "etudiant__inscriptions_admin__formation__nom"),
+    "ecue": ("ECUE", "ecue__nom"),
+    "ue": ("UE", "ecue__ue__nom"),
+    "semestre": ("Semestre", "semestre__numero"),
+    "moyenne": ("Moyenne", "moyenne"),
+    "valide": ("Validé", "valide"),
+}
+ECUE_AVERAGE_REPORT_FILTERS = {
+    "etudiant": "etudiant_id",
+    "formation": "etudiant__inscriptions_admin__formation_id",
+    "ecue": "ecue_id",
+    "ue": "ecue__ue_id",
+    "semestre": "semestre_id",
+    "valide": "valide",
+}
+UE_AVERAGE_REPORT_FIELDS = {
+    "matricule": ("Matricule", "etudiant__matricule"),
+    "etudiant": ("Étudiant", "etudiant__user__last_name"),
+    "formation": ("Formation", "etudiant__inscriptions_admin__formation__nom"),
+    "ue": ("UE", "ue__nom"),
+    "semestre": ("Semestre", "semestre__numero"),
+    "moyenne": ("Moyenne", "moyenne"),
+    "credits_obtenus": ("Crédits obtenus", "credits_obtenus"),
+    "capitalisee": ("Capitalisée", "capitalisee"),
+}
+UE_AVERAGE_REPORT_FILTERS = {
+    "etudiant": "etudiant_id",
+    "formation": "etudiant__inscriptions_admin__formation_id",
+    "ue": "ue_id",
+    "semestre": "semestre_id",
+    "capitalisee": "capitalisee",
 }
 
 
@@ -200,6 +258,17 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"evaluations"})
+        return export_queryset_csv(
+            self.filter_queryset(self.get_queryset()),
+            report,
+            EVALUATION_REPORT_FIELDS,
+            EVALUATION_REPORT_FILTERS,
+            request.data.get("filters", {}),
+        )
+
     @action(detail=True, methods=["get"])
     def statistiques(self, request, pk=None):
         """Statistiques de l'évaluation."""
@@ -266,10 +335,10 @@ class NotesViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def bilan(self, request):
         group_by = request.query_params.get("group_by", "ecue")
-        group_field = REPORT_GROUPS.get(group_by)
+        group_field = NOTE_REPORT_GROUPS.get(group_by)
         if not group_field:
             return Response(
-                {"group_by": f"Valeurs acceptées: {', '.join(REPORT_GROUPS)}."},
+                {"group_by": f"Valeurs acceptées: {', '.join(NOTE_REPORT_GROUPS)}."},
                 status=400,
             )
         rows = (
@@ -292,12 +361,12 @@ class NotesViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"])
     def exporter(self, request):
-        report = configured_report(request, request.data.get("report"))
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"notes"})
         return export_queryset_csv(
             self.filter_queryset(self.get_queryset()),
             report,
-            REPORT_FIELDS,
-            REPORT_FILTERS,
+            NOTE_REPORT_FIELDS,
+            NOTE_REPORT_FILTERS,
             request.data.get("filters", {}),
         )
 
@@ -336,6 +405,17 @@ class MoyennesECUEViewSet(viewsets.ReadOnlyModelViewSet):
             },
         )
 
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"averages_ecue"})
+        return export_queryset_csv(
+            self.filter_queryset(self.get_queryset()),
+            report,
+            ECUE_AVERAGE_REPORT_FIELDS,
+            ECUE_AVERAGE_REPORT_FILTERS,
+            request.data.get("filters", {}),
+        )
+
 
 class MoyennesUEViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet lecture seule pour moyennes UE."""
@@ -368,6 +448,17 @@ class MoyennesUEViewSet(viewsets.ReadOnlyModelViewSet):
                 "semestres": "semestre_id",
                 "ues": "ue_id",
             },
+        )
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"averages_ue"})
+        return export_queryset_csv(
+            self.filter_queryset(self.get_queryset()),
+            report,
+            UE_AVERAGE_REPORT_FIELDS,
+            UE_AVERAGE_REPORT_FILTERS,
+            request.data.get("filters", {}),
         )
 
 

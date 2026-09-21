@@ -208,6 +208,10 @@ const EtablissementPage = () => {
   }
 
   const configurationSchema = formData.configuration_schema || {};
+  const reportDatasets = configurationSchema.report_datasets || [];
+  const getReportDatasetDefinition = (datasetCode) => (
+    reportDatasets.find((dataset) => dataset.code === datasetCode) || null
+  );
 
   return (
     <div>
@@ -799,9 +803,11 @@ const EtablissementPage = () => {
                     </Button>
                   </Card.Header>
                   <Card.Body>
-                    {(academicConfiguration.reports || []).map((report, index) => (
-                      <Card key={report.code || report.label || JSON.stringify(report)} className="mb-3">
-                        <Card.Body>
+                    {(academicConfiguration.reports || []).map((report, index) => {
+                      const datasetDefinition = getReportDatasetDefinition(report.dataset);
+                      return (
+                        <Card key={report.code || report.label || JSON.stringify(report)} className="mb-3">
+                          <Card.Body>
                           <Row>
                             <Col md={6}>
                               <Form.Group className="mb-2">
@@ -822,18 +828,27 @@ const EtablissementPage = () => {
                               </Form.Group>
                             </Col>
                           </Row>
-                          <Form.Group className="mb-2">
-                            <Form.Label>Dataset</Form.Label>
-                            <Form.Control
-                              as="select"
-                              value={report.dataset || ''}
-                              onChange={(event) => updateAcademicItemField('reports', index, 'dataset', event.target.value)}
-                            >
-                              {(configurationSchema.report_datasets || []).map((option) => (
-                                <option key={option.code} value={option.code}>{option.label}</option>
-                              ))}
-                            </Form.Control>
-                          </Form.Group>
+                            <Form.Group className="mb-2">
+                              <Form.Label>Dataset</Form.Label>
+                              <Form.Control
+                                as="select"
+                                value={report.dataset || ''}
+                                onChange={(event) => updateAcademicItemField('reports', index, 'dataset', event.target.value)}
+                              >
+                                {(configurationSchema.report_datasets || []).map((option) => (
+                                  <option key={option.code} value={option.code}>{option.label}</option>
+                                ))}
+                              </Form.Control>
+                              {datasetDefinition && (
+                                <Form.Text>
+                                  Champs disponibles : {datasetDefinition.fields.map((field) => field.code).join(', ') || 'aucun'}.
+                                  {' '}
+                                  Filtres : {datasetDefinition.allowed_filters.map((filter) => filter.code).join(', ') || 'aucun'}.
+                                  {' '}
+                                  Groupements : {datasetDefinition.group_by_options.map((group) => group.code).join(', ') || 'aucun'}.
+                                </Form.Text>
+                              )}
+                            </Form.Group>
                           <Form.Group className="mb-2">
                             <Form.Label>Champs</Form.Label>
                             <Form.Control
@@ -865,10 +880,11 @@ const EtablissementPage = () => {
                               onChange={(event) => updateAcademicItemField('reports', index, 'default_group_by', event.target.value)}
                             />
                           </Form.Group>
-                          <Button type="button" variant="link" className="px-0" onClick={() => removeAcademicItem('reports', index)}>Supprimer</Button>
-                        </Card.Body>
-                      </Card>
-                    ))}
+                            <Button type="button" variant="link" className="px-0" onClick={() => removeAcademicItem('reports', index)}>Supprimer</Button>
+                          </Card.Body>
+                        </Card>
+                      );
+                    })}
                   </Card.Body>
                 </Card>
               </Col>

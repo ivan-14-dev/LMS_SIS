@@ -29,7 +29,7 @@ from .serializers import (
     RegleValidationSerializer,
 )
 
-REPORT_FIELDS = {
+NOTE_REPORT_FIELDS = {
     "matricule": ("Matricule", "eleve__matricule"),
     "eleve": ("Élève", "eleve__user__last_name"),
     "classe": ("Classe", "evaluation__classe__nom"),
@@ -42,7 +42,7 @@ REPORT_FIELDS = {
     "periode": ("Période", "evaluation__periode__libelle"),
     "date": ("Date", "evaluation__date"),
 }
-REPORT_FILTERS = {
+NOTE_REPORT_FILTERS = {
     "annee": "evaluation__classe__annee_scolaire_id",
     "classe": "evaluation__classe_id",
     "matiere": "evaluation__matiere_id",
@@ -50,11 +50,48 @@ REPORT_FILTERS = {
     "periode": "evaluation__periode_id",
     "statut": "statut",
 }
-REPORT_GROUPS = {
+NOTE_REPORT_GROUPS = {
     "classe": "evaluation__classe__nom",
     "matiere": "evaluation__matiere__nom",
     "enseignant": "evaluation__enseignant__user__last_name",
     "periode": "evaluation__periode__libelle",
+}
+EVALUATION_REPORT_FIELDS = {
+    "titre": ("Titre", "titre"),
+    "type": ("Type", "type"),
+    "classe": ("Classe", "classe__nom"),
+    "matiere": ("Matière", "matiere__nom"),
+    "periode": ("Période", "periode__libelle"),
+    "enseignant": ("Enseignant", "enseignant__user__last_name"),
+    "date": ("Date", "date"),
+    "bareme": ("Barème", "bareme"),
+    "coefficient": ("Coefficient", "coefficient"),
+    "ponderation": ("Pondération", "ponderation"),
+}
+EVALUATION_REPORT_FILTERS = {
+    "classe": "classe_id",
+    "matiere": "matiere_id",
+    "periode": "periode_id",
+    "type": "type",
+    "enseignant": "enseignant_id",
+}
+BULLETIN_REPORT_FIELDS = {
+    "matricule": ("Matricule", "eleve__matricule"),
+    "eleve": ("Élève", "eleve__user__last_name"),
+    "classe": ("Classe", "classe__nom"),
+    "periode": ("Période", "periode__libelle"),
+    "moyenne_generale": ("Moyenne générale", "moyenne_generale"),
+    "rang": ("Rang", "rang"),
+    "effectif_classe": ("Effectif classe", "effectif_classe"),
+    "decision": ("Décision", "decision"),
+    "publie": ("Publié", "publie"),
+    "signe": ("Signé", "signe"),
+}
+BULLETIN_REPORT_FILTERS = {
+    "eleve": "eleve_id",
+    "classe": "classe_id",
+    "periode": "periode_id",
+    "publie": "publie",
 }
 
 
@@ -203,6 +240,17 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"evaluations"})
+        return export_queryset_csv(
+            self.filter_queryset(self.get_queryset()),
+            report,
+            EVALUATION_REPORT_FIELDS,
+            EVALUATION_REPORT_FILTERS,
+            request.data.get("filters", {}),
+        )
+
     @action(detail=True, methods=["get"])
     def statistiques(self, request, pk=None):
         """Statistiques de l'évaluation."""
@@ -274,10 +322,10 @@ class NotesViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def bilan(self, request):
         group_by = request.query_params.get("group_by", "matiere")
-        group_field = REPORT_GROUPS.get(group_by)
+        group_field = NOTE_REPORT_GROUPS.get(group_by)
         if not group_field:
             return Response(
-                {"group_by": f"Valeurs acceptées: {', '.join(REPORT_GROUPS)}."},
+                {"group_by": f"Valeurs acceptées: {', '.join(NOTE_REPORT_GROUPS)}."},
                 status=400,
             )
         rows = (
@@ -300,12 +348,12 @@ class NotesViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"])
     def exporter(self, request):
-        report = configured_report(request, request.data.get("report"))
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"notes"})
         return export_queryset_csv(
             self.filter_queryset(self.get_queryset()),
             report,
-            REPORT_FIELDS,
-            REPORT_FILTERS,
+            NOTE_REPORT_FIELDS,
+            NOTE_REPORT_FILTERS,
             request.data.get("filters", {}),
         )
 
@@ -393,6 +441,17 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         bulletin.date_signature = timezone.now()
         bulletin.save(update_fields=["signe", "date_signature", "updated_at"])
         return Response({"detail": "Bulletin signé.", "id": bulletin.id})
+
+    @action(detail=False, methods=["post"])
+    def exporter(self, request):
+        report = configured_report(request, request.data.get("report"), allowed_datasets={"bulletins"})
+        return export_queryset_csv(
+            self.filter_queryset(self.get_queryset()),
+            report,
+            BULLETIN_REPORT_FIELDS,
+            BULLETIN_REPORT_FILTERS,
+            request.data.get("filters", {}),
+        )
 
 
 class ReglesValidationViewSet(viewsets.ModelViewSet):

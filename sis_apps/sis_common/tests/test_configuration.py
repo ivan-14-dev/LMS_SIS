@@ -118,10 +118,31 @@ class AcademicConfigurationTests(SimpleTestCase):
             validate_academic_configuration(configuration)
 
     def test_academic_configuration_schema_exposes_supported_dimensions_and_datasets(self):
-        schema = academic_configuration_schema()
+        schema = academic_configuration_schema("superieur")
 
         self.assertIn({"code": "financial", "label": "Financier"}, schema["dimension_axes"])
-        self.assertIn({"code": "financial_payments", "label": "Paiements"}, schema["report_datasets"])
+        payments_dataset = next(
+            dataset for dataset in schema["report_datasets"] if dataset["code"] == "financial_payments"
+        )
+        averages_dataset = next(
+            dataset for dataset in schema["report_datasets"] if dataset["code"] == "averages_ecue"
+        )
+
+        self.assertEqual(payments_dataset["label"], "Paiements")
+        self.assertIn({"code": "formation", "label": "Formation"}, payments_dataset["allowed_filters"])
+        self.assertIn({"code": "moyenne", "label": "Moyenne"}, averages_dataset["fields"])
+        self.assertNotIn("bulletins", {dataset["code"] for dataset in schema["report_datasets"]})
+
+    def test_secondary_schema_exposes_bulletins_without_university_average_datasets(self):
+        schema = academic_configuration_schema("secondaire")
+        dataset_codes = {dataset["code"] for dataset in schema["report_datasets"]}
+        bulletins_dataset = next(
+            dataset for dataset in schema["report_datasets"] if dataset["code"] == "bulletins"
+        )
+
+        self.assertIn("bulletins", dataset_codes)
+        self.assertNotIn("averages_ecue", dataset_codes)
+        self.assertIn({"code": "moyenne_generale", "label": "Moyenne générale"}, bulletins_dataset["fields"])
 
     def test_default_configuration_includes_reusable_permission_groups(self):
         configuration = default_academic_configuration()

@@ -38,12 +38,349 @@ VALIDATION_POLICY_SCOPES = {
     "semester": "Semestre",
 }
 
+REPORT_DATASET_SCHEMAS = {
+    "notes": {
+        "label": "Notes",
+        "variants": {
+            "secondaire": {
+                "fields": [
+                    {"code": "matricule", "label": "Matricule"},
+                    {"code": "eleve", "label": "Élève"},
+                    {"code": "classe", "label": "Classe"},
+                    {"code": "matiere", "label": "Matière"},
+                    {"code": "evaluation", "label": "Évaluation"},
+                    {"code": "note", "label": "Note"},
+                    {"code": "bareme", "label": "Barème"},
+                    {"code": "appreciation", "label": "Appréciation"},
+                    {"code": "enseignant", "label": "Enseignant"},
+                    {"code": "periode", "label": "Période"},
+                    {"code": "date", "label": "Date"},
+                ],
+                "allowed_filters": [
+                    {"code": "annee", "label": "Année scolaire"},
+                    {"code": "classe", "label": "Classe"},
+                    {"code": "matiere", "label": "Matière"},
+                    {"code": "enseignant", "label": "Enseignant"},
+                    {"code": "periode", "label": "Période"},
+                    {"code": "statut", "label": "Statut"},
+                ],
+                "group_by_options": [
+                    {"code": "classe", "label": "Classe"},
+                    {"code": "matiere", "label": "Matière"},
+                    {"code": "enseignant", "label": "Enseignant"},
+                    {"code": "periode", "label": "Période"},
+                ],
+            },
+            "superieur": {
+                "fields": [
+                    {"code": "matricule", "label": "Matricule"},
+                    {"code": "etudiant", "label": "Étudiant"},
+                    {"code": "formation", "label": "Formation"},
+                    {"code": "ecue", "label": "ECUE"},
+                    {"code": "ue", "label": "UE"},
+                    {"code": "evaluation", "label": "Évaluation"},
+                    {"code": "note", "label": "Note"},
+                    {"code": "bareme", "label": "Barème"},
+                    {"code": "appreciation", "label": "Appréciation"},
+                    {"code": "enseignant", "label": "Enseignant"},
+                    {"code": "semestre", "label": "Semestre"},
+                    {"code": "date", "label": "Date"},
+                ],
+                "allowed_filters": [
+                    {"code": "annee", "label": "Année universitaire"},
+                    {"code": "formation", "label": "Formation"},
+                    {"code": "ecue", "label": "ECUE"},
+                    {"code": "ue", "label": "UE"},
+                    {"code": "enseignant", "label": "Enseignant"},
+                    {"code": "semestre", "label": "Semestre"},
+                    {"code": "statut", "label": "Statut"},
+                ],
+                "group_by_options": [
+                    {"code": "formation", "label": "Formation"},
+                    {"code": "ecue", "label": "ECUE"},
+                    {"code": "ue", "label": "UE"},
+                    {"code": "enseignant", "label": "Enseignant"},
+                    {"code": "semestre", "label": "Semestre"},
+                ],
+            },
+        },
+    },
+    "evaluations": {
+        "label": "Évaluations",
+        "variants": {
+            "secondaire": {
+                "fields": [
+                    {"code": "titre", "label": "Titre"},
+                    {"code": "type", "label": "Type"},
+                    {"code": "classe", "label": "Classe"},
+                    {"code": "matiere", "label": "Matière"},
+                    {"code": "periode", "label": "Période"},
+                    {"code": "enseignant", "label": "Enseignant"},
+                    {"code": "date", "label": "Date"},
+                    {"code": "bareme", "label": "Barème"},
+                    {"code": "coefficient", "label": "Coefficient"},
+                    {"code": "ponderation", "label": "Pondération"},
+                ],
+                "allowed_filters": [
+                    {"code": "classe", "label": "Classe"},
+                    {"code": "matiere", "label": "Matière"},
+                    {"code": "periode", "label": "Période"},
+                    {"code": "type", "label": "Type"},
+                    {"code": "enseignant", "label": "Enseignant"},
+                ],
+                "group_by_options": [
+                    {"code": "classe", "label": "Classe"},
+                    {"code": "matiere", "label": "Matière"},
+                    {"code": "periode", "label": "Période"},
+                    {"code": "enseignant", "label": "Enseignant"},
+                    {"code": "type", "label": "Type"},
+                ],
+            },
+            "superieur": {
+                "fields": [
+                    {"code": "titre", "label": "Titre"},
+                    {"code": "modalite", "label": "Modalité"},
+                    {"code": "ecue", "label": "ECUE"},
+                    {"code": "ue", "label": "UE"},
+                    {"code": "formation", "label": "Formation"},
+                    {"code": "semestre", "label": "Semestre"},
+                    {"code": "enseignant", "label": "Enseignant"},
+                    {"code": "date", "label": "Date"},
+                    {"code": "bareme", "label": "Barème"},
+                    {"code": "coefficient", "label": "Coefficient"},
+                    {"code": "ponderation", "label": "Pondération"},
+                    {"code": "anonyme", "label": "Anonyme"},
+                ],
+                "allowed_filters": [
+                    {"code": "ecue", "label": "ECUE"},
+                    {"code": "ue", "label": "UE"},
+                    {"code": "semestre", "label": "Semestre"},
+                    {"code": "formation", "label": "Formation"},
+                    {"code": "modalite", "label": "Modalité"},
+                    {"code": "enseignant", "label": "Enseignant"},
+                    {"code": "anonyme", "label": "Anonyme"},
+                ],
+                "group_by_options": [
+                    {"code": "formation", "label": "Formation"},
+                    {"code": "ecue", "label": "ECUE"},
+                    {"code": "ue", "label": "UE"},
+                    {"code": "semestre", "label": "Semestre"},
+                    {"code": "enseignant", "label": "Enseignant"},
+                    {"code": "modalite", "label": "Modalité"},
+                ],
+            },
+        },
+    },
+    "bulletins": {
+        "label": "Bulletins",
+        "variants": {
+            "secondaire": {
+                "fields": [
+                    {"code": "matricule", "label": "Matricule"},
+                    {"code": "eleve", "label": "Élève"},
+                    {"code": "classe", "label": "Classe"},
+                    {"code": "periode", "label": "Période"},
+                    {"code": "moyenne_generale", "label": "Moyenne générale"},
+                    {"code": "rang", "label": "Rang"},
+                    {"code": "effectif_classe", "label": "Effectif classe"},
+                    {"code": "decision", "label": "Décision"},
+                    {"code": "publie", "label": "Publié"},
+                    {"code": "signe", "label": "Signé"},
+                ],
+                "allowed_filters": [
+                    {"code": "eleve", "label": "Élève"},
+                    {"code": "classe", "label": "Classe"},
+                    {"code": "periode", "label": "Période"},
+                    {"code": "publie", "label": "Publié"},
+                ],
+                "group_by_options": [
+                    {"code": "classe", "label": "Classe"},
+                    {"code": "periode", "label": "Période"},
+                    {"code": "publie", "label": "Publié"},
+                    {"code": "signe", "label": "Signé"},
+                ],
+            },
+        },
+    },
+    "financial_invoices": {
+        "label": "Factures",
+        "variants": {
+            "secondaire": {
+                "fields": [
+                    {"code": "numero", "label": "Numéro"},
+                    {"code": "eleve", "label": "Élève"},
+                    {"code": "matricule", "label": "Matricule"},
+                    {"code": "rubrique", "label": "Rubrique"},
+                    {"code": "annee", "label": "Année"},
+                    {"code": "montant", "label": "Montant"},
+                    {"code": "montant_paye", "label": "Montant payé"},
+                    {"code": "statut", "label": "Statut"},
+                    {"code": "date_emission", "label": "Date émission"},
+                    {"code": "date_echeance", "label": "Date échéance"},
+                ],
+                "allowed_filters": [
+                    {"code": "annee", "label": "Année scolaire"},
+                    {"code": "eleve", "label": "Élève"},
+                    {"code": "rubrique", "label": "Rubrique"},
+                    {"code": "statut", "label": "Statut"},
+                ],
+                "group_by_options": [
+                    {"code": "annee", "label": "Année scolaire"},
+                    {"code": "rubrique", "label": "Rubrique"},
+                    {"code": "statut", "label": "Statut"},
+                ],
+            },
+            "superieur": {
+                "fields": [
+                    {"code": "numero", "label": "Numéro"},
+                    {"code": "etudiant", "label": "Étudiant"},
+                    {"code": "matricule", "label": "Matricule"},
+                    {"code": "rubrique", "label": "Rubrique"},
+                    {"code": "annee", "label": "Année"},
+                    {"code": "montant", "label": "Montant"},
+                    {"code": "montant_paye", "label": "Montant payé"},
+                    {"code": "statut", "label": "Statut"},
+                    {"code": "date_emission", "label": "Date émission"},
+                    {"code": "date_echeance", "label": "Date échéance"},
+                ],
+                "allowed_filters": [
+                    {"code": "annee", "label": "Année universitaire"},
+                    {"code": "etudiant", "label": "Étudiant"},
+                    {"code": "rubrique", "label": "Rubrique"},
+                    {"code": "statut", "label": "Statut"},
+                ],
+                "group_by_options": [
+                    {"code": "annee", "label": "Année universitaire"},
+                    {"code": "rubrique", "label": "Rubrique"},
+                    {"code": "statut", "label": "Statut"},
+                ],
+            },
+        },
+    },
+    "financial_payments": {
+        "label": "Paiements",
+        "variants": {
+            "secondaire": {
+                "fields": [
+                    {"code": "numero", "label": "Numéro"},
+                    {"code": "eleve", "label": "Élève"},
+                    {"code": "matricule", "label": "Matricule"},
+                    {"code": "facture", "label": "Facture"},
+                    {"code": "rubrique", "label": "Rubrique"},
+                    {"code": "annee", "label": "Année"},
+                    {"code": "mode", "label": "Mode"},
+                    {"code": "montant", "label": "Montant"},
+                    {"code": "statut", "label": "Statut"},
+                    {"code": "date_paiement", "label": "Date de paiement"},
+                ],
+                "allowed_filters": [
+                    {"code": "annee", "label": "Année scolaire"},
+                    {"code": "rubrique", "label": "Rubrique"},
+                    {"code": "facture", "label": "Facture"},
+                    {"code": "mode", "label": "Mode"},
+                    {"code": "statut", "label": "Statut"},
+                ],
+                "group_by_options": [
+                    {"code": "annee", "label": "Année scolaire"},
+                    {"code": "rubrique", "label": "Rubrique"},
+                    {"code": "mode", "label": "Mode"},
+                    {"code": "statut", "label": "Statut"},
+                ],
+            },
+            "superieur": {
+                "fields": [
+                    {"code": "numero", "label": "Numéro"},
+                    {"code": "etudiant", "label": "Étudiant"},
+                    {"code": "matricule", "label": "Matricule"},
+                    {"code": "facture", "label": "Facture"},
+                    {"code": "rubrique", "label": "Rubrique"},
+                    {"code": "annee", "label": "Année"},
+                    {"code": "mode", "label": "Mode"},
+                    {"code": "montant", "label": "Montant"},
+                    {"code": "statut", "label": "Statut"},
+                    {"code": "date_paiement", "label": "Date de paiement"},
+                ],
+                "allowed_filters": [
+                    {"code": "annee", "label": "Année universitaire"},
+                    {"code": "rubrique", "label": "Rubrique"},
+                    {"code": "facture", "label": "Facture"},
+                    {"code": "mode", "label": "Mode"},
+                    {"code": "statut", "label": "Statut"},
+                ],
+                "group_by_options": [
+                    {"code": "annee", "label": "Année universitaire"},
+                    {"code": "rubrique", "label": "Rubrique"},
+                    {"code": "mode", "label": "Mode"},
+                    {"code": "statut", "label": "Statut"},
+                ],
+            },
+        },
+    },
+    "averages_ecue": {
+        "label": "Moyennes ECUE",
+        "variants": {
+            "superieur": {
+                "fields": [
+                    {"code": "matricule", "label": "Matricule"},
+                    {"code": "etudiant", "label": "Étudiant"},
+                    {"code": "formation", "label": "Formation"},
+                    {"code": "ecue", "label": "ECUE"},
+                    {"code": "ue", "label": "UE"},
+                    {"code": "semestre", "label": "Semestre"},
+                    {"code": "moyenne", "label": "Moyenne"},
+                    {"code": "valide", "label": "Validé"},
+                ],
+                "allowed_filters": [
+                    {"code": "etudiant", "label": "Étudiant"},
+                    {"code": "formation", "label": "Formation"},
+                    {"code": "ecue", "label": "ECUE"},
+                    {"code": "ue", "label": "UE"},
+                    {"code": "semestre", "label": "Semestre"},
+                    {"code": "valide", "label": "Validé"},
+                ],
+                "group_by_options": [
+                    {"code": "formation", "label": "Formation"},
+                    {"code": "ecue", "label": "ECUE"},
+                    {"code": "ue", "label": "UE"},
+                    {"code": "semestre", "label": "Semestre"},
+                    {"code": "valide", "label": "Validé"},
+                ],
+            },
+        },
+    },
+    "averages_ue": {
+        "label": "Moyennes UE",
+        "variants": {
+            "superieur": {
+                "fields": [
+                    {"code": "matricule", "label": "Matricule"},
+                    {"code": "etudiant", "label": "Étudiant"},
+                    {"code": "formation", "label": "Formation"},
+                    {"code": "ue", "label": "UE"},
+                    {"code": "semestre", "label": "Semestre"},
+                    {"code": "moyenne", "label": "Moyenne"},
+                    {"code": "credits_obtenus", "label": "Crédits obtenus"},
+                    {"code": "capitalisee", "label": "Capitalisée"},
+                ],
+                "allowed_filters": [
+                    {"code": "etudiant", "label": "Étudiant"},
+                    {"code": "formation", "label": "Formation"},
+                    {"code": "ue", "label": "UE"},
+                    {"code": "semestre", "label": "Semestre"},
+                    {"code": "capitalisee", "label": "Capitalisée"},
+                ],
+                "group_by_options": [
+                    {"code": "formation", "label": "Formation"},
+                    {"code": "ue", "label": "UE"},
+                    {"code": "semestre", "label": "Semestre"},
+                    {"code": "capitalisee", "label": "Capitalisée"},
+                ],
+            },
+        },
+    },
+}
 REPORT_DATASET_LABELS = {
-    "notes": "Notes",
-    "evaluations": "Évaluations",
-    "bulletins": "Bulletins",
-    "financial_invoices": "Factures",
-    "financial_payments": "Paiements",
+    code: details["label"] for code, details in REPORT_DATASET_SCHEMAS.items()
 }
 
 FINANCIAL_WORKFLOW_SCOPES = {
@@ -634,12 +971,36 @@ def _validate_reports(items):
             raise ValidationError(f"reports[{index}].default_group_by doit être une chaîne non vide.")
 
 
-def academic_configuration_schema():
+def _report_dataset_schema(variant=None):
+    datasets = []
+    for code, details in REPORT_DATASET_SCHEMAS.items():
+        variants = details.get("variants", {})
+        applicable_to = sorted(variants)
+        if variant:
+            if variant not in variants:
+                continue
+            dataset = variants[variant]
+        else:
+            dataset = {}
+        datasets.append(
+            {
+                "code": code,
+                "label": details["label"],
+                "applicable_to": applicable_to,
+                "fields": dataset.get("fields", []),
+                "allowed_filters": dataset.get("allowed_filters", []),
+                "group_by_options": dataset.get("group_by_options", []),
+            }
+        )
+    return datasets
+
+
+def academic_configuration_schema(variant=None):
     return {
         "dimension_axes": [{"code": code, "label": label} for code, label in DIMENSION_AXES.items()],
         "dimension_scopes": [{"code": code, "label": label} for code, label in DIMENSION_SCOPES.items()],
         "validation_scopes": [{"code": code, "label": label} for code, label in VALIDATION_POLICY_SCOPES.items()],
-        "report_datasets": [{"code": code, "label": label} for code, label in REPORT_DATASET_LABELS.items()],
+        "report_datasets": _report_dataset_schema(variant),
         "financial_workflow_scopes": [
             {"code": code, "label": label} for code, label in FINANCIAL_WORKFLOW_SCOPES.items()
         ],

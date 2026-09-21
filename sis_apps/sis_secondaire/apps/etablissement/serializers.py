@@ -106,7 +106,7 @@ class EtablissementSerializer(serializers.ModelSerializer):
         return [{"value": value, "label": label} for value, label in LIVE_PROVIDER_LABELS.items()]
 
     def get_configuration_schema(self, obj):
-        return academic_configuration_schema()
+        return academic_configuration_schema("secondaire")
 
     def validate(self, attrs):
         institution_type = attrs.get("type", getattr(self.instance, "type", None))
