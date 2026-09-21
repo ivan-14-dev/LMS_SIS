@@ -291,6 +291,64 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             ],
             "attributes": {},
         },
+        {
+            "code": "class_manager_secondary",
+            "label": "Gestion classes secondaire",
+            "permissions": [
+                "classes.change_classe",
+                "classes.change_groupe",
+                "classes.change_matiere",
+                "classes.change_programmematiere",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "student_manager_secondary",
+            "label": "Gestion élèves secondaire",
+            "permissions": [
+                "eleves.change_eleve",
+                "eleves.change_inscription",
+                "eleves.change_tuteur",
+                "eleves.change_elevetuteur",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "schedule_manager_secondary",
+            "label": "Gestion emplois du temps secondaire",
+            "permissions": [
+                "emplois_du_temps.change_creneau",
+                "emplois_du_temps.change_contrainte",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "student_manager_superieur",
+            "label": "Gestion étudiants supérieur",
+            "permissions": [
+                "etudiants.change_etudiant",
+                "etudiants.change_inscriptionadministrative",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "mobility_manager_superieur",
+            "label": "Gestion mobilité supérieur",
+            "permissions": [
+                "mobilite.change_programmemobilite",
+                "mobilite.change_candidaturemobilite",
+                "mobilite.change_accordetudes",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "retake_manager_superieur",
+            "label": "Gestion rattrapages supérieur",
+            "permissions": [
+                "rattrapages.change_inscriptionrattrapage",
+            ],
+            "attributes": {},
+        },
     ],
     "validation_policies": [],
     "financial_workflows": [

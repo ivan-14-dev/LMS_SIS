@@ -132,11 +132,17 @@ class AcademicConfigurationTests(SimpleTestCase):
         self.assertIn("finance_manager_secondary", codes)
         self.assertIn("finance_manager_superieur", codes)
         self.assertIn("attendance_manager_secondary", codes)
+        self.assertIn("class_manager_secondary", codes)
         self.assertIn("class_council_manager_secondary", codes)
         self.assertIn("jury_manager_superieur", codes)
         self.assertIn("memoire_manager_superieur", codes)
+        self.assertIn("mobility_manager_superieur", codes)
         self.assertIn("registration_manager_superieur", codes)
+        self.assertIn("retake_manager_superieur", codes)
+        self.assertIn("schedule_manager_secondary", codes)
         self.assertIn("stage_manager_secondary", codes)
+        self.assertIn("student_manager_secondary", codes)
+        self.assertIn("student_manager_superieur", codes)
         self.assertIn("document_signatory_superieur", codes)
 
     def test_resolve_validation_policy_prefers_most_specific_target(self):

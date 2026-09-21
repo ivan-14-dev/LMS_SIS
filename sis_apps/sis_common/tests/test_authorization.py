@@ -198,3 +198,27 @@ class AuthorizationTests(SimpleTestCase):
                 tenant_group_codes=("memoire_manager_superieur",),
             )
         )
+
+    def test_request_helper_supports_core_management_groups(self):
+        configuration = {
+            "permission_groups": [
+                {
+                    "code": "student_manager_superieur",
+                    "label": "Étudiants",
+                    "permissions": ["etudiants.change_etudiant"],
+                    "attributes": {},
+                }
+            ]
+        }
+        request = FakeRequest(
+            FakeUser(permissions=["etudiants.change_etudiant"]),
+            configuration,
+        )
+
+        self.assertTrue(
+            request_has_business_access(
+                request,
+                "etudiants.change_inscriptionadministrative",
+                tenant_group_codes=("student_manager_superieur",),
+            )
+        )
