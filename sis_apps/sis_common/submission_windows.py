@@ -129,6 +129,9 @@ def get_submission_window_notification_content(instance, configuration, window_t
         **alert,
         "title": title,
         "message": message,
+        "category": settings.get("notification_category", "submission_deadline"),
+        "severity": settings.get("notification_severity", alert["severity"]),
+        "channels": settings.get("notification_channels", ["in_app"]),
     }
 
 
@@ -215,8 +218,11 @@ def maybe_record_submission_window_alert(request, instance, configuration, windo
         metadata={
             "submission_window_type": window_type,
             "threshold_hours": alert["threshold_hours"],
+            "notification_severity": alert["severity"],
+            "notification_channels": alert["channels"],
             "fin_soumission": getattr(instance, "fin_soumission", None).isoformat()
             if getattr(instance, "fin_soumission", None)
             else "",
         },
+        notification_category=alert["category"],
     )

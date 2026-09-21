@@ -69,6 +69,20 @@ SUBMISSION_WINDOW_TEMPLATE_VARIABLES = {
     "deadline": "Date/heure de fermeture format ISO",
 }
 
+SUBMISSION_WINDOW_SEVERITIES = {
+    "info": "Information",
+    "warning": "Avertissement",
+    "error": "Erreur",
+    "critical": "Critique",
+}
+
+SUBMISSION_WINDOW_NOTIFICATION_CHANNELS = {
+    "in_app": "Centre de notifications",
+    "email": "Email",
+    "sms": "SMS",
+    "webhook": "Webhook",
+}
+
 SECONDARY_USER_ROLES = {
     "super_admin": "Super administrateur",
     "direction": "Direction",
@@ -674,6 +688,9 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             "recipient_group_codes": [],
             "title_template": "Clôture de soumission imminente",
             "message_template": "Clôture de la {window_label} de {object_label} dans moins de {threshold_hours}h (limite: {deadline}).",
+            "notification_category": "submission_deadline",
+            "notification_severity": "warning",
+            "notification_channels": ["in_app"],
         },
         "exam": {
             "enabled": True,
@@ -685,6 +702,9 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             "recipient_group_codes": [],
             "title_template": "Clôture de soumission imminente",
             "message_template": "Clôture de la {window_label} de {object_label} dans moins de {threshold_hours}h (limite: {deadline}).",
+            "notification_category": "submission_deadline",
+            "notification_severity": "warning",
+            "notification_channels": ["in_app"],
         },
     },
     "catalogs": {
@@ -1396,6 +1416,26 @@ def _validate_submission_windows(value):
             value = settings.get(key, "")
             if not isinstance(value, str) or not value.strip():
                 raise ValidationError(f"submission_windows.{code}.{key} doit être une chaîne non vide.")
+        category = settings.get("notification_category", "submission_deadline")
+        if not isinstance(category, str) or not category.strip():
+            raise ValidationError(f"submission_windows.{code}.notification_category doit être une chaîne non vide.")
+        severity = settings.get("notification_severity", "warning")
+        if severity not in SUBMISSION_WINDOW_SEVERITIES:
+            raise ValidationError(
+                f"submission_windows.{code}.notification_severity doit être l'un de: "
+                + ", ".join(sorted(SUBMISSION_WINDOW_SEVERITIES))
+                + "."
+            )
+        channels = settings.get("notification_channels", ["in_app"])
+        if not isinstance(channels, list):
+            raise ValidationError(f"submission_windows.{code}.notification_channels doit être une liste.")
+        for index, item in enumerate(channels):
+            if item not in SUBMISSION_WINDOW_NOTIFICATION_CHANNELS:
+                raise ValidationError(
+                    f"submission_windows.{code}.notification_channels[{index}] doit être l'un de: "
+                    + ", ".join(sorted(SUBMISSION_WINDOW_NOTIFICATION_CHANNELS))
+                    + "."
+                )
 
 
 def _report_dataset_schema(variant=None):
@@ -1459,6 +1499,14 @@ def academic_configuration_schema(variant=None):
         "submission_window_template_variables": [
             {"code": code, "label": label}
             for code, label in SUBMISSION_WINDOW_TEMPLATE_VARIABLES.items()
+        ],
+        "submission_window_severities": [
+            {"code": code, "label": label}
+            for code, label in SUBMISSION_WINDOW_SEVERITIES.items()
+        ],
+        "submission_window_notification_channels": [
+            {"code": code, "label": label}
+            for code, label in SUBMISSION_WINDOW_NOTIFICATION_CHANNELS.items()
         ],
     }
 

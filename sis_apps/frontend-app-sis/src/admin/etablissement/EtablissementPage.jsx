@@ -224,6 +224,8 @@ const EtablissementPage = () => {
   const reportDatasets = configurationSchema.report_datasets || [];
   const submissionRecipientRoleOptions = configurationSchema.submission_window_recipient_roles || [];
   const submissionTemplateVariables = configurationSchema.submission_window_template_variables || [];
+  const submissionSeverityOptions = configurationSchema.submission_window_severities || [];
+  const submissionChannelOptions = configurationSchema.submission_window_notification_channels || [];
   const getReportDatasetDefinition = (datasetCode) => (
     reportDatasets.find((dataset) => dataset.code === datasetCode) || null
   );
@@ -725,6 +727,50 @@ const EtablissementPage = () => {
                             <Form.Text muted className="d-block mt-2">
                               Variables disponibles : {submissionTemplateVariables.map((item) => `{${item.code}}`).join(', ')}
                             </Form.Text>
+                            <Row className="mt-3">
+                              <Col md={6}>
+                                <Form.Group className="mb-2">
+                                  <Form.Label>Catégorie de notification</Form.Label>
+                                  <Form.Control
+                                    value={settings.notification_category || ''}
+                                    onChange={(event) => updateSubmissionWindowField(windowType.code, 'notification_category', event.target.value)}
+                                    placeholder="submission_deadline"
+                                  />
+                                </Form.Group>
+                              </Col>
+                              <Col md={6}>
+                                <Form.Group className="mb-0">
+                                  <Form.Label>Sévérité</Form.Label>
+                                  <Form.Select
+                                    value={settings.notification_severity || 'warning'}
+                                    onChange={(event) => updateSubmissionWindowField(windowType.code, 'notification_severity', event.target.value)}
+                                  >
+                                    {submissionSeverityOptions.map((option) => (
+                                      <option key={option.code} value={option.code}>{option.label}</option>
+                                    ))}
+                                  </Form.Select>
+                                </Form.Group>
+                              </Col>
+                            </Row>
+                            <Form.Group className="mt-3 mb-0">
+                              <Form.Label>Canaux de notification</Form.Label>
+                              <Form.Select
+                                multiple
+                                value={settings.notification_channels || []}
+                                onChange={(event) => updateSubmissionWindowField(
+                                  windowType.code,
+                                  'notification_channels',
+                                  Array.from(event.target.selectedOptions, (option) => option.value),
+                                )}
+                              >
+                                {submissionChannelOptions.map((option) => (
+                                  <option key={option.code} value={option.code}>{option.label}</option>
+                                ))}
+                              </Form.Select>
+                              <Form.Text muted>
+                                Le canal centre de notifications reste utilisé immédiatement ; les autres canaux sont conservés comme métadonnées de diffusion.
+                              </Form.Text>
+                            </Form.Group>
                           </Card.Body>
                         </Card>
                       );

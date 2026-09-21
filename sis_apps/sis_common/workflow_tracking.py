@@ -24,6 +24,7 @@ def record_workflow_event(
     message="",
     recipients=None,
     metadata=None,
+    notification_category=None,
 ):
     """Persist a workflow event and optional user notifications."""
 
@@ -51,7 +52,7 @@ def record_workflow_event(
         notification = WorkflowNotification.objects.create(
             recipient=recipient,
             event=event,
-            category=action,
+            category=notification_category or action,
             title=title,
             message=message or title,
             metadata=metadata,

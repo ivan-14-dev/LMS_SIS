@@ -145,6 +145,14 @@ class AcademicConfigurationTests(SimpleTestCase):
             {"code": "object_label", "label": "Libellé de l'évaluation / épreuve"},
             schema["submission_window_template_variables"],
         )
+        self.assertIn(
+            {"code": "warning", "label": "Avertissement"},
+            schema["submission_window_severities"],
+        )
+        self.assertIn(
+            {"code": "email", "label": "Email"},
+            schema["submission_window_notification_channels"],
+        )
         payments_dataset = next(
             dataset for dataset in schema["report_datasets"] if dataset["code"] == "financial_payments"
         )
@@ -240,6 +248,9 @@ class AcademicConfigurationTests(SimpleTestCase):
         self.assertEqual(settings["recipient_group_codes"], [])
         self.assertEqual(settings["title_template"], "Clôture de soumission imminente")
         self.assertIn("{object_label}", settings["message_template"])
+        self.assertEqual(settings["notification_category"], "submission_deadline")
+        self.assertEqual(settings["notification_severity"], "warning")
+        self.assertEqual(settings["notification_channels"], ["in_app"])
 
     def test_invalid_submission_window_configuration_is_rejected(self):
         configuration = default_academic_configuration()
@@ -268,6 +279,15 @@ class AcademicConfigurationTests(SimpleTestCase):
         with self.assertRaises(ValidationError):
             validate_academic_configuration(configuration)
 
+    def test_invalid_submission_window_notification_configuration_is_rejected(self):
+        configuration = default_academic_configuration()
+        configuration["submission_windows"] = {
+            "evaluation": {"notification_severity": "urgent", "notification_channels": ["fax"]},
+        }
+
+        with self.assertRaises(ValidationError):
+            validate_academic_configuration(configuration)
+
     def test_submission_window_notification_content_uses_configured_templates(self):
         class DummySubmissionObject:
             def __init__(self, fin_soumission):
@@ -282,6 +302,9 @@ class AcademicConfigurationTests(SimpleTestCase):
                 "reminder_hours": [24],
                 "title_template": "Rappel {object_type}",
                 "message_template": "{object_label} ferme dans {threshold_hours}h le {deadline}",
+                "notification_category": "custom_deadline",
+                "notification_severity": "critical",
+                "notification_channels": ["in_app", "email"],
             }
         }
         instance = DummySubmissionObject(timezone.now() + timedelta(hours=3))
@@ -290,6 +313,9 @@ class AcademicConfigurationTests(SimpleTestCase):
 
         self.assertEqual(notification["title"], "Rappel évaluation")
         self.assertIn("DS Math 6e A", notification["message"])
+        self.assertEqual(notification["category"], "custom_deadline")
+        self.assertEqual(notification["severity"], "critical")
+        self.assertEqual(notification["channels"], ["in_app", "email"])
 
     def test_resolve_validation_policy_prefers_most_specific_target(self):
         configuration = default_academic_configuration()
