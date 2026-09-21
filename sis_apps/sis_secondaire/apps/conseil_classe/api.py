@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from sis_common.authorization import request_has_business_access
 
 from .models import AppreciationConseil, ConseilClasse, DecisionConseil
 from .serializers import (
@@ -25,13 +26,11 @@ class IsDirectionOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "directeur",
-            "proviseur",
-            "principal",
-            "cpe",
-            "pp",
+        return request_has_business_access(
+            request,
+            "conseil_classe.change_conseilclasse",
+            ("directeur", "proviseur", "principal", "cpe", "pp"),
+            tenant_group_codes=("class_council_manager_secondary",),
         )
 
 

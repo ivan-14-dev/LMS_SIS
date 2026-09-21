@@ -261,6 +261,36 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             ],
             "attributes": {},
         },
+        {
+            "code": "class_council_manager_secondary",
+            "label": "Gestion conseils de classe secondaire",
+            "permissions": [
+                "conseil_classe.change_conseilclasse",
+                "conseil_classe.change_decisionconseil",
+                "conseil_classe.change_appreciationconseil",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "attendance_manager_secondary",
+            "label": "Gestion présences secondaire",
+            "permissions": [
+                "presences.change_appel",
+                "presences.change_presence",
+                "presences.change_justificatif",
+            ],
+            "attributes": {},
+        },
+        {
+            "code": "memoire_manager_superieur",
+            "label": "Gestion mémoires supérieur",
+            "permissions": [
+                "memoires.change_sujetmemoire",
+                "memoires.change_memoire",
+                "memoires.change_jurymemoire",
+            ],
+            "attributes": {},
+        },
     ],
     "validation_policies": [],
     "financial_workflows": [

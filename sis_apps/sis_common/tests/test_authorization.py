@@ -174,3 +174,27 @@ class AuthorizationTests(SimpleTestCase):
                 tenant_group_codes=("exam_manager_secondary",),
             )
         )
+
+    def test_request_helper_supports_new_workflow_groups(self):
+        configuration = {
+            "permission_groups": [
+                {
+                    "code": "memoire_manager_superieur",
+                    "label": "Mémoires",
+                    "permissions": ["memoires.change_memoire"],
+                    "attributes": {},
+                }
+            ]
+        }
+        request = FakeRequest(
+            FakeUser(permissions=["memoires.change_memoire"]),
+            configuration,
+        )
+
+        self.assertTrue(
+            request_has_business_access(
+                request,
+                "memoires.change_jurymemoire",
+                tenant_group_codes=("memoire_manager_superieur",),
+            )
+        )
