@@ -11,6 +11,8 @@ from apps.utilisateurs.models import Utilisateur
 from django.test import override_settings
 from rest_framework.test import APIClient, APITestCase
 
+TEST_USER_PASSWORD = "irrelevant-test-value-not-a-real-secret"
+
 
 @override_settings(
     EDX_WEBHOOK_SECRET="test-webhook-secret-secondaire",
@@ -68,55 +70,137 @@ class WebhookSecurityTestCase(APITestCase):
         assert response.status_code in [200, 201, 404]
 
 
-class UserWebhookTestCase(TenantAPITestCase):
+class WebhookSigningMixin:
+    """Fournit un helper pour poster un webhook LMS/CMS correctement signé."""
+
+    def _post_webhook(self, kind, payload, event_type, event_id=None):
+        from django.conf import settings
+
+        url = f"/api/v1/integration/webhook/{kind}/"
+        body = json.dumps(payload).encode()
+        signature = hmac.new(
+            settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256
+        ).hexdigest()
+        headers = {
+            "HTTP_X_SIGNATURE": signature,
+            "HTTP_X_EVENT_TYPE": event_type,
+        }
+        if event_id:
+            headers["HTTP_X_EVENT_ID"] = event_id
+        return self.client.post(
+            url, data=body, content_type="application/json", **headers
+        )
+
+
+class UserWebhookTestCase(WebhookSigningMixin, TenantAPITestCase):
     """Tests des webhooks utilisateur."""
 
     def setUp(self):
         self.admin = Utilisateur.objects.create_superuser(
-            username="admin", email="admin@test.com", password="adminpass"
+            "admin", "admin@test.com", TEST_USER_PASSWORD
         )
         self.client.force_authenticate(user=self.admin)
 
-    @patch("apps.integration.webhook_handlers.WebhookHandler.handle_user_created")
-    def test_user_created_webhook_triggers_handler(self, mock_handler):
-        """Le webhook user.created déclenche le handler."""
-        mock_handler.return_value = {"status": "ok"}
+    @patch("apps.integration.tasks.process_user_webhook.delay")
+    def test_user_created_webhook_triggers_handler(self, mock_delay):
+        """Le webhook user.created est validé puis mis en file d'attente."""
+        payload = {"data": {"user": {"username": "test_eleve"}}}
 
-        # Le test dépend de la configuration des routes
-        # Simplifié ici
-        pass
+        response = self._post_webhook("lms", payload, "user.created")
 
-    @patch("apps.integration.webhook_handlers.WebhookHandler.handle_user_updated")
-    def test_user_updated_webhook_triggers_handler(self, mock_handler):
-        """Le webhook user.updated déclenche le handler."""
-        mock_handler.return_value = {"status": "ok"}
-        pass
+        assert response.status_code == 200
+        assert response.data["status"] == "queued"
+        mock_delay.assert_called_once()
+        args, _ = mock_delay.call_args
+        assert args[0] == "user.created"
+        assert args[1]["data"]["user"]["username"] == "test_eleve"
+
+    @patch("apps.integration.tasks.process_user_webhook.delay")
+    def test_user_updated_webhook_triggers_handler(self, mock_delay):
+        """Le webhook user.updated est validé puis mis en file d'attente."""
+        payload = {"data": {"user": {"username": "test_eleve"}}}
+
+        response = self._post_webhook("lms", payload, "user.updated")
+
+        assert response.status_code == 200
+        mock_delay.assert_called_once()
+        assert mock_delay.call_args[0][0] == "user.updated"
+
+    def test_webhook_with_non_object_payload_is_rejected(self):
+        """Un corps JSON qui n'est pas un objet est rejeté avant mise en file."""
+        body = json.dumps([1, 2, 3]).encode()
+        from django.conf import settings
+
+        signature = hmac.new(
+            settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256
+        ).hexdigest()
+
+        response = self.client.post(
+            "/api/v1/integration/webhook/lms/",
+            data=body,
+            content_type="application/json",
+            HTTP_X_SIGNATURE=signature,
+            HTTP_X_EVENT_TYPE="user.created",
+        )
+
+        assert response.status_code == 400
+        assert "error" in response.data
+
+    def test_webhook_with_non_object_data_field_is_rejected(self):
+        """Un champ ``data`` qui n'est pas un objet est rejeté avant mise en file."""
+        response = self._post_webhook("lms", {"data": "not-an-object"}, "user.created")
+
+        assert response.status_code == 400
+        assert "error" in response.data
 
 
-class EnrollmentWebhookTestCase(APITestCase):
+class EnrollmentWebhookTestCase(WebhookSigningMixin, TenantAPITestCase):
     """Tests des webhooks d'inscription."""
 
-    @patch("apps.integration.webhook_handlers.WebhookHandler.handle_enrollment_created")
-    def test_enrollment_created_webhook(self, mock_handler):
-        """Le webhook enrollment.created est traité."""
-        mock_handler.return_value = {"status": "ok"}
-        pass
+    @patch("apps.integration.tasks.process_enrollment_webhook.delay")
+    def test_enrollment_created_webhook(self, mock_delay):
+        """Le webhook enrollment.created est validé puis mis en file d'attente."""
+        payload = {"data": {"user": {"username": "test_eleve"}, "course": {"course_key": "course-v1:X+Y+Z"}}}
 
-    @patch("apps.integration.webhook_handlers.WebhookHandler.handle_enrollment_deleted")
-    def test_enrollment_deleted_webhook(self, mock_handler):
-        """Le webhook enrollment.deleted est traité."""
-        mock_handler.return_value = {"status": "ok"}
-        pass
+        response = self._post_webhook("lms", payload, "enrollment.created")
+
+        assert response.status_code == 200
+        mock_delay.assert_called_once()
+        assert mock_delay.call_args[0][0] == "enrollment.created"
+
+    @patch("apps.integration.tasks.process_enrollment_webhook.delay")
+    def test_enrollment_deleted_webhook(self, mock_delay):
+        """Le webhook enrollment.deleted est validé puis mis en file d'attente."""
+        payload = {"data": {"user": {"username": "test_eleve"}, "course": {"course_key": "course-v1:X+Y+Z"}}}
+
+        response = self._post_webhook("lms", payload, "enrollment.deleted")
+
+        assert response.status_code == 200
+        mock_delay.assert_called_once()
+        assert mock_delay.call_args[0][0] == "enrollment.deleted"
 
 
-class GradeWebhookTestCase(APITestCase):
+class GradeWebhookTestCase(WebhookSigningMixin, TenantAPITestCase):
     """Tests des webhooks de notes."""
 
-    @patch("apps.integration.webhook_handlers.WebhookHandler.handle_grade_updated")
-    def test_grade_updated_webhook_creates_log(self, mock_handler):
-        """Le webhook grade.updated crée un EdxGradeLog."""
-        mock_handler.return_value = {"status": "ok"}
-        pass
+    @patch("apps.integration.tasks.process_grade_webhook.delay")
+    def test_grade_updated_webhook_creates_log(self, mock_delay):
+        """Le webhook grade.updated est validé puis mis en file d'attente."""
+        payload = {
+            "data": {
+                "user": {"username": "test_eleve"},
+                "course": {"course_key": "course-v1:X+Y+Z"},
+                "subsection_id": "block-v1:sub1",
+                "score": 15,
+                "max_score": 20,
+            }
+        }
+
+        response = self._post_webhook("lms", payload, "grade.updated")
+
+        assert response.status_code == 200
+        mock_delay.assert_called_once()
+        assert mock_delay.call_args[0][0] == "grade.updated"
 
 
 class IntegrationAPIEndpointsTestCase(TenantAPITestCase):

@@ -8,15 +8,16 @@ from unittest.mock import patch
 from apps.integration.models import EdxUserMapping, OutboxEvent
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.utilisateurs.models import Utilisateur
-from django.test import TestCase, override_settings
-from rest_framework.test import APIClient, APITestCase
+from django.conf import settings
+from django.test import override_settings
+
+TEST_USER_PASSWORD = "irrelevant-test-value-not-a-real-secret"
 
 
-class WebhookSecurityTestCase(TestCase):
+class WebhookSecurityTestCase(TenantAPITestCase):
     """Tests de sécurité des webhooks."""
 
     def setUp(self):
-        self.client = APIClient()
         self.webhook_secret = "test-webhook-secret-123"
 
     def _sign_payload(self, payload: dict, secret: str) -> str:
@@ -27,65 +28,165 @@ class WebhookSecurityTestCase(TestCase):
     @override_settings(WEBHOOK_SECRET="test-webhook-secret-123")
     def test_webhook_without_signature_rejected(self):
         """Webhook sans signature doit être rejeté."""
-        # Ce test dépend de l'implémentation du endpoint webhook
-        # Placeholder pour quand l'endpoint sera implémenté
-        pass
+        response = self.client.post(
+            "/api/v1/integration/webhook/lms/",
+            data={"data": {}},
+            format="json",
+        )
+
+        assert response.status_code == 401
 
     @override_settings(WEBHOOK_SECRET="test-webhook-secret-123")
     def test_webhook_with_invalid_signature_rejected(self):
         """Webhook avec signature invalide doit être rejeté."""
-        pass
+        response = self.client.post(
+            "/api/v1/integration/webhook/lms/",
+            data={"data": {}},
+            format="json",
+            HTTP_X_SIGNATURE="invalid-signature",
+        )
+
+        assert response.status_code == 401
 
     @override_settings(WEBHOOK_SECRET="test-webhook-secret-123")
-    def test_webhook_with_valid_signature_accepted(self):
+    @patch("apps.integration.tasks.process_user_webhook.delay")
+    def test_webhook_with_valid_signature_accepted(self, mock_delay):
         """Webhook avec signature valide doit être accepté."""
-        pass
+        payload = {"data": {"user": {"username": "test_etudiant"}}}
+        signature = self._sign_payload(payload, self.webhook_secret)
+
+        response = self.client.post(
+            "/api/v1/integration/webhook/lms/",
+            data=payload,
+            format="json",
+            HTTP_X_SIGNATURE=signature,
+            HTTP_X_EVENT_TYPE="user.created",
+        )
+
+        assert response.status_code == 200
+        assert response.data["status"] == "queued"
+        mock_delay.assert_called_once()
 
 
-class UserWebhookTestCase(TenantAPITestCase):
+class WebhookSigningMixin:
+    """Fournit un helper pour poster un webhook LMS/CMS correctement signé."""
+
+    def _post_webhook(self, kind, payload, event_type, event_id=None):
+        url = f"/api/v1/integration/webhook/{kind}/"
+        body = json.dumps(payload).encode()
+        signature = hmac.new(
+            settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256
+        ).hexdigest()
+        headers = {
+            "HTTP_X_SIGNATURE": signature,
+            "HTTP_X_EVENT_TYPE": event_type,
+        }
+        if event_id:
+            headers["HTTP_X_EVENT_ID"] = event_id
+        return self.client.post(
+            url, data=body, content_type="application/json", **headers
+        )
+
+
+class UserWebhookTestCase(WebhookSigningMixin, TenantAPITestCase):
     """Tests des webhooks utilisateur."""
 
-    def test_user_created_webhook(self):
-        """Traitement du webhook user.created."""
-        payload = {
-            "event": "user.created",
-            "user": {
-                "id": 12345,
-                "username": "new_lms_user",
-                "email": "new@example.com",
-                "name": "New User",
-            },
-            "timestamp": "2026-07-22T10:00:00Z",
-        }
-        # Test du handler directement
-        from apps.etudiants.models import Etudiant
-        from apps.integration.models import EdxCourseMapping, EdxEnrollment, EdxGradeLog, EdxUserMapping
-        from apps.integration.webhook_handlers import WebhookHandler
-        from apps.notes.models import Note
-
-        handler = WebhookHandler(
-            EdxUserMapping, EdxCourseMapping, EdxEnrollment, EdxGradeLog, Etudiant, Note
+    def setUp(self):
+        self.admin = Utilisateur.objects.create_superuser(
+            "admin", "admin@test.com", TEST_USER_PASSWORD
         )
-        handler.handle_user_created(payload)
+        self.client.force_authenticate(user=self.admin)
 
-        # Vérifier que le mapping existe maintenant
-        # (peut ne pas exister si l'utilisateur SIS n'existe pas encore)
+    @patch("apps.integration.tasks.process_user_webhook.delay")
+    def test_user_created_webhook(self, mock_delay):
+        """Le webhook user.created est validé puis mis en file d'attente."""
+        payload = {
+            "data": {
+                "user": {
+                    "id": 12345,
+                    "username": "new_lms_user",
+                    "email": "new@example.com",
+                    "name": "New User",
+                }
+            }
+        }
+
+        response = self._post_webhook("lms", payload, "user.created")
+
+        assert response.status_code == 200
+        assert response.data["status"] == "queued"
+        mock_delay.assert_called_once()
+        args, _ = mock_delay.call_args
+        assert args[0] == "user.created"
+        assert args[1]["data"]["user"]["username"] == "new_lms_user"
+
+    def test_webhook_with_non_object_payload_is_rejected(self):
+        """Un corps JSON qui n'est pas un objet est rejeté avant mise en file."""
+        body = json.dumps([1, 2, 3]).encode()
+        signature = hmac.new(
+            settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256
+        ).hexdigest()
+
+        response = self.client.post(
+            "/api/v1/integration/webhook/lms/",
+            data=body,
+            content_type="application/json",
+            HTTP_X_SIGNATURE=signature,
+            HTTP_X_EVENT_TYPE="user.created",
+        )
+
+        assert response.status_code == 400
+        assert "error" in response.data
+
+    def test_webhook_with_non_object_data_field_is_rejected(self):
+        """Un champ ``data`` qui n'est pas un objet est rejeté avant mise en file."""
+        response = self._post_webhook("lms", {"data": "not-an-object"}, "user.created")
+
+        assert response.status_code == 400
+        assert "error" in response.data
 
 
-class EnrollmentWebhookTestCase(APITestCase):
+class EnrollmentWebhookTestCase(WebhookSigningMixin, TenantAPITestCase):
     """Tests des webhooks d'inscription."""
 
-    def test_enrollment_created_webhook(self):
-        """Traitement du webhook enrollment.created."""
-        # Test placeholder
+    @patch("apps.integration.tasks.process_enrollment_webhook.delay")
+    def test_enrollment_created_webhook(self, mock_delay):
+        """Le webhook enrollment.created est validé puis mis en file d'attente."""
+        payload = {
+            "data": {
+                "user": {"username": "test_etudiant"},
+                "course": {"course_key": "course-v1:X+Y+Z"},
+            }
+        }
+
+        response = self._post_webhook("lms", payload, "enrollment.created")
+
+        assert response.status_code == 200
+        mock_delay.assert_called_once()
+        assert mock_delay.call_args[0][0] == "enrollment.created"
 
 
-class GradeWebhookTestCase(APITestCase):
+class GradeWebhookTestCase(WebhookSigningMixin, TenantAPITestCase):
     """Tests des webhooks de notes."""
 
-    def test_grade_updated_webhook(self):
-        """Traitement du webhook grade.updated."""
-        # Test placeholder
+    @patch("apps.integration.tasks.process_grade_webhook.delay")
+    def test_grade_updated_webhook(self, mock_delay):
+        """Le webhook grade.updated est validé puis mis en file d'attente."""
+        payload = {
+            "data": {
+                "user": {"username": "test_etudiant"},
+                "course": {"course_key": "course-v1:X+Y+Z"},
+                "subsection_id": "block-v1:sub1",
+                "score": 15,
+                "max_score": 20,
+            }
+        }
+
+        response = self._post_webhook("lms", payload, "grade.updated")
+
+        assert response.status_code == 200
+        mock_delay.assert_called_once()
+        assert mock_delay.call_args[0][0] == "grade.updated"
 
 
 class IntegrationAPIEndpointsTestCase(TenantAPITestCase):
@@ -93,7 +194,7 @@ class IntegrationAPIEndpointsTestCase(TenantAPITestCase):
 
     def setUp(self):
         self.admin_user = Utilisateur.objects.create_superuser(
-            username="api_admin", email="admin@test.com", password="adminpass123"
+            "api_admin", "admin@test.com", TEST_USER_PASSWORD
         )
         self.client.force_authenticate(user=self.admin_user)
 
@@ -101,10 +202,10 @@ class IntegrationAPIEndpointsTestCase(TenantAPITestCase):
         """Un administrateur peut lister les mappings utilisateurs."""
         # Créer quelques mappings
         user1 = Utilisateur.objects.create_user(
-            username="mapped1", email="m1@test.com", password="pass"
+            "mapped1", "m1@test.com", TEST_USER_PASSWORD
         )
         user2 = Utilisateur.objects.create_user(
-            username="mapped2", email="m2@test.com", password="pass"
+            "mapped2", "m2@test.com", TEST_USER_PASSWORD
         )
         EdxUserMapping.objects.create(user_sis=user1, username_edx="edx1")
         EdxUserMapping.objects.create(user_sis=user2, username_edx="edx2")
@@ -129,8 +230,7 @@ class IntegrationAPIEndpointsTestCase(TenantAPITestCase):
     def test_list_user_mappings_requires_admin(self):
         """Un utilisateur standard ne peut pas consulter les mappings."""
         user = Utilisateur.objects.create_user(
-            username="standard_user",
-            email="standard@test.com",
+            "standard_user", "standard@test.com", TEST_USER_PASSWORD
         )
         self.client.force_authenticate(user=user)
 
@@ -168,28 +268,51 @@ class SyncServiceAPITestCase(TenantAPITestCase):
 
     def setUp(self):
         self.admin_user = Utilisateur.objects.create_superuser(
-            username="sync_admin", email="syncadmin@test.com", password="adminpass123"
+            "sync_admin", "syncadmin@test.com", TEST_USER_PASSWORD
         )
         self.client.force_authenticate(user=self.admin_user)
 
-    @patch("apps.integration.sync_service.SyncService")
-    def test_trigger_user_sync(self, mock_service):
+    @patch("apps.integration.api.SyncService")
+    def test_trigger_user_sync(self, mock_service_class):
         """Déclencher une synchronisation utilisateur manuelle."""
-        # Placeholder pour l'endpoint POST /api/v1/integration/sync/user/{id}/
-        pass
+        user = Utilisateur.objects.create_user(
+            "sync_target", "target@test.com", TEST_USER_PASSWORD
+        )
+        mock_service = mock_service_class.return_value
+        mock_mapping = mock_service.sync_user_to_lms.return_value
+        mock_mapping.username_edx = "sis-u-sync-target"
+        mock_mapping.user_id_edx = 42
 
-    @patch("apps.integration.sync_service.SyncService")
-    def test_trigger_full_reconciliation(self, mock_service):
-        """Déclencher une réconciliation complète."""
-        # Placeholder pour l'endpoint POST /api/v1/integration/reconcile/
-        pass
+        response = self.client.post(f"/api/v1/integration/sync/user/{user.id}/")
+
+        assert response.status_code == 200
+        assert response.data["status"] == "ok"
+        assert response.data["username_edx"] == "sis-u-sync-target"
+        mock_service.sync_user_to_lms.assert_called_once()
+
+    def test_trigger_user_sync_unknown_user_returns_404(self):
+        """Synchroniser un utilisateur inexistant renvoie 404."""
+        response = self.client.post("/api/v1/integration/sync/user/999999/")
+
+        assert response.status_code == 404
 
 
-class HealthCheckTestCase(APITestCase):
+class HealthCheckTestCase(TenantAPITestCase):
     """Tests du health check intégration."""
 
-    @patch("apps.integration.edx_client.EdxClient.health_check")
-    def test_integration_health_check(self, mock_health):
+    def setUp(self):
+        self.admin_user = Utilisateur.objects.create_superuser(
+            "health_admin", "health_admin@test.com", TEST_USER_PASSWORD
+        )
+        self.client.force_authenticate(user=self.admin_user)
+
+    @patch("apps.integration.api.get_edx_client")
+    def test_integration_health_check(self, mock_get_client):
         """Vérifier le statut de connexion LMS/CMS."""
-        mock_health.return_value = {"lms": True, "cms": True}
-        # Placeholder pour GET /api/v1/integration/health/
+        mock_client = mock_get_client.return_value
+        mock_client.health_check.return_value = {"lms": True, "cms": True}
+
+        response = self.client.get("/api/v1/integration/health/")
+
+        assert response.status_code == 200
+        assert response.data["connected"] is True
