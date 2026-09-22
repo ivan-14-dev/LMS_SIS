@@ -103,12 +103,20 @@ validés.
   et dual.
 - [x] Fournir les scripts et procédures de sauvegarde/restauration Postgres
   (`scripts/backup.sh`, `scripts/restore.sh`, `docs/BACKUP_RESTORE.md`) —
-  couvre la base de données (schéma public + schémas tenants) ; les volumes de
-  fichiers (copies d'examen, médias) restent à couvrir séparément. Images et
-  manifests de déploiement toujours à fournir.
+  couvre la base de données (schéma public + schémas tenants).
+- [x] Fournir les scripts et procédures de sauvegarde/restauration des
+  fichiers médias (`scripts/backup_media.sh`, `scripts/restore_media.sh`,
+  section dédiée de `docs/BACKUP_RESTORE.md`) — couvre `MEDIA_ROOT` (copies
+  d'examens scannées, documents officiels, exports) pour les deux variantes.
+  Images et manifests de déploiement (orchestration cron/CI/CD/Kubernetes)
+  toujours à fournir.
 - [x] Publier des métriques Prometheus réelles sur `/metrics/` (format
   d'exposition texte via `prometheus_client`). Tableaux de bord et alertes
-  restent à mettre en place.
+  fournis en tant que code (`monitoring/prometheus/scrape_config.yml`,
+  `monitoring/prometheus/alerts.yml`, `monitoring/grafana/sis-dashboard.json`,
+  `docs/MONITORING.md`) ; l'installation effective (cibles réelles,
+  Alertmanager, dossiers Grafana) reste à réaliser par environnement de
+  déploiement.
 
 ### Qualité
 
@@ -135,6 +143,21 @@ validés.
   total estimé de 80 à 150 tests supplémentaires — voir la justification
   détaillée en fin de document pour les raisons pour lesquelles ce nettoyage
   exhaustif dépasse le cadre d'une seule session.
+  **Session ultérieure — 4 apps supplémentaires approfondies** : ajout de
+  vrais tests métier au niveau API (permissions, machines à états,
+  filtrage tenant, actions `@action`) pour `bulletins`, `conseil_classe`
+  (secondaire, qui n'avaient jusque-là que des tests de modèle et un test de
+  résolution de route pour leur API), `structure` et `etudiants`
+  (supérieur, cette dernière étant une app entièrement nouvelle pour le
+  nettoyage de tests). Un vrai bug d'exécution a aussi été corrigé au passage
+  dans `sis_secondaire/apps/bulletins/api.py::BulletinsViewSet.par_classe`
+  (interrogeait le mauvais queryset/champ et aurait levé un `FieldError` en
+  production). Soit 36 apps sur ~62 avec au moins un test métier approfondi.
+  Reste ~26 apps avec seulement des tests de résolution de route (candidats
+  identifiés : `eleves`, `portail_eleve`, `portail_parent`,
+  `portail_enseignant` (secondaire) ; `ue_ecue`, `formations`,
+  `inscriptions`, `releves`, `diplomes`, `portail_scolarite`,
+  `portail_etudiant` (supérieur) ; et le reste des 23 apps du lot précédent).
   **Découverte majeure cette session** : les 23 apps listées ci-dessus (dont
   6 déjà repérées comme suspectes lors d'une session précédente —
   `bibliotheque`, `clubs`, `cantine`, `salles`, `transport`, `infirmerie`)
@@ -164,6 +187,29 @@ validés.
   supporte pas les lookups à double-underscore dans la liste
   `filterset_fields` sans `FilterSet` explicite) — toujours non corrigé, hors
   périmètre des sessions successives ci-dessus.)
+  **Session ultérieure — vrais bugs de doublon de préfixe corrigés** : en
+  traçant, pour chaque ressource suspectée, le hook `useX` réellement
+  consommé par un composant de page (`.jsx`) plutôt que la simple
+  correspondance nom-de-ressource/préfixe (heuristique trop bruyante), 5 vrais
+  bugs ont été confirmés et corrigés : `enseignants`, `memoires`, `jurys`
+  (supérieur) et `presences`, `clubs` (secondaire) enregistraient leur
+  `ViewSet` principal sous un préfixe de routeur qui doublait le préfixe
+  d'application déjà présent dans `api_urls.py`, alors que le hook
+  effectivement consommé attendait un chemin plat. Corrigé en passant leur
+  enregistrement de routeur à un préfixe vide (`""`), comme `salles`/
+  `maquettes`/`rattrapages` déjà conformes. Un second bug latent de
+  `DefaultRouter` a été découvert dans la foulée : un enregistrement à
+  préfixe vide doit toujours être placé **en dernier** dans le routeur, sinon
+  sa regex de détail (`^(?P<pk>[^/.]+)/$`) intercepte les sous-routes sœurs
+  déclarées après lui (ex. `/jurys/deliberations/` résolvait par erreur vers
+  le détail de `JurysViewSet` avec `pk="deliberations"`). Vérifié par script
+  `resolve()` ad hoc puis suite complète verte (237/237 secondaire, 227/227
+  supérieur). `classes`, `notes`, `formations` restent volontairement non
+  modifiés : leurs hooks frontend réellement consommés (`useClasses`,
+  `useFormations`, etc.) codent en dur le chemin doublé, donc le doublon y
+  est intentionnel/attendu et non un bug. `entreprises` (supérieur) reste
+  également non modifié : aucun hook frontend ne le consomme actuellement.
+
 - [ ] Tester les permissions par rôle et par tenant.
 - [x] Ajouter des tests de contrat backend–frontend et des parcours E2E.
   (Fait, à portée volontairement réduite : tests E2E chaînés

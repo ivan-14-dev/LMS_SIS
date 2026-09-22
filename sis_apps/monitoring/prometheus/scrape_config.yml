@@ -1,0 +1,36 @@
+# Configuration Prometheus (extrait) pour les deux variantes SIS.
+#
+# À fusionner dans le `scrape_configs` du fichier `prometheus.yml` principal
+# de l'environnement de déploiement (ce fichier n'est pas exécutable seul :
+# c'est un fragment illustratif documentant les jobs attendus).
+#
+# Chaque variante expose ses métriques métier (utilisateurs, mappings EDX,
+# événements outbox, etc.) sur `/metrics/` via `prometheus_client`
+# (voir sis_secondaire/apps/core/healthcheck.py et
+# sis_superieur/apps/core/healthcheck.py). Comme django-tenants sert tous les
+# établissements d'une même variante depuis le même processus applicatif, un
+# seul job de scrape par variante suffit à couvrir tous les tenants.
+
+scrape_configs:
+  - job_name: sis-secondaire
+    metrics_path: /metrics/
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - sis-secondaire:8000
+        labels:
+          sis_variant: secondaire
+
+  - job_name: sis-superieur
+    metrics_path: /metrics/
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    static_configs:
+      - targets:
+          - sis-superieur:8000
+        labels:
+          sis_variant: superieur
+
+rule_files:
+  - alerts.yml

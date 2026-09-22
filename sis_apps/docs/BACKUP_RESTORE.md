@@ -62,6 +62,49 @@ interactif (ex. reconstruction d'un environnement de recette).
 **Ne jamais restaurer directement sur la base de production** sans avoir
 d'abord validé l'archive dans un environnement de recette isolé.
 
+## Sauvegarde et restauration des fichiers médias
+
+`scripts/backup.sh`/`scripts/restore.sh` ne couvrent que la base Postgres.
+Les fichiers médias (`MEDIA_ROOT`, ex. copies d'examens scannées, documents
+officiels générés, exports, pièces jointes) ne sont pas stockés en base et
+doivent être sauvegardés séparément avec `scripts/backup_media.sh` /
+`scripts/restore_media.sh`.
+
+django-tenants ne segmente pas `MEDIA_ROOT` par schéma tenant : les fichiers
+de tous les établissements d'une même variante (secondaire ou supérieur)
+partagent le même répertoire média. Une archive de ce répertoire couvre donc
+tous les tenants de la variante en une seule opération, tout comme
+`backup.sh` le fait pour la base.
+
+```bash
+cd sis_apps
+export MEDIA_ROOT=/chemin/vers/media  # valeur de config/settings.py:MEDIA_ROOT
+./scripts/backup_media.sh /chemin/vers/repertoire_de_sauvegardes
+```
+
+Le script :
+
+1. archive `MEDIA_ROOT` au format `tar.gz` ;
+2. horodate l'archive produite (`<variante>_media_<horodatage_UTC>.tar.gz`) ;
+3. vérifie l'intégrité de l'archive générée via `tar --test`.
+
+Restauration :
+
+```bash
+cd sis_apps
+export MEDIA_ROOT=/chemin/vers/media
+./scripts/restore_media.sh /chemin/vers/sauvegarde_media.tar.gz
+```
+
+Comme pour `restore.sh`, une confirmation interactive est demandée avant
+extraction (les fichiers de même nom sont écrasés) ; `--force` permet
+d'automatiser la restauration dans un contexte non interactif.
+
+**Planification et cohérence** : pour une reprise après sinistre cohérente,
+sauvegarder la base et les médias au même horodatage (ou dans la même
+fenêtre de maintenance), avec la même exigence de stockage distinct et de
+chiffrement au repos que pour les sauvegardes Postgres.
+
 ## Test périodique de restauration
 
 Une sauvegarde non testée n'offre aucune garantie. Il est recommandé de
@@ -71,16 +114,16 @@ valider régulièrement (au minimum trimestriellement) le cycle complet :
 2. la restaurer avec `scripts/restore.sh --force` dans une base Postgres
    jetable dédiée aux tests (jamais dans la base de production ni dans une
    base partagée) ;
-3. démarrer l'application contre cette base restaurée et vérifier qu'un
-   établissement de test est bien accessible (`/health/`, `/ready/`, et une
-   requête authentifiée sur une API métier).
+3. produire une sauvegarde média avec `scripts/backup_media.sh` et la
+   restaurer avec `scripts/restore_media.sh --force` dans un `MEDIA_ROOT`
+   jetable ;
+4. démarrer l'application contre cette base et ce répertoire média restaurés
+   et vérifier qu'un établissement de test est bien accessible (`/health/`,
+   `/ready/`, une requête authentifiée sur une API métier, et le
+   téléchargement d'un fichier média existant).
 
 ## Limites actuelles
 
-- Ces scripts ne sauvegardent que la base Postgres. Les volumes de fichiers
-  (copies d'examens scannées, exports, médias) mentionnés dans
-  `DEPLOIEMENT_INTEGRATIONS.md` doivent être sauvegardés séparément, avec la
-  même exigence de test de restauration.
 - Aucune orchestration (planification, rotation des archives, envoi vers un
   stockage distant) n'est fournie ici : ces scripts sont le socle à intégrer
   dans l'outillage d'exploitation (cron, CI/CD, opérateur Kubernetes) propre à
