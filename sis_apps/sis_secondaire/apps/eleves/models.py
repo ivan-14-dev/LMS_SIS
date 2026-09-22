@@ -5,6 +5,8 @@ from apps.etablissement.models import AnneeScolaire, Etablissement
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.encryption import EncryptedTextField
+
 
 class Eleve(models.Model):
     """Élève inscrit dans l'établissement."""
@@ -48,7 +50,7 @@ class Eleve(models.Model):
     motif_sortie = models.TextField(blank=True)
     photo = models.ImageField(upload_to="eleves/", null=True, blank=True)
     qr_code = models.CharField(max_length=200, blank=True)
-    allergies = models.TextField(blank=True)
+    allergies = EncryptedTextField(blank=True)
     contact_urgence_nom = models.CharField(max_length=200, blank=True)
     contact_urgence_tel = models.CharField(max_length=20, blank=True)
     bourse = models.BooleanField(default=False)

@@ -85,6 +85,7 @@ jobs:
       EDX_JWT_AUDIENCE: 'test-sis-audience'
       EDX_JWT_PUBLIC_SIGNING_JWK_SET: '{"keys":[]}'
       WEBHOOK_SECRET: 'test-sis-secondaire-webhook-secret'
+      FIELD_ENCRYPTION_KEY: 'MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA='
       DJANGO_DEBUG: 'True'
       DB_HOST: localhost
       DB_PORT: 5432
@@ -167,6 +168,7 @@ jobs:
       EDX_JWT_AUDIENCE: 'test-sis-audience'
       EDX_JWT_PUBLIC_SIGNING_JWK_SET: '{"keys":[]}'
       WEBHOOK_SECRET: 'test-sis-superieur-webhook-secret'
+      FIELD_ENCRYPTION_KEY: 'MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA='
       DJANGO_DEBUG: 'True'
       DB_HOST: localhost
       DB_PORT: 5432

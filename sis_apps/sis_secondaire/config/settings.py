@@ -359,4 +359,11 @@ EDX_JWT_LEEWAY = 5
 EDX_JWT_COOKIE_HEADER_PAYLOAD = os.environ.get("EDX_JWT_COOKIE_HEADER_PAYLOAD", "edx-jwt-cookie-header-payload")
 EDX_JWT_COOKIE_SIGNATURE = os.environ.get("EDX_JWT_COOKIE_SIGNATURE", "edx-jwt-cookie-signature")
 WEBHOOK_SECRET = get_required_secret("WEBHOOK_SECRET", test_value="test-webhook-secret")
+
+# Clé Fernet utilisée pour chiffrer au repos les secrets MFA, les coordonnées
+# bancaires et les données médicales (voir sis_common.encryption). Générer avec
+# `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+FIELD_ENCRYPTION_KEY = get_required_secret(
+    "FIELD_ENCRYPTION_KEY", test_value="MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
+)
 SIS_WEBHOOK_LMS_URL = f"{EDX_LMS_URL}/api/webhooks/v1/webhooks/"

@@ -4,6 +4,8 @@ from apps.classes.models import Classe, Matiere
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.encryption import EncryptedCharField
+
 
 class Personnel(models.Model):
     """Personnel de l'établissement (enseignant, administratif)."""
@@ -30,8 +32,8 @@ class Personnel(models.Model):
         max_digits=5, decimal_places=2, default=0
     )
     indice = models.PositiveIntegerField(null=True, blank=True)
-    rib = models.CharField(max_length=50, blank=True)
-    iban = models.CharField(max_length=50, blank=True)
+    rib = EncryptedCharField(max_length=50, blank=True)
+    iban = EncryptedCharField(max_length=50, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
