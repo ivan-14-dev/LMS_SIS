@@ -5,12 +5,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from apps.integration.models import EdxUserMapping, OutboxEvent
 from apps.integration.sync_service import SyncService
+from apps.integration.tests.tenant_test_case import TenantTestCase
 from apps.utilisateurs.models import Utilisateur
 from django.test import TestCase
 from django.utils import timezone
 
 
-class SyncServiceUserTestCase(TestCase):
+class SyncServiceUserTestCase(TenantTestCase):
     """Tests de synchronisation des utilisateurs."""
 
     def setUp(self):
@@ -161,7 +162,7 @@ class SyncServiceReconciliationTestCase(TestCase):
         pass
 
 
-class OutboxProcessingTestCase(TestCase):
+class OutboxProcessingTestCase(TenantTestCase):
     """Tests du traitement des événements outbox."""
 
     def test_process_pending_events(self):

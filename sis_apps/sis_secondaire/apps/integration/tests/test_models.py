@@ -2,13 +2,14 @@
 
 import pytest
 from apps.integration.models import EdxUserMapping, OutboxEvent
+from apps.integration.tests.tenant_test_case import TenantTestCase
 from apps.utilisateurs.models import Utilisateur
 from django.db import IntegrityError
 from django.test import TestCase
 from django.utils import timezone
 
 
-class EdxUserMappingModelTestCase(TestCase):
+class EdxUserMappingModelTestCase(TenantTestCase):
     """Tests pour EdxUserMapping."""
 
     def setUp(self):
@@ -69,7 +70,7 @@ class EdxUserMappingModelTestCase(TestCase):
         assert EdxUserMapping.objects.count() == 0
 
 
-class OutboxEventModelTestCase(TestCase):
+class OutboxEventModelTestCase(TenantTestCase):
     """Tests pour OutboxEvent."""
 
     def test_create_event(self):

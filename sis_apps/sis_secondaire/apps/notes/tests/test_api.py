@@ -65,15 +65,17 @@ class NotesAPITestCase(SimpleTestCase):
         assert match.url_name == "bulletin-exporter"
 
     def test_note_export_uses_tenant_report_configuration(self):
+        payload = {
+            "report": "notes-secondary",
+            "filters": {"classe": 9},
+        }
         request = self.factory.post(
             "/api/v1/notes/notes/exporter/",
-            {
-                "report": "notes-secondary",
-                "filters": {"classe": 9},
-            },
+            payload,
             format="json",
         )
         request.user = self.user
+        request.data = payload
         request.tenant = SimpleNamespace(
             configuration_academique={
                 "reports": [
@@ -101,6 +103,7 @@ class NotesAPITestCase(SimpleTestCase):
         assert queryset.selected_fields == ("eleve__matricule", "valeur")
         assert "MAT-001,14.5" in response.content.decode()
 
+    @patch("apps.notes.api.record_workflow_event")
     @patch("apps.notes.api._import_secondary_notes", return_value=(2, 1))
     @patch(
         "apps.notes.api.load_excel_rows",
@@ -108,7 +111,9 @@ class NotesAPITestCase(SimpleTestCase):
             {"matricule": "MAT-001", "note": "14", "appreciation": "", "statut": "presente", "__row_number__": 2}
         ],
     )
-    def test_secondary_note_import_uses_excel_template_rules(self, _load_rows, _import_notes):  # noqa: PT019
+    def test_secondary_note_import_uses_excel_template_rules(  # noqa: PT019
+        self, _load_rows, _import_notes, _record_workflow_event
+    ):
         request = self.factory.post("/api/v1/notes/evaluations/1/importer_notes/", {}, format="multipart")
         request.user = self.user
         request.tenant = SimpleNamespace(
@@ -117,7 +122,11 @@ class NotesAPITestCase(SimpleTestCase):
         request.FILES["file"] = SimpleNamespace(name="notes.xlsx")
         evaluation = SimpleNamespace(
             pk=1,
+            id=1,
+            titre="Devoir surveillé n°1",
             type="ds",
+            classe_id=9,
+            matiere_id=3,
             classe=SimpleNamespace(annee_scolaire=SimpleNamespace(cloturee=False)),
             periode=SimpleNamespace(cloturee=False),
         )
@@ -137,15 +146,17 @@ class NotesAPITestCase(SimpleTestCase):
     @patch("apps.notes.api.request_has_business_access", return_value=True)
     @patch("apps.notes.api.filter_queryset_by_scopes", side_effect=lambda qs, *_args, **_kwargs: qs)
     def test_bulletin_export_uses_tenant_report_configuration(self, _scoped_queryset, _business_access):  # noqa: PT019
+        payload = {
+            "report": "bulletins-secondary",
+            "filters": {"publie": True},
+        }
         request = self.factory.post(
             "/api/v1/notes/bulletins/exporter/",
-            {
-                "report": "bulletins-secondary",
-                "filters": {"publie": True},
-            },
+            payload,
             format="json",
         )
         request.user = self.user
+        request.data = payload
         request.tenant = SimpleNamespace(
             configuration_academique={
                 "reports": [

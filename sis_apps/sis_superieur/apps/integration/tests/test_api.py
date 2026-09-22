@@ -6,6 +6,7 @@ import json
 from unittest.mock import patch
 
 from apps.integration.models import EdxUserMapping, OutboxEvent
+from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.utilisateurs.models import Utilisateur
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient, APITestCase
@@ -41,7 +42,7 @@ class WebhookSecurityTestCase(TestCase):
         pass
 
 
-class UserWebhookTestCase(APITestCase):
+class UserWebhookTestCase(TenantAPITestCase):
     """Tests des webhooks utilisateur."""
 
     def test_user_created_webhook(self):
@@ -87,7 +88,7 @@ class GradeWebhookTestCase(APITestCase):
         # Test placeholder
 
 
-class IntegrationAPIEndpointsTestCase(APITestCase):
+class IntegrationAPIEndpointsTestCase(TenantAPITestCase):
     """Tests des endpoints API d'intégration."""
 
     def setUp(self):
@@ -162,7 +163,7 @@ class IntegrationAPIEndpointsTestCase(APITestCase):
         assert response.data["enrollments_active"] == 0
 
 
-class SyncServiceAPITestCase(APITestCase):
+class SyncServiceAPITestCase(TenantAPITestCase):
     """Tests des endpoints de synchronisation manuelle."""
 
     def setUp(self):

@@ -19,35 +19,37 @@ class SyncService:
 
     # ====================== SIS → LMS ======================
 
-    @transaction.atomic
     def sync_user_to_lms(self, user_sis, role: str = "student") -> EdxUserMapping:
-        mapping, created = EdxUserMapping.objects.get_or_create(
-            user_sis=user_sis,
-            defaults={"username_edx": f"sis-u-{user_sis.id}"},
-        )
-        username = mapping.username_edx
         try:
-            if created or not mapping.user_id_edx:
-                data = {
-                    "username": username,
-                    "email": user_sis.email,
-                    "name": user_sis.get_full_name(),
-                    "role": role,
-                }
-                if user_sis.is_staff or user_sis.is_superuser:
-                    data["is_staff"] = True
-                result = self.client.create_user(**data)
-                mapping.user_id_edx = result.get("id")
-            else:
-                self.client.update_user(
-                    username,
-                    {"email": user_sis.email, "name": user_sis.get_full_name()},
+            with transaction.atomic():
+                mapping, created = EdxUserMapping.objects.get_or_create(
+                    user_sis=user_sis,
+                    defaults={"username_edx": f"sis-u-{user_sis.id}"},
                 )
-            mapping.date_sync = timezone.now()
-            mapping.actif = True
-            mapping.save()
-            return mapping
+                username = mapping.username_edx
+                if created or not mapping.user_id_edx:
+                    data = {
+                        "username": username,
+                        "email": user_sis.email,
+                        "name": user_sis.get_full_name(),
+                        "role": role,
+                    }
+                    if user_sis.is_staff or user_sis.is_superuser:
+                        data["is_staff"] = True
+                    result = self.client.create_user(**data)
+                    mapping.user_id_edx = result.get("id")
+                else:
+                    self.client.update_user(
+                        username,
+                        {"email": user_sis.email, "name": user_sis.get_full_name()},
+                    )
+                mapping.date_sync = timezone.now()
+                mapping.actif = True
+                mapping.save()
+                return mapping
         except Exception as e:
+            # Enregistrée hors de la transaction ci-dessus afin que l'événement
+            # outbox ne soit pas annulé par le rollback déclenché par l'échec.
             self._enqueue_outbox(
                 "user.sync", "user", str(user_sis.id), {"error": str(e)}
             )

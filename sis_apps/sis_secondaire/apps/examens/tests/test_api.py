@@ -34,7 +34,11 @@ class ExamensAPITestCase(TestCase):
         request = SimpleNamespace(
             method="POST",
             user=SimpleNamespace(
-                is_authenticated=True, is_staff=False, role="vie_scolaire"
+                is_authenticated=True,
+                is_staff=False,
+                is_superuser=False,
+                has_perm=lambda permission: False,
+                role="vie_scolaire",
             ),
         )
 
@@ -44,7 +48,13 @@ class ExamensAPITestCase(TestCase):
     def test_student_cannot_access_sensitive_exam_actions(self):
         request = SimpleNamespace(
             method="GET",
-            user=SimpleNamespace(is_authenticated=True, is_staff=False, role="eleve"),
+            user=SimpleNamespace(
+                is_authenticated=True,
+                is_staff=False,
+                is_superuser=False,
+                has_perm=lambda permission: False,
+                role="eleve",
+            ),
         )
 
         assert not IsExamManager().has_permission(request, None)
@@ -52,7 +62,13 @@ class ExamensAPITestCase(TestCase):
     @patch("apps.examens.api.IsExamManager.has_permission", return_value=False)
     def test_student_queryset_only_returns_published_results(self, _is_exam_manager):  # noqa: PT019
         request = self.factory.get("/api/v1/examens/resultats/")
-        student = SimpleNamespace(is_authenticated=True, is_staff=False, role="eleve")
+        student = SimpleNamespace(
+            is_authenticated=True,
+            is_staff=False,
+            is_superuser=False,
+            has_perm=lambda permission: False,
+            role="eleve",
+        )
         request.user = student
         request.tenant = SimpleNamespace(configuration_academique={})
 

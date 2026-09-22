@@ -64,15 +64,17 @@ class NotesAPITestCase(SimpleTestCase):
         assert ue_match.url_name == "moyenne-ue-exporter"
 
     def test_evaluation_export_uses_tenant_report_configuration(self):
+        payload = {
+            "report": "evaluations-superieur",
+            "filters": {"modalite": "cc"},
+        }
         request = self.factory.post(
             "/api/v1/notes/evaluations/exporter/",
-            {
-                "report": "evaluations-superieur",
-                "filters": {"modalite": "cc"},
-            },
+            payload,
             format="json",
         )
         request.user = self.user
+        request.data = payload
         request.tenant = SimpleNamespace(
             configuration_academique={
                 "reports": [
@@ -116,6 +118,7 @@ class NotesAPITestCase(SimpleTestCase):
         request.FILES["file"] = SimpleNamespace(name="notes.xlsx")
         evaluation = SimpleNamespace(
             pk=1,
+            id=1,
             modalite="cc",
             semestre=SimpleNamespace(cloture=False, annee_universitaire=SimpleNamespace(cloturee=False)),
         )
@@ -135,20 +138,22 @@ class NotesAPITestCase(SimpleTestCase):
     @patch("apps.notes.api.request_has_business_access", return_value=True)
     @patch("apps.notes.api.filter_queryset_by_scopes", side_effect=lambda qs, *_args, **_kwargs: qs)
     def test_average_exports_use_tenant_report_configuration(self, _scoped_queryset, _business_access):  # noqa: PT019
+        ecue_payload = {
+            "report": "averages-ecue",
+            "filters": {"valide": True},
+        }
+        ue_payload = {
+            "report": "averages-ue",
+            "filters": {"capitalisee": True},
+        }
         ecue_request = self.factory.post(
             "/api/v1/notes/moyennes-ecue/exporter/",
-            {
-                "report": "averages-ecue",
-                "filters": {"valide": True},
-            },
+            ecue_payload,
             format="json",
         )
         ue_request = self.factory.post(
             "/api/v1/notes/moyennes-ue/exporter/",
-            {
-                "report": "averages-ue",
-                "filters": {"capitalisee": True},
-            },
+            ue_payload,
             format="json",
         )
         tenant = SimpleNamespace(
@@ -173,8 +178,10 @@ class NotesAPITestCase(SimpleTestCase):
         )
         ecue_request.user = self.user
         ecue_request.tenant = tenant
+        ecue_request.data = ecue_payload
         ue_request.user = self.user
         ue_request.tenant = tenant
+        ue_request.data = ue_payload
         ecue_queryset = FakeQuerySet([("SUP-001", "15.25")])
         ue_queryset = FakeQuerySet([("SUP-001", "30.0")])
 

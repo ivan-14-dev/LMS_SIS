@@ -25,6 +25,7 @@ class PortailDoyenAPITestCase(SimpleTestCase):
     def test_tableau_bord_rejects_invalid_faculte_id(self):
         request = self.factory.get("/api/v1/portail/doyen/tableau_bord/?faculte_id=abc")
         request.user = SimpleNamespace()
+        request.query_params = request.GET
         view = PortailDoyenViewSet()
         view.request = request
 

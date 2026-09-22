@@ -27,7 +27,11 @@ class ExamensAPITestCase(TestCase):
         request = SimpleNamespace(
             method="GET",
             user=SimpleNamespace(
-                is_authenticated=True, is_staff=False, role="scolarite"
+                is_authenticated=True,
+                is_staff=False,
+                is_superuser=False,
+                has_perm=lambda permission: False,
+                role="scolarite",
             ),
         )
 
@@ -37,7 +41,11 @@ class ExamensAPITestCase(TestCase):
         request = SimpleNamespace(
             method="GET",
             user=SimpleNamespace(
-                is_authenticated=True, is_staff=False, role="etudiant"
+                is_authenticated=True,
+                is_staff=False,
+                is_superuser=False,
+                has_perm=lambda permission: False,
+                role="etudiant",
             ),
         )
 

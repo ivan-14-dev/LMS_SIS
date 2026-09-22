@@ -26,6 +26,7 @@ class PortailEnseignantAPITestCase(SimpleTestCase):
     def test_etudiants_cours_rejects_unassigned_ecue(self):
         request = self.factory.get("/api/v1/portail/enseignant/etudiants_cours/?ecue_id=9")
         request.user = self.user
+        request.query_params = request.GET
         view = PortailEnseignantViewSet()
         view.request = request
         view._accessible_ecue_ids = lambda _request: {1, 2}
@@ -38,6 +39,7 @@ class PortailEnseignantAPITestCase(SimpleTestCase):
     def test_emploi_du_temps_rejects_invalid_week(self):
         request = self.factory.get("/api/v1/portail/enseignant/emploi_du_temps/?semaine=abc")
         request.user = self.user
+        request.query_params = request.GET
         view = PortailEnseignantViewSet()
         view.request = request
 

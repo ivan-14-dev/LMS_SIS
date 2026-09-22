@@ -152,10 +152,17 @@ TENANT_MODEL = "etablissement.Universite"
 TENANT_DOMAIN_MODEL = "etablissement.Domain"
 SHARED_APPS = (
     "django_tenants",
+    "django.contrib.contenttypes",
     "apps.etablissement",
 )
-TENANT_APPS = tuple(app for app in LOCAL_APPS if app not in ("apps.etablissement",)) + tuple(
-    THIRD_PARTY_APPS
+# Utilisateur (AUTH_USER_MODEL) lives in the per-tenant apps.utilisateurs app and
+# relies on auth.Group/auth.Permission, so the Django contrib apps must be
+# migrated into every tenant schema alongside the business apps, not left out
+# of both SHARED_APPS and TENANT_APPS.
+TENANT_APPS = (
+    tuple(app for app in DJANGO_APPS if app != "django_tenants")
+    + tuple(app for app in LOCAL_APPS if app not in ("apps.etablissement",))
+    + tuple(THIRD_PARTY_APPS)
 )
 
 # Cache
