@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 
+from apps.etudiants.models import AffectationECUEIndividuelle
 from django.db import transaction
 from django.db.models import Avg, Count, Exists, OuterRef, Q
 from django.utils import timezone
@@ -11,18 +12,17 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from sis_common.academic_configuration import resolve_validation_policy
 from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,
     request_has_business_access,
     user_has_any_role,
 )
-from sis_common.academic_configuration import resolve_validation_policy
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
 from sis_common.submission_windows import apply_submission_window_defaults
-
-from apps.etudiants.models import AffectationECUEIndividuelle
 
 from .models import Evaluation, MoyenneECUE, MoyenneUE, Note, RegleValidation
 from .serializers import (
@@ -249,7 +249,7 @@ def _import_superior_notes(evaluation, rows, request):
                 except (ArithmeticError, TypeError, ValueError):
                     raise serializers.ValidationError(
                         {"note": f"Ligne {row_number}: note invalide."}
-                    )
+                    ) from None
                 if valeur < 0 or valeur > evaluation.bareme:
                     raise serializers.ValidationError(
                         {"note": f"Ligne {row_number}: la note doit respecter le barème."}
@@ -544,7 +544,15 @@ class NotesViewSet(viewsets.ModelViewSet):
         if not request_has_business_access(
             self.request,
             "notes.view_note",
-            ("president", "vice_president", "doyen", "directeur_dept", "responsable_formation", "directeur_etudes", "scolarite"),
+            (
+                "president",
+                "vice_president",
+                "doyen",
+                "directeur_dept",
+                "responsable_formation",
+                "directeur_etudes",
+                "scolarite",
+            ),
         ):
             return qs.none()
         return filter_queryset_by_scopes(

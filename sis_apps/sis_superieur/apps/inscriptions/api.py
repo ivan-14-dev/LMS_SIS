@@ -5,4 +5,3 @@ from apps.etudiants.api import InscriptionsAdminViewSet as _InscriptionsAdminVie
 
 class InscriptionsViewSet(_InscriptionsAdminViewSet):
     """Backward-compatible viewset aligned with active administrative enrollments."""
-

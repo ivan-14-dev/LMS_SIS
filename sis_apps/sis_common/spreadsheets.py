@@ -3,7 +3,6 @@
 from io import BytesIO
 
 from django.http import HttpResponse
-
 from rest_framework.exceptions import ValidationError
 
 FORMULA_PREFIXES = ("=", "+", "-", "@")

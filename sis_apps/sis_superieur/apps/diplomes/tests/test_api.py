@@ -12,8 +12,8 @@ class DiplomesAPITestCase(SimpleTestCase):
         history_match = resolve("/api/v1/diplomes/1/historique/")
         catalogue_match = resolve("/api/v1/diplomes/catalogue/")
 
-        self.assertEqual(list_match.url_name, "diplome-list")
-        self.assertEqual(detail_match.url_name, "diplome-detail")
-        self.assertEqual(pdf_match.url_name, "diplome-pdf-officiel")
-        self.assertEqual(history_match.url_name, "diplome-historique")
-        self.assertEqual(catalogue_match.url_name, "diplome-catalogue-list")
+        assert list_match.url_name == "diplome-list"
+        assert detail_match.url_name == "diplome-detail"
+        assert pdf_match.url_name == "diplome-pdf-officiel"
+        assert history_match.url_name == "diplome-historique"
+        assert catalogue_match.url_name == "diplome-catalogue-list"

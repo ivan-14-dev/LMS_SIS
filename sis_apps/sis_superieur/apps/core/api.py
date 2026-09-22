@@ -1,10 +1,11 @@
 """API views for core."""
 
-from django.db.models import Count
 from apps.core.models import WorkflowEvent, WorkflowNotification
 from apps.core.serializers import WorkflowNotificationSerializer
+from django.db.models import Count
 from rest_framework import mixins, permissions, response, status, viewsets
 from rest_framework.decorators import action
+
 from sis_common.authorization import has_business_permission_or_role
 from sis_common.notification_channels import (
     notification_matches_delivery_filters,
@@ -12,6 +13,7 @@ from sis_common.notification_channels import (
     summarize_notification_delivery_trends,
 )
 from sis_common.reporting import configured_report, export_queryset
+
 from .serializers import WorkflowEventSerializer
 
 EVENT_REPORT_FIELDS = {

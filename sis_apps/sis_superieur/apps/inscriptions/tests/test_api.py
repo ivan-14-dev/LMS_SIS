@@ -12,8 +12,8 @@ class InscriptionsAPITestCase(SimpleTestCase):
         refuse_match = resolve("/api/v1/inscriptions/1/refuser/")
         history_match = resolve("/api/v1/inscriptions/1/historique/")
 
-        self.assertEqual(list_match.url_name, "inscription-list")
-        self.assertEqual(detail_match.url_name, "inscription-detail")
-        self.assertEqual(validate_match.url_name, "inscription-valider")
-        self.assertEqual(refuse_match.url_name, "inscription-refuser")
-        self.assertEqual(history_match.url_name, "inscription-historique")
+        assert list_match.url_name == "inscription-list"
+        assert detail_match.url_name == "inscription-detail"
+        assert validate_match.url_name == "inscription-valider"
+        assert refuse_match.url_name == "inscription-refuser"
+        assert history_match.url_name == "inscription-historique"

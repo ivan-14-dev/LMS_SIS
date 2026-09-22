@@ -21,9 +21,11 @@ def dispatch_notification_email(self, notification_id, schema_name):
         return result
     except Exception as exc:
         status = "failed" if self.request.retries >= self.max_retries else "retrying"
-        update_notification_channel_status(schema_name, notification_id, "email", status, attempts=attempts, error=str(exc))
+        update_notification_channel_status(
+            schema_name, notification_id, "email", status, attempts=attempts, error=str(exc)
+        )
         if status == "retrying":
-            raise self.retry(exc=exc)
+            raise self.retry(exc=exc) from exc
         raise
 
 
@@ -37,9 +39,11 @@ def dispatch_notification_sms(self, notification_id, schema_name, gateway_url):
         return result
     except Exception as exc:
         status = "failed" if self.request.retries >= self.max_retries else "retrying"
-        update_notification_channel_status(schema_name, notification_id, "sms", status, attempts=attempts, error=str(exc))
+        update_notification_channel_status(
+            schema_name, notification_id, "sms", status, attempts=attempts, error=str(exc)
+        )
         if status == "retrying":
-            raise self.retry(exc=exc)
+            raise self.retry(exc=exc) from exc
         raise
 
 
@@ -55,5 +59,5 @@ def dispatch_notification_webhook(self, event_id, schema_name, webhook_url):
         status = "failed" if self.request.retries >= self.max_retries else "retrying"
         update_event_webhook_status(schema_name, event_id, webhook_url, status, attempts=attempts, error=str(exc))
         if status == "retrying":
-            raise self.retry(exc=exc)
+            raise self.retry(exc=exc) from exc
         raise

@@ -8,9 +8,9 @@ class PortailParentAPITestCase(SimpleTestCase):
     def test_tableau_bord_route_is_registered(self):
         match = resolve("/api/v1/portail/apprenant/tableau_bord/")
 
-        self.assertEqual(match.url_name, "portail-apprenant-tableau-bord")
+        assert match.url_name == "portail-apprenant-tableau-bord"
 
     def test_bulletins_route_is_registered(self):
         match = resolve("/api/v1/portail/apprenant/bulletins/")
 
-        self.assertEqual(match.url_name, "portail-apprenant-bulletins")
+        assert match.url_name == "portail-apprenant-bulletins"

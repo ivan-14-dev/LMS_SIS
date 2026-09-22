@@ -12,13 +12,14 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from sis_common.academic_configuration import resolve_validation_policy
 from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,
     request_has_business_access,
     user_has_any_role,
 )
-from sis_common.academic_configuration import resolve_validation_policy
 from sis_common.document_policies import enforce_financial_clearance, get_action_object
 from sis_common.official_documents import render_official_pdf, tenant_identity_rows
 from sis_common.reporting import configured_report, export_queryset
@@ -134,6 +135,7 @@ def _evaluation_notification_recipients(request, evaluation):
 
 def _evaluation_configuration(request):
     return getattr(getattr(request, "tenant", None), "configuration_academique", {}) or {}
+
 
 CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS = [
     "matricule",
@@ -261,7 +263,7 @@ def _import_secondary_notes(evaluation, rows, request):
                 except (ArithmeticError, TypeError, ValueError):
                     raise serializers.ValidationError(
                         {"note": f"Ligne {row_number}: note invalide."}
-                    )
+                    ) from None
                 if valeur < 0 or valeur > evaluation.bareme:
                     raise serializers.ValidationError(
                         {"note": f"Ligne {row_number}: la note doit respecter le barème."}

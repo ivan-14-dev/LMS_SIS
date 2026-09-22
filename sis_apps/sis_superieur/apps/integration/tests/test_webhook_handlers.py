@@ -38,8 +38,8 @@ class WebhookHandlerContractTestCase(TestCase):
             payload,
         )
 
-        self.assertTrue(handled)
-        self.assertEqual(enrollment.progression, 75)
+        assert handled
+        assert enrollment.progression == 75
         enrollment.save.assert_called_once_with(
             update_fields=["progression", "last_sync"]
         )
@@ -47,4 +47,4 @@ class WebhookHandlerContractTestCase(TestCase):
     def test_handler_failure_is_propagated(self):
         self.handler.handle_grade_updated = Mock(return_value=False)
 
-        self.assertFalse(self.handler.handle("grade.updated", {}))
+        assert not self.handler.handle("grade.updated", {})

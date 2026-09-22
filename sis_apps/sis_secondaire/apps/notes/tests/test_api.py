@@ -4,18 +4,18 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.test import SimpleTestCase
-from django.urls import resolve
-from django.utils import timezone
-from rest_framework.test import APIRequestFactory
-
+import pytest
 from apps.notes.api import (
     BulletinsViewSet,
     EvaluationsViewSet,
     NotesViewSet,
     _ensure_secondary_continuous_assessment,
 )
+from django.test import SimpleTestCase
+from django.urls import resolve
+from django.utils import timezone
 from rest_framework import serializers
+from rest_framework.test import APIRequestFactory
 
 
 class FakeQuerySet:
@@ -48,32 +48,34 @@ class NotesAPITestCase(SimpleTestCase):
     def test_note_export_route_is_registered(self):
         match = resolve("/api/v1/notes/notes/exporter/")
 
-        self.assertEqual(match.url_name, "note-exporter")
+        assert match.url_name == "note-exporter"
 
     def test_evaluation_import_routes_are_registered(self):
         template_match = resolve("/api/v1/notes/evaluations/1/modele_import_notes/")
         import_match = resolve("/api/v1/notes/evaluations/1/importer_notes/")
         history_match = resolve("/api/v1/notes/evaluations/1/historique/")
 
-        self.assertEqual(template_match.url_name, "evaluation-modele-import-notes")
-        self.assertEqual(import_match.url_name, "evaluation-importer-notes")
-        self.assertEqual(history_match.url_name, "evaluation-historique")
+        assert template_match.url_name == "evaluation-modele-import-notes"
+        assert import_match.url_name == "evaluation-importer-notes"
+        assert history_match.url_name == "evaluation-historique"
 
     def test_bulletin_export_route_is_registered(self):
         match = resolve("/api/v1/notes/bulletins/exporter/")
 
-        self.assertEqual(match.url_name, "bulletin-exporter")
+        assert match.url_name == "bulletin-exporter"
 
     def test_note_export_uses_tenant_report_configuration(self):
+        payload = {
+            "report": "notes-secondary",
+            "filters": {"classe": 9},
+        }
         request = self.factory.post(
             "/api/v1/notes/notes/exporter/",
-            {
-                "report": "notes-secondary",
-                "filters": {"classe": 9},
-            },
+            payload,
             format="json",
         )
         request.user = self.user
+        request.data = payload
         request.tenant = SimpleNamespace(
             configuration_academique={
                 "reports": [
@@ -96,21 +98,38 @@ class NotesAPITestCase(SimpleTestCase):
 
         response = view.exporter(request)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(queryset.filters, [{"evaluation__classe_id": 9}])
-        self.assertEqual(queryset.selected_fields, ("eleve__matricule", "valeur"))
-        self.assertIn("MAT-001,14.5", response.content.decode())
+        assert response.status_code == 200
+        assert queryset.filters == [{"evaluation__classe_id": 9}]
+        assert queryset.selected_fields == ("eleve__matricule", "valeur")
+        assert "MAT-001,14.5" in response.content.decode()
 
+    @patch("apps.notes.api.record_workflow_event")
     @patch("apps.notes.api._import_secondary_notes", return_value=(2, 1))
-    @patch("apps.notes.api.load_excel_rows", return_value=[{"matricule": "MAT-001", "note": "14", "appreciation": "", "statut": "presente", "__row_number__": 2}])
-    def test_secondary_note_import_uses_excel_template_rules(self, _load_rows, _import_notes):
+    @patch(
+        "apps.notes.api.load_excel_rows",
+        return_value=[
+            {"matricule": "MAT-001", "note": "14", "appreciation": "", "statut": "presente", "__row_number__": 2}
+        ],
+    )
+    def test_secondary_note_import_uses_excel_template_rules(  # noqa: PT019
+        self, _load_rows, _import_notes, _record_workflow_event
+    ):
         request = self.factory.post("/api/v1/notes/evaluations/1/importer_notes/", {}, format="multipart")
         request.user = self.user
         request.tenant = SimpleNamespace(
             configuration_academique={"import_templates": [{"code": "continuous_assessment_grades"}]}
         )
         request.FILES["file"] = SimpleNamespace(name="notes.xlsx")
-        evaluation = SimpleNamespace(pk=1, type="ds", classe=SimpleNamespace(annee_scolaire=SimpleNamespace(cloturee=False)), periode=SimpleNamespace(cloturee=False))
+        evaluation = SimpleNamespace(
+            pk=1,
+            id=1,
+            titre="Devoir surveillé n°1",
+            type="ds",
+            classe_id=9,
+            matiere_id=3,
+            classe=SimpleNamespace(annee_scolaire=SimpleNamespace(cloturee=False)),
+            periode=SimpleNamespace(cloturee=False),
+        )
 
         view = EvaluationsViewSet()
         view.request = request
@@ -119,23 +138,25 @@ class NotesAPITestCase(SimpleTestCase):
 
         response = view.importer_notes(request, pk=1)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["evaluation_id"], 1)
-        self.assertEqual(response.data["notes_creees"], 2)
-        self.assertEqual(response.data["notes_modifiees"], 1)
+        assert response.status_code == 200
+        assert response.data["evaluation_id"] == 1
+        assert response.data["notes_creees"] == 2
+        assert response.data["notes_modifiees"] == 1
 
     @patch("apps.notes.api.request_has_business_access", return_value=True)
     @patch("apps.notes.api.filter_queryset_by_scopes", side_effect=lambda qs, *_args, **_kwargs: qs)
-    def test_bulletin_export_uses_tenant_report_configuration(self, _scoped_queryset, _business_access):
+    def test_bulletin_export_uses_tenant_report_configuration(self, _scoped_queryset, _business_access):  # noqa: PT019
+        payload = {
+            "report": "bulletins-secondary",
+            "filters": {"publie": True},
+        }
         request = self.factory.post(
             "/api/v1/notes/bulletins/exporter/",
-            {
-                "report": "bulletins-secondary",
-                "filters": {"publie": True},
-            },
+            payload,
             format="json",
         )
         request.user = self.user
+        request.data = payload
         request.tenant = SimpleNamespace(
             configuration_academique={
                 "reports": [
@@ -159,10 +180,10 @@ class NotesAPITestCase(SimpleTestCase):
 
         response = view.exporter(request)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(queryset.filters, [{"publie": True}])
-        self.assertEqual(queryset.selected_fields, ("eleve__matricule", "decision"))
-        self.assertIn("MAT-002,passage", response.content.decode())
+        assert response.status_code == 200
+        assert queryset.filters == [{"publie": True}]
+        assert queryset.selected_fields == ("eleve__matricule", "decision")
+        assert "MAT-002,passage" in response.content.decode()
 
     def test_secondary_continuous_assessment_blocks_submission_before_window(self):
         evaluation = SimpleNamespace(
@@ -173,7 +194,7 @@ class NotesAPITestCase(SimpleTestCase):
             periode=SimpleNamespace(cloturee=False),
         )
 
-        with self.assertRaises(serializers.ValidationError) as context:
+        with pytest.raises(serializers.ValidationError) as context:
             _ensure_secondary_continuous_assessment(evaluation)
 
-        self.assertIn("soumission", context.exception.detail)
+        assert "soumission" in context.value.detail

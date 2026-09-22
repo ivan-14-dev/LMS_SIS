@@ -7,6 +7,7 @@ from apps.ue_ecue.models import ECUE
 from apps.utilisateurs.models import Utilisateur
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+
 from sis_common.exam_files import (
     PrivateExamStorage,
     exam_copy_upload_to,
@@ -261,12 +262,12 @@ class CopieExamen(models.Model):
             models.Index(fields=["convocation"]),
         ]
 
+    def __str__(self):
+        return self.numero_anonyme
+
     @property
     def epreuve(self):
         return self.convocation.epreuve
-
-    def __str__(self):
-        return self.numero_anonyme
 
 
 class AffectationCorrection(models.Model):
@@ -305,6 +306,9 @@ class AffectationCorrection(models.Model):
         ]
         indexes = [models.Index(fields=["correcteur", "statut"])]
 
+    def __str__(self):
+        return f"{self.copie} - {self.correcteur} ({self.ordre})"
+
 
 class CorrectionCopie(models.Model):
     """Note remise par un correcteur sans accès à l'identité de l'étudiant."""
@@ -316,6 +320,9 @@ class CorrectionCopie(models.Model):
     appreciation = models.TextField(blank=True)
     soumise_le = models.DateTimeField(auto_now_add=True)
     modifiee_le = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Correction de {self.affectation}"
 
 
 class AuditCopieExamen(models.Model):
@@ -334,3 +341,6 @@ class AuditCopieExamen(models.Model):
     class Meta:
         ordering = ["-cree_le"]
         indexes = [models.Index(fields=["copie", "cree_le"])]
+
+    def __str__(self):
+        return f"{self.action} - {self.copie} ({self.cree_le})"

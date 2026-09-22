@@ -65,11 +65,11 @@ class WorkflowNotification(models.Model):
             models.Index(fields=["recipient", "is_read", "created_at"]),
         ]
 
+    def __str__(self):
+        return f"{self.recipient} - {self.title}"
+
     def mark_read(self):
         if not self.is_read:
             self.is_read = True
             self.read_at = timezone.now()
             self.save(update_fields=["is_read", "read_at"])
-
-    def __str__(self):
-        return f"{self.recipient} - {self.title}"

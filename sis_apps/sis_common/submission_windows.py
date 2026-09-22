@@ -6,8 +6,8 @@ from string import Formatter
 from django.apps import apps
 from django.utils import timezone
 
-from sis_common.authorization import configured_permission_groups
 from sis_common.academic_configuration import resolve_submission_window_settings
+from sis_common.authorization import configured_permission_groups
 from sis_common.notification_channels import initialize_event_delivery, initialize_notification_delivery
 from sis_common.workflow_tracking import record_workflow_event
 

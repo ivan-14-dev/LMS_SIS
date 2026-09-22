@@ -23,17 +23,12 @@ class EtablissementConfigurationSerializerTestCase(TestCase):
             partial=True,
         )
 
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-        self.assertTrue(serializer.validated_data["fonctionnalites"]["cours_en_ligne"])
-        self.assertTrue(
-            serializer.validated_data["fonctionnalites"]["classes_virtuelles"]
-        )
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["fonctionnalites"]["cours_en_ligne"]
+        assert serializer.validated_data["fonctionnalites"]["classes_virtuelles"]
 
     def test_current_establishment_route_is_exposed(self):
-        self.assertEqual(
-            resolve("/api/v1/etablissement/current/").url_name,
-            "current",
-        )
+        assert resolve("/api/v1/etablissement/current/").url_name == "current"
 
     def test_custom_type_requires_a_label(self):
         serializer = EtablissementSerializer(
@@ -42,8 +37,8 @@ class EtablissementConfigurationSerializerTestCase(TestCase):
             partial=True,
         )
 
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("type_personnalise", serializer.errors)
+        assert not serializer.is_valid()
+        assert "type_personnalise" in serializer.errors
 
     def test_live_configuration_rejects_insecure_url(self):
         serializer = EtablissementSerializer(
@@ -57,5 +52,5 @@ class EtablissementConfigurationSerializerTestCase(TestCase):
             partial=True,
         )
 
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("configuration_visio", serializer.errors)
+        assert not serializer.is_valid()
+        assert "configuration_visio" in serializer.errors

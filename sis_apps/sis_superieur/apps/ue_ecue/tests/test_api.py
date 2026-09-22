@@ -10,6 +10,6 @@ class UeEcueAPITestCase(SimpleTestCase):
         ecue_history = resolve("/api/v1/ue-ecue/ecues/1/historique/")
         prerequis_history = resolve("/api/v1/ue-ecue/prerequis/1/historique/")
 
-        self.assertEqual(ue_history.url_name, "ue-historique")
-        self.assertEqual(ecue_history.url_name, "ecue-historique")
-        self.assertEqual(prerequis_history.url_name, "prerequis-historique")
+        assert ue_history.url_name == "ue-historique"
+        assert ecue_history.url_name == "ecue-historique"
+        assert prerequis_history.url_name == "prerequis-historique"

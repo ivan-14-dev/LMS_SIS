@@ -2,6 +2,7 @@
 
 import uuid
 
+from apps.core.serializers import WorkflowEventSerializer
 from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
@@ -9,7 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from apps.core.serializers import WorkflowEventSerializer
+
 from sis_common.authorization import has_business_permission_or_role
 from sis_common.document_policies import enforce_financial_clearance, get_action_object
 from sis_common.official_documents import render_official_pdf, tenant_identity_rows

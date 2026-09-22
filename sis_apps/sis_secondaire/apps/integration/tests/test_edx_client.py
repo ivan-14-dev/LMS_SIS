@@ -23,7 +23,7 @@ class EdxClientContractTestCase(TestCase):
 
         result = self.client.get_grades("course-v1:Org+Course+Run", "learner")
 
-        self.assertEqual(result["percent"], 0.75)
+        assert result["percent"] == 0.75
         request_get.assert_called_once_with(
             "https://lms.example.test/api/grades/v1/courses/"
             "course-v1:Org+Course+Run/",
@@ -47,8 +47,8 @@ class EdxClientContractTestCase(TestCase):
             "course-v1:Org+Course+Run", "bigbluebutton"
         )
 
-        self.assertEqual(result["provider_type"], "big_blue_button")
+        assert result["provider_type"] == "big_blue_button"
         payload = request_post.call_args.kwargs["json"]
-        self.assertEqual(payload["provider_type"], "big_blue_button")
-        self.assertTrue(payload["free_tier"])
-        self.assertNotIn("secret", payload)
+        assert payload["provider_type"] == "big_blue_button"
+        assert payload["free_tier"]
+        assert "secret" not in payload

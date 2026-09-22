@@ -1,6 +1,7 @@
 """Serializers for examens (SIS Supérieur)."""
 
 from rest_framework import serializers
+
 from sis_common.exam_files import hash_uploaded_file
 from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 

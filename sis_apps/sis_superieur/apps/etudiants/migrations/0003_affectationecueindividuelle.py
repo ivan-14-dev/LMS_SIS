@@ -1,11 +1,11 @@
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("etablissement", "0003_initial"),
-        ("etudiants", "0002_initial"),
+        ("etablissement", "0003_universite_configuration_academique_and_more"),
+        ("etudiants", "0003_initial"),
         ("ue_ecue", "0001_initial"),
     ]
 

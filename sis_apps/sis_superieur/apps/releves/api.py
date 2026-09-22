@@ -1,5 +1,6 @@
 """API views for releves (ViewSets DRF) - SIS Supérieur."""
 
+from apps.core.serializers import WorkflowEventSerializer
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
@@ -7,13 +8,13 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from apps.core.serializers import WorkflowEventSerializer
+
+from sis_common.authorization import has_business_permission_or_role
 from sis_common.document_policies import (
     enforce_financial_clearance,
     get_action_object,
 )
 from sis_common.official_documents import render_official_pdf, tenant_identity_rows
-from sis_common.authorization import has_business_permission_or_role
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import Attestation, ReleveNotes, Transcript
@@ -324,8 +325,11 @@ class AttestationsViewSet(viewsets.ModelViewSet):
     @enforce_financial_clearance(
         candidates_getter=lambda _view, request, attestation: [
             {"scope": "academic_year", "context": {"academic_year_id": academic_year_id}}
-            for academic_year_id in attestation.etudiant.inscriptions_admin.values_list("annee_universitaire_id", flat=True)
-        ] + [{"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}}],
+            for academic_year_id in attestation.etudiant.inscriptions_admin.values_list(
+                "annee_universitaire_id", flat=True
+            )
+        ]
+        + [{"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}}],
         subject_getter=lambda _view, _request, attestation: attestation.etudiant,
         academic_year_ids_getter=lambda _view, _request, attestation: list(
             attestation.etudiant.inscriptions_admin.values_list("annee_universitaire_id", flat=True)

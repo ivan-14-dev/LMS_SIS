@@ -4,6 +4,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from apps.core.serializers import WorkflowEventSerializer
+from apps.etudiants.models import AffectationECUEIndividuelle, InscriptionPedagogique
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import FileResponse
@@ -15,6 +16,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
 from sis_common.academic_configuration import resolve_exam_result_workflow
 from sis_common.authorization import (
     request_has_business_access,
@@ -28,8 +30,6 @@ from sis_common.submission_windows import (
     maybe_record_submission_window_alert,
 )
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
-
-from apps.etudiants.models import AffectationECUEIndividuelle, InscriptionPedagogique
 
 from .models import (
     AffectationCorrection,
@@ -223,7 +223,12 @@ def _ensure_entry_allowed(epreuve, type_resultat, workflow):
         allow_retake = workflow.get("allow_retake_after_closure", False)
         if not (allow_retake and type_resultat == "retake"):
             raise ValidationError(
-                {"workflow": "La session, le semestre ou l'année est clôturé; seules les saisies de rattrapage autorisées restent possibles."}
+                {
+                    "workflow": (
+                        "La session, le semestre ou l'année est clôturé; seules les "
+                        "saisies de rattrapage autorisées restent possibles."
+                    )
+                }
             )
     _ensure_submission_window(epreuve, "La période de soumission des résultats")
 
@@ -756,7 +761,7 @@ class ResultatsExamenViewSet(viewsets.ModelViewSet):
             except (TypeError, ValueError):
                 raise ValidationError(
                     {"epreuve_id": f"Ligne {row['__row_number__']}: identifiant d'épreuve invalide."}
-                )
+                ) from None
         matricules = {str(row["etudiant_matricule"]).strip() for row in rows}
         convocations = ConvocationExamen.objects.select_related(
             "epreuve__session__semestre__annee_universitaire",
@@ -775,12 +780,16 @@ class ResultatsExamenViewSet(viewsets.ModelViewSet):
                 try:
                     epreuve_id = int(row["epreuve_id"])
                 except (TypeError, ValueError):
-                    raise ValidationError({"epreuve_id": f"Ligne {row_number}: identifiant d'épreuve invalide."})
+                    raise ValidationError(
+                        {"epreuve_id": f"Ligne {row_number}: identifiant d'épreuve invalide."}
+                    ) from None
                 matricule = str(row["etudiant_matricule"]).strip()
                 key = (epreuve_id, matricule)
                 if key in seen:
                     if seen[key] != row:
-                        raise ValidationError({"file": f"Ligne {row_number}: doublon incohérent détecté pour {matricule}."})
+                        raise ValidationError(
+                            {"file": f"Ligne {row_number}: doublon incohérent détecté pour {matricule}."}
+                        )
                     continue
                 seen[key] = row.copy()
                 convocation = convocation_map.get(key)
@@ -796,7 +805,7 @@ class ResultatsExamenViewSet(viewsets.ModelViewSet):
                 try:
                     note = Decimal(str(row["note"]))
                 except (ArithmeticError, TypeError, ValueError):
-                    raise ValidationError({"note": f"Ligne {row_number}: note invalide."})
+                    raise ValidationError({"note": f"Ligne {row_number}: note invalide."}) from None
                 if note < 0 or note > convocation.epreuve.bareme:
                     raise ValidationError({"note": f"Ligne {row_number}: la note doit respecter le barème."})
                 result, was_created = ResultatExamen.objects.select_for_update().get_or_create(

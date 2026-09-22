@@ -4,6 +4,7 @@ from apps.etablissement.models import AnneeUniversitaire
 from apps.etudiants.models import Etudiant
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
+
 from sis_common.exam_files import (
     PrivateFinancialStorage,
     payment_proof_upload_to,

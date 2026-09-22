@@ -3,6 +3,7 @@
 from apps.eleves.models import Eleve
 from apps.etablissement.models import AnneeScolaire
 from django.db import models
+
 from sis_common.exam_files import (
     PrivateFinancialStorage,
     payment_proof_upload_to,

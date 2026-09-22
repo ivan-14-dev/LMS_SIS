@@ -4,6 +4,7 @@ import hashlib
 import logging
 from decimal import Decimal
 
+from django.apps import apps
 from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -54,17 +55,25 @@ class WebhookHandler:
         payload = self._event_data(payload)
         username = self._username(payload)
         if not username:
-            return
+            return False
         user_data = payload.get("user", {})
+        Utilisateur = apps.get_model("utilisateurs", "Utilisateur")
+        try:
+            utilisateur = Utilisateur.objects.get(username=username)
+        except Utilisateur.DoesNotExist:
+            logger.warning(f"No local SIS user found for LMS user {username}; mapping deferred")
+            return False
         self.EdxUserMapping.objects.update_or_create(
-            username_edx=username,
+            user_sis=utilisateur,
             defaults={
+                "username_edx": username,
                 "user_id_edx": user_data.get("id"),
                 "actif": True,
                 "date_sync": timezone.now(),
             },
         )
         logger.info(f"LMS user synced: {username}")
+        return True
 
     def handle_user_updated(self, payload: dict):
         payload = self._event_data(payload)

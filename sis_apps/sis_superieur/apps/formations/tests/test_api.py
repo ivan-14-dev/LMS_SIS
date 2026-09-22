@@ -10,6 +10,6 @@ class FormationsAPITestCase(SimpleTestCase):
         parcours_history = resolve("/api/v1/formations/parcours/1/historique/")
         maquette_history = resolve("/api/v1/formations/maquettes/1/historique/")
 
-        self.assertEqual(formation_history.url_name, "formation-historique")
-        self.assertEqual(parcours_history.url_name, "parcours-historique")
-        self.assertEqual(maquette_history.url_name, "maquette-historique")
+        assert formation_history.url_name == "formation-historique"
+        assert parcours_history.url_name == "parcours-historique"
+        assert maquette_history.url_name == "maquette-historique"

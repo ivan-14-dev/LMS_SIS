@@ -1,3 +1,4 @@
+import pytest
 from django.test import SimpleTestCase
 from rest_framework.exceptions import ValidationError
 
@@ -41,7 +42,7 @@ class ReportingTests(SimpleTestCase):
             },
         )()
 
-        with self.assertRaises(ValidationError):
+        with pytest.raises(ValidationError):
             configured_report(request, "payments", allowed_datasets={"notes"})
 
     def test_configured_report_checks_required_permissions(self):
@@ -71,7 +72,7 @@ class ReportingTests(SimpleTestCase):
             },
         )()
 
-        with self.assertRaises(ValidationError):
+        with pytest.raises(ValidationError):
             configured_report(request, "payments", allowed_datasets={"financial_payments"})
 
     def test_export_queryset_supports_metadata_rich_csv(self):
@@ -126,12 +127,12 @@ class ReportingTests(SimpleTestCase):
             {"classe": 9},
         )
 
-        self.assertEqual(response.status_code, 200)
+        assert response.status_code == 200
         content = response.content.decode()
-        self.assertIn("Établissement,Lycée Horizon", content)
-        self.assertIn("Rapport,Notes secondaire", content)
-        self.assertIn("Matricule,Note", content)
-        self.assertIn("MAT-001,14.5", content)
+        assert "Établissement,Lycée Horizon" in content
+        assert "Rapport,Notes secondaire" in content
+        assert "Matricule,Note" in content
+        assert "MAT-001,14.5" in content
 
     def test_export_queryset_rejects_unauthorized_format(self):
         request = type(
@@ -152,7 +153,7 @@ class ReportingTests(SimpleTestCase):
             "formats": ["csv"],
         }
 
-        with self.assertRaises(ValidationError):
+        with pytest.raises(ValidationError):
             export_queryset(
                 request,
                 type(

@@ -11,7 +11,7 @@ class EvaluationsAPITestCase(SimpleTestCase):
         notes_match = resolve("/api/v1/evaluations/1/notes/")
         export_match = resolve("/api/v1/evaluations/exporter/")
 
-        self.assertEqual(list_match.url_name, "evaluation-list")
-        self.assertEqual(detail_match.url_name, "evaluation-detail")
-        self.assertEqual(notes_match.url_name, "evaluation-notes")
-        self.assertEqual(export_match.url_name, "evaluation-exporter")
+        assert list_match.url_name == "evaluation-list"
+        assert detail_match.url_name == "evaluation-detail"
+        assert notes_match.url_name == "evaluation-notes"
+        assert export_match.url_name == "evaluation-exporter"

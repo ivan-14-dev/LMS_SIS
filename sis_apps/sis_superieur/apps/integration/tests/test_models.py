@@ -2,13 +2,13 @@
 
 import pytest
 from apps.integration.models import EdxUserMapping, OutboxEvent
+from apps.integration.tests.tenant_test_case import TenantTestCase
 from apps.utilisateurs.models import Utilisateur
 from django.db import IntegrityError
-from django.test import TestCase
 from django.utils import timezone
 
 
-class EdxUserMappingTestCase(TestCase):
+class EdxUserMappingTestCase(TenantTestCase):
     """Tests pour EdxUserMapping."""
 
     def setUp(self):
@@ -80,7 +80,7 @@ class EdxUserMappingTestCase(TestCase):
         assert not mapping.actif
 
 
-class OutboxEventTestCase(TestCase):
+class OutboxEventTestCase(TenantTestCase):
     """Tests pour OutboxEvent (pattern outbox)."""
 
     def test_create_pending_event(self):
@@ -184,7 +184,7 @@ class OutboxEventTestCase(TestCase):
         assert ["statut", "created_at"] in index_fields
 
 
-class IntegrationModelRelationsTestCase(TestCase):
+class IntegrationModelRelationsTestCase(TenantTestCase):
     """Tests des relations entre modèles d'intégration."""
 
     def test_cascade_delete_user_mapping(self):
@@ -201,7 +201,7 @@ class IntegrationModelRelationsTestCase(TestCase):
         assert not EdxUserMapping.objects.filter(user_sis_id=user_id).exists()
 
 
-class OutboxEventManagerTestCase(TestCase):
+class OutboxEventManagerTestCase(TenantTestCase):
     """Tests pour les requêtes sur OutboxEvent."""
 
     def test_filter_pending_events(self):

@@ -3,6 +3,7 @@
 from apps.classes.models import ProgrammeMatiere
 from apps.eleves.models import AffectationMatiereIndividuelle
 from rest_framework import serializers
+
 from sis_common.academic_configuration import validate_rule_criteria
 from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 
@@ -170,7 +171,8 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {
                     "eleve_cible": (
-                        "L'élève ciblé doit avoir cette matière dans son programme de classe ou via une affectation individuelle."
+                        "L'élève ciblé doit avoir cette matière dans son programme de classe "
+                        "ou via une affectation individuelle."
                     )
                 }
             )

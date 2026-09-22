@@ -1,6 +1,7 @@
 """Serializers for etablissement (SIS Supérieur)."""
 
 from rest_framework import serializers
+
 from sis_common.academic_configuration import (
     academic_configuration_schema,
     catalog_label,

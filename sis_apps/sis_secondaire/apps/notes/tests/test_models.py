@@ -22,16 +22,13 @@ class NotesModelTestCase(SimpleTestCase):
             note_minimale=Decimal("4"),
         )
 
-        self.assertFalse(result["reussi"])
-        self.assertEqual(
-            result["motifs"],
-            [
-                "moyenne_insuffisante",
-                "credits_insuffisants",
-                "trop_de_matieres_echouees",
-                "note_eliminatoire",
-            ],
-        )
+        assert not result["reussi"]
+        assert result["motifs"] == [
+            "moyenne_insuffisante",
+            "credits_insuffisants",
+            "trop_de_matieres_echouees",
+            "note_eliminatoire",
+        ]
 
     def test_validation_rule_evaluates_custom_criteria(self):
         rule = RegleValidation(
@@ -47,7 +44,7 @@ class NotesModelTestCase(SimpleTestCase):
             donnees={"assiduite": 75, "stage": "valide"},
         )
 
-        self.assertEqual(result["motifs"], ["critere:assiduite"])
+        assert result["motifs"] == ["critere:assiduite"]
 
     def test_validation_rule_applies_tenant_policy_thresholds_and_financial_clearance(self):
         rule = RegleValidation(seuil_moyenne=Decimal("10"), credits_minimum=Decimal("0"))
@@ -61,7 +58,4 @@ class NotesModelTestCase(SimpleTestCase):
             },
         )
 
-        self.assertEqual(
-            result["motifs"],
-            ["moyenne_insuffisante", "financial_clearance_required"],
-        )
+        assert result["motifs"] == ["moyenne_insuffisante", "financial_clearance_required"]

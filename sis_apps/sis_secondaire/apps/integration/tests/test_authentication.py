@@ -1,7 +1,7 @@
 """Tests for Open edX JWT authentication."""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -10,6 +10,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from django.test import RequestFactory, override_settings
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
+
 from sis_common.authentication import EdxJWTAuthentication
 
 
@@ -31,7 +32,7 @@ class TestEdxJWTAuthentication:
         self.user = SimpleNamespace(is_active=True)
 
     def _token(self, **overrides):
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         payload = {
             "aud": "sis-test-audience",
             "exp": now + timedelta(minutes=5),
@@ -126,7 +127,7 @@ class TestEdxJWTAuthentication:
     def test_expired_token_is_rejected(self):
         with pytest.raises(AuthenticationFailed):
             self._authenticate(
-                self._token(exp=datetime.now(tz=timezone.utc) - timedelta(seconds=1))
+                self._token(exp=datetime.now(tz=UTC) - timedelta(seconds=1))
             )
 
     def test_wrong_issuer_is_rejected(self):
