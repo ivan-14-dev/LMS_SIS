@@ -41,8 +41,12 @@ validés.
 - [ ] Vérifier l'isolation multi-tenant et les permissions objet sur chaque API.
 - [x] Chiffrer au repos les secrets MFA, coordonnées bancaires et données
   médicales.
-- [ ] Finaliser l'inscription MFA, la récupération de compte et la révocation
-  des sessions.
+- [ ] Finaliser l'inscription MFA (`django-mfa2` est installé mais jamais câblé
+  dans les URLs) et la récupération de compte par email — ces deux volets
+  nécessitent des flux UI/UX complets non traités à ce jour.
+  (Fait pour la révocation des sessions : `rest_framework_simplejwt.token_blacklist`
+  câblé, actions `revoke_sessions`/`force_logout`, révocation automatique au
+  changement de mot de passe, sur `utilisateurs` secondaire et supérieur.)
 - [x] Valider le format, la taille et la signature PDF des copies d'examen.
 - [x] Journaliser les opérations sensibles du workflow des copies dans une
   piste d'audit non modifiable via l'API.
@@ -62,18 +66,35 @@ validés.
 - [x] Configurer Celery Beat et le routage explicite des files.
 - [ ] Aligner `.env.template`, les settings et les modes secondaire, supérieur
   et dual.
-- [ ] Fournir les images, manifests, sauvegardes et procédures de restauration.
-- [ ] Publier des métriques Prometheus, tableaux de bord et alertes.
+- [x] Fournir les scripts et procédures de sauvegarde/restauration Postgres
+  (`scripts/backup.sh`, `scripts/restore.sh`, `docs/BACKUP_RESTORE.md`) —
+  couvre la base de données (schéma public + schémas tenants) ; les volumes de
+  fichiers (copies d'examen, médias) restent à couvrir séparément. Images et
+  manifests de déploiement toujours à fournir.
+- [x] Publier des métriques Prometheus réelles sur `/metrics/` (format
+  d'exposition texte via `prometheus_client`). Tableaux de bord et alertes
+  restent à mettre en place.
 
 ### Qualité
 
 - [ ] Remplacer les tests `pass` par des assertions métier.
-  (Fait pour l'app `integration`, secondaire et supérieur ; reste à traiter sur
-  les autres applications.)
+  (Fait pour l'app `integration`, secondaire et supérieur, et pour la
+  révocation de session (`utilisateurs`), les métriques (`core`), et un lot de
+  10 apps supplémentaires : `etablissement`, `classes`, `internat`,
+  `conseil_classe`, `bulletins`, `discipline` (secondaire), `etablissement`,
+  `structure`, `ue_ecue`, `diplomes` (supérieur). Reste à traiter sur ~50
+  autres apps SIS (essentiellement des stubs `test_views.py`/`test_api.py`).
+  Note : le nettoyage a révélé que plusieurs apps annexes — `bibliotheque`,
+  `clubs`, `cantine`, `salles`, `transport`, `infirmerie` (secondaire) — ont des
+  `ViewSet` définis mais jamais câblés dans `urls_api.py` ; leurs routes sont
+  donc inaccessibles en l'état, à corriger séparément.)
 - [ ] Tester les permissions par rôle et par tenant.
 - [ ] Ajouter des tests de contrat backend–frontend et des parcours E2E.
 - [x] Exécuter le lint, les tests et le build du MFE dans la CI SIS.
-- [ ] Définir des seuils de couverture progressifs et bloquants.
+- [x] Définir des seuils de couverture bloquants (`--cov-fail-under=55` dans
+  `ci-sis.yml` pour secondaire et supérieur, sous la couverture mesurée
+  ~58-59% ; à relever progressivement au fil des prochains nettoyages de
+  tests).
 - [ ] Rendre les scans de dépendances et de sécurité bloquants.
 - [ ] Corriger ou archiver les audits devenus obsolètes.
 
