@@ -178,6 +178,13 @@ CACHES = {
 }
 
 # Celery
+from config.celery_beat import CELERY_BEAT_SCHEDULE  # noqa: E402
+from config.celery_routes import (  # noqa: E402
+    CELERY_TASK_DEFAULT_QUEUE,
+    CELERY_TASK_QUEUES,
+    CELERY_TASK_ROUTES,
+)
+
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/2")
 CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/3")
 CELERY_TASK_SERIALIZER = "json"
