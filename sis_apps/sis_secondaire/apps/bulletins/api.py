@@ -81,7 +81,7 @@ class BulletinsViewSet(_BulletinsViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         appreciations = (
-            self.get_queryset()
+            AppreciationMatiere.objects.select_related("eleve__user", "matiere", "periode")
             .filter(
                 eleve__classe_id=classe_id, matiere_id=matiere_id, periode_id=periode_id
             )
