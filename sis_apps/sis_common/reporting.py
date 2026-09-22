@@ -152,12 +152,11 @@ def _pdf_response(report, metadata, headers, rows):
     metadata_rows = "".join(
         f"<tr><th>{escape(label)}</th><td>{escape(value)}</td></tr>" for label, value in metadata
     )
-    table_rows = "".join(
-        "<tr>{}</tr>".format(
-            "".join(f"<td>{escape(value)}</td>" for value in row)
-        )
-        for row in rows
-    )
+    table_rows_parts = []
+    for row in rows:
+        row_cells = "".join(f"<td>{escape(value)}</td>" for value in row)
+        table_rows_parts.append(f"<tr>{row_cells}</tr>")
+    table_rows = "".join(table_rows_parts)
     html = f"""
     <html>
       <head>
