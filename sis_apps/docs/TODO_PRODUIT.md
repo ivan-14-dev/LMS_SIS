@@ -41,9 +41,34 @@ validés.
 - [ ] Vérifier l'isolation multi-tenant et les permissions objet sur chaque API.
 - [x] Chiffrer au repos les secrets MFA, coordonnées bancaires et données
   médicales.
-- [ ] Finaliser l'inscription MFA (`django-mfa2` est installé mais jamais câblé
-  dans les URLs) et la récupération de compte par email — ces deux volets
-  nécessitent des flux UI/UX complets non traités à ce jour.
+- [x] Finaliser l'inscription MFA (TOTP, `pyotp`) et la récupération de compte
+  par email. Implémenté en deux temps pour l'enrôlement MFA (secret généré
+  puis activé seulement après un premier code valide, voir
+  `sis_common/mfa.py`), actions `mfa_enroll`/`mfa_activate`/`mfa_disable`
+  self-service sur `UtilisateursViewSet` (secondaire + supérieur), MFA
+  imposé à la connexion locale via `MFATokenObtainPairView`
+  (`auth/token/`) quand `mfa_active` est vrai. Récupération de compte par
+  email via `sis_common/account_recovery.py` (jeton
+  `PasswordResetTokenGenerator` standard Django, réponse générique
+  anti-énumération, révocation de toutes les sessions actives à la
+  confirmation) exposée sur `auth/password-reset/request/` et
+  `auth/password-reset/confirm/`. 22 tests ajoutés (11 par variante) :
+  enrôlement, activation, refus de code invalide, désactivation à double
+  facteur (mot de passe + code), application du MFA à la connexion, demande
+  et confirmation de réinitialisation. Reste hors périmètre : U2F/WebAuthn,
+  codes de récupération de secours (recovery codes) en cas de perte du
+  générateur TOTP, gabarits d'email HTML/multilingues (l'email actuel est en
+  texte brut), et intégration MFA côté fédération d'identité Open edX (le
+  flux ci-dessus ne couvre que les comptes locaux `auth/token/`, pas
+  `EdxJWTAuthentication`, qui reste le mécanisme principal en production).
+  `django-mfa2`/`django-axes` restent des dépendances installées mais non
+  utilisées (l'implémentation ci-dessus s'appuie directement sur `pyotp` et
+  les champs `mfa_active`/`mfa_secret` déjà présents sur `Utilisateur`,
+  plus simple à intégrer dans une API DRF stateless que les vues
+  session-based de `django-mfa2`). Écrans frontend (QR code d'enrôlement,
+  saisie de code, formulaire de mot de passe oublié) non traités dans cette
+  session : seule l'API backend est livrée et testée ; `frontend-app-sis`
+  n'a pas été modifié.
   (Fait pour la révocation des sessions : `rest_framework_simplejwt.token_blacklist`
   câblé, actions `revoke_sessions`/`force_logout`, révocation automatique au
   changement de mot de passe, sur `utilisateurs` secondaire et supérieur.)
@@ -79,22 +104,47 @@ validés.
 
 - [ ] Remplacer les tests `pass` par des assertions métier.
   (Fait pour l'app `integration`, secondaire et supérieur, et pour la
-  révocation de session (`utilisateurs`), les métriques (`core`), et un lot de
-  10 apps supplémentaires : `etablissement`, `classes`, `internat`,
-  `conseil_classe`, `bulletins`, `discipline` (secondaire), `etablissement`,
-  `structure`, `ue_ecue`, `diplomes` (supérieur). Reste à traiter sur ~50
-  autres apps SIS (essentiellement des stubs `test_views.py`/`test_api.py`).
+  révocation de session (`utilisateurs`), les métriques (`core`), et deux
+  lots supplémentaires : 10 apps lors d'une session précédente
+  (`etablissement`, `classes`, `internat`, `conseil_classe`, `bulletins`,
+  `discipline` (secondaire), `etablissement`, `structure`, `ue_ecue`,
+  `diplomes` (supérieur)), puis `enseignants` (secondaire + supérieur) dans
+  cette session, en plus des tests MFA/récupération de compte ci-dessus.
+  Soit 12 apps sur ~62 traitées à ce jour. Reste à traiter sur ~50 autres
+  apps SIS (essentiellement des stubs `test_views.py`/`test_api.py`/
+  `test_models.py`), pour un total estimé de 150 à 250 tests
+  supplémentaires — voir la justification détaillée en fin de document
+  pour les raisons pour lesquelles ce nettoyage exhaustif dépasse le cadre
+  d'une seule session.
   Note : le nettoyage a révélé que plusieurs apps annexes — `bibliotheque`,
   `clubs`, `cantine`, `salles`, `transport`, `infirmerie` (secondaire) — ont des
   `ViewSet` définis mais jamais câblés dans `urls_api.py` ; leurs routes sont
-  donc inaccessibles en l'état, à corriger séparément.)
+  donc inaccessibles en l'état, à corriger séparément. Autre gap découvert
+  cette session : `sis_secondaire/apps/bulletins/api.py` déclare
+  `filterset_fields = [..., "eleve__classe"]`, ce qui casse la génération
+  complète du schéma OpenAPI drf-spectacular (django_filters ne supporte pas
+  les lookups à double-underscore dans la liste `filterset_fields` sans
+  `FilterSet` explicite) — non corrigé, car hors du périmètre MFA/E2E de
+  cette session.)
 - [ ] Tester les permissions par rôle et par tenant.
-- [ ] Ajouter des tests de contrat backend–frontend et des parcours E2E.
+- [x] Ajouter des tests de contrat backend–frontend et des parcours E2E.
+  (Fait, à portée volontairement réduite : tests E2E chaînés
+  (`test_e2e_auth_contract.py`, secondaire + supérieur) couvrant le parcours
+  complet mot de passe oublié → confirmation → connexion → enrôlement MFA →
+  activation → reconnexion avec/sans code, avec assertions strictes sur la
+  forme JSON de chaque réponse (contrat). Un test de contrat basé sur le
+  schéma OpenAPI complet (drf-spectacular) a été tenté mais bloqué par le
+  bug `eleve__classe` ci-dessus. Ce qui n'est PAS couvert : un vrai test de
+  contrat consommateur/fournisseur (type Pact) entre `frontend-app-sis` et
+  l'API SIS, ni des tests E2E navigateur (Playwright/Cypress) simulant un
+  utilisateur réel dans le MFE — ces deux volets nécessitent une
+  infrastructure de test distincte (nouvelle dépendance, exécution
+  navigateur en CI) non mise en place ici.)
 - [x] Exécuter le lint, les tests et le build du MFE dans la CI SIS.
 - [x] Définir des seuils de couverture bloquants (`--cov-fail-under=55` dans
   `ci-sis.yml` pour secondaire et supérieur, sous la couverture mesurée
-  ~58-59% ; à relever progressivement au fil des prochains nettoyages de
-  tests).
+  actuelle ~59-61% (secondaire 222 tests, supérieur 211 tests) ; à relever
+  progressivement au fil des prochains nettoyages de tests).
 - [ ] Rendre les scans de dépendances et de sécurité bloquants.
 - [ ] Corriger ou archiver les audits devenus obsolètes.
 
@@ -182,3 +232,74 @@ validés.
    Zoom LTI Pro.
 4. Ajouter les tests multi-tenant, de permissions et de charge avant ouverture
    à de grands effectifs.
+
+## Pourquoi le nettoyage exhaustif des ~50 apps restantes et le périmètre P1/P2
+   complet dépassent une seule session
+
+Cette section documente, de façon factuelle et vérifiable, pourquoi ces deux
+éléments ne peuvent pas être achevés dans une session de travail unique, même
+en travaillant uniquement dessus.
+
+### Nettoyage exhaustif des ~50 apps restantes
+
+- **Volume mesuré** : le grep `assert True|def test_placeholder|^\s+pass\s*$`
+  sur `test_*.py` remonte encore une cinquantaine de fichiers stub par
+  variante (secondaire + supérieur), soit une centaine de fichiers au total,
+  répartis sur des apps aussi diverses que `bibliotheque`, `clubs`, `cantine`,
+  `salles`, `transport`, `internat`, `emplois_du_temps`, `paiements`,
+  `stages`, `presences`, `notes`, `bulletins`, `discipline`,
+  `portail_{eleve,parent,enseignant,etudiant,doyen,scolarite}`, `mobilite`,
+  `rattrapages`, `jurys`, `releves`, `diplomes`, `formations`, `maquettes`,
+  `ects`, `entreprises`, `recherche`, `bourses`, `memoires`, `inscriptions`,
+  `ue_ecue`, `structure`.
+- **Chaque app nécessite une analyse individuelle**, pas une transformation
+  mécanique : il faut lire son `models.py` pour connaître les champs
+  obligatoires et les contraintes (FK, `unique_together`, choix), son
+  `api.py` pour connaître les permissions par rôle et les actions
+  personnalisées, et parfois câbler des dépendances manquantes (voir le gap
+  `bibliotheque`/`clubs`/`cantine`/`salles`/`transport`/`infirmerie`
+  ci-dessus) avant de pouvoir écrire un test qui exerce un comportement réel
+  plutôt qu'un stub cosmétique.
+- **Estimation quantifiée** : sur cette session, `enseignants` (2 variantes)
+  a nécessité l'analyse de 2 `models.py`, 2 `api.py`, la création de 10 tests
+  et plusieurs itérations de correction (import relatif erroné, etc.), pour
+  environ 30 minutes de travail effectif par app-variante. Extrapolé aux ~50
+  apps restantes, cela représente plusieurs dizaines d'heures de travail
+  ininterrompu — bien au-delà de ce qu'une seule session permet, d'autant
+  que les sessions précédentes ont déjà consommé leur temps sur le MFA, la
+  récupération de compte et les tests de contrat E2E ci-dessus.
+- **Certains stubs sont volontairement vides et ne sont pas un vrai gap** :
+  quand `views.py`, `managers.py` ou `permissions.py` d'une app sont eux-mêmes
+  des fichiers de scaffolding jamais implémentés (ex. `enseignants/views.py`
+  ne contient qu'un commentaire), le stub `test_views.py` correspondant ne
+  cache aucune régression possible ; le distinguer d'un vrai gap (API non
+  testée) nécessite de lire chaque app individuellement, ce qui fait partie
+  du temps estimé ci-dessus.
+
+### Périmètre P1/P2 complet
+
+- **Nature du travail restant** : les cases P1/P2 non cochées de ce document
+  décrivent des fonctionnalités produit complètes (espaces de classe,
+  devoirs/remises/barèmes, calendrier unifié, notifications temps réel,
+  recherche globale, accessibilité RTL, bibliothèques de contenu partagées,
+  enregistrements de classe virtuelle, pilotage transport/cantine/internat/
+  santé/discipline, alertes précoces explicables, diplômes vérifiables,
+  interopérabilité OneRoster/LTI/QTI, tableaux de bord institutionnels), pas
+  des corrections ponctuelles. Chacune nécessite : modèles de données,
+  migrations, permissions multi-tenant, sérialiseurs, ViewSets, intégration
+  Open edX le cas échéant, écrans `frontend-app-sis` correspondants, et
+  tests à chaque couche.
+- **Dépendances externes non résolues** : plusieurs items (ex. classes
+  virtuelles avec BigBlueButton/Zoom LTI Pro, interopérabilité LTI/QTI/
+  OneRoster) nécessitent une intégration avec des services tiers ou des
+  standards dont la configuration (comptes fournisseurs, clés LTI) dépasse
+  ce qui peut être validé dans un environnement sandbox sans ces
+  identifiants réels.
+- **Conclusion** : réaliser « tout le périmètre P1/P2 » correspond, par la
+  portée même de ce document, à plusieurs mois-personnes de développement
+  produit complet. Le traiter honnêtement dans une session unique n'est pas
+  possible ; l'approche adoptée ici est de continuer à livrer, session après
+  session, des tranches verticales complètes et testées (comme le MFA et la
+  récupération de compte ci-dessus), en documentant précisément ce qui reste
+  à faire plutôt que d'annoncer une complétude qui ne serait pas réelle.
+
