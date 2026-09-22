@@ -5,7 +5,6 @@ from apps.integration.models import EdxUserMapping, OutboxEvent
 from apps.integration.tests.tenant_test_case import TenantTestCase
 from apps.utilisateurs.models import Utilisateur
 from django.db import IntegrityError
-from django.test import TestCase
 from django.utils import timezone
 
 
