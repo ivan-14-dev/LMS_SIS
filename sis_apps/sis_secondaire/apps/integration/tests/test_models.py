@@ -1,12 +1,16 @@
 """Tests des modèles d'intégration - SIS Secondaire."""
 
 import pytest
-from apps.integration.models import EdxUserMapping, OutboxEvent
+from apps.classes.models import Classe, Matiere
+from apps.eleves.models import Eleve
+from apps.etablissement.models import AnneeScolaire, Niveau
+from apps.integration.models import EdxCourseMapping, EdxEnrollment, EdxGradeLog, EdxUserMapping, OutboxEvent
 from apps.integration.tests.tenant_test_case import TenantTestCase
 from apps.utilisateurs.models import Utilisateur
 from django.db import IntegrityError
-from django.test import TestCase
 from django.utils import timezone
+
+TEST_USER_PASSWORD = "irrelevant-test-value-not-a-real-secret"
 
 
 class EdxUserMappingModelTestCase(TenantTestCase):
@@ -159,30 +163,126 @@ class OutboxEventModelTestCase(TenantTestCase):
         assert done.count() == 1
 
 
-class EdxEnrollmentModelTestCase(TestCase):
+class EdxEnrollmentModelTestCase(TenantTestCase):
     """Tests pour EdxEnrollment."""
+
+    def setUp(self):
+        annee = AnneeScolaire.objects.create(
+            etablissement=self.tenant,
+            libelle="2023-2024",
+            date_debut="2023-09-01",
+            date_fin="2024-06-30",
+        )
+        niveau = Niveau.objects.create(
+            etablissement=self.tenant, code="tale", libelle="Terminale"
+        )
+        classe = Classe.objects.create(
+            etablissement=self.tenant,
+            annee_scolaire=annee,
+            niveau=niveau,
+            nom="Terminale S",
+        )
+        matiere = Matiere.objects.create(
+            etablissement=self.tenant, code="MATH", nom="Mathématiques"
+        )
+        self.course_mapping = EdxCourseMapping.objects.create(
+            matiere=matiere,
+            classe=classe,
+            course_id="course-v1:SIS+MATH001+2024",
+            course_name="Mathématiques",
+        )
+        user = Utilisateur.objects.create_user(
+            "eleve_enroll_model", "eleve_enroll_model@test.com", TEST_USER_PASSWORD, role="eleve"
+        )
+        self.eleve = Eleve.objects.create(
+            etablissement=self.tenant,
+            user=user,
+            matricule="MATMODEL1",
+            date_naissance="2008-01-01",
+            lieu_naissance="Paris",
+            sexe="M",
+            date_inscription="2023-09-01",
+        )
 
     def test_default_progression(self):
         """La progression par défaut est 0."""
-        # Ce test nécessite les modèles Eleve, Classe, etc.
-        # Simplifié ici
-        pass
+        enrollment = EdxEnrollment.objects.create(eleve=self.eleve, course=self.course_mapping)
+        assert enrollment.progression == 0
 
     def test_is_active_default(self):
         """is_active est True par défaut."""
-        # Simplifié
-        pass
+        enrollment = EdxEnrollment.objects.create(eleve=self.eleve, course=self.course_mapping)
+        assert enrollment.is_active is True
 
 
-class EdxGradeLogModelTestCase(TestCase):
+class EdxGradeLogModelTestCase(TenantTestCase):
     """Tests pour EdxGradeLog."""
+
+    def setUp(self):
+        annee = AnneeScolaire.objects.create(
+            etablissement=self.tenant,
+            libelle="2023-2024",
+            date_debut="2023-09-01",
+            date_fin="2024-06-30",
+        )
+        niveau = Niveau.objects.create(
+            etablissement=self.tenant, code="tale", libelle="Terminale"
+        )
+        classe = Classe.objects.create(
+            etablissement=self.tenant,
+            annee_scolaire=annee,
+            niveau=niveau,
+            nom="Terminale S",
+        )
+        matiere = Matiere.objects.create(
+            etablissement=self.tenant, code="MATH", nom="Mathématiques"
+        )
+        course_mapping = EdxCourseMapping.objects.create(
+            matiere=matiere,
+            classe=classe,
+            course_id="course-v1:SIS+MATH001+2024",
+            course_name="Mathématiques",
+        )
+        user = Utilisateur.objects.create_user(
+            "eleve_grade_model", "eleve_grade_model@test.com", TEST_USER_PASSWORD, role="eleve"
+        )
+        eleve = Eleve.objects.create(
+            etablissement=self.tenant,
+            user=user,
+            matricule="MATMODEL2",
+            date_naissance="2008-01-01",
+            lieu_naissance="Paris",
+            sexe="M",
+            date_inscription="2023-09-01",
+        )
+        self.enrollment = EdxEnrollment.objects.create(eleve=eleve, course=course_mapping)
 
     def test_imported_to_sis_default(self):
         """imported_to_sis est False par défaut."""
-        # Simplifié
-        pass
+        grade_log = EdxGradeLog.objects.create(
+            enrollment=self.enrollment,
+            subsection_id="block-v1:sub1",
+            score=15,
+            timestamp_lms=timezone.now(),
+        )
+        assert grade_log.imported_to_sis is False
 
     def test_ordering_by_timestamp(self):
         """Les logs sont triés par timestamp (décroissant)."""
-        # Simplifié
-        pass
+        older = EdxGradeLog.objects.create(
+            enrollment=self.enrollment,
+            subsection_id="block-v1:sub1",
+            score=10,
+            timestamp_lms=timezone.now() - timezone.timedelta(days=1),
+        )
+        newer = EdxGradeLog.objects.create(
+            enrollment=self.enrollment,
+            subsection_id="block-v1:sub2",
+            score=12,
+            timestamp_lms=timezone.now(),
+        )
+
+        logs = list(EdxGradeLog.objects.all())
+
+        assert logs[0] == newer
+        assert logs[1] == older
