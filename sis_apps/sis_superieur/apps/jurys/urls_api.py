@@ -12,9 +12,9 @@ from .api import (
 app_name = "jurys_api"
 
 router = DefaultRouter()
-router.register("jurys", JurysViewSet, basename="jury")
 router.register("deliberations", DeliberationsViewSet, basename="deliberation")
 router.register("decisions-jury", DecisionsJuryViewSet, basename="decision-jury")
 router.register("decisions-globales", DecisionsGlobalesViewSet, basename="decision-globale")
+router.register("", JurysViewSet, basename="jury")
 
 urlpatterns = router.urls

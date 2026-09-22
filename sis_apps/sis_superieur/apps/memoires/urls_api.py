@@ -8,7 +8,7 @@ app_name = "memoires_api"
 
 router = DefaultRouter()
 router.register("sujets-memoire", SujetsMemoireViewSet, basename="sujet-memoire")
-router.register("memoires", MemoiresViewSet, basename="memoire")
 router.register("jurys-memoire", JurysMemoireViewSet, basename="jury-memoire")
+router.register("", MemoiresViewSet, basename="memoire")
 
 urlpatterns = router.urls

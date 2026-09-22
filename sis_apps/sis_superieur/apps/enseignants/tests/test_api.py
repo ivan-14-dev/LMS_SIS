@@ -32,13 +32,13 @@ class EnseignantsAPITestCase(TenantAPITestCase):
         )
 
     def test_list_requires_authentication(self):
-        response = self.client.get("/api/v1/enseignants/enseignants/")
+        response = self.client.get("/api/v1/enseignants/")
         assert response.status_code == 401
 
     def test_scolarite_can_list_enseignants(self):
         self.client.force_authenticate(user=self.scolarite)
 
-        response = self.client.get("/api/v1/enseignants/enseignants/")
+        response = self.client.get("/api/v1/enseignants/")
 
         assert response.status_code == 200
         specialites = [item["specialite"] for item in response.data["results"]]
@@ -47,7 +47,7 @@ class EnseignantsAPITestCase(TenantAPITestCase):
     def test_me_returns_own_profile(self):
         self.client.force_authenticate(user=self.enseignant_user)
 
-        response = self.client.get("/api/v1/enseignants/enseignants/me/")
+        response = self.client.get("/api/v1/enseignants/me/")
 
         assert response.status_code == 200
         assert response.data["specialite"] == "Informatique"
@@ -55,7 +55,7 @@ class EnseignantsAPITestCase(TenantAPITestCase):
     def test_me_returns_404_for_non_teacher(self):
         self.client.force_authenticate(user=self.scolarite)
 
-        response = self.client.get("/api/v1/enseignants/enseignants/me/")
+        response = self.client.get("/api/v1/enseignants/me/")
 
         assert response.status_code == 404
 
@@ -63,7 +63,7 @@ class EnseignantsAPITestCase(TenantAPITestCase):
         self.client.force_authenticate(user=self.enseignant_user)
 
         response = self.client.patch(
-            f"/api/v1/enseignants/enseignants/{self.enseignant.pk}/",
+            f"/api/v1/enseignants/{self.enseignant.pk}/",
             {"specialite": "Mathématiques"},
         )
 
