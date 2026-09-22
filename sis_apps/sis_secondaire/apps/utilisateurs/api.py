@@ -13,7 +13,11 @@ from sis_common.authorization import (
     has_business_permission_or_role,
     permission_snapshot,
 )
-from sis_common.session_security import revoke_all_sessions
+from sis_common.session_security import (
+    list_active_sessions,
+    revoke_all_sessions,
+    revoke_session,
+)
 
 from .models import Utilisateur
 from .serializers import (
@@ -22,6 +26,7 @@ from .serializers import (
     MFACodeSerializer,
     MFADisableSerializer,
     PermissionSerializer,
+    RevokeSessionSerializer,
     UtilisateurCreateSerializer,
     UtilisateurDetailSerializer,
     UtilisateurListSerializer,
@@ -40,6 +45,8 @@ class IsDirectionOrReadOnly(IsAuthenticated):
             "update_profile",
             "change_password",
             "revoke_sessions",
+            "sessions",
+            "revoke_session",
             "mfa_enroll",
             "mfa_activate",
             "mfa_disable",
@@ -162,6 +169,24 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
                 **summary,
             }
         )
+
+    @action(detail=False, methods=["get"])
+    def sessions(self, request):
+        """Liste les sessions JWT actives (une par appareil/navigateur connecté)."""
+        return Response(list_active_sessions(request.user))
+
+    @action(detail=False, methods=["post"])
+    def revoke_session(self, request):
+        """Révoque une seule session JWT de l'utilisateur connecté, par `jti`."""
+        serializer = RevokeSessionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = revoke_session(request.user, serializer.validated_data["jti"])
+        if result is None:
+            return Response(
+                {"detail": "Session introuvable pour cet utilisateur."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({"detail": "Session révoquée.", **result})
 
     @action(detail=False, methods=["post"])
     def mfa_enroll(self, request):

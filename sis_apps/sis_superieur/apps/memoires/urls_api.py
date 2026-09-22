@@ -1,7 +1,14 @@
 """URLs API for memoires."""
 
+from rest_framework.routers import DefaultRouter
+
+from .api import JurysMemoireViewSet, MemoiresViewSet, SujetsMemoireViewSet
+
 app_name = "memoires_api"
 
-urlpatterns = [
-    # path("", api.MemoiresViewSet.as_view({"get": "list", "post": "create"}), name="list"),
-]
+router = DefaultRouter()
+router.register("sujets-memoire", SujetsMemoireViewSet, basename="sujet-memoire")
+router.register("memoires", MemoiresViewSet, basename="memoire")
+router.register("jurys-memoire", JurysMemoireViewSet, basename="jury-memoire")
+
+urlpatterns = router.urls

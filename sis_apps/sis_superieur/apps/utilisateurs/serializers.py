@@ -163,6 +163,12 @@ class UtilisateurProfileSerializer(serializers.ModelSerializer):
         ]
 
 
+class RevokeSessionSerializer(serializers.Serializer):
+    """Serializer pour la révocation granulaire d'une session JWT précise."""
+
+    jti = serializers.CharField(required=True, max_length=255)
+
+
 class MFACodeSerializer(serializers.Serializer):
     """Serializer pour la confirmation d'enrôlement / vérification MFA."""
 

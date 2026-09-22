@@ -92,6 +92,60 @@ class SessionRevocationTestCase(TenantAPITestCase):
         assert response.status_code == 403
         assert Token.objects.filter(user=self.user).exists()
 
+    def test_sessions_lists_own_outstanding_tokens(self):
+        """La liste des sessions retourne les jetons JWT de l'utilisateur connecté."""
+        refresh = RefreshToken.for_user(self.user)
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get("/api/v1/utilisateurs/comptes/sessions/")
+
+        assert response.status_code == 200
+        assert len(response.data) == 1
+        assert response.data[0]["jti"] == str(refresh["jti"])
+        assert response.data[0]["revoked"] is False
+
+    def test_sessions_does_not_leak_other_users_tokens(self):
+        """Un utilisateur ne voit que ses propres sessions JWT."""
+        RefreshToken.for_user(self.other_user)
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.get("/api/v1/utilisateurs/comptes/sessions/")
+
+        assert response.status_code == 200
+        assert response.data == []
+
+    def test_revoke_session_blacklists_only_targeted_token(self):
+        """Révoquer une session par `jti` ne blackliste que ce jeton précis."""
+        refresh_a = RefreshToken.for_user(self.user)
+        refresh_b = RefreshToken.for_user(self.user)
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            "/api/v1/utilisateurs/comptes/revoke_session/",
+            {"jti": str(refresh_a["jti"])},
+        )
+
+        assert response.status_code == 200
+        assert response.data["already_revoked"] is False
+        outstanding_a = OutstandingToken.objects.get(jti=refresh_a["jti"])
+        outstanding_b = OutstandingToken.objects.get(jti=refresh_b["jti"])
+        assert BlacklistedToken.objects.filter(token=outstanding_a).exists()
+        assert not BlacklistedToken.objects.filter(token=outstanding_b).exists()
+
+    def test_revoke_session_rejects_unknown_or_foreign_jti(self):
+        """Un utilisateur ne peut pas révoquer un jeton inexistant ou d'un tiers."""
+        refresh_other = RefreshToken.for_user(self.other_user)
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            "/api/v1/utilisateurs/comptes/revoke_session/",
+            {"jti": str(refresh_other["jti"])},
+        )
+
+        assert response.status_code == 404
+        outstanding_other = OutstandingToken.objects.get(jti=refresh_other["jti"])
+        assert not BlacklistedToken.objects.filter(token=outstanding_other).exists()
+
 
 class MFAEnrollmentTestCase(TenantAPITestCase):
     """Tests de l'enrôlement MFA (TOTP) en deux temps."""

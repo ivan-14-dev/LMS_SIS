@@ -71,7 +71,17 @@ validés.
   n'a pas été modifié.
   (Fait pour la révocation des sessions : `rest_framework_simplejwt.token_blacklist`
   câblé, actions `revoke_sessions`/`force_logout`, révocation automatique au
-  changement de mot de passe, sur `utilisateurs` secondaire et supérieur.)
+  changement de mot de passe, sur `utilisateurs` secondaire et supérieur.
+  Complété cette session par une révocation **granulaire, par appareil** :
+  `sis_common/session_security.py` expose `list_active_sessions(user)` et
+  `revoke_session(user, jti)`, exposés en self-service via les actions
+  `sessions` (GET, liste des tokens non révoqués/non expirés de l'utilisateur
+  courant, sans fuite vers d'autres comptes) et `revoke_session` (POST par
+  `jti`, 404 si le jeton n'existe pas ou appartient à un autre utilisateur)
+  sur `UtilisateursViewSet`, secondaire et supérieur. 8 tests ajoutés (4 par
+  variante). Reste hors périmètre : détails d'appareil/IP/géolocalisation par
+  session (le token blacklist JWT ne stocke pas ces métadonnées) et écran
+  frontend de gestion des sessions actives.)
 - [x] Valider le format, la taille et la signature PDF des copies d'examen.
 - [x] Journaliser les opérations sensibles du workflow des copies dans une
   piste d'audit non modifiable via l'API.
@@ -109,23 +119,51 @@ validés.
   (`etablissement`, `classes`, `internat`, `conseil_classe`, `bulletins`,
   `discipline` (secondaire), `etablissement`, `structure`, `ue_ecue`,
   `diplomes` (supérieur)), puis `enseignants` (secondaire + supérieur) dans
-  cette session, en plus des tests MFA/récupération de compte ci-dessus.
-  Soit 12 apps sur ~62 traitées à ce jour. Reste à traiter sur ~50 autres
-  apps SIS (essentiellement des stubs `test_views.py`/`test_api.py`/
-  `test_models.py`), pour un total estimé de 150 à 250 tests
-  supplémentaires — voir la justification détaillée en fin de document
-  pour les raisons pour lesquelles ce nettoyage exhaustif dépasse le cadre
-  d'une seule session.
-  Note : le nettoyage a révélé que plusieurs apps annexes — `bibliotheque`,
-  `clubs`, `cantine`, `salles`, `transport`, `infirmerie` (secondaire) — ont des
-  `ViewSet` définis mais jamais câblés dans `urls_api.py` ; leurs routes sont
-  donc inaccessibles en l'état, à corriger séparément. Autre gap découvert
-  cette session : `sis_secondaire/apps/bulletins/api.py` déclare
-  `filterset_fields = [..., "eleve__classe"]`, ce qui casse la génération
-  complète du schéma OpenAPI drf-spectacular (django_filters ne supporte pas
-  les lookups à double-underscore dans la liste `filterset_fields` sans
-  `FilterSet` explicite) — non corrigé, car hors du périmètre MFA/E2E de
-  cette session.)
+  une session ultérieure, en plus des tests MFA/récupération de compte
+  ci-dessus. Cette session a ajouté 23 apps supplémentaires (11 secondaire :
+  `bibliotheque`, `cantine`, `clubs`, `discipline`, `emplois_du_temps`,
+  `infirmerie`, `internat`, `presences`, `salles`, `stages`, `transport` ;
+  12 supérieur : `bibliotheque`, `bourses`, `ects`, `emplois_du_temps`,
+  `entreprises`, `jurys`, `maquettes`, `memoires`, `mobilite`,
+  `rattrapages`, `recherche`, `stages`), avec des tests de résolution de
+  route (`SimpleTestCase` + `django.urls.resolve()`, sans dépendance BD/tenant,
+  suivant le motif déjà utilisé dans `sis_secondaire/apps/core/tests/test_api.py`) :
+  plus légers que les tests métier complets des lots précédents, mais
+  suffisants pour empêcher une régression de routage silencieuse. Soit 35
+  apps sur ~62 traitées à ce jour. Reste à traiter sur ~27 autres apps SIS
+  (tests métier approfondis, pas seulement de résolution de route), pour un
+  total estimé de 80 à 150 tests supplémentaires — voir la justification
+  détaillée en fin de document pour les raisons pour lesquelles ce nettoyage
+  exhaustif dépasse le cadre d'une seule session.
+  **Découverte majeure cette session** : les 23 apps listées ci-dessus (dont
+  6 déjà repérées comme suspectes lors d'une session précédente —
+  `bibliotheque`, `clubs`, `cantine`, `salles`, `transport`, `infirmerie`)
+  avaient en réalité un `ViewSet` entièrement implémenté (modèles,
+  sérialiseurs, permissions, actions) dans `api.py`, mais leur
+  `urls_api.py` ne contenait qu'un enregistrement de routeur laissé en
+  commentaire (scaffolding jamais terminé) : ces API étaient donc
+  **totalement inaccessibles en HTTP**, malgré un code métier par ailleurs
+  complet. Corrigé en câblant un `DefaultRouter` réel dans les 23
+  `urls_api.py` concernés (même motif que `examens`/`classes`/`utilisateurs`),
+  avec des slugs kebab-case alignés sur les hooks `createResourceHooks(...)`
+  de `frontend-app-sis/src/services/api.js` quand une correspondance exacte
+  existait. Vérifié par résolution de ~950 URLs sans erreur et suite complète
+  verte (237/237 secondaire, 227/227 supérieur, couverture ~70% chacune).
+  **Non corrigé, car hors périmètre** : un défaut préexistant et distinct où
+  certaines apps déjà câblées (ex. `classes`) enregistrent leur routeur sous
+  un préfixe qui double le nom de ressource attendu par le frontend
+  (`/api/v1/classes/classes/` au lieu de `/api/v1/classes/`) — déjà suivi
+  sous l'item « Aligner les routes et les payloads des portails... » plus
+  bas dans ce document. De même, certains des 23 slugs nouvellement câblés
+  ne correspondent pas exactement à un hook frontend existant faute de
+  hook défini (ex. `mobilite`, `stages`) : l'alignement fin frontend/backend
+  reste un chantier séparé.
+  Autre gap découvert lors d'une session précédente : `sis_secondaire/apps/bulletins/api.py`
+  déclare `filterset_fields = [..., "eleve__classe"]`, ce qui casse la
+  génération complète du schéma OpenAPI drf-spectacular (django_filters ne
+  supporte pas les lookups à double-underscore dans la liste
+  `filterset_fields` sans `FilterSet` explicite) — toujours non corrigé, hors
+  périmètre des sessions successives ci-dessus.)
 - [ ] Tester les permissions par rôle et par tenant.
 - [x] Ajouter des tests de contrat backend–frontend et des parcours E2E.
   (Fait, à portée volontairement réduite : tests E2E chaînés
@@ -141,10 +179,12 @@ validés.
   infrastructure de test distincte (nouvelle dépendance, exécution
   navigateur en CI) non mise en place ici.)
 - [x] Exécuter le lint, les tests et le build du MFE dans la CI SIS.
-- [x] Définir des seuils de couverture bloquants (`--cov-fail-under=55` dans
-  `ci-sis.yml` pour secondaire et supérieur, sous la couverture mesurée
-  actuelle ~59-61% (secondaire 222 tests, supérieur 211 tests) ; à relever
-  progressivement au fil des prochains nettoyages de tests).
+- [x] Définir des seuils de couverture bloquants (`--cov-fail-under=65` dans
+  `ci-sis.yml` pour secondaire et supérieur, relevé de 55% à 65% cette
+  session sous la couverture mesurée actuelle ~70% (secondaire 237 tests,
+  supérieur 227 tests, marge de sécurité conservée pour éviter la
+  fragilité) ; à relever à nouveau progressivement au fil des prochains
+  nettoyages de tests).
 - [ ] Rendre les scans de dépendances et de sécurité bloquants.
 - [ ] Corriger ou archiver les audits devenus obsolètes.
 
@@ -233,41 +273,38 @@ validés.
 4. Ajouter les tests multi-tenant, de permissions et de charge avant ouverture
    à de grands effectifs.
 
-## Pourquoi le nettoyage exhaustif des ~50 apps restantes et le périmètre P1/P2
+## Pourquoi le nettoyage exhaustif des ~27 apps restantes et le périmètre P1/P2
    complet dépassent une seule session
 
 Cette section documente, de façon factuelle et vérifiable, pourquoi ces deux
 éléments ne peuvent pas être achevés dans une session de travail unique, même
 en travaillant uniquement dessus.
 
-### Nettoyage exhaustif des ~50 apps restantes
+### Nettoyage exhaustif des ~27 apps restantes
 
-- **Volume mesuré** : le grep `assert True|def test_placeholder|^\s+pass\s*$`
-  sur `test_*.py` remonte encore une cinquantaine de fichiers stub par
-  variante (secondaire + supérieur), soit une centaine de fichiers au total,
-  répartis sur des apps aussi diverses que `bibliotheque`, `clubs`, `cantine`,
-  `salles`, `transport`, `internat`, `emplois_du_temps`, `paiements`,
-  `stages`, `presences`, `notes`, `bulletins`, `discipline`,
-  `portail_{eleve,parent,enseignant,etudiant,doyen,scolarite}`, `mobilite`,
-  `rattrapages`, `jurys`, `releves`, `diplomes`, `formations`, `maquettes`,
-  `ects`, `entreprises`, `recherche`, `bourses`, `memoires`, `inscriptions`,
-  `ue_ecue`, `structure`.
+- **Volume mesuré** : après le lot traité cette session (23 apps, tests de
+  résolution de route), il reste des stubs `test_*.py` (`assert True|def
+  test_placeholder|^\s+pass\s*$`) sur une vingtaine d'apps par variante,
+  réparties notamment sur `paiements`, `notes`, `bulletins`,
+  `portail_{eleve,parent,enseignant,etudiant,doyen,scolarite}`, `releves`,
+  `diplomes`, `formations`, `inscriptions`. Contrairement au lot de cette
+  session, ces apps sont déjà correctement câblées dans `urls_api.py` : le
+  travail restant est uniquement l'écriture de vrais tests métier (pas de
+  correction de routage).
 - **Chaque app nécessite une analyse individuelle**, pas une transformation
   mécanique : il faut lire son `models.py` pour connaître les champs
   obligatoires et les contraintes (FK, `unique_together`, choix), son
   `api.py` pour connaître les permissions par rôle et les actions
-  personnalisées, et parfois câbler des dépendances manquantes (voir le gap
-  `bibliotheque`/`clubs`/`cantine`/`salles`/`transport`/`infirmerie`
-  ci-dessus) avant de pouvoir écrire un test qui exerce un comportement réel
-  plutôt qu'un stub cosmétique.
-- **Estimation quantifiée** : sur cette session, `enseignants` (2 variantes)
-  a nécessité l'analyse de 2 `models.py`, 2 `api.py`, la création de 10 tests
-  et plusieurs itérations de correction (import relatif erroné, etc.), pour
-  environ 30 minutes de travail effectif par app-variante. Extrapolé aux ~50
-  apps restantes, cela représente plusieurs dizaines d'heures de travail
-  ininterrompu — bien au-delà de ce qu'une seule session permet, d'autant
-  que les sessions précédentes ont déjà consommé leur temps sur le MFA, la
-  récupération de compte et les tests de contrat E2E ci-dessus.
+  personnalisées, avant de pouvoir écrire un test qui exerce un comportement
+  réel plutôt qu'un stub cosmétique.
+- **Estimation quantifiée** : sur une session précédente, `enseignants` (2
+  variantes) a nécessité l'analyse de 2 `models.py`, 2 `api.py`, la création
+  de 10 tests et plusieurs itérations de correction (import relatif erroné,
+  etc.), pour environ 30 minutes de travail effectif par app-variante.
+  Extrapolé aux ~27 apps restantes, cela représente encore quinze à vingt
+  heures de travail ininterrompu — au-delà de ce qu'une seule session permet,
+  d'autant que cette session a déjà consommé son temps sur la révocation
+  granulaire de session et la correction des 23 routes mortes ci-dessus.
 - **Certains stubs sont volontairement vides et ne sont pas un vrai gap** :
   quand `views.py`, `managers.py` ou `permissions.py` d'une app sont eux-mêmes
   des fichiers de scaffolding jamais implémentés (ex. `enseignants/views.py`

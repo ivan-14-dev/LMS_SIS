@@ -1,7 +1,18 @@
 """URLs API for stages."""
 
+from rest_framework.routers import DefaultRouter
+
+from .api import (
+    CandidaturesStageViewSet,
+    ConventionsStageViewSet,
+    OffresStageViewSet,
+)
+
 app_name = "stages_api"
 
-urlpatterns = [
-    # path("", api.StagesViewSet.as_view({"get": "list", "post": "create"}), name="list"),
-]
+router = DefaultRouter()
+router.register("offres-stage", OffresStageViewSet, basename="offre-stage")
+router.register("candidatures-stage", CandidaturesStageViewSet, basename="candidature-stage")
+router.register("conventions-stage", ConventionsStageViewSet, basename="convention-stage")
+
+urlpatterns = router.urls
