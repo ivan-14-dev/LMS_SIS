@@ -14,8 +14,13 @@ logger = logging.getLogger(__name__)
 class SyncService:
     """Orchestration des synchronisations bidirectionnelles."""
 
-    def __init__(self):
+    def __init__(self, enqueue_failures: bool = True):
         self.client = get_edx_client()
+        # Le rejeu depuis l'outbox (voir tasks.publish_outbox_events) gère lui-même
+        # les tentatives/l'état de l'événement d'origine ; il désactive ce
+        # ré-enfilage automatique pour éviter de dupliquer des événements outbox
+        # à chaque nouvel échec de rejeu.
+        self.enqueue_failures = enqueue_failures
 
     # ====================== SIS → LMS ======================
 
@@ -51,7 +56,7 @@ class SyncService:
             # Enregistrée hors de la transaction ci-dessus afin que l'événement
             # outbox ne soit pas annulé par le rollback déclenché par l'échec.
             self._enqueue_outbox(
-                "user.sync", "user", str(user_sis.id), {"error": str(e)}
+                "user.sync", "user", str(user_sis.id), {"error": str(e), "role": role}
             )
             raise
 
@@ -76,7 +81,14 @@ class SyncService:
             return mapping
         except Exception as e:
             self._enqueue_outbox(
-                "course.create", "ecue", str(ecue.id), {"error": str(e)}
+                "course.create",
+                "ecue",
+                str(ecue.id),
+                {
+                    "error": str(e),
+                    "annee_universitaire_id": annee_universitaire.id,
+                    "display_name": display_name,
+                },
             )
             raise
 
@@ -103,7 +115,12 @@ class SyncService:
                 "enrollment.create",
                 "etudiant",
                 str(etudiant.id),
-                {"course": course_mapping.course_id, "error": str(e)},
+                {
+                    "course": course_mapping.course_id,
+                    "course_mapping_id": course_mapping.id,
+                    "mode": mode,
+                    "error": str(e),
+                },
             )
             raise
 
@@ -175,6 +192,8 @@ class SyncService:
         return count
 
     def _enqueue_outbox(self, event_type, aggregate_type, aggregate_id, payload):
+        if not self.enqueue_failures:
+            return
         OutboxEvent.objects.create(
             event_type=event_type,
             aggregate_type=aggregate_type,

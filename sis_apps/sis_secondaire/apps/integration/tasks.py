@@ -3,14 +3,26 @@
 import logging
 
 from celery import shared_task
+from django.db import transaction
 from django.utils import timezone
-from django_tenants.utils import schema_context
+from django_tenants.utils import get_tenant_model, schema_context
 
-from .edx_client import get_edx_client
 from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
 from .sync_service import SyncService
 
 logger = logging.getLogger(__name__)
+
+OUTBOX_MAX_ATTEMPTS = 5
+
+
+def _iter_tenant_schemas():
+    """Liste les schémas des établissements (hors ``public``) à traiter."""
+    TenantModel = get_tenant_model()
+    return list(
+        TenantModel.objects.exclude(schema_name="public").values_list(
+            "schema_name", flat=True
+        )
+    )
 
 
 def _process_webhook(event_type, payload, schema_name):
@@ -74,39 +86,111 @@ def process_course_published(payload):
 # ============== Outbox publisher ==============
 
 
-@shared_task
-def publish_outbox_events():
-    """Publie les événements en attente."""
-    pending = OutboxEvent.objects.filter(statut="pending")[:100]
-    get_edx_client()
-    for event in pending:
+def _retry_user_sync(service, event):
+    from apps.utilisateurs.models import Utilisateur
+
+    user = Utilisateur.objects.get(pk=event.aggregate_id)
+    role = event.payload.get("role", "student")
+    service.sync_user_to_lms(user, role=role)
+
+
+def _retry_course_create(service, event):
+    from apps.classes.models import Classe, Matiere
+
+    matiere = Matiere.objects.get(pk=event.aggregate_id)
+    classe = Classe.objects.get(pk=event.payload["classe_id"])
+    display_name = event.payload.get("display_name") or str(matiere)
+    service.sync_course_to_cms(matiere, classe, display_name)
+
+
+def _retry_enrollment_create(service, event):
+    from apps.eleves.models import Eleve
+
+    eleve = Eleve.objects.get(pk=event.aggregate_id)
+    course_mapping = EdxCourseMapping.objects.get(pk=event.payload["course_mapping_id"])
+    mode = event.payload.get("mode", "audit")
+    service.sync_enrollment_to_lms(eleve, course_mapping, mode=mode)
+
+
+OUTBOX_HANDLERS = {
+    "user.sync": _retry_user_sync,
+    "course.create": _retry_course_create,
+    "enrollment.create": _retry_enrollment_create,
+}
+
+
+def _claim_pending_outbox_events(batch_size=100):
+    """Verrouille un lot d'événements ``pending`` et les passe en ``processing``.
+
+    ``select_for_update(skip_locked=True)`` garantit qu'aucun autre worker
+    Celery ne peut réclamer les mêmes lignes en parallèle (plusieurs
+    exécutions concurrentes de ``publish_outbox_events`` ne se marchent donc
+    pas dessus), et la transaction est validée avant tout appel réseau vers le
+    LMS pour ne pas garder les verrous plus longtemps que nécessaire.
+    """
+    with transaction.atomic():
+        ids = list(
+            OutboxEvent.objects.select_for_update(skip_locked=True)
+            .filter(statut="pending")
+            .order_by("created_at")
+            .values_list("id", flat=True)[:batch_size]
+        )
+        if ids:
+            OutboxEvent.objects.filter(id__in=ids).update(
+                statut="processing", derniere_tentative=timezone.now()
+            )
+    return list(OutboxEvent.objects.filter(id__in=ids)) if ids else []
+
+
+def _publish_outbox_events_for_current_schema():
+    events = _claim_pending_outbox_events()
+    if not events:
+        return 0
+    # Le rejeu réutilise les méthodes de synchronisation réelles ; il désactive
+    # leur ré-enfilage automatique en cas d'échec puisque cette tâche gère
+    # elle-même les tentatives/l'état terminal (dead letter) de l'événement.
+    service = SyncService(enqueue_failures=False)
+    for event in events:
+        handler = OUTBOX_HANDLERS.get(event.event_type)
         try:
-            event.statut = "processing"
-            event.save()
-            # Selon le type, on appelle la bonne API LMS/CMS
-            if event.event_type == "user.sync":
-                # déjà traité
-                pass
-            event.statut = "done"
-            event.derniere_tentative = timezone.now()
-            event.save()
+            if handler is None:
+                raise ValueError(f"Type d'événement outbox inconnu: {event.event_type}")
+            handler(service, event)
         except Exception as e:
             event.nb_tentatives += 1
             event.erreur = str(e)
-            if event.nb_tentatives >= 5:
-                event.statut = "dead"
-            else:
-                event.statut = "pending"
-            event.save()
+            event.statut = (
+                "dead" if event.nb_tentatives >= OUTBOX_MAX_ATTEMPTS else "pending"
+            )
+            event.save(update_fields=["nb_tentatives", "erreur", "statut"])
+            logger.warning(f"Outbox event {event.id} ({event.event_type}) failed: {e}")
+        else:
+            event.statut = "done"
+            event.save(update_fields=["statut"])
+    return len(events)
+
+
+@shared_task
+def publish_outbox_events():
+    """Publie les événements en attente pour chaque établissement.
+
+    Chaque événement échoué est rejoué via le même appel de synchronisation
+    LMS/CMS qui l'a initialement mis en échec (voir ``sync_service.py``) :
+    l'échec n'est donc plus silencieusement marqué comme traité. Après
+    ``OUTBOX_MAX_ATTEMPTS`` tentatives, l'événement passe en ``dead`` (file
+    d'échec) au lieu d'être retenté indéfiniment.
+    """
+    total = 0
+    for schema_name in _iter_tenant_schemas():
+        with schema_context(schema_name):
+            total += _publish_outbox_events_for_current_schema()
+    return total
 
 
 # ============== Réconciliation ==============
 
 
-@shared_task
-def reconcile_lms():
-    """Réconciliation quotidienne LMS ↔ SIS."""
-    logger.info("Starting LMS reconciliation")
+def _reconcile_lms_for_current_schema():
     service = SyncService()
     for enrollment in EdxEnrollment.objects.filter(is_active=True)[:500]:
         try:
@@ -123,8 +207,15 @@ def reconcile_lms():
 
 
 @shared_task
-def sync_all_pending_eleves():
-    """Synchronise tous les élèves qui n'ont pas encore de mapping LMS."""
+def reconcile_lms():
+    """Réconciliation quotidienne LMS ↔ SIS, pour chaque établissement."""
+    logger.info("Starting LMS reconciliation")
+    for schema_name in _iter_tenant_schemas():
+        with schema_context(schema_name):
+            _reconcile_lms_for_current_schema()
+
+
+def _sync_all_pending_eleves_for_current_schema():
     from apps.eleves.models import Eleve
 
     service = SyncService()
@@ -138,4 +229,14 @@ def sync_all_pending_eleves():
             count += 1
         except Exception as e:
             logger.error(f"Failed to sync eleve {eleve.id}: {e}")
-    logger.info(f"Synced {count} eleves to LMS")
+    return count
+
+
+@shared_task
+def sync_all_pending_eleves():
+    """Synchronise tous les élèves qui n'ont pas encore de mapping LMS."""
+    total = 0
+    for schema_name in _iter_tenant_schemas():
+        with schema_context(schema_name):
+            total += _sync_all_pending_eleves_for_current_schema()
+    logger.info(f"Synced {total} eleves to LMS")
