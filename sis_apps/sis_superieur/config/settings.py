@@ -392,3 +392,20 @@ FIELD_ENCRYPTION_KEY = get_required_secret(
     "FIELD_ENCRYPTION_KEY", test_value="MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
 )
 SIS_WEBHOOK_LMS_URL = f"{EDX_LMS_URL}/api/webhooks/v1/webhooks/"
+
+# ====================== Récupération de compte / emails ======================
+# URL du frontend utilisée pour construire les liens de réinitialisation de
+# mot de passe envoyés par email (voir sis_common.account_recovery).
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@sis.local")
+# En développement/CI, la console suffit ; configurer EMAIL_BACKEND (et les
+# variables EMAIL_HOST*) via l'environnement pour un envoi SMTP réel en prod.
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 587))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = get_bool_environment("EMAIL_USE_TLS", default=True)

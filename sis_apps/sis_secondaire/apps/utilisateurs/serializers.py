@@ -123,3 +123,30 @@ class UtilisateurProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Utilisateur
         fields = ["first_name", "last_name", "telephone", "photo"]
+
+
+class MFACodeSerializer(serializers.Serializer):
+    """Serializer pour la confirmation d'enrôlement / vérification MFA."""
+
+    code = serializers.CharField(required=True, max_length=10)
+
+
+class MFADisableSerializer(serializers.Serializer):
+    """Serializer pour la désactivation du MFA (double confirmation)."""
+
+    password = serializers.CharField(required=True)
+    code = serializers.CharField(required=True, max_length=10)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    """Serializer pour la demande de réinitialisation de mot de passe."""
+
+    email = serializers.EmailField(required=True)
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Serializer pour la confirmation de réinitialisation de mot de passe."""
+
+    uid = serializers.CharField(required=True)
+    token = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, validators=[validate_password])

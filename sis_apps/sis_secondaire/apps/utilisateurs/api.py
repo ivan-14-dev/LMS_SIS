@@ -8,6 +8,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from sis_common import mfa as mfa_service
 from sis_common.authorization import (
     has_business_permission_or_role,
     permission_snapshot,
@@ -18,6 +19,8 @@ from .models import Utilisateur
 from .serializers import (
     ChangePasswordSerializer,
     GroupSerializer,
+    MFACodeSerializer,
+    MFADisableSerializer,
     PermissionSerializer,
     UtilisateurCreateSerializer,
     UtilisateurDetailSerializer,
@@ -33,7 +36,14 @@ class IsDirectionOrReadOnly(IsAuthenticated):
         if not super().has_permission(request, view):
             return False
         user = request.user
-        if view.action in ("update_profile", "change_password", "revoke_sessions"):
+        if view.action in (
+            "update_profile",
+            "change_password",
+            "revoke_sessions",
+            "mfa_enroll",
+            "mfa_activate",
+            "mfa_disable",
+        ):
             return True
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
@@ -152,6 +162,40 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
                 **summary,
             }
         )
+
+    @action(detail=False, methods=["post"])
+    def mfa_enroll(self, request):
+        """Démarre l'enrôlement MFA (TOTP) : génère un secret non activé."""
+        secret, provisioning_uri = mfa_service.begin_enrollment(request.user)
+        return Response(
+            {
+                "secret": secret,
+                "provisioning_uri": provisioning_uri,
+                "detail": "Scannez le QR code puis confirmez avec un code via mfa_activate.",
+            }
+        )
+
+    @action(detail=False, methods=["post"])
+    def mfa_activate(self, request):
+        """Confirme l'enrôlement MFA avec un premier code TOTP valide."""
+        serializer = MFACodeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if not mfa_service.confirm_enrollment(request.user, serializer.validated_data["code"]):
+            return Response({"code": "Code MFA invalide."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "MFA activé avec succès.", "mfa_active": True})
+
+    @action(detail=False, methods=["post"])
+    def mfa_disable(self, request):
+        """Désactive le MFA (requiert le mot de passe et un code TOTP valide)."""
+        serializer = MFADisableSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        if not user.check_password(serializer.validated_data["password"]):
+            return Response({"password": "Mot de passe incorrect."}, status=status.HTTP_400_BAD_REQUEST)
+        if not mfa_service.verify_code(user.mfa_secret, serializer.validated_data["code"]):
+            return Response({"code": "Code MFA invalide."}, status=status.HTTP_400_BAD_REQUEST)
+        mfa_service.disable_mfa(user)
+        return Response({"detail": "MFA désactivé.", "mfa_active": False})
 
     @action(detail=True, methods=["post"])
     def toggle_active(self, request, pk=None):

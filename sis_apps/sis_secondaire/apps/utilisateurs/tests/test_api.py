@@ -91,3 +91,223 @@ class SessionRevocationTestCase(TenantAPITestCase):
 
         assert response.status_code == 403
         assert Token.objects.filter(user=self.user).exists()
+
+
+class MFAEnrollmentTestCase(TenantAPITestCase):
+    """Tests de l'enrôlement MFA (TOTP) en deux temps."""
+
+    def setUp(self):
+        self.user = Utilisateur.objects.create_user(
+            "mfa_user",
+            "mfa_user@test.com",
+            TEST_USER_PASSWORD,
+            role="direction",
+            etablissement=self.tenant,
+        )
+
+    def test_mfa_enroll_generates_secret_without_activating(self):
+        """L'enrôlement génère un secret mais n'active pas encore le MFA."""
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post("/api/v1/utilisateurs/comptes/mfa_enroll/")
+
+        assert response.status_code == 200
+        assert response.data["secret"]
+        assert response.data["provisioning_uri"].startswith("otpauth://")
+        self.user.refresh_from_db()
+        assert self.user.mfa_secret == response.data["secret"]
+        assert self.user.mfa_active is False
+
+    def test_mfa_activate_with_valid_code_enables_mfa(self):
+        """Un code TOTP valide confirme l'enrôlement et active le MFA."""
+        import pyotp
+
+        self.client.force_authenticate(user=self.user)
+        self.client.post("/api/v1/utilisateurs/comptes/mfa_enroll/")
+        self.user.refresh_from_db()
+        code = pyotp.TOTP(self.user.mfa_secret).now()
+
+        response = self.client.post(
+            "/api/v1/utilisateurs/comptes/mfa_activate/", {"code": code}
+        )
+
+        assert response.status_code == 200
+        assert response.data["mfa_active"] is True
+        self.user.refresh_from_db()
+        assert self.user.mfa_active is True
+
+    def test_mfa_activate_with_invalid_code_fails(self):
+        """Un code invalide ne doit pas activer le MFA."""
+        self.client.force_authenticate(user=self.user)
+        self.client.post("/api/v1/utilisateurs/comptes/mfa_enroll/")
+
+        response = self.client.post(
+            "/api/v1/utilisateurs/comptes/mfa_activate/", {"code": "000000"}
+        )
+
+        assert response.status_code == 400
+        self.user.refresh_from_db()
+        assert self.user.mfa_active is False
+
+    def test_mfa_disable_requires_password_and_code(self):
+        """La désactivation du MFA exige le mot de passe et un code TOTP valide."""
+        import pyotp
+
+        self.client.force_authenticate(user=self.user)
+        self.client.post("/api/v1/utilisateurs/comptes/mfa_enroll/")
+        self.user.refresh_from_db()
+        code = pyotp.TOTP(self.user.mfa_secret).now()
+        self.client.post("/api/v1/utilisateurs/comptes/mfa_activate/", {"code": code})
+        self.user.refresh_from_db()
+        new_code = pyotp.TOTP(self.user.mfa_secret).now()
+
+        response = self.client.post(
+            "/api/v1/utilisateurs/comptes/mfa_disable/",
+            {"password": TEST_USER_PASSWORD, "code": new_code},
+        )
+
+        assert response.status_code == 200
+        self.user.refresh_from_db()
+        assert self.user.mfa_active is False
+        assert self.user.mfa_secret == ""
+
+    def test_mfa_disable_with_wrong_password_fails(self):
+        """Un mauvais mot de passe empêche la désactivation du MFA."""
+        import pyotp
+
+        self.client.force_authenticate(user=self.user)
+        self.client.post("/api/v1/utilisateurs/comptes/mfa_enroll/")
+        self.user.refresh_from_db()
+        code = pyotp.TOTP(self.user.mfa_secret).now()
+        self.client.post("/api/v1/utilisateurs/comptes/mfa_activate/", {"code": code})
+
+        response = self.client.post(
+            "/api/v1/utilisateurs/comptes/mfa_disable/",
+            {"password": "wrong-password", "code": code},
+        )
+
+        assert response.status_code == 400
+        self.user.refresh_from_db()
+        assert self.user.mfa_active is True
+
+
+class MFALoginEnforcementTestCase(TenantAPITestCase):
+    """Tests de l'application du MFA à la connexion (auth/token/)."""
+
+    def setUp(self):
+        self.user = Utilisateur.objects.create_user(
+            "mfa_login_user",
+            "mfa_login_user@test.com",
+            TEST_USER_PASSWORD,
+            role="direction",
+            etablissement=self.tenant,
+        )
+
+    def test_login_without_mfa_active_does_not_require_code(self):
+        """Sans MFA actif, la connexion classique fonctionne sans code."""
+        response = self.client.post(
+            "/api/v1/auth/token/",
+            {"username": self.user.username, "password": TEST_USER_PASSWORD},
+        )
+
+        assert response.status_code == 200
+        assert "access" in response.data
+
+    def test_login_with_mfa_active_requires_valid_code(self):
+        """Avec MFA actif, la connexion échoue sans code TOTP valide."""
+        import pyotp
+
+        secret = pyotp.random_base32()
+        self.user.mfa_secret = secret
+        self.user.mfa_active = True
+        self.user.save(update_fields=["mfa_secret", "mfa_active"])
+
+        response = self.client.post(
+            "/api/v1/auth/token/",
+            {"username": self.user.username, "password": TEST_USER_PASSWORD},
+        )
+        assert response.status_code == 400
+
+        valid_response = self.client.post(
+            "/api/v1/auth/token/",
+            {
+                "username": self.user.username,
+                "password": TEST_USER_PASSWORD,
+                "mfa_code": pyotp.TOTP(secret).now(),
+            },
+        )
+        assert valid_response.status_code == 200
+        assert "access" in valid_response.data
+
+
+class PasswordResetTestCase(TenantAPITestCase):
+    """Tests de la récupération de compte par email."""
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        # Ces endpoints sont accessibles anonymement et partagent le throttle
+        # DRF "anon" (10/minute) avec le reste de l'API ; on repart d'un
+        # compteur propre pour que les tests ne s'influencent pas entre eux.
+        cache.clear()
+        self.user = Utilisateur.objects.create_user(
+            "reset_user",
+            "reset_user@test.com",
+            TEST_USER_PASSWORD,
+            role="direction",
+            etablissement=self.tenant,
+        )
+
+    def test_request_reset_sends_email_for_known_account(self):
+        from django.core import mail
+
+        response = self.client.post(
+            "/api/v1/auth/password-reset/request/", {"email": self.user.email}
+        )
+
+        assert response.status_code == 200
+        assert len(mail.outbox) == 1
+        assert self.user.email in mail.outbox[0].to
+
+    def test_request_reset_is_silent_for_unknown_email(self):
+        """Ne doit pas permettre l'énumération de comptes : même réponse."""
+        from django.core import mail
+
+        response = self.client.post(
+            "/api/v1/auth/password-reset/request/", {"email": "unknown@test.com"}
+        )
+
+        assert response.status_code == 200
+        assert len(mail.outbox) == 0
+
+    def test_confirm_reset_with_valid_token_changes_password(self):
+        from django.contrib.auth.tokens import PasswordResetTokenGenerator
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
+
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        token = PasswordResetTokenGenerator().make_token(self.user)
+
+        response = self.client.post(
+            "/api/v1/auth/password-reset/confirm/",
+            {"uid": uid, "token": token, "new_password": "a-new-Strong-Passw0rd!"},
+        )
+
+        assert response.status_code == 200
+        self.user.refresh_from_db()
+        assert self.user.check_password("a-new-Strong-Passw0rd!")
+
+    def test_confirm_reset_with_invalid_token_fails(self):
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
+
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+
+        response = self.client.post(
+            "/api/v1/auth/password-reset/confirm/",
+            {"uid": uid, "token": "invalid-token", "new_password": "a-new-Strong-Passw0rd!"},
+        )
+
+        assert response.status_code == 400
+        self.user.refresh_from_db()
+        assert self.user.check_password(TEST_USER_PASSWORD)
