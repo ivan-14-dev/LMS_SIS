@@ -37,22 +37,23 @@ def render_official_pdf(filename, title, identity_rows, sections, footer_rows=No
         for label, value in identity_rows
         if value not in (None, "")
     )
-    sections_html = "".join(
-        """
+    sections_html_parts = []
+    for section in sections:
+        section_title = escape(str(section["title"]))
+        section_rows = "".join(
+            f"<tr><th>{escape(str(label))}</th><td>{escape(str(value))}</td></tr>"
+            for label, value in section.get("rows", [])
+            if value not in (None, "")
+        )
+        sections_html_parts.append(
+            f"""
         <section>
           <h2>{section_title}</h2>
-          <table>{rows}</table>
+          <table>{section_rows}</table>
         </section>
-        """.format(
-            section_title=escape(str(section["title"])),
-            rows="".join(
-                f"<tr><th>{escape(str(label))}</th><td>{escape(str(value))}</td></tr>"
-                for label, value in section.get("rows", [])
-                if value not in (None, "")
-            ),
+        """
         )
-        for section in sections
-    )
+    sections_html = "".join(sections_html_parts)
     footer_html = "".join(
         f"<li><strong>{escape(str(label))}:</strong> {escape(str(value))}</li>"
         for label, value in footer_rows

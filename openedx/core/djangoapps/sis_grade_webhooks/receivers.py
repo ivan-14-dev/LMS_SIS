@@ -1,5 +1,5 @@
 """Signal receivers that queue assessment grade change events for SIS webhooks."""
-from uuid import uuid4
+import secrets
 
 from django.dispatch import receiver
 from django.utils import timezone
@@ -31,7 +31,7 @@ def queue_assessment_grade(
         return
     publish_assessment_grade.delay(
         {
-            "event_id": uuid4().hex,
+            "event_id": secrets.token_hex(32),
             "user": {"id": user.id, "username": user.username},
             "course": {"course_key": str(course_id)},
             "subsection_id": str(subsection_id),
