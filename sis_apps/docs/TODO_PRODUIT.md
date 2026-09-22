@@ -39,7 +39,7 @@ validés.
   comptes pré-mappés, avec validation cryptographique des jetons, audience,
   émetteur et expiration.
 - [ ] Vérifier l'isolation multi-tenant et les permissions objet sur chaque API.
-- [ ] Chiffrer au repos les secrets MFA, coordonnées bancaires et données
+- [x] Chiffrer au repos les secrets MFA, coordonnées bancaires et données
   médicales.
 - [ ] Finaliser l'inscription MFA, la récupération de compte et la révocation
   des sessions.
@@ -55,11 +55,11 @@ validés.
 - [x] Préparer l'écran d'administration de l'intégration LMS pour les données
   réelles.
 - [x] Activer cet écran après la fédération d'identité Open edX vers les SIS.
-- [ ] Fiabiliser les webhooks avec validation de schéma, idempotence et
+- [x] Fiabiliser les webhooks avec validation de schéma, idempotence et
   événements inconnus rejetés.
-- [ ] Publier réellement les événements outbox avec verrouillage, reprise et
+- [x] Publier réellement les événements outbox avec verrouillage, reprise et
   file d'échec.
-- [ ] Configurer Celery Beat et le routage explicite des files.
+- [x] Configurer Celery Beat et le routage explicite des files.
 - [ ] Aligner `.env.template`, les settings et les modes secondaire, supérieur
   et dual.
 - [ ] Fournir les images, manifests, sauvegardes et procédures de restauration.
@@ -68,9 +68,11 @@ validés.
 ### Qualité
 
 - [ ] Remplacer les tests `pass` par des assertions métier.
+  (Fait pour l'app `integration`, secondaire et supérieur ; reste à traiter sur
+  les autres applications.)
 - [ ] Tester les permissions par rôle et par tenant.
 - [ ] Ajouter des tests de contrat backend–frontend et des parcours E2E.
-- [ ] Exécuter le lint, les tests et le build du MFE dans la CI SIS.
+- [x] Exécuter le lint, les tests et le build du MFE dans la CI SIS.
 - [ ] Définir des seuils de couverture progressifs et bloquants.
 - [ ] Rendre les scans de dépendances et de sécurité bloquants.
 - [ ] Corriger ou archiver les audits devenus obsolètes.
