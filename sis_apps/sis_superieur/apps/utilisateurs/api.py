@@ -12,6 +12,7 @@ from sis_common.authorization import (
     has_business_permission_or_role,
     permission_snapshot,
 )
+from sis_common.session_security import revoke_all_sessions
 
 from .models import Utilisateur
 from .serializers import (
@@ -29,7 +30,7 @@ class CanManageUsers(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        if view.action in ("me", "capabilities", "update_profile", "change_password"):
+        if view.action in ("me", "capabilities", "update_profile", "change_password", "revoke_sessions"):
             return True
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
@@ -156,7 +157,22 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
         user.doit_changer_mdp = False
         user.save()
 
+        # Un changement de mot de passe doit invalider toutes les sessions
+        # existantes (jeton DRF + jetons JWT actifs).
+        revoke_all_sessions(user)
+
         return Response({"detail": "Mot de passe modifié avec succès."})
+
+    @action(detail=False, methods=["post"])
+    def revoke_sessions(self, request):
+        """Déconnecte l'utilisateur connecté de toutes ses sessions actives."""
+        summary = revoke_all_sessions(request.user)
+        return Response(
+            {
+                "detail": "Toutes les sessions actives ont été révoquées.",
+                **summary,
+            }
+        )
 
     @action(detail=True, methods=["post"])
     def toggle_active(self, request, pk=None):
@@ -169,6 +185,19 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
                 "id": user.id,
                 "is_active": user.is_active,
                 "detail": f"Utilisateur {'activé' if user.is_active else 'désactivé'}.",
+            }
+        )
+
+    @action(detail=True, methods=["post"])
+    def force_logout(self, request, pk=None):
+        """Révoque toutes les sessions actives d'un autre utilisateur (action admin)."""
+        user = self.get_object()
+        summary = revoke_all_sessions(user)
+        return Response(
+            {
+                "id": user.id,
+                "detail": f"Sessions de {user} révoquées.",
+                **summary,
             }
         )
 

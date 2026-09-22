@@ -12,6 +12,7 @@ from sis_common.authorization import (
     has_business_permission_or_role,
     permission_snapshot,
 )
+from sis_common.session_security import revoke_all_sessions
 
 from .models import Utilisateur
 from .serializers import (
@@ -32,7 +33,7 @@ class IsDirectionOrReadOnly(IsAuthenticated):
         if not super().has_permission(request, view):
             return False
         user = request.user
-        if view.action in ("update_profile", "change_password"):
+        if view.action in ("update_profile", "change_password", "revoke_sessions"):
             return True
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
@@ -135,7 +136,22 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         request.user.set_password(serializer.validated_data["new_password"])
         request.user.save(update_fields=["password"])
+        # Un changement de mot de passe doit invalider toutes les sessions
+        # existantes (jeton DRF + jetons JWT actifs) pour éviter qu'une
+        # session déjà compromise reste valide après la remédiation.
+        revoke_all_sessions(request.user)
         return Response({"detail": "Mot de passe modifié avec succès."})
+
+    @action(detail=False, methods=["post"])
+    def revoke_sessions(self, request):
+        """Déconnecte l'utilisateur connecté de toutes ses sessions actives."""
+        summary = revoke_all_sessions(request.user)
+        return Response(
+            {
+                "detail": "Toutes les sessions actives ont été révoquées.",
+                **summary,
+            }
+        )
 
     @action(detail=True, methods=["post"])
     def toggle_active(self, request, pk=None):
@@ -154,6 +170,19 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
                 "id": user.id,
                 "is_active": user.is_active,
                 "detail": f"Utilisateur {action_str}.",
+            }
+        )
+
+    @action(detail=True, methods=["post"])
+    def force_logout(self, request, pk=None):
+        """Révoque toutes les sessions actives d'un autre utilisateur (action admin)."""
+        user = self.get_object()
+        summary = revoke_all_sessions(user)
+        return Response(
+            {
+                "id": user.id,
+                "detail": f"Sessions de {user} révoquées.",
+                **summary,
             }
         )
 

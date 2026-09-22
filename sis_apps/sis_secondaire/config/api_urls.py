@@ -2,10 +2,18 @@
 
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import (
+    TokenBlacklistView,
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
 router = DefaultRouter()
 
 urlpatterns = [
+    path("auth/token/", TokenObtainPairView.as_view(), name="token-obtain-pair"),
+    path("auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
+    path("auth/token/blacklist/", TokenBlacklistView.as_view(), name="token-blacklist"),
     path("core/", include("apps.core.urls_api")),
     path("etablissement/", include("apps.etablissement.urls_api")),
     path("utilisateurs/", include("apps.utilisateurs.urls_api")),

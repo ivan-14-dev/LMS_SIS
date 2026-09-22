@@ -1,6 +1,7 @@
 # Configuration de base pour SIS Supérieur
 import os
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 from corsheaders.defaults import default_headers
@@ -41,6 +42,7 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
+    "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "corsheaders",
     "django_filters",
@@ -288,6 +290,18 @@ REST_FRAMEWORK = {
         "anon": "10/minute",
         "user": "100/minute",
     },
+}
+
+# SimpleJWT : accès/rafraîchissement + révocation via liste noire (voir
+# sis_common.session_security.revoke_all_sessions). Les jetons d'accès sont
+# volontairement courts ; le rafraîchissement pivote et blackliste
+# systématiquement l'ancien jeton pour limiter la fenêtre de rejeu.
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
 }
 
 SPECTACULAR_SETTINGS = {
