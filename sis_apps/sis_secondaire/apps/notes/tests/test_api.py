@@ -111,8 +111,8 @@ class NotesAPITestCase(SimpleTestCase):
             {"matricule": "MAT-001", "note": "14", "appreciation": "", "statut": "presente", "__row_number__": 2}
         ],
     )
-    def test_secondary_note_import_uses_excel_template_rules(  # noqa: PT019
-        self, _load_rows, _import_notes, _record_workflow_event
+    def test_secondary_note_import_uses_excel_template_rules(
+        self, _load_rows, _import_notes, _record_workflow_event  # noqa: PT019
     ):
         request = self.factory.post("/api/v1/notes/evaluations/1/importer_notes/", {}, format="multipart")
         request.user = self.user
