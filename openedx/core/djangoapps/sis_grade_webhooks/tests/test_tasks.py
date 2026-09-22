@@ -1,3 +1,4 @@
+"""Tests for the SIS grade webhook publishing task."""
 import hashlib
 import hmac
 import json
@@ -21,6 +22,8 @@ from openedx.core.djangoapps.sis_grade_webhooks.tasks import (
     ]
 )
 class PublishAssessmentGradeTest(TestCase):
+    """Tests for ``publish_assessment_grade``."""
+
     @patch("openedx.core.djangoapps.sis_grade_webhooks.tasks.requests.post")
     def test_publishes_signed_normalized_payload(self, post):
         post.return_value = Mock()

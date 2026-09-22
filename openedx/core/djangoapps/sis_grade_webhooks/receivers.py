@@ -1,3 +1,4 @@
+"""Signal receivers that queue assessment grade change events for SIS webhooks."""
 from uuid import uuid4
 
 from django.dispatch import receiver

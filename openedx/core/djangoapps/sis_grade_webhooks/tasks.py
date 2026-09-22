@@ -1,3 +1,4 @@
+"""Celery tasks that publish assessment grade change events to configured SIS webhooks."""
 import hashlib
 import hmac
 import json
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def _eligible_targets(course_id):
+    """Yield the configured SIS webhook targets that apply to ``course_id``."""
     targets = getattr(settings, "SIS_GRADE_WEBHOOK_TARGETS", [])
     if not isinstance(targets, (list, tuple)):
         raise ImproperlyConfigured("SIS_GRADE_WEBHOOK_TARGETS must be a list.")
@@ -29,6 +31,7 @@ def _eligible_targets(course_id):
 
 
 def _validate_target(target):
+    """Validate a webhook target mapping and return its ``(url, secret)`` pair."""
     url = target.get("url", "")
     secret = target.get("secret", "")
     parsed = urlsplit(url)
