@@ -1,0 +1,79 @@
+# Règles d'alerte Prometheus pour les deux variantes SIS.
+#
+# À charger via `rule_files` dans la configuration Prometheus (voir
+# scrape_config.yml). Toutes les alertes utilisent exclusivement les
+# métriques réellement exposées par `/metrics/`
+# (sis_secondaire/apps/core/healthcheck.py,
+# sis_superieur/apps/core/healthcheck.py) : aucune métrique inventée ou non
+# encore instrumentée n'est référencée ici.
+
+groups:
+  - name: sis-availability
+    rules:
+      - alert: SISTargetDown
+        expr: up{job=~"sis-secondaire|sis-superieur"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance SIS injoignable ({{ $labels.job }})"
+          description: >-
+            Prometheus n'a pas pu scraper {{ $labels.job }} depuis au moins 2
+            minutes. Vérifier la disponibilité du service et les probes
+            Kubernetes /health/ et /ready/.
+
+  - name: sis-outbox
+    rules:
+      - alert: SISOutboxEventsDead
+        expr: sis_outbox_events_dead > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Événements outbox en échec définitif ({{ $labels.job }})"
+          description: >-
+            {{ $value }} événement(s) outbox sont passés en statut "dead" sur
+            {{ $labels.job }} et ne seront plus republiés automatiquement.
+            Une intervention manuelle (rejeu ou correction des données) est
+            nécessaire pour garantir la cohérence avec Open edX.
+
+      - alert: SISOutboxEventsFailedPersisting
+        expr: sis_outbox_events_failed > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Événements outbox en échec depuis 15 minutes ({{ $labels.job }})"
+          description: >-
+            {{ $value }} événement(s) outbox sont en statut "failed" sur
+            {{ $labels.job }} depuis au moins 15 minutes sans repasser à
+            "published". Vérifier les tâches Celery de republication et la
+            disponibilité de l'API Open edX cible.
+
+      - alert: SISOutboxBacklogGrowing
+        expr: sis_outbox_events_pending > 100
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Accumulation d'événements outbox en attente ({{ $labels.job }})"
+          description: >-
+            {{ $value }} événement(s) outbox restent en statut "pending"
+            depuis au moins 30 minutes sur {{ $labels.job }}, ce qui indique
+            que le worker Celery Beat de publication ne draine plus la file
+            au rythme attendu.
+
+  - name: sis-identity
+    rules:
+      - alert: SISEdxMappingsDroppedToZero
+        expr: sis_edx_mappings_active == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Plus aucun mapping EDX actif ({{ $labels.job }})"
+          description: >-
+            Le nombre de mappings d'identité EDX actifs sur {{ $labels.job }}
+            est retombé à zéro depuis au moins 10 minutes, ce qui suggère une
+            rupture de la fédération d'identité avec Open edX (voir
+            apps.integration.models.EdxUserMapping).

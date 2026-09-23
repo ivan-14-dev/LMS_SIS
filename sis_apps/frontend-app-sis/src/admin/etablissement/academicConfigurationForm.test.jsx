@@ -18,6 +18,7 @@ describe('academicConfigurationForm helpers', () => {
       import_templates: [],
       exam_result_workflows: [],
       reports: [],
+      submission_windows: {},
     });
   });
 
@@ -39,6 +40,7 @@ describe('academicConfigurationForm helpers', () => {
       financial_workflows: [],
       import_templates: [],
       exam_result_workflows: [],
+      submission_windows: {},
     });
   });
 

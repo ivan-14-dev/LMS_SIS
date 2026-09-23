@@ -1,5 +1,17 @@
 # 🔍 Audit Technique des SIS - Rapport Complet
 
+> ⚠️ **Document archivé / partiellement obsolète.** Ce rapport a été rédigé
+> tôt dans le projet et de nombreux points qu'il décrit comme critiques ont
+> depuis été corrigés (secrets requis en environnement non-test, migrations
+> générées, health checks, chiffrement au repos des secrets MFA/IBAN/données
+> médicales, publication fiable de l'outbox, routage Celery, validation de
+> schéma des webhooks, tests réels de l'app `integration`, CI du MFE, etc.).
+> Le suivi à jour de l'état du produit se fait désormais dans
+> [`TODO_PRODUIT.md`](./TODO_PRODUIT.md), qui reflète l'avancement réel via
+> des cases à cocher. Conservez ce document à titre historique ; ne vous fiez
+> pas à son résumé exécutif ni à ses métriques de maturité pour évaluer
+> l'état actuel du code.
+
 ## 📊 Résumé Exécutif
 
 | Catégorie | Criticité | SIS Secondaire | SIS Supérieur |
@@ -307,7 +319,12 @@ Exemple: les mappings utilisateurs sont récupérés à chaque opération sans c
 ## 🔴 5. TESTS - ÉTAT CRITIQUE
 
 ### 5.1 Tests non fonctionnels
-**Constat:** Tous les fichiers `tests.py` originaux sont des stubs vides:
+> ✅ **Résolu (partiellement) :** l'app `integration` (secondaire et
+> supérieur) dispose désormais de tests réels avec assertions (webhooks,
+> synchronisation, tâches Celery, modèles). Ce constat reste valable pour de
+> nombreuses autres applications du dépôt, où des stubs `pass` subsistent.
+
+**Constat historique:** Tous les fichiers `tests.py` originaux étaient des stubs vides:
 ```python
 """Model tests for integration."""
 from django.test import TestCase
@@ -333,10 +350,13 @@ Aucune métrique de couverture de code.
 ## 🟠 6. PROBLÈMES D'INFRASTRUCTURE
 
 ### 6.1 Pas de healthcheck endpoints
+> ✅ **Résolu :** des endpoints de santé/disponibilité sont désormais exposés
+> (voir `TODO_PRODUIT.md`).
+
 Aucun endpoint `/health/` ou `/ready/` pour Kubernetes/Docker.
 
 ### 6.2 Pas de métriques Prometheus
-Pas d'export de métriques pour le monitoring.
+Pas d'export de métriques pour le monitoring. *(toujours d'actualité)*
 
 ### 6.3 Logging non structuré
 ```python
@@ -366,14 +386,14 @@ logger.error(
 |----------|---------|--------|
 | Pas de retry avec backoff | `edx_client.py` | Échecs silencieux |
 | Pas de circuit breaker | `sync_service.py` | Cascade de failures |
-| Webhooks sans idempotence | `webhook_handlers.py` | Doublons possibles |
-| Outbox sans partition | `tasks.py` | Goulot d'étranglement |
+| ~~Webhooks sans idempotence~~ ✅ résolu (dédoublonnage par `event_id` + validation de schéma) | `webhook_handlers.py`, `api.py` | — |
+| ~~Outbox sans partition~~ ✅ résolu (verrouillage, reprise, file d'échec) | `tasks.py` | — |
 
 ### Module Utilisateurs
 
 | Problème | Impact |
 |----------|--------|
-| MFA secret en clair | Risque de compromission |
+| ~~MFA secret en clair~~ ✅ résolu (chiffrement au repos via `sis_common.encryption`) | — |
 | Pas de validation email | Emails invalides acceptés |
 | Password reset non implémenté | Fonctionnalité manquante |
 
@@ -382,7 +402,7 @@ logger.error(
 | Problème | Impact |
 |----------|--------|
 | Photo sans validation MIME | Upload de fichiers malveillants |
-| IBAN/RIB en clair | Non-conformité RGPD |
+| ~~IBAN/RIB en clair~~ ✅ résolu (chiffrement au repos) | — |
 | Pas de soft delete | Perte de données historiques |
 
 ---
@@ -390,14 +410,14 @@ logger.error(
 ## ✅ 8. PLAN D'ACTION PRIORITAIRE
 
 ### Phase 1: Sécurité (Semaine 1-2)
-1. [ ] Corriger SECRET_KEY et DEBUG
-2. [ ] Ajouter validation des credentials OAuth
-3. [ ] Configurer ALLOWED_HOSTS correctement
-4. [ ] Chiffrer les données sensibles (IBAN, MFA secrets)
+1. [x] Corriger SECRET_KEY et DEBUG
+2. [x] Ajouter validation des credentials OAuth
+3. [x] Configurer ALLOWED_HOSTS correctement
+4. [x] Chiffrer les données sensibles (IBAN, MFA secrets)
 
 ### Phase 2: Fondations (Semaine 3-4)
-1. [ ] Générer toutes les migrations
-2. [ ] Créer le package `sis_common` pour la mutualisation
+1. [x] Générer toutes les migrations
+2. [x] Créer le package `sis_common` pour la mutualisation
 3. [ ] Implémenter les serializers de base
 4. [ ] Compléter les ViewSets
 
@@ -408,9 +428,11 @@ logger.error(
 4. [ ] Ajouter pagination
 
 ### Phase 4: Tests (Semaine 7-8)
-1. [ ] Écrire les tests unitaires manquants
+1. [~] Écrire les tests unitaires manquants (fait pour l'app `integration`)
 2. [ ] Ajouter les tests d'intégration mockés
-3. [ ] Configurer le CI avec coverage minimum 80%
+3. [~] Configurer le CI avec coverage minimum 80% *(le coverage est mesuré et
+   publié en CI, mais aucun seuil bloquant n'est encore appliqué — voir
+   `TODO_PRODUIT.md`)*
 
 ### Phase 5: Production-ready (Semaine 9-10)
 1. [ ] Ajouter healthchecks

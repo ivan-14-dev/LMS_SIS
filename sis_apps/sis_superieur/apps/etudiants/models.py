@@ -4,6 +4,8 @@ from apps.etablissement.models import AnneeUniversitaire, Universite
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.encryption import EncryptedCharField
+
 
 class Etudiant(models.Model):
     """Étudiant inscrit dans l'université."""
@@ -63,8 +65,8 @@ class Etudiant(models.Model):
     qr_code = models.CharField(max_length=200, blank=True)
     contact_urgence_nom = models.CharField(max_length=200, blank=True)
     contact_urgence_tel = models.CharField(max_length=20, blank=True)
-    numero_securite_sociale = models.CharField(max_length=20, blank=True)
-    rib_iban = models.CharField(max_length=50, blank=True)
+    numero_securite_sociale = EncryptedCharField(max_length=20, blank=True)
+    rib_iban = EncryptedCharField(max_length=50, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

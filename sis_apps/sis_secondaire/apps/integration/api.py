@@ -39,6 +39,22 @@ def _verify_hmac(request) -> bool:
     return verify_hmac_signature(settings.WEBHOOK_SECRET, request.body, signature)
 
 
+def _validate_webhook_payload(request):
+    """Valide la structure JSON minimale d'un payload de webhook entrant.
+
+    Rejette tôt (avant toute mise en file Celery) les corps de requête qui ne
+    sont pas des objets JSON exploitables, évitant des tentatives de retry
+    inutiles sur des données structurellement invalides. Retourne un message
+    d'erreur si le payload est invalide, sinon ``None``.
+    """
+    if not isinstance(request.data, dict):
+        return "Payload must be a JSON object."
+    data = request.data.get("data", request.data)
+    if not isinstance(data, dict):
+        return "Payload 'data' field must be a JSON object."
+    return None
+
+
 def _paginated_response(request, queryset, serializer_class):
     paginator = PageNumberPagination()
     page = paginator.paginate_queryset(queryset, request)
@@ -58,6 +74,9 @@ def webhook_lms(request):
         return Response(
             {"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED
         )
+    payload_error = _validate_webhook_payload(request)
+    if payload_error:
+        return Response({"error": payload_error}, status=status.HTTP_400_BAD_REQUEST)
     event_type = request.headers.get("X-Event-Type", "")
     payload = dict(request.data)
     supplied_event_id = request.headers.get("X-Event-ID")
@@ -133,6 +152,9 @@ def webhook_cms(request):
         return Response(
             {"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED
         )
+    payload_error = _validate_webhook_payload(request)
+    if payload_error:
+        return Response({"error": payload_error}, status=status.HTTP_400_BAD_REQUEST)
     event_type = request.headers.get("X-Event-Type", "")
     payload = dict(request.data)
     schema_name = getattr(getattr(request, "tenant", None), "schema_name", None)

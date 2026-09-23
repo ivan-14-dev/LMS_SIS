@@ -4,6 +4,8 @@ from apps.etablissement.models import Etablissement
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
+from sis_common.encryption import EncryptedCharField
+
 
 class Utilisateur(AbstractUser):
     """Utilisateur de la plateforme (élève, parent, enseignant, personnel)."""
@@ -35,7 +37,7 @@ class Utilisateur(AbstractUser):
     photo = models.ImageField(upload_to="photos/", null=True, blank=True)
     langue = models.CharField(max_length=10, default="fr")
     mfa_active = models.BooleanField(default=False)
-    mfa_secret = models.CharField(max_length=100, blank=True)
+    mfa_secret = EncryptedCharField(max_length=100, blank=True)
     doit_changer_mdp = models.BooleanField(default=False)
     derniere_connexion = models.DateTimeField(null=True, blank=True)
     preferences_notification = models.JSONField(default=dict, blank=True)

@@ -38,6 +38,13 @@ def test_public_and_authenticated_routes_resolve():
     assert resolve("/api/v1/integration/sync/status/").url_name == "sync-status"
 
 
+def test_account_recovery_and_mfa_routes_resolve():
+    """MFA-enforced login and email account-recovery routes are registered."""
+    assert resolve("/api/v1/auth/token/").url_name == "token-obtain-pair"
+    assert resolve("/api/v1/auth/password-reset/request/").url_name == "password-reset-request"
+    assert resolve("/api/v1/auth/password-reset/confirm/").url_name == "password-reset-confirm"
+
+
 def test_signed_lms_webhook_queues_user_sync():
     """A valid LMS webhook is authenticated and passed to Celery."""
     from apps.integration.api import webhook_lms

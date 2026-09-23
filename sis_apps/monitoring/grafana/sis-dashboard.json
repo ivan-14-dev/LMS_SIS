@@ -1,0 +1,108 @@
+{
+  "title": "SIS - Vue d'ensemble (secondaire / supérieur)",
+  "description": "Tableau de bord basé exclusivement sur les métriques réellement exposées par /metrics/ (sis_secondaire/apps/core/healthcheck.py, sis_superieur/apps/core/healthcheck.py). Importer via Grafana > Dashboards > Import, en sélectionnant la source de données Prometheus qui scrape les jobs sis-secondaire et sis-superieur (voir monitoring/prometheus/scrape_config.yml).",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "utc",
+  "tags": ["sis", "secondaire", "superieur"],
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "job",
+        "type": "query",
+        "label": "Variante",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(sis_users_total, job)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true
+      },
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "label": "Source de données"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Disponibilité des instances (up)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "up{job=~\"sis-secondaire|sis-superieur\"}",
+          "legendFormat": "{{job}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "UP", "color": "green" } } }
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Utilisateurs (total vs actifs)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "sis_users_total{job=~\"$job\"}", "legendFormat": "{{job}} - total" },
+        { "expr": "sis_users_active{job=~\"$job\"}", "legendFormat": "{{job}} - actifs" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Fédération d'identité EDX",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "expr": "sis_edx_mappings_active{job=~\"$job\"}", "legendFormat": "{{job}} - mappings actifs" },
+        { "expr": "sis_edx_enrollments_active{job=~\"$job\"}", "legendFormat": "{{job}} - inscriptions actives" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "File d'événements outbox par statut",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "sis_outbox_events_pending{job=~\"$job\"}", "legendFormat": "{{job}} - pending" },
+        { "expr": "sis_outbox_events_failed{job=~\"$job\"}", "legendFormat": "{{job}} - failed" },
+        { "expr": "sis_outbox_events_dead{job=~\"$job\"}", "legendFormat": "{{job}} - dead" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "drawStyle": "line", "fillOpacity": 10 }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Fraîcheur du dernier scrape de métriques",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "expr": "time() - sis_metrics_scrape_timestamp_seconds{job=~\"$job\"}",
+          "legendFormat": "{{job}} - âge (s)"
+        }
+      ]
+    }
+  ]
+}

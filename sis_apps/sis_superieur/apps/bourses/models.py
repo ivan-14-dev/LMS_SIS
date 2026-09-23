@@ -5,6 +5,8 @@ from apps.etudiants.models import Etudiant
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.encryption import EncryptedCharField
+
 
 class TypeBourse(models.Model):
     """Type de bourse disponible."""
@@ -132,7 +134,7 @@ class AttributionBourse(models.Model):
     montant_mensuel = models.DecimalField(max_digits=10, decimal_places=2)
     montant_total = models.DecimalField(max_digits=12, decimal_places=2)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="active")
-    rib_iban = models.CharField(max_length=34, blank=True)
+    rib_iban = EncryptedCharField(max_length=34, blank=True)
     titulaire_compte = models.CharField(max_length=200, blank=True)
     motif_suspension = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

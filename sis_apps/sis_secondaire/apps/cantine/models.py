@@ -3,6 +3,8 @@
 from apps.eleves.models import Eleve
 from django.db import models
 
+from sis_common.encryption import EncryptedJSONField
+
 
 class Menu(models.Model):
     """Menu de la cantine pour un jour."""
@@ -60,7 +62,7 @@ class InscriptionCantine(models.Model):
         ],
         default="standard",
     )
-    allergies = models.JSONField(default=list, blank=True)
+    allergies = EncryptedJSONField(default=list, blank=True)
     actif = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

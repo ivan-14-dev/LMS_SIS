@@ -1,11 +1,30 @@
 """API URLs pour SIS Supérieur."""
 
+from apps.utilisateurs.password_reset_views import (
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
+)
+from apps.utilisateurs.token_views import MFATokenObtainPairView
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenBlacklistView, TokenRefreshView
 
 router = DefaultRouter()
 
 urlpatterns = [
+    path("auth/token/", MFATokenObtainPairView.as_view(), name="token-obtain-pair"),
+    path("auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
+    path("auth/token/blacklist/", TokenBlacklistView.as_view(), name="token-blacklist"),
+    path(
+        "auth/password-reset/request/",
+        PasswordResetRequestView.as_view(),
+        name="password-reset-request",
+    ),
+    path(
+        "auth/password-reset/confirm/",
+        PasswordResetConfirmView.as_view(),
+        name="password-reset-confirm",
+    ),
     path("core/", include("apps.core.urls_api")),
     path("etablissement/", include("apps.etablissement.urls_api")),
     path("utilisateurs/", include("apps.utilisateurs.urls_api")),

@@ -13,6 +13,10 @@ on:
 
 env:
   PYTHON_VERSION: '3.12'
+  NODE_VERSION: '20'
+
+permissions:
+  contents: read
 
 jobs:
   # ==========================================================================
@@ -85,6 +89,7 @@ jobs:
       EDX_JWT_AUDIENCE: 'test-sis-audience'
       EDX_JWT_PUBLIC_SIGNING_JWK_SET: '{"keys":[]}'
       WEBHOOK_SECRET: 'test-sis-secondaire-webhook-secret'
+      FIELD_ENCRYPTION_KEY: 'MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA='
       DJANGO_DEBUG: 'True'
       DB_HOST: localhost
       DB_PORT: 5432
@@ -117,7 +122,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           cd sis_apps/sis_secondaire
-          pytest --cov=apps --cov-report=xml --cov-report=term-missing -v
+          pytest --cov=apps --cov-report=xml --cov-report=term-missing --cov-fail-under=65 -v
       
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
@@ -167,6 +172,7 @@ jobs:
       EDX_JWT_AUDIENCE: 'test-sis-audience'
       EDX_JWT_PUBLIC_SIGNING_JWK_SET: '{"keys":[]}'
       WEBHOOK_SECRET: 'test-sis-superieur-webhook-secret'
+      FIELD_ENCRYPTION_KEY: 'MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA='
       DJANGO_DEBUG: 'True'
       DB_HOST: localhost
       DB_PORT: 5432
@@ -199,7 +205,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           cd sis_apps/sis_superieur
-          pytest --cov=apps --cov-report=xml --cov-report=term-missing -v
+          pytest --cov=apps --cov-report=xml --cov-report=term-missing --cov-fail-under=65 -v
       
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
@@ -208,6 +214,39 @@ jobs:
           flags: sis-superieur
           name: sis-superieur-coverage
         continue-on-error: true
+
+  # ==========================================================================
+  # MFE - Lint, Test, Build (frontend-app-sis)
+  # ==========================================================================
+  mfe:
+    name: MFE (frontend-app-sis)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sis_apps/frontend-app-sis
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'sis_apps/frontend-app-sis/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Run Jest tests with coverage
+        run: npm test
+
+      - name: Build MFE
+        run: npm run build
 
   # ==========================================================================
   # SECURITY CHECK
@@ -248,14 +287,15 @@ jobs:
   build-status:
     name: Build Status
     runs-on: ubuntu-latest
-    needs: [test-sis-secondaire, test-sis-superieur, security]
+    needs: [test-sis-secondaire, test-sis-superieur, mfe, security]
     if: always()
     
     steps:
       - name: Check build status
         run: |
           if [ "${{ needs.test-sis-secondaire.result }}" == "success" ] && \
-             [ "${{ needs.test-sis-superieur.result }}" == "success" ]; then
+             [ "${{ needs.test-sis-superieur.result }}" == "success" ] && \
+             [ "${{ needs.mfe.result }}" == "success" ]; then
             echo "✅ All tests passed!"
             exit 0
           else

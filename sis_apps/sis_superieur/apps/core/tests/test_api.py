@@ -1,7 +1,25 @@
 """API tests for core."""
 
+from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from django.test import SimpleTestCase
 from django.urls import resolve
+
+
+class MetricsEndpointTestCase(TenantAPITestCase):
+    """L'endpoint ``/metrics/`` doit exposer un format Prometheus valide."""
+
+    def test_metrics_returns_prometheus_exposition_format(self):
+        response = self.client.get("/metrics/")
+
+        assert response.status_code == 200
+        assert response["Content-Type"].startswith("text/plain")
+
+        body = response.content.decode("utf-8")
+        assert "# HELP sis_users_total" in body
+        assert "# TYPE sis_users_total gauge" in body
+        assert "sis_users_total " in body
+        assert "sis_outbox_events_dead " in body
+        assert "sis_metrics_scrape_timestamp_seconds " in body
 
 
 class CoreAPITestCase(SimpleTestCase):
