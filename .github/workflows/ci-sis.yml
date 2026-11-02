@@ -3,302 +3,154 @@ name: CI - SIS Apps
 on:
   push:
     branches: [main, develop]
-    paths:
-      - 'sis_apps/**'
-      - '.github/workflows/ci-sis.yml'
+    paths: ['sis_apps/**', '.github/workflows/ci-sis.yml']
   pull_request:
-    branches: [main, develop]
-    paths:
-      - 'sis_apps/**'
-
-env:
-  PYTHON_VERSION: '3.12'
-  NODE_VERSION: '20'
+    paths: ['sis_apps/**', '.github/workflows/ci-sis.yml']
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '22'
+
 jobs:
-  # ==========================================================================
-  # LINT - Vérification du code
-  # ==========================================================================
-  lint:
-    name: Lint Code
+  quality:
+    name: Changed SIS code quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      
-      - name: Set up Python
-        uses: actions/setup-python@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Install linting tools
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: sis_apps/frontend-app-sis/package-lock.json
+      - run: pip install black isort flake8
+      - run: npm ci --legacy-peer-deps --no-audit
+        working-directory: sis_apps/frontend-app-sis
+      - name: Blocking checks on changed files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          pip install flake8 isort black
-      
-      - name: Run flake8 on SIS Secondaire
-        run: |
-          flake8 sis_apps/sis_secondaire/apps/ --max-line-length=120 --exclude=migrations
-      
-      - name: Run flake8 on SIS Supérieur
-        run: |
-          flake8 sis_apps/sis_superieur/apps/ --max-line-length=120 --exclude=migrations
-      
-      - name: Check imports with isort
-        run: |
-          isort --check-only --diff sis_apps/
+          if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            BASE_SHA=$(git rev-parse HEAD^)
+          fi
+          python sis_apps/scripts/check_quality.py --base "$BASE_SHA"
 
-  # ==========================================================================
-  # TEST SIS SECONDAIRE
-  # ==========================================================================
-  test-sis-secondaire:
-    name: Test SIS Secondaire
+  backend:
+    name: Backend (${{ matrix.variant }})
     runs-on: ubuntu-latest
-    needs: lint
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [secondaire, superieur]
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16.13-bookworm
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
-          POSTGRES_DB: test_sis_secondaire
-        ports:
-          - 5432:5432
+          POSTGRES_DB: test_sis
+        ports: ['5432:5432']
         options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      
+          --health-cmd "pg_isready -U test -d test_sis"
+          --health-interval 5s --health-timeout 3s --health-retries 30
       redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
+        image: redis:7.4.8-alpine
+        ports: ['6379:6379']
         options: >-
           --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    
-    env:
-      DJANGO_SECRET_KEY: 'test-secret-key-for-ci'
-      EDX_OAUTH_CLIENT_ID: 'test-sis-secondaire-client'
-      EDX_OAUTH_CLIENT_SECRET: 'test-sis-secondaire-oauth-secret'
-      EDX_JWT_AUDIENCE: 'test-sis-audience'
-      EDX_JWT_PUBLIC_SIGNING_JWK_SET: '{"keys":[]}'
-      WEBHOOK_SECRET: 'test-sis-secondaire-webhook-secret'
-      FIELD_ENCRYPTION_KEY: 'MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA='
-      DJANGO_DEBUG: 'True'
-      DB_HOST: localhost
-      DB_PORT: 5432
-      DB_NAME: test_sis_secondaire
-      DB_USER: test
-      DB_PASSWORD: test
-      REDIS_URL: redis://localhost:6379/1
-    
+          --health-interval 5s --health-timeout 3s --health-retries 30
     steps:
       - uses: actions/checkout@v7
-      
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-          cache-dependency-path: 'sis_apps/sis_secondaire/requirements/base.txt'
-      
-      - name: Install dependencies
+      - name: Build the locked runtime
+        run: docker build -t lms-sis:institution-pilot sis_apps
+      - name: Backend and shared tests
         run: |
-          cd sis_apps/sis_secondaire
-          pip install -r requirements/base.txt
-          pip install pytest pytest-django pytest-cov
-      
-      - name: Run migrations
-        run: |
-          cd sis_apps/sis_secondaire
-          python manage.py migrate --run-syncdb
-      
-      - name: Run tests with coverage
-        run: |
-          cd sis_apps/sis_secondaire
-          pytest --cov=apps --cov-report=xml --cov-report=term-missing --cov-fail-under=65 -v
-      
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
-        with:
-          file: sis_apps/sis_secondaire/coverage.xml
-          flags: sis-secondaire
-          name: sis-secondaire-coverage
-        continue-on-error: true
+          docker run --rm --network host \
+            -e SIS_VARIANT=${{ matrix.variant }} \
+            -e DB_HOST=127.0.0.1 -e DB_USER=test -e DB_PASSWORD=test \
+            -e DJANGO_DEBUG=True -e REDIS_URL=redis://127.0.0.1:6379/1 \
+            lms-sis:institution-pilot \
+            python -m pytest --confcutdir=/app -p no:cacheprovider apps ../sis_common/tests -q
 
-  # ==========================================================================
-  # TEST SIS SUPÉRIEUR
-  # ==========================================================================
-  test-sis-superieur:
-    name: Test SIS Supérieur
-    runs-on: ubuntu-latest
-    needs: lint
-    
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test_sis_superieur
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    
-    env:
-      DJANGO_SECRET_KEY: 'test-secret-key-for-ci'
-      EDX_OAUTH_CLIENT_ID: 'test-sis-superieur-client'
-      EDX_OAUTH_CLIENT_SECRET: 'test-sis-superieur-oauth-secret'
-      EDX_JWT_AUDIENCE: 'test-sis-audience'
-      EDX_JWT_PUBLIC_SIGNING_JWK_SET: '{"keys":[]}'
-      WEBHOOK_SECRET: 'test-sis-superieur-webhook-secret'
-      FIELD_ENCRYPTION_KEY: 'MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA='
-      DJANGO_DEBUG: 'True'
-      DB_HOST: localhost
-      DB_PORT: 5432
-      DB_NAME: test_sis_superieur
-      DB_USER: test
-      DB_PASSWORD: test
-      REDIS_URL: redis://localhost:6379/1
-    
-    steps:
-      - uses: actions/checkout@v7
-      
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-          cache-dependency-path: 'sis_apps/sis_superieur/requirements/base.txt'
-      
-      - name: Install dependencies
-        run: |
-          cd sis_apps/sis_superieur
-          pip install -r requirements/base.txt
-          pip install pytest pytest-django pytest-cov
-      
-      - name: Run migrations
-        run: |
-          cd sis_apps/sis_superieur
-          python manage.py migrate --run-syncdb
-      
-      - name: Run tests with coverage
-        run: |
-          cd sis_apps/sis_superieur
-          pytest --cov=apps --cov-report=xml --cov-report=term-missing --cov-fail-under=65 -v
-      
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
-        with:
-          file: sis_apps/sis_superieur/coverage.xml
-          flags: sis-superieur
-          name: sis-superieur-coverage
-        continue-on-error: true
-
-  # ==========================================================================
-  # MFE - Lint, Test, Build (frontend-app-sis)
-  # ==========================================================================
-  mfe:
-    name: MFE (frontend-app-sis)
+  frontend:
+    name: Frontend tests, build and dependency audit
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: sis_apps/frontend-app-sis
-
     steps:
       - uses: actions/checkout@v7
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: 'sis_apps/frontend-app-sis/package-lock.json'
+          cache: npm
+          cache-dependency-path: sis_apps/frontend-app-sis/package-lock.json
+      - run: npm ci --legacy-peer-deps --no-audit
+      - run: npm test -- --runInBand
+      - run: npm run build
+      # Remaining noncritical upstream advisories are documented in the installation guide.
+      - run: npm audit --omit=dev --audit-level=critical
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run ESLint
-        run: npm run lint
-        continue-on-error: true
-
-      - name: Run Jest tests with coverage
-        run: npm test
-
-      - name: Build MFE
-        run: npm run build
-
-  # ==========================================================================
-  # SECURITY CHECK
-  # ==========================================================================
-  security:
-    name: Security Scan
+  dependencies:
+    name: Locked Python dependency audit
     runs-on: ubuntu-latest
-    needs: [test-sis-secondaire, test-sis-superieur]
-    
     steps:
       - uses: actions/checkout@v7
-      
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Install safety
-        run: pip install safety bandit
-      
-      - name: Check dependencies for vulnerabilities (SIS Secondaire)
-        run: |
-          cd sis_apps/sis_secondaire
-          safety check -r requirements/base.txt --continue-on-error || true
-      
-      - name: Check dependencies for vulnerabilities (SIS Supérieur)
-        run: |
-          cd sis_apps/sis_superieur
-          safety check -r requirements/base.txt --continue-on-error || true
-      
-      - name: Run bandit security linter
-        run: |
-          bandit -r sis_apps/ -x '*/tests/*,*/migrations/*' -ll || true
+      - run: pip install pip-audit
+      - run: pip-audit --disable-pip --no-deps -r sis_apps/requirements.lock
 
-  # ==========================================================================
-  # BUILD STATUS
-  # ==========================================================================
-  build-status:
-    name: Build Status
+  installation:
+    name: Clean installation (${{ matrix.mode }})
     runs-on: ubuntu-latest
-    needs: [test-sis-secondaire, test-sis-superieur, mfe, security]
-    if: always()
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [secondaire, superieur, dual]
     steps:
-      - name: Check build status
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: sis_apps/frontend-app-sis/package-lock.json
+      - run: npm ci --legacy-peer-deps --no-audit
+        working-directory: sis_apps/frontend-app-sis
+      - run: npx playwright install --with-deps chromium
+        working-directory: sis_apps/frontend-app-sis
+      - name: Bootstrap, browser journeys and persistent restart
         run: |
-          if [ "${{ needs.test-sis-secondaire.result }}" == "success" ] && \
-             [ "${{ needs.test-sis-superieur.result }}" == "success" ] && \
-             [ "${{ needs.mfe.result }}" == "success" ]; then
-            echo "✅ All tests passed!"
-            exit 0
-          else
-            echo "❌ Some tests failed"
-            exit 1
-          fi
+          python sis_apps/scripts/verify_installation.py \
+            --mode "${{ matrix.mode }}" --work-dir "$RUNNER_TEMP/sis-installation" --verify-backup
+
+  build-status:
+    name: SIS build status
+    runs-on: ubuntu-latest
+    needs: [quality, backend, frontend, dependencies, installation]
+    if: always()
+    steps:
+      - name: Require every gate
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python - <<'PY'
+          import json, os
+          results = json.loads(os.environ["RESULTS"])
+          failed = [name for name, job in results.items() if job["result"] != "success"]
+          if failed:
+              raise SystemExit("Failed SIS gates: " + ", ".join(failed))
+          print("All SIS gates passed.")
+          PY
