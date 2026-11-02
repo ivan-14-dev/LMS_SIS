@@ -20,9 +20,15 @@ des artefacts fournis dans `sis_apps/monitoring/`.
 | `sis_outbox_events_dead` | Gauge | Événements outbox en échec définitif (file morte). |
 | `sis_metrics_scrape_timestamp_seconds` | Gauge | Horodatage Unix de la génération de la réponse `/metrics/`. |
 
-Chaque variante (secondaire, supérieur) sert tous ses établissements
-(tenants django-tenants) depuis le même processus applicatif : un seul point
-de scrape par variante couvre donc l'ensemble de ses tenants.
+Chaque réponse décrit **uniquement le tenant sélectionné par le Host HTTP**.
+Il faut une cible par établissement et par variante ; partager un processus ne
+rend pas les métriques globales. Un Host inconnu renvoie 404.
+
+La distribution Compose bloque `/metrics/` sur le proxy public. Le collecteur
+doit rejoindre le réseau privé, avec une résolution DNS du nom du tenant vers
+l'API interne, ou passer par un proxy de supervision privé qui fixe le Host et
+`X-Forwarded-Proto: https` lorsque la redirection HTTPS est activée. Ne publiez
+pas le port Gunicorn pour contourner cette protection.
 
 ## Artefacts fournis
 
@@ -57,6 +63,13 @@ curl -X POST http://localhost:9090/-/reload
 
 ## Limites actuelles
 
+- Les API ont une sonde PostgreSQL/Redis ; les workers ont une sonde Celery
+  ciblant leur propre nœud. Beat reste à superviser par ses journaux et
+  l'exécution effective des tâches planifiées : un processus vivant ne prouve
+  pas qu'une tâche métier s'exécute.
+- Surveiller aussi disque libre, expiration TLS, erreurs SMTP, ancienneté du
+  dernier snapshot réussi et copie hors machine. Définir responsables,
+  destinataires et délais d'intervention avant l'ouverture aux utilisateurs.
 - Ces alertes couvrent uniquement les métriques métier déjà instrumentées.
   Aucune métrique de latence/volume HTTP par vue (`django_prometheus` ou
   équivalent) n'est actuellement exposée ; en ajouter si un suivi des temps

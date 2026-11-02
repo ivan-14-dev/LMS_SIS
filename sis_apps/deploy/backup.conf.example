@@ -1,0 +1,4 @@
+SIS_ROOT=/opt/LMS_SIS/sis_apps
+SIS_ENV_FILE=/etc/lms-sis/institution.env
+SIS_BACKUP_REPOSITORY=/srv/sis-backups/repository
+SIS_BACKUP_PASSWORD_FILE=/etc/lms-sis/restic-password

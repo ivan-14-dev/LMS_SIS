@@ -12,6 +12,14 @@ Open edX Platform
 
 *Formerly known as "edx-platform"*
 
+SIS pour les établissements
+**************************
+
+Ce fork contient deux SIS dans ``sis_apps/``. Le
+`guide d'installation établissement <sis_apps/docs/INSTALLATION_ETABLISSEMENT.md>`_
+décrit le déploiement Compose, l'initialisation, les comptes et les sauvegardes.
+Ce pack SIS nécessite un LMS Open edX administré séparément.
+
 Purpose
 *******
 The `Open edX Platform <https://openedx.org>`_ enables the authoring and

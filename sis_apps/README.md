@@ -2,6 +2,10 @@
 
 Deux applications Django distinctes intégrées au LMS Open edX.
 
+> **Installation établissement :**
+> [guide Compose, configuration et exploitation](docs/INSTALLATION_ETABLISSEMENT.md).
+> Le pack installe les SIS, pas le LMS Open edX.
+>
 > **📚 Documentation complète** : [docs/ROADMAP_OPERATIONNEL.md](docs/ROADMAP_OPERATIONNEL.md)
 >
 > **✅ TODO produit priorisée** :
@@ -13,11 +17,22 @@ Deux applications Django distinctes intégrées au LMS Open edX.
 |------|----------|-------------|
 | **SIS Secondaire seul** | `SIS_MODE=secondaire` | Lycées, collèges |
 | **SIS Supérieur seul** | `SIS_MODE=superieur` | Universités, grandes écoles |
-| **Dual SIS** | `SIS_MODE=dual` | Les deux SIS avec passerelle de transfert |
+| **Dual SIS** | `SIS_MODE=dual` | Les deux SIS, avec bases et comptes distincts |
 
 Un établissement peut choisir d'utiliser **un seul SIS** ou **les deux** selon son profil.
 
-## Démarrage rapide
+## Installation recommandée
+
+Suivez le [guide établissement](docs/INSTALLATION_ETABLISSEMENT.md).
+`scripts/sisctl.py configure`, `init`, puis `start` fournissent le parcours
+conteneurisé. Les migrations sont déjà versionnées : **ne les générez pas
+pendant une installation**.
+
+## Développement sans conteneurs
+
+Ces commandes supposent Python 3.12, un environnement virtuel et des services
+PostgreSQL/Redis déjà disponibles. Le serveur Django de développement ne doit
+pas être exposé en production.
 
 ```bash
 # 1. Copier et configurer l'environnement
@@ -26,7 +41,6 @@ cp .env.template .env
 
 # 2. Utiliser le Makefile pour simplifier les commandes
 make install          # Installer les dépendances
-make migrations       # Générer les migrations
 make migrate          # Appliquer les migrations
 
 # 3. Lancer selon le mode choisi

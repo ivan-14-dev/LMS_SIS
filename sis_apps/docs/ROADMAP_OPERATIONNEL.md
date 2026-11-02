@@ -2,6 +2,14 @@
 
 > **Objectif** : Rendre les deux SIS pleinement opérationnels et permettre aux établissements de choisir d'utiliser l'un, l'autre, ou les deux systèmes.
 
+> **Document de conception historique, pas une procédure d'installation.**
+> Les exemples de configuration et de génération des migrations ci-dessous ne
+> décrivent pas la distribution actuelle. Pour installer, utiliser
+> [INSTALLATION_ETABLISSEMENT.md](INSTALLATION_ETABLISSEMENT.md), `compose.yaml`
+> et les migrations versionnées. Ne générez pas de migrations sur le serveur
+> d'un établissement. Le guide distingue le périmètre livré des qualifications
+> externes encore nécessaires.
+
 ---
 
 ## Table des matières
@@ -947,4 +955,3 @@ python manage.py shell -c "from apps.integration.edx_client import get_edx_clien
 | Version | Date | Auteur | Modifications |
 |---------|------|--------|---------------|
 | 1.0 | 2026-07-22 | — | Version initiale |
-

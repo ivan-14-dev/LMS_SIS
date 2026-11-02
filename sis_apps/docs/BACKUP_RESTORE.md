@@ -1,5 +1,12 @@
 # Sauvegarde et restauration (Postgres, SIS Secondaire / SIS Supérieur)
 
+> **Distribution Compose actuelle :** utilisez `scripts/sis_backup.py` et
+> [le guide établissement](INSTALLATION_ETABLISSEMENT.md#exploitation-et-restauration).
+> Il sauvegarde ensemble bases, médias, stockages privés, Redis et configuration,
+> dans un dépôt chiffré, et refuse d'écraser une installation existante.
+> Les scripts shell ci-dessous restent des outils historiques partiels :
+> leur combinaison ne garantit pas un snapshot cohérent de l'application.
+
 Les deux variantes SIS utilisent `django-tenants` : chaque établissement vit
 dans son propre schéma Postgres, au sein d'une **même base de données** par
 variante (`sis_secondaire`, `sis_superieur` en production). Une sauvegarde

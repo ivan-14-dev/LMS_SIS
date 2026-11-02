@@ -1,0 +1,19 @@
+[Unit]
+Description=Encrypted SIS backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=sis
+Group=sis
+SupplementaryGroups=docker
+EnvironmentFile=/etc/lms-sis/backup.conf
+RuntimeDirectory=lms-sis-backup
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=yes
+UMask=0077
+TimeoutStartSec=infinity
+KillSignal=SIGINT
+TimeoutStopSec=5min
+ExecStart=/usr/bin/flock --nonblock /run/lms-sis-backup/backup.lock /usr/bin/python3 ${SIS_ROOT}/scripts/sis_backup.py --env-file ${SIS_ENV_FILE} --repository ${SIS_BACKUP_REPOSITORY} --password-file ${SIS_BACKUP_PASSWORD_FILE} backup
