@@ -20,14 +20,16 @@ jest.mock('../../services/api', () => ({
 }));
 jest.mock('@edx/frontend-platform/auth', () => ({ getAuthenticatedHttpClient: jest.fn() }));
 
-const show = (variant = 'secondaire', onSaved = jest.fn()) => render(
+const show = (variant = 'secondaire', onSaved = jest.fn(), offering = undefined) => render(
   <QueryClientProvider client={new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })}
   >
     <GradeEntryDialog
       variant={variant}
-      evaluation={{ id: 7, titre: 'Contrôle', bareme: '20.00' }}
+      evaluation={{
+        id: 7, titre: 'Contrôle', bareme: '20.00', offre_configuration: offering,
+      }}
       onClose={jest.fn()}
       onSaved={onSaved}
     />
@@ -102,4 +104,47 @@ it('does not allow saving when the roster cannot be loaded', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('Liste indisponible');
   expect(screen.getByRole('button', { name: 'Enregistrer les notes' })).toBeDisabled();
   expect(postApi).not.toHaveBeenCalled();
+});
+
+it.each([
+  ['competency', { criteria: [{ code: 'reading', label: 'Lecture' }] }, 'Lecture M1', { criteria: { reading: false } }],
+  ['pass_fail', {}, 'Résultat M1', { passed: false }],
+])('saves an explicit negative %s result without synthesizing a numeric grade', async (mode, extra, label, result) => {
+  fetchApi.mockImplementation(async url => (url.includes('/apprenants/')
+    ? { results: [{ id: 1, nom: 'Élève test', matricule: 'M1' }] } : []));
+  postApi.mockResolvedValue({});
+  show('secondaire', jest.fn(), { label: 'Formation courte', assessment: { mode, ...extra } });
+  fireEvent.mouseDown(await screen.findByRole('combobox', { name: label }));
+  fireEvent.click(screen.getByRole('option', { name: 'Non acquis / non validé' }));
+  expect(screen.queryByLabelText('Note M1')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les notes' }));
+  await waitFor(() => expect(postApi).toHaveBeenCalledWith(expect.any(String), [{
+    eleve_id: 1, valeur: null, statut: 'presente', appreciation: '', resultat: result,
+  }]));
+});
+
+it('reloads stored competency results and preserves unanswered criteria while editing an appreciation', async () => {
+  fetchApi.mockImplementation(async url => (url.includes('/apprenants/')
+    ? { results: [{ id: 1, nom: 'Élève test', matricule: 'M1' }] }
+    : [{
+      eleve: 1, valeur: null, statut: 'presente', resultat: { criteria: { reading: true } },
+    }]));
+  postApi.mockResolvedValue({});
+  show('secondaire', jest.fn(), {
+    label: 'Primaire',
+    assessment: {
+      mode: 'competency',
+      criteria: [{ code: 'reading', label: 'Lecture' }, { code: 'constructor', label: 'Construction' }],
+    },
+  });
+  expect(await screen.findByRole('combobox', { name: 'Lecture M1' })).toHaveTextContent('Acquis / validé');
+  fireEvent.change(screen.getByLabelText('Appréciation M1'), { target: { value: 'À compléter' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les notes' }));
+  await waitFor(() => expect(postApi).toHaveBeenCalledWith(expect.any(String), [{
+    eleve_id: 1,
+    valeur: null,
+    statut: 'presente',
+    appreciation: 'À compléter',
+    resultat: { criteria: { reading: true, constructor: null } },
+  }]));
 });

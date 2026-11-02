@@ -5,6 +5,12 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fetchApi, patchApi, postApi } from '../../services/api';
 import ResourceManager from './ResourceManager';
+import { fetchAllResourcePages } from '../../services/resources';
+
+jest.mock('../../services/resources', () => ({
+  ...jest.requireActual('../../services/resources'),
+  fetchAllResourcePages: jest.fn(),
+}));
 
 jest.mock('@edx/frontend-platform', () => ({
   getConfig: () => ({ SIS_SECONDAIRE_API_URL: 'https://secondary.example/api/v1' }),
@@ -102,3 +108,46 @@ it.each(['2026-11-02T08:17:31.125Z', '2026-10-25T01:17:31.125Z'])(
     await waitFor(() => expect(patchApi).toHaveBeenCalledWith('https://secondary.example/api/v1/classes/classes/1/', { date: instant, fin: null, sortie: null }));
   },
 );
+
+it('sends an offering reference as a code rather than coercing it to a number', async () => {
+  fetchApi.mockResolvedValue({ count: 0, results: [] });
+  fetchAllResourcePages.mockResolvedValue([{ code: 'vocational-1', label: 'Formation courte' }]);
+  postApi.mockResolvedValue({ id: 1 });
+  show([{
+    name: 'offre_code',
+    label: 'Offre institutionnelle',
+    resource: 'etablissement/learning-offerings',
+    valueField: 'code',
+    labelField: 'label',
+  }]);
+  fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+  const select = await screen.findByRole('combobox', { name: 'Offre institutionnelle' });
+  await waitFor(() => expect(select).not.toHaveAttribute('aria-disabled', 'true'));
+  fireEvent.mouseDown(select);
+  fireEvent.click(await screen.findByRole('option', { name: 'Formation courte' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+  await waitFor(() => expect(postApi).toHaveBeenCalledWith('https://secondary.example/api/v1/classes/classes/', { offre_code: 'vocational-1' }));
+});
+
+it('keeps a historical offering selectable after catalogue removal and clears it with an empty code', async () => {
+  fetchApi.mockImplementation(async request => (request.endsWith('/1/')
+    ? { id: 1, nom: 'Classe', offre_code: 'retired-1' }
+    : { count: 1, results: [{ id: 1, nom: 'Classe' }] }));
+  fetchAllResourcePages.mockResolvedValue([]);
+  patchApi.mockResolvedValue({ id: 1 });
+  show([{
+    name: 'offre_code',
+    label: 'Offre institutionnelle',
+    resource: 'etablissement/learning-offerings',
+    valueField: 'code',
+    labelField: 'label',
+  }]);
+  fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }));
+  const select = await screen.findByRole('combobox', { name: 'Offre institutionnelle' });
+  await waitFor(() => expect(select).not.toHaveAttribute('aria-disabled', 'true'));
+  expect(select).toHaveTextContent('retired-1 (configuration conservée)');
+  fireEvent.mouseDown(select);
+  fireEvent.click(screen.getByRole('option', { name: '—', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+  await waitFor(() => expect(patchApi).toHaveBeenCalledWith('https://secondary.example/api/v1/classes/classes/1/', { offre_code: '' }));
+});

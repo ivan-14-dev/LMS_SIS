@@ -39,6 +39,7 @@ const EvaluationsManager = ({ variant }) => {
   if (!canManage) { return null; }
   const columns = [
     { Header: 'Titre', accessor: 'titre' },
+    { Header: 'Offre historisée', accessor: 'offre_configuration.label' },
     { Header: secondary ? 'Matière' : 'ECUE', accessor: secondary ? 'matiere_nom' : 'ecue_nom' },
     ...(secondary ? [{ Header: 'Classe', accessor: 'classe_nom' }] : []),
     { Header: 'Type', accessor: secondary ? 'type_display' : 'modalite_display' },
@@ -105,7 +106,7 @@ const EvaluationsManager = ({ variant }) => {
       name: 'date', label: 'Date', type: 'date', required: true,
     },
     {
-      name: 'bareme', label: 'Barème', type: 'number', defaultValue: 20, required: true,
+      name: 'bareme', label: 'Barème (sans offre)', type: 'number', defaultValue: 20, required: true,
     },
     {
       name: 'coefficient', label: 'Coefficient', type: 'number', defaultValue: 1, required: true,
@@ -119,6 +120,8 @@ const EvaluationsManager = ({ variant }) => {
       <Alert severity="info">
         La saisie ci-dessous concerne le contrôle continu non anonyme.
         Les examens et la notation anonyme utilisent leurs parcours dédiés.
+        Une nouvelle évaluation hérite des règles de l’offre de sa classe ou formation.
+        Son barème chiffré est alors défini automatiquement et reste figé.
       </Alert>
       {notice && <Alert severity="success">{notice}</Alert>}
       <ResourceManager variant={variant} resource="notes/evaluations" title="Évaluations" columns={columns} fields={fields} />

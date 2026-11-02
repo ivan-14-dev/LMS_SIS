@@ -71,16 +71,17 @@ const ResourceManager = ({
       const payload = {};
       fields.filter(field => !record.id || !field.createOnly).forEach((field) => {
         const value = values[field.name];
+        const numericReference = field.resource && (!field.valueField || field.valueField === 'id');
         if (value !== '' && value !== undefined) {
           if (field.type === 'datetime-local') {
             // Preserve the offset of an unchanged instant during a daylight-saving overlap.
             payload[field.name] = record[field.name] && value === formValue(field, record)
               ? record[field.name] : new Date(value).toISOString();
           } else {
-            payload[field.name] = field.type === 'number' || field.resource ? Number(value) : value;
+            payload[field.name] = field.type === 'number' || numericReference ? Number(value) : value;
           }
         } else if (!field.required && record.id) {
-          payload[field.name] = field.resource || ['number', 'date', 'time', 'datetime-local'].includes(field.type)
+          payload[field.name] = numericReference || ['number', 'date', 'time', 'datetime-local'].includes(field.type)
             ? null : '';
         }
       });
@@ -193,10 +194,14 @@ const ResourceManager = ({
                 );
               }
               const reference = references[referenceFields.indexOf(field)];
-              const choices = field.choices || reference?.data?.map(item => ({
-                value: item.id,
+              const choices = [...(field.choices || reference?.data?.map(item => ({
+                value: item[field.valueField || 'id'],
                 label: item[field.labelField || 'nom'] || item.full_name || item.libelle || item.username || item.id,
-              })) || [];
+              })) || [])];
+              if (field.valueField && values[field.name]
+                && !choices.some(choice => choice.value === values[field.name])) {
+                choices.push({ value: values[field.name], label: `${values[field.name]} (configuration conservée)` });
+              }
               return (
                 <TextField
                   key={field.name}
@@ -251,6 +256,7 @@ ResourceManager.propTypes = {
     createOnly: PropTypes.bool,
     multiline: PropTypes.bool,
     labelField: PropTypes.string,
+    valueField: PropTypes.string,
     defaultValue: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.bool]),
     choices: PropTypes.arrayOf(PropTypes.shape({
       value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,

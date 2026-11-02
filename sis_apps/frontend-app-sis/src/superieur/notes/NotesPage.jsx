@@ -8,6 +8,7 @@ const columns = [
   { Header: 'Matricule', accessor: 'etudiant_matricule' },
   { Header: 'Évaluation', accessor: 'evaluation_titre' },
   { Header: 'Note', accessor: 'valeur' },
+  { Header: 'Résultat selon l’offre', accessor: 'resultat_offre.detail' },
   { Header: 'Statut', accessor: 'statut_display' },
   { Header: 'Appréciation', accessor: 'appreciation' },
 ];

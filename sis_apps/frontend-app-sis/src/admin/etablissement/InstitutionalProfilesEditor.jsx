@@ -244,9 +244,10 @@ const InstitutionalProfilesEditor = ({
   return (
     <Stack spacing={3} sx={{ my: 3 }}>
       <Alert severity="info">
-        Combinez plusieurs offres dans le même établissement. Ces configurations ne modifient pas
-        les classes, formations, notes ou crédits existants. Leur raccordement aux parcours métier
-        reste distinct. Les modules pédagogiques se règlent dans l’onglet Modules.
+        Combinez plusieurs offres, puis choisissez-en une dans le formulaire d’une classe ou formation.
+        Les nouvelles inscriptions et évaluations en conservent les règles.
+        Modifier le catalogue ne change pas les rattachements ou résultats existants.
+        Les modules pédagogiques se règlent dans l’onglet Modules.
       </Alert>
       <TextField select label="Profil à ajouter" value={selected} onChange={event => setSelected(event.target.value)}>
         <MenuItem value="">Choisir un profil</MenuItem>

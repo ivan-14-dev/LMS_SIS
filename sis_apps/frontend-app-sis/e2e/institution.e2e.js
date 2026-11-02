@@ -154,27 +154,44 @@ async function verifyGradeEntry(page, variant, credentials, dates) {
   };
   let subject;
   let period;
+  let parent;
+  let parentEndpoint;
   if (variant === 'secondaire') {
     const level = await api('etablissement/niveaux/', 'POST', { code: '6e', libelle: 'Sixième' });
-    const classe = await api('classes/classes/', 'POST', {
-      nom: 'Classe recette', niveau: level.id, annee_scolaire: year.id,
+    parentEndpoint = 'classes/classes';
+    await page.goto('/secondaire/classes');
+    parent = await createResource(page, 'Classes', parentEndpoint, {
+      'Nom de la classe': 'Classe recette',
+      Niveau: level.libelle,
+      'Année scolaire': year.libelle,
+      'Offre institutionnelle': 'Collège / lycée',
     });
+    expect(parent.offre_configuration.profile).toBe('secondary');
+    const enrollment = await createResource(page, 'Inscriptions annuelles', 'eleves/inscriptions', {
+      Élève: learner.full_name, Classe: parent.nom, 'Année scolaire': year.libelle, 'Date d’inscription': dates.date_debut,
+    });
+    expect(enrollment.offre_configuration).toEqual(parent.offre_configuration);
+    await page.getByRole('region', { name: 'Inscriptions annuelles', exact: true })
+      .getByRole('button', { name: 'Valider', exact: true }).click();
+    await expect(page.getByText('Valider : opération effectuée.')).toBeVisible();
     subject = await api('classes/matieres/', 'POST', { code: 'MAT', nom: 'Mathématiques' });
     period = await api('etablissement/periodes/', 'POST', {
       annee_scolaire: year.id, type: 'trimestre', numero: 1, libelle: 'Trimestre recette', ...dates,
     });
     await api('enseignants/personnel/', 'POST', { ...teacher, date_embauche: dates.date_debut });
-    await api(`eleves/${learner.id}/`, 'PATCH', { classe_actuelle: classe.id });
   } else {
     await api('utilisateurs/comptes/', 'POST', { ...teacher, password_confirm: credentials.password });
     period = await api('etablissement/semestres/', 'POST', {
       annee_universitaire: year.id, type: 'impair', numero: 1, ...dates,
     });
-    const formation = await api('formations/formations/', 'POST', {
-      code: 'LIC', nom: 'Licence recette', type: 'licence',
+    parentEndpoint = 'formations/formations';
+    await page.goto('/superieur/formations');
+    parent = await createResource(page, 'Formations', parentEndpoint, {
+      Code: 'LIC', 'Nom de la formation': 'Licence recette', 'Offre institutionnelle': 'Université / grande école',
     });
+    expect(parent.offre_configuration.profile).toBe('higher_education');
     const maquette = await api('formations/maquettes/', 'POST', {
-      formation: formation.id, annee_universitaire: year.id,
+      formation: parent.id, annee_universitaire: year.id,
     });
     const ue = await api('ue-ecue/ues/', 'POST', {
       maquette: maquette.id, semestre: period.id, code: 'UE1', nom: 'UE recette', credits_ects: 6,
@@ -182,12 +199,14 @@ async function verifyGradeEntry(page, variant, credentials, dates) {
     subject = await api('ue-ecue/ecues/', 'POST', {
       ue: ue.id, code: 'EC1', nom: 'Mathématiques', credits_ects: 6,
     });
-    const enrollment = await api('inscriptions/', 'POST', {
-      etudiant: learner.id,
-      formation: formation.id,
-      annee_universitaire: year.id,
-      date_inscription: dates.date_debut,
+    await page.goto('/superieur/inscriptions');
+    const enrollment = await createResource(page, 'Inscriptions administratives', 'inscriptions', {
+      Étudiant: learner.full_name,
+      Formation: parent.nom,
+      'Année universitaire': year.libelle,
+      'Date d’inscription': dates.date_debut,
     });
+    expect(enrollment.offre_configuration).toEqual(parent.offre_configuration);
     await api(`inscriptions/${enrollment.id}/valider/`, 'POST', {});
     await api(`etudiants/${learner.id}/matieres-individuelles/`, 'POST', {
       inscription_admin: enrollment.id, semestre_cible: period.id, ecue: subject.id,
@@ -216,6 +235,7 @@ async function verifyGradeEntry(page, variant, credentials, dates) {
   const response = await created;
   expect(response.status()).toBe(201);
   const evaluation = await response.json();
+  expect(evaluation.offre_configuration).toEqual(parent.offre_configuration);
   await expect(page.getByText('Enregistrement effectué.')).toBeVisible();
   await page.getByRole('button', { name: 'Saisir les notes', exact: true }).click();
   await page.getByLabel(`Note ${learner.matricule}`, { exact: true }).fill('15.75');
@@ -224,9 +244,38 @@ async function verifyGradeEntry(page, variant, credentials, dates) {
   const notes = await api(`notes/evaluations/${evaluation.id}/notes/`);
   expect(notes).toHaveLength(1);
   expect(notes[0].valeur).toBe('15.75');
+  expect(notes[0].resultat_offre.status).toBe('passed');
   if (variant === 'secondaire') {
     await verifySchoolServices(page, api, learner, year, period, credentials);
   }
+  await api(`${parentEndpoint}/${parent.id}/`, 'PATCH', { offre_code: 'vocational-1' });
+  const typed = await api('notes/evaluations/', 'POST', {
+    titre: 'Pratique par compétences',
+    date: evaluation.date,
+    enseignant: evaluation.enseignant,
+    ...(variant === 'secondaire'
+      ? {
+        classe: parent.id, matiere: subject.id, periode: period.id, type: 'tp',
+      }
+      : { ecue: subject.id, semestre: period.id, modalite: 'tp' }),
+  });
+  expect(typed.offre_configuration.profile).toBe('vocational');
+  await page.goto(`/${variant}/${variant === 'secondaire' ? 'evaluations' : 'notes'}`);
+  const typedRow = page.getByRole('row').filter({ hasText: 'Pratique par compétences' });
+  await typedRow.getByRole('button', { name: 'Saisir les notes', exact: true }).click();
+  await choose(`Compétence à personnaliser ${learner.matricule}`, 'Acquis / validé');
+  await page.getByRole('button', { name: 'Enregistrer les notes', exact: true }).click();
+  await expect(page.getByText('Notes enregistrées.', { exact: true })).toBeVisible();
+  const typedNotes = await api(`notes/evaluations/${typed.id}/notes/`);
+  expect(typedNotes[0].valeur).toBeNull();
+  expect(typedNotes[0].resultat_offre.status).toBe('passed');
+  expect((await api(`notes/evaluations/${evaluation.id}/`)).offre_configuration).toEqual(parent.offre_configuration);
+  expect((await api(`notes/evaluations/${evaluation.id}/notes/`))[0].valeur).toBe('15.75');
+  await typedRow.getByRole('button', { name: 'Saisir les notes', exact: true }).click();
+  await expect(page.getByRole('combobox', {
+    name: `Compétence à personnaliser ${learner.matricule}`, exact: true,
+  })).toHaveText('Acquis / validé');
+  await page.getByRole('button', { name: 'Annuler', exact: true }).click();
 }
 
 async function verifyInstitutionalProfiles(page, variant) {
@@ -277,17 +326,15 @@ async function verifyInstitutionalProfiles(page, variant) {
 
 for (const variant of variants) {
   test(`${variant}: real login, academic year, import, export, pagination and MFA`, async ({ page }) => {
-    if (variant === 'secondaire') {
-      test.setTimeout(300000);
-      let nextRequest = 0;
-      await page.route('**/api/v1/**', async (route) => {
-        // Respect the real 100 requests/minute limit during this extended workflow.
-        const scheduled = Math.max(Date.now(), nextRequest);
-        nextRequest = scheduled + 700;
-        await new Promise(resolve => { setTimeout(resolve, Math.max(0, scheduled - Date.now())); });
-        await route.continue();
-      });
-    }
+    test.setTimeout(300000);
+    let nextRequest = 0;
+    await page.route('**/api/v1/**', async (route) => {
+      // Respect the real 100 requests/minute limit during this extended workflow.
+      const scheduled = Math.max(Date.now(), nextRequest);
+      nextRequest = scheduled + 700;
+      await new Promise(resolve => { setTimeout(resolve, Math.max(0, scheduled - Date.now())); });
+      await route.continue();
+    });
     const credentials = JSON.parse(fs.readFileSync(process.env.SIS_E2E_CREDENTIALS, 'utf8'));
     await page.goto(`/admin/annees-academiques?sis=${variant}`);
     await page.getByLabel('Identifiant').fill(credentials.username);

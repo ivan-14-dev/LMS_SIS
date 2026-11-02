@@ -14,6 +14,7 @@ const ClassesPage = () => {
         onSelect={setSelected}
         columns={[
           { Header: 'Classe', accessor: 'nom' },
+          { Header: 'Offre', accessor: 'offre_code' },
           { Header: 'Niveau', accessor: 'niveau_nom' },
           { Header: 'Année', accessor: 'annee_libelle' },
           { Header: 'Effectif', accessor: 'effectif' },
@@ -21,6 +22,13 @@ const ClassesPage = () => {
         ]}
         fields={[
           { name: 'nom', label: 'Nom de la classe', required: true },
+          {
+            name: 'offre_code',
+            label: 'Offre institutionnelle',
+            resource: 'etablissement/learning-offerings',
+            valueField: 'code',
+            labelField: 'label',
+          },
           {
             name: 'niveau', label: 'Niveau', resource: 'etablissement/niveaux', labelField: 'libelle', required: true,
           },
@@ -39,6 +47,38 @@ const ClassesPage = () => {
           },
           { name: 'salle_principale', label: 'Salle principale', resource: 'salles' },
         ]}
+      />
+      <ResourceManager
+        variant="secondaire"
+        resource="eleves/inscriptions"
+        title="Inscriptions annuelles"
+        searchable={false}
+        columns={[
+          { Header: 'Élève', accessor: 'eleve_nom' },
+          { Header: 'Classe', accessor: 'classe_nom' },
+          { Header: 'Année', accessor: 'annee_libelle' },
+          { Header: 'Offre', accessor: 'offre_configuration.label' },
+          { Header: 'Statut', accessor: 'statut_display' },
+        ]}
+        fields={[
+          {
+            name: 'eleve', label: 'Élève', resource: 'eleves', labelField: 'full_name', required: true,
+          },
+          {
+            name: 'classe', label: 'Classe', resource: 'classes/classes', required: true,
+          },
+          {
+            name: 'annee_scolaire',
+            label: 'Année scolaire',
+            resource: 'etablissement/annees',
+            labelField: 'libelle',
+            required: true,
+          },
+          {
+            name: 'date_inscription', label: 'Date d’inscription', type: 'date', required: true,
+          },
+        ]}
+        actions={[{ label: 'Valider', endpoint: 'valider' }]}
       />
       {selected && (
         <ResourceManager

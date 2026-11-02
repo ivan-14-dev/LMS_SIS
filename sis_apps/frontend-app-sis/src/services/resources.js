@@ -46,7 +46,9 @@ export const exportRecords = (title, columns, records) => {
   };
   const csv = [
     columns.map(column => cell(column.Header)).join(','),
-    ...records.map(row => columns.map(column => cell(row[column.accessor])).join(',')),
+    ...records.map(row => columns.map(column => cell(
+      column.accessor.split('.').reduce((value, key) => value?.[key], row),
+    )).join(',')),
   ].join('\r\n');
   const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
   const anchor = document.createElement('a');
@@ -55,3 +57,9 @@ export const exportRecords = (title, columns, records) => {
   anchor.click();
   URL.revokeObjectURL(url);
 };
+
+export const formatGrade = note => (
+  note.valeur !== null && note.valeur !== undefined
+    ? `${note.valeur}/${note.bareme}`
+    : note.resultat_offre?.detail || '—'
+);

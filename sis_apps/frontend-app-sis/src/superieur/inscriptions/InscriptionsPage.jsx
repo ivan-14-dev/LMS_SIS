@@ -17,6 +17,7 @@ const InscriptionsPage = () => {
           { Header: 'Matricule', accessor: 'etudiant_matricule' },
           { Header: 'Étudiant', accessor: 'etudiant_nom' },
           { Header: 'Formation', accessor: 'formation_nom' },
+          { Header: 'Offre', accessor: 'offre_configuration.label' },
           { Header: 'Année', accessor: 'annee_universitaire_libelle' },
           { Header: 'Statut', accessor: 'statut_display' },
         ]}

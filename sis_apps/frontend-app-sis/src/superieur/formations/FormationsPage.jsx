@@ -1,62 +1,63 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Badge, Button } from '@openedx/paragon';
-import { Add } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable, WorkflowHistoryPanel, WorkflowNotificationsPanel } from '../../components/common';
-import { useFormations } from '../../services/api';
+import { Button } from '@mui/material';
+import { WorkflowHistoryPanel, WorkflowNotificationsPanel } from '../../components/common';
+import ResourceManager from '../../components/common/ResourceManager';
+
+const historyButton = (select, cell) => (
+  <Button onClick={(event) => { event.stopPropagation(); select(cell.row.original.id); }}>Historique</Button>
+);
 
 const FormationsPage = () => {
   const navigate = useNavigate();
-  const { data: formations = [], isLoading } = useFormations();
   const [selectedFormationId, setSelectedFormationId] = useState(null);
-
-  const columns = [
-    { Header: 'Code', accessor: 'code' },
-    { Header: 'Nom', accessor: 'nom' },
-    { Header: 'Département', accessor: 'departement_nom' },
-    { Header: 'Niveau', accessor: 'niveau_display' },
-    { Header: 'Durée', accessor: 'duree_annees', Cell: ({ value }) => `${value} an(s)` },
-    { Header: 'Crédits ECTS', accessor: 'credits_total' },
-    {
-      Header: 'Statut',
-      accessor: 'actif',
-      Cell: ({ value }) => (
-        <Badge variant={value ? 'success' : 'secondary'}>
-          {value ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
-    },
-    {
-      Header: 'Workflow',
-      accessor: 'id',
-      Cell: ({ value }) => (
-        <Button size="sm" variant="outline-info" onClick={(event) => { event.stopPropagation(); setSelectedFormationId(value); }}>
-          Historique
-        </Button>
-      ),
-    },
-  ];
-
   return (
     <div>
-      <PageHeader
-        title="Gestion des formations"
-        subtitle={`${formations.length} formations`}
-        actions={
-          <Button variant="primary" iconBefore={Add}>
-            Nouvelle formation
-          </Button>
-        }
-      />
       <WorkflowNotificationsPanel apiType="superieur" />
-      <SISDataTable
-        title="Liste des formations"
-        data={formations}
-        columns={columns}
-        loading={isLoading}
-        onRowClick={(row) => navigate(`/superieur/formations/${row.original.id}`)}
-        searchable
-        exportable
+      <ResourceManager
+        variant="superieur"
+        resource="formations/formations"
+        title="Formations"
+        onSelect={formation => navigate(`/superieur/formations/${formation.id}`)}
+        columns={[
+          { Header: 'Code', accessor: 'code' },
+          { Header: 'Nom', accessor: 'nom' },
+          { Header: 'Offre', accessor: 'offre_code' },
+          { Header: 'Département', accessor: 'departement_nom' },
+          { Header: 'Niveau', accessor: 'niveau_display' },
+          { Header: 'Durée (années)', accessor: 'duree_annees' },
+          { Header: 'Crédits du cursus', accessor: 'credits_total' },
+          { Header: 'Statut', accessor: 'actif', Cell: cell => (cell.value ? 'Active' : 'Inactive') },
+          { Header: 'Historique', accessor: 'historique', Cell: historyButton.bind(null, setSelectedFormationId) },
+        ]}
+        fields={[
+          { name: 'code', label: 'Code', required: true },
+          { name: 'nom', label: 'Nom de la formation', required: true },
+          {
+            name: 'type', label: 'Type', defaultValue: 'licence', required: true,
+          },
+          { name: 'niveau', label: 'Niveau' },
+          {
+            name: 'offre_code',
+            label: 'Offre institutionnelle',
+            resource: 'etablissement/learning-offerings',
+            valueField: 'code',
+            labelField: 'label',
+          },
+          { name: 'departement', label: 'Département', resource: 'structure/departements' },
+          {
+            name: 'duree_annees', label: 'Durée (années)', type: 'number', defaultValue: 3, required: true,
+          },
+          {
+            name: 'nb_semestres', label: 'Nombre de semestres', type: 'number', defaultValue: 6, required: true,
+          },
+          {
+            name: 'credits_total', label: 'Crédits du cursus (0 sans crédits)', type: 'number', defaultValue: 180, required: true,
+          },
+          {
+            name: 'actif', label: 'Formation active', type: 'checkbox', defaultValue: true,
+          },
+        ]}
       />
       <WorkflowHistoryPanel
         apiType="superieur"

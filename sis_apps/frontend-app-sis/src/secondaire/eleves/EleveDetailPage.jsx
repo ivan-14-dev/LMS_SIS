@@ -1,7 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Row, Col, Card, Badge, Tabs, Tab } from '@openedx/paragon';
+import {
+  Row, Col, Card, Badge, Tabs, Tab,
+} from '@openedx/paragon';
 import { PageHeader, SISDataTable } from '../../components/common';
+import { formatGrade } from '../../services/resources';
 import {
   useAjouterMatiereIndividuelleEleve,
   useEleveDetail,
@@ -17,6 +20,13 @@ const emptyForm = {
   commentaire: '',
   obligatoire: true,
 };
+
+const presenceBadge = cell => (
+  <Badge variant={{ present: 'success', absent: 'danger' }[cell.value] || 'warning'}>{cell.value}</Badge>
+);
+const requirementBadge = cell => (
+  <Badge variant={cell.value ? 'success' : 'light'}>{cell.value ? 'Obligatoire' : 'Optionnelle'}</Badge>
+);
 
 const EleveDetailPage = () => {
   const { id } = useParams();
@@ -35,7 +45,7 @@ const EleveDetailPage = () => {
     {
       Header: 'Note',
       accessor: 'valeur',
-      Cell: ({ value }) => (value !== undefined && value !== null ? `${value}/20` : '-'),
+      Cell: cell => formatGrade(cell.row.original),
     },
     { Header: 'Statut', accessor: 'statut_display' },
   ];
@@ -46,11 +56,7 @@ const EleveDetailPage = () => {
     {
       Header: 'Statut',
       accessor: 'statut',
-      Cell: ({ value }) => (
-        <Badge variant={value === 'present' ? 'success' : value === 'absent' ? 'danger' : 'warning'}>
-          {value}
-        </Badge>
-      ),
+      Cell: presenceBadge,
     },
     { Header: 'Justification', accessor: 'justification' },
   ];
@@ -63,9 +69,7 @@ const EleveDetailPage = () => {
     {
       Header: 'Type',
       accessor: 'obligatoire',
-      Cell: ({ value }) => (
-        <Badge variant={value ? 'success' : 'light'}>{value ? 'Obligatoire' : 'Optionnelle'}</Badge>
-      ),
+      Cell: requirementBadge,
     },
   ];
 
@@ -94,8 +98,8 @@ const EleveDetailPage = () => {
     await retirerMatiere.mutateAsync({ eleveId: id, affectationId });
   };
 
-  if (isLoading) return <div>Chargement...</div>;
-  if (!eleve) return <div>Élève non trouvé</div>;
+  if (isLoading) { return <div>Chargement...</div>; }
+  if (!eleve) { return <div>Élève non trouvé</div>; }
 
   return (
     <div>
@@ -168,7 +172,9 @@ const EleveDetailPage = () => {
                           className="form-check-input"
                           type="checkbox"
                           checked={formData.obligatoire}
-                          onChange={(event) => setFormData((current) => ({ ...current, obligatoire: event.target.checked }))}
+                          onChange={event => setFormData(current => ({
+                            ...current, obligatoire: event.target.checked,
+                          }))}
                         />
                         <label htmlFor="obligatoire-individuelle" className="form-check-label">Matière obligatoire</label>
                       </div>
@@ -179,7 +185,9 @@ const EleveDetailPage = () => {
                           className="form-control"
                           rows="2"
                           value={formData.commentaire}
-                          onChange={(event) => setFormData((current) => ({ ...current, commentaire: event.target.value }))}
+                          onChange={event => setFormData(current => ({
+                            ...current, commentaire: event.target.value,
+                          }))}
                         />
                       </div>
                       <button type="submit" className="btn btn-primary" disabled={ajouterMatiere.isPending || !formData.matiere}>

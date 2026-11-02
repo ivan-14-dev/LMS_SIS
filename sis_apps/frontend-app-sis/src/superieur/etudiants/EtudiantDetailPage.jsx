@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import PropTypes from 'prop-types';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -30,6 +31,7 @@ import {
   Public as PublicIcon,
 } from '@mui/icons-material';
 import { PageHeader, SISDataTable } from '../../components/common';
+import { formatGrade } from '../../services/resources';
 import {
   useAjouterMatiereIndividuelleEtudiant,
   useECUEs,
@@ -48,6 +50,22 @@ const emptyForm = {
   obligatoire: true,
   commentaire: '',
 };
+
+const InfoRow = ({ icon, label, value }) => (
+  <Box sx={{ display: 'flex', alignItems: 'center', py: 1 }}>
+    {icon}
+    <Box sx={{ ml: 2 }}>
+      <Typography variant="caption" color="text.secondary">{label}</Typography>
+      <Typography variant="body2">{value || 'Non renseigné'}</Typography>
+    </Box>
+  </Box>
+);
+InfoRow.propTypes = {
+  icon: PropTypes.node.isRequired,
+  label: PropTypes.string.isRequired,
+  value: PropTypes.node,
+};
+InfoRow.defaultProps = { value: null };
 
 const EtudiantDetailPage = () => {
   const { id } = useParams();
@@ -83,13 +101,7 @@ const EtudiantDetailPage = () => {
     {
       Header: 'Note',
       accessor: 'valeur',
-      Cell: ({ value }) => (
-        <Chip
-          label={value !== undefined && value !== null ? `${value}/20` : '-'}
-          size="small"
-          color={value >= 10 ? 'success' : value !== undefined && value !== null ? 'error' : 'default'}
-        />
-      ),
+      Cell: cell => formatGrade(cell.row.original),
     },
     { Header: 'Statut', accessor: 'statut_display' },
   ];
@@ -136,16 +148,6 @@ const EtudiantDetailPage = () => {
     await retirerMatiere.mutateAsync({ etudiantId: id, affectationId });
   };
 
-  const InfoRow = ({ icon, label, value }) => (
-    <Box sx={{ display: 'flex', alignItems: 'center', py: 1 }}>
-      {icon}
-      <Box sx={{ ml: 2 }}>
-        <Typography variant="caption" color="text.secondary">{label}</Typography>
-        <Typography variant="body2">{value || 'Non renseigné'}</Typography>
-      </Box>
-    </Box>
-  );
-
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -176,9 +178,15 @@ const EtudiantDetailPage = () => {
           { label: nomComplet },
         ]}
         actions={[
-          { label: 'Imprimer', icon: <PrintIcon />, variant: 'outlined', onClick: () => window.print() },
-          { label: 'Email', icon: <EmailIcon />, variant: 'outlined', onClick: () => { window.location.href = `mailto:${user.email || etudiant.email_personnel || ''}`; } },
-          { label: 'Modifier', icon: <EditIcon />, variant: 'contained', onClick: () => navigate('edit') },
+          {
+            label: 'Imprimer', icon: <PrintIcon />, variant: 'outlined', onClick: () => window.print(),
+          },
+          {
+            label: 'Email', icon: <EmailIcon />, variant: 'outlined', onClick: () => { window.location.href = `mailto:${user.email || etudiant.email_personnel || ''}`; },
+          },
+          {
+            label: 'Modifier', icon: <EditIcon />, variant: 'contained', onClick: () => navigate('edit'),
+          },
         ]}
       />
 
@@ -266,7 +274,9 @@ const EtudiantDetailPage = () => {
                     select
                     label="Inscription administrative"
                     value={formData.inscription_admin}
-                    onChange={(event) => setFormData((current) => ({ ...current, inscription_admin: event.target.value }))}
+                    onChange={event => setFormData(current => ({
+                      ...current, inscription_admin: event.target.value,
+                    }))}
                     required
                   >
                     {inscriptionOptions.map((inscription) => (
@@ -312,7 +322,9 @@ const EtudiantDetailPage = () => {
                     control={(
                       <Checkbox
                         checked={formData.obligatoire}
-                        onChange={(event) => setFormData((current) => ({ ...current, obligatoire: event.target.checked }))}
+                        onChange={event => setFormData(current => ({
+                          ...current, obligatoire: event.target.checked,
+                        }))}
                       />
                     )}
                     label="ECUE obligatoire"

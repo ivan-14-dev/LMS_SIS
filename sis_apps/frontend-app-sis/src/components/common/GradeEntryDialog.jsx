@@ -14,6 +14,8 @@ const GradeEntryDialog = ({
   const client = useQueryClient();
   const url = resourceUrl(variant, `notes/evaluations/${evaluation.id}`);
   const learnerField = variant === 'secondaire' ? 'eleve' : 'etudiant';
+  const assessment = evaluation.offre_configuration?.assessment;
+  const mode = assessment?.mode || 'numeric';
   const query = useQuery({
     queryKey: ['grade-entry', url],
     queryFn: async ({ signal }) => {
@@ -30,6 +32,13 @@ const GradeEntryDialog = ({
     valeur: existing[id]?.valeur ?? '',
     statut: existing[id]?.statut || 'presente',
     appreciation: existing[id]?.appreciation || '',
+    resultat: mode === 'competency' ? {
+      criteria: Object.fromEntries(assessment.criteria.map(criterion => [
+        criterion.code,
+        Object.prototype.hasOwnProperty.call(existing[id]?.resultat?.criteria || {}, criterion.code)
+          ? existing[id].resultat.criteria[criterion.code] : null,
+      ])),
+    } : { passed: existing[id]?.resultat?.passed ?? null },
   });
   const update = (id, field, value) => setChanges(previous => ({
     ...previous, [id]: { ...(previous[id] || initial(id)), [field]: value },
@@ -40,6 +49,7 @@ const GradeEntryDialog = ({
       valeur: row.valeur === '' ? null : row.valeur,
       statut: row.statut,
       appreciation: row.appreciation,
+      ...(mode !== 'numeric' ? { resultat: row.resultat } : {}),
     }))),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ['resource'] });
@@ -48,6 +58,19 @@ const GradeEntryDialog = ({
     },
   });
   const busy = saving.isPending || query.isFetching;
+  const decisionField = (label, value, onChange) => (
+    <TextField
+      select
+      label={label}
+      disabled={busy}
+      value={value === null ? '' : String(value)}
+      onChange={event => onChange(event.target.value === '' ? null : event.target.value === 'true')}
+    >
+      <MenuItem value="">Non renseigné</MenuItem>
+      <MenuItem value="true">Acquis / validé</MenuItem>
+      <MenuItem value="false">Non acquis / non validé</MenuItem>
+    </TextField>
+  );
   const statuses = [
     ['presente', 'Présentée'], ['absente', 'Absent'],
     [variant === 'secondaire' ? 'dispensee' : 'dispense', 'Dispensé'],
@@ -60,8 +83,15 @@ const GradeEntryDialog = ({
         <DialogTitle>Saisir les notes — {evaluation.titre}</DialogTitle>
         <DialogContent>
           <Typography sx={{ mb: 2 }}>
-            Barème : {evaluation.bareme}. Seules les lignes modifiées seront enregistrées.
+            {mode === 'numeric' ? `Barème : ${evaluation.bareme}. ` : 'Résultats non chiffrés. '}
+            Seules les lignes modifiées seront enregistrées.
           </Typography>
+          {evaluation.offre_configuration?.label && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Règles historisées : {evaluation.offre_configuration.label}.
+              Cette saisie n’attribue pas automatiquement de crédits ou de diplôme.
+            </Alert>
+          )}
           {query.isFetching && <Typography>Chargement des apprenants autorisés…</Typography>}
           {query.error && <Alert severity="error">{apiErrorMessage(query.error)}</Alert>}
           {saving.error && <Alert severity="error">{apiErrorMessage(saving.error)}</Alert>}
@@ -74,14 +104,35 @@ const GradeEntryDialog = ({
               <Box component="fieldset" key={learner.id} disabled={busy} sx={{ my: 2, borderColor: 'divider' }}>
                 <legend>{learner.nom} — {learner.matricule}</legend>
                 <Stack spacing={2} sx={{ py: 1 }}>
+                  {mode === 'numeric' && (
                   <TextField
                     label={`Note ${learner.matricule}`}
                     disabled={busy}
                     type="number"
                     value={row.valeur}
-                    slotProps={{ htmlInput: { min: 0, max: evaluation.bareme, step: '0.01' } }}
+                    slotProps={{ htmlInput: { min: assessment?.minimum ?? 0, max: evaluation.bareme, step: '0.01' } }}
                     onChange={event => update(learner.id, 'valeur', event.target.value)}
                   />
+                  )}
+                  {mode === 'competency' && assessment.criteria.map(criterion => (
+                    <React.Fragment key={criterion.code}>
+                      {decisionField(
+                        `${criterion.label} ${learner.matricule}`,
+                        row.resultat.criteria[criterion.code],
+                        value => update(learner.id, 'resultat', {
+                          criteria: { ...row.resultat.criteria, [criterion.code]: value },
+                        }),
+                      )}
+                    </React.Fragment>
+                  ))}
+                  {mode === 'pass_fail' && decisionField(
+                    `Résultat ${learner.matricule}`,
+                    row.resultat.passed,
+                    value => update(learner.id, 'resultat', { passed: value }),
+                  )}
+                  {existing[learner.id]?.resultat_offre && (
+                    <Typography>Résultat enregistré : {existing[learner.id].resultat_offre.detail}</Typography>
+                  )}
                   <TextField
                     label={`Statut ${learner.matricule}`}
                     disabled={busy}
@@ -123,6 +174,16 @@ GradeEntryDialog.propTypes = {
     id: PropTypes.number.isRequired,
     titre: PropTypes.string.isRequired,
     bareme: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    offre_configuration: PropTypes.shape({
+      label: PropTypes.string,
+      assessment: PropTypes.shape({
+        mode: PropTypes.oneOf(['numeric', 'competency', 'pass_fail']),
+        minimum: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+        criteria: PropTypes.arrayOf(PropTypes.shape({
+          code: PropTypes.string.isRequired, label: PropTypes.string.isRequired,
+        })),
+      }),
+    }),
   }).isRequired,
   onClose: PropTypes.func.isRequired,
   onSaved: PropTypes.func.isRequired,
