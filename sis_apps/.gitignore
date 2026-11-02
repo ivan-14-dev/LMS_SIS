@@ -77,3 +77,8 @@ Thumbs.db
 *.key
 secrets.yaml
 secrets.json
+private_exam_copies/
+private_financial_documents/
+backups/
+playwright-report/
+test-results/

@@ -1,0 +1,18 @@
+{$SIS_FRONTEND_ADDRESS} {
+    encode zstd gzip
+    reverse_proxy frontend:80
+}
+
+{$SIS_SECONDAIRE_ADDRESS} {
+    encode zstd gzip
+    @internal path /metrics/
+    respond @internal 404
+    reverse_proxy api-secondaire:8000
+}
+
+{$SIS_SUPERIEUR_ADDRESS} {
+    encode zstd gzip
+    @internal path /metrics/
+    respond @internal 404
+    reverse_proxy api-superieur:8000
+}

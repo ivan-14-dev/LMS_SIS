@@ -129,16 +129,16 @@ migrate: migrate-secondaire migrate-superieur ## Applique toutes les migrations
 # =============================================================================
 
 test-secondaire: ## Lance les tests SIS Secondaire
-	cd sis_secondaire && $(PYTEST) -v
+	cd sis_secondaire && $(PYTEST) --confcutdir=.. apps ../sis_common/tests -v
 
 test-superieur: ## Lance les tests SIS Supérieur
-	cd sis_superieur && $(PYTEST) -v
+	cd sis_superieur && $(PYTEST) --confcutdir=.. apps ../sis_common/tests -v
 
 test: test-secondaire test-superieur ## Lance tous les tests
 
 test-coverage: ## Lance les tests avec couverture
-	cd sis_secondaire && $(PYTEST) --cov=apps --cov-report=html
-	cd sis_superieur && $(PYTEST) --cov=apps --cov-report=html
+	cd sis_secondaire && $(PYTEST) --confcutdir=.. apps ../sis_common/tests --cov=apps --cov-report=html
+	cd sis_superieur && $(PYTEST) --confcutdir=.. apps ../sis_common/tests --cov=apps --cov-report=html
 
 # =============================================================================
 # QUALITÉ CODE
@@ -174,13 +174,18 @@ run-dual: ## Lance les deux serveurs en parallèle
 # =============================================================================
 
 celery-secondaire: ## Lance Celery worker SIS Secondaire
-	cd sis_secondaire && celery -A config worker -l info -Q secondaire
+	cd sis_secondaire && celery -A config worker -l info
 
 celery-superieur: ## Lance Celery worker SIS Supérieur
-	cd sis_superieur && celery -A config worker -l info -Q superieur
+	cd sis_superieur && celery -A config worker -l info
 
-celery-beat: ## Lance Celery Beat (scheduler)
+celery-beat-secondaire: ## Lance Celery Beat pour le secondaire
+	cd sis_secondaire && celery -A config beat -l info
+
+celery-beat-superieur: ## Lance Celery Beat pour le supérieur
 	cd sis_superieur && celery -A config beat -l info
+
+celery-beat: celery-beat-superieur ## Alias historique du scheduler supérieur
 
 # =============================================================================
 # UTILITAIRES
@@ -236,16 +241,16 @@ clean-migrations: ## Supprime les migrations (ATTENTION: perte de données)
 # =============================================================================
 
 docker-build: ## Construit les images Docker
-	docker-compose build
+	docker compose build
 
 docker-up: ## Lance les containers Docker
-	docker-compose up -d
+	$(PYTHON) scripts/sisctl.py start
 
 docker-down: ## Arrête les containers Docker
-	docker-compose down
+	$(PYTHON) scripts/sisctl.py stop
 
 docker-logs: ## Affiche les logs Docker
-	docker-compose logs -f
+	docker compose logs -f
 
 # =============================================================================
 # HEALTH CHECK

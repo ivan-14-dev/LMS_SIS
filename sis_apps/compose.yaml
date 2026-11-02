@@ -1,0 +1,207 @@
+name: lms-sis
+
+x-api: &api
+  image: ${SIS_IMAGE:-lms-sis:institution-pilot}
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file: ${SIS_ENV_FILE:-.env}
+  restart: unless-stopped
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  networks: [sis]
+
+x-runtime: &runtime
+  DB_HOST: postgres-secondaire
+  DB_USER: ${DB_USER:-sis}
+  DB_NAME: ${DB_NAME_SECONDAIRE:-sis_secondaire}
+  REDIS_URL_SECONDAIRE: redis://redis:6379/1
+  CELERY_BROKER_URL_SECONDAIRE: redis://redis:6379/2
+  CELERY_RESULT_BACKEND_SECONDAIRE: redis://redis:6379/3
+  REDIS_URL_SUPERIEUR: redis://redis:6379/4
+  CELERY_BROKER_URL_SUPERIEUR: redis://redis:6379/5
+  CELERY_RESULT_BACKEND_SUPERIEUR: redis://redis:6379/6
+  TRUST_PROXY: "True"
+
+x-superieur: &superieur
+  <<: *runtime
+  SIS_VARIANT: superieur
+  DB_HOST: postgres-superieur
+  DB_NAME: ${DB_NAME_SUPERIEUR:-sis_superieur}
+
+services:
+  postgres-secondaire:
+    image: postgres:16.13-bookworm
+    profiles: [secondaire]
+    environment:
+      POSTGRES_DB: ${DB_NAME_SECONDAIRE:-sis_secondaire}
+      POSTGRES_USER: ${DB_USER:-sis}
+      POSTGRES_PASSWORD: ${DB_PASSWORD_SECONDAIRE:?Set DB_PASSWORD_SECONDAIRE}
+    volumes: [postgres-secondaire:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    networks: [sis]
+
+  postgres-superieur:
+    image: postgres:16.13-bookworm
+    profiles: [superieur]
+    environment:
+      POSTGRES_DB: ${DB_NAME_SUPERIEUR:-sis_superieur}
+      POSTGRES_USER: ${DB_USER:-sis}
+      POSTGRES_PASSWORD: ${DB_PASSWORD_SUPERIEUR:?Set DB_PASSWORD_SUPERIEUR}
+    volumes: [postgres-superieur:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    networks: [sis]
+
+  redis:
+    image: redis:7.4.8-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    networks: [sis]
+
+  api-secondaire:
+    <<: *api
+    profiles: [secondaire]
+    environment:
+      <<: *runtime
+      SIS_VARIANT: secondaire
+    volumes: [data-secondaire:/data]
+    healthcheck: &api-health
+      test: ["CMD", "python", "-m", "sis_common.probe"]
+      interval: 20s
+      timeout: 8s
+      start_period: 30s
+      retries: 6
+    depends_on:
+      postgres-secondaire: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  worker-secondaire:
+    <<: *api
+    profiles: [secondaire]
+    environment:
+      <<: *runtime
+      SIS_VARIANT: secondaire
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency=2"]
+    healthcheck: &worker-health
+      test:
+        - CMD-SHELL
+        - cd /app/sis_$$SIS_VARIANT && celery -A config inspect ping --destination celery@$$HOSTNAME --timeout 5
+      interval: 60s
+      timeout: 15s
+      start_period: 30s
+      retries: 3
+    volumes: [data-secondaire:/data]
+    depends_on:
+      api-secondaire: {condition: service_healthy}
+
+  beat-secondaire:
+    <<: *api
+    profiles: [secondaire]
+    environment:
+      <<: *runtime
+      SIS_VARIANT: secondaire
+    command: ["celery", "-A", "config", "beat", "-l", "info"]
+    volumes: [data-secondaire:/data]
+    depends_on:
+      api-secondaire: {condition: service_healthy}
+
+  api-superieur:
+    <<: *api
+    profiles: [superieur]
+    environment: *superieur
+    volumes: [data-superieur:/data]
+    healthcheck: *api-health
+    depends_on:
+      postgres-superieur: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  worker-superieur:
+    <<: *api
+    profiles: [superieur]
+    environment: *superieur
+    healthcheck: *worker-health
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency=2"]
+    volumes: [data-superieur:/data]
+    depends_on:
+      api-superieur: {condition: service_healthy}
+
+  beat-superieur:
+    <<: *api
+    profiles: [superieur]
+    environment: *superieur
+    command: ["celery", "-A", "config", "beat", "-l", "info"]
+    volumes: [data-superieur:/data]
+    depends_on:
+      api-superieur: {condition: service_healthy}
+
+  frontend:
+    image: ${SIS_FRONTEND_IMAGE:-lms-sis-frontend:institution-pilot}
+    build:
+      context: frontend-app-sis
+      args:
+        SIS_MODE: ${SIS_MODE:-secondaire}
+        SIS_AUTH_MODE: ${SIS_AUTH_MODE:-lms}
+        BASE_URL: ${FRONTEND_URL:?Set FRONTEND_URL}
+        LMS_BASE_URL: ${EDX_LMS_URL:?Set EDX_LMS_URL}
+        STUDIO_BASE_URL: ${EDX_CMS_URL:?Set EDX_CMS_URL}
+        SIS_SECONDAIRE_API_URL: ${SIS_SECONDAIRE_API_URL:?Set SIS_SECONDAIRE_API_URL}
+        SIS_SUPERIEUR_API_URL: ${SIS_SUPERIEUR_API_URL:?Set SIS_SUPERIEUR_API_URL}
+        SIS_ADMIN_API_URL: ${SIS_ADMIN_API_URL:?Set SIS_ADMIN_API_URL}
+        SITE_NAME: ${SITE_NAME:-SIS}
+        SUPPORT_URL: ${SUPPORT_URL:-}
+        SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
+        TERMS_OF_SERVICE_URL: ${TERMS_OF_SERVICE_URL:-}
+        PRIVACY_POLICY_URL: ${PRIVACY_POLICY_URL:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+    networks: [sis]
+
+  gateway:
+    image: caddy:2.10.2-alpine
+    ports:
+      - "${SIS_BIND_ADDRESS:-127.0.0.1}:${SIS_HTTP_PORT:-8080}:80"
+      - "${SIS_BIND_ADDRESS:-127.0.0.1}:${SIS_HTTPS_PORT:-8443}:443"
+    environment:
+      SIS_FRONTEND_ADDRESS: ${SIS_FRONTEND_ADDRESS:?Set SIS_FRONTEND_ADDRESS}
+      SIS_SECONDAIRE_ADDRESS: ${SIS_SECONDAIRE_ADDRESS:?Set SIS_SECONDAIRE_ADDRESS}
+      SIS_SUPERIEUR_ADDRESS: ${SIS_SUPERIEUR_ADDRESS:?Set SIS_SUPERIEUR_ADDRESS}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [frontend]
+    restart: unless-stopped
+    networks: [sis]
+
+networks:
+  sis:
+
+volumes:
+  postgres-secondaire:
+  postgres-superieur:
+  redis:
+  data-secondaire:
+  data-superieur:
+  caddy-data:
+  caddy-config:

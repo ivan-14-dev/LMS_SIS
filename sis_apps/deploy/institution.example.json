@@ -1,0 +1,20 @@
+{
+  "schema_name": "ecole",
+  "domain": "secondaire.example.org",
+  "institution": {
+    "nom": "Mon etablissement",
+    "type": "college",
+    "adresse": "Adresse de l'etablissement",
+    "code_postal": "75000",
+    "ville": "Paris",
+    "pays": "France",
+    "telephone": "+33100000000",
+    "email": "contact@example.org",
+    "fuseau_horaire": "Europe/Paris"
+  },
+  "admin": {
+    "username": "administrateur",
+    "email": "administrateur@example.org",
+    "edx_username": "administrateur_lms"
+  }
+}
