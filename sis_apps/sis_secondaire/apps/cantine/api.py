@@ -58,11 +58,7 @@ class MenusViewSet(viewsets.ModelViewSet):
         start_week = today - timedelta(days=today.weekday())
         end_week = start_week + timedelta(days=6)
 
-        menus = (
-            self.get_queryset()
-            .filter(date__gte=start_week, date__lte=end_week)
-            .order_by("date", "regime")
-        )
+        menus = self.get_queryset().filter(date__gte=start_week, date__lte=end_week).order_by("date", "regime")
 
         serializer = MenuSerializer(menus, many=True)
         return Response(
@@ -77,9 +73,7 @@ class MenusViewSet(viewsets.ModelViewSet):
     def presences(self, request, pk=None):
         """Liste les présences pour ce menu."""
         menu = self.get_object()
-        presences = menu.presences.select_related("eleve__user").order_by(
-            "eleve__user__last_name"
-        )
+        presences = menu.presences.select_related("eleve__user").order_by("eleve__user__last_name")
         serializer = PresenceCantineSerializer(presences, many=True)
         return Response(serializer.data)
 
@@ -110,7 +104,7 @@ class InscriptionsCantineViewSet(viewsets.ModelViewSet):
     ordering = ["eleve__user__last_name"]
 
     def get_queryset(self):
-        return InscriptionCantine.objects.select_related("eleve__user", "eleve__classe")
+        return InscriptionCantine.objects.select_related("eleve__user", "eleve__classe_actuelle")
 
     @action(detail=False, methods=["get"])
     def statistiques(self, request):

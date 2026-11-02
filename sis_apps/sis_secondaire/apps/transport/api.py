@@ -62,9 +62,7 @@ class LignesTransportViewSet(viewsets.ModelViewSet):
         ligne = self.get_object()
         inscriptions = (
             ligne.inscriptions.filter(actif=True)
-            .select_related(
-                "eleve__user", "eleve__classe", "arret_montee", "arret_descente"
-            )
+            .select_related("eleve__user", "eleve__classe_actuelle", "arret_montee", "arret_descente")
             .order_by("arret_montee__ordre")
         )
         serializer = InscriptionTransportSerializer(inscriptions, many=True)
@@ -118,7 +116,7 @@ class InscriptionsTransportViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return InscriptionTransport.objects.select_related(
             "eleve__user",
-            "eleve__classe",
+            "eleve__classe_actuelle",
             "ligne",
             "arret_montee",
             "arret_descente",

@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from sis_common.serializers import TenantBoundSerializerMixin
+
 from .models import Salle
 
 
@@ -25,7 +27,7 @@ class SalleListSerializer(serializers.ModelSerializer):
         ]
 
 
-class SalleDetailSerializer(serializers.ModelSerializer):
+class SalleDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour une salle."""
 
     type_display = serializers.CharField(source="get_type_display", read_only=True)
@@ -49,4 +51,4 @@ class SalleDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "etablissement", "created_at", "updated_at"]

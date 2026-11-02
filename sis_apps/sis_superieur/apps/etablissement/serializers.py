@@ -8,6 +8,7 @@ from sis_common.academic_configuration import (
     catalog_options,
     merge_academic_configuration,
 )
+from sis_common.academic_dates import AcademicDatesMixin
 from sis_common.establishments import (
     FEATURE_LABELS,
     LIVE_PROVIDER_LABELS,
@@ -117,9 +118,10 @@ class UniversiteSerializer(serializers.ModelSerializer):
         return merge_academic_configuration(current, value)
 
 
-class AnneeUniversitaireSerializer(serializers.ModelSerializer):
+class AnneeUniversitaireSerializer(AcademicDatesMixin, serializers.ModelSerializer):
     """Serializer pour les années universitaires."""
 
+    tenant_field = "universite"
     nb_semestres = serializers.SerializerMethodField()
 
     class Meta:
@@ -135,15 +137,16 @@ class AnneeUniversitaireSerializer(serializers.ModelSerializer):
             "nb_semestres",
             "created_at",
         ]
-        read_only_fields = ["id", "universite", "created_at"]
+        read_only_fields = ["id", "universite", "en_cours", "cloturee", "created_at"]
 
     def get_nb_semestres(self, obj):
         return obj.semestres.count()
 
 
-class SemestreSerializer(serializers.ModelSerializer):
+class SemestreSerializer(AcademicDatesMixin, serializers.ModelSerializer):
     """Serializer pour les semestres."""
 
+    academic_year_field = "annee_universitaire"
     annee_libelle = serializers.CharField(source="annee_universitaire.libelle", read_only=True)
     type_display = serializers.CharField(source="get_type_display", read_only=True)
     libelle = serializers.SerializerMethodField()

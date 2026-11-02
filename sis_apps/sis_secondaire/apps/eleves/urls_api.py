@@ -7,6 +7,12 @@ from . import api
 app_name = "eleves_api"
 
 urlpatterns = [
+    path("importer/", api.ElevesViewSet.as_view({"post": "importer"}), name="importer"),
+    path(
+        "modele-import/",
+        api.ElevesViewSet.as_view({"get": "modele_import"}),
+        name="modele-import",
+    ),
     path("", api.ElevesViewSet.as_view({"get": "list", "post": "create"}), name="list"),
     path(
         "<int:pk>/",

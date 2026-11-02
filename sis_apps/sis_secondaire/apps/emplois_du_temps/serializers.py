@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from sis_common.serializers import TenantBoundSerializerMixin
+
 from .models import Contrainte, Creneau
 
 
@@ -12,9 +14,7 @@ class CreneauListSerializer(serializers.ModelSerializer):
     type_display = serializers.CharField(source="get_type_display", read_only=True)
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
     matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
-    enseignant_nom = serializers.CharField(
-        source="enseignant.user.get_full_name", read_only=True
-    )
+    enseignant_nom = serializers.CharField(source="enseignant.user.get_full_name", read_only=True)
     salle_nom = serializers.CharField(source="salle.nom", read_only=True)
 
     class Meta:
@@ -39,7 +39,7 @@ class CreneauListSerializer(serializers.ModelSerializer):
         ]
 
 
-class CreneauDetailSerializer(serializers.ModelSerializer):
+class CreneauDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour un créneau."""
 
     jour_display = serializers.CharField(source="get_jour_display", read_only=True)
@@ -47,9 +47,7 @@ class CreneauDetailSerializer(serializers.ModelSerializer):
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
     matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
     matiere_code = serializers.CharField(source="matiere.code", read_only=True)
-    enseignant_nom = serializers.CharField(
-        source="enseignant.user.get_full_name", read_only=True
-    )
+    enseignant_nom = serializers.CharField(source="enseignant.user.get_full_name", read_only=True)
     salle_nom = serializers.CharField(source="salle.nom", read_only=True)
 
     class Meta:
@@ -80,14 +78,23 @@ class CreneauDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        start = attrs.get("heure_debut", getattr(self.instance, "heure_debut", None))
+        end = attrs.get("heure_fin", getattr(self.instance, "heure_fin", None))
+        if start and end and start >= end:
+            raise serializers.ValidationError({"heure_fin": "La fin doit suivre le début."})
+        classe = attrs.get("classe", getattr(self.instance, "classe", None))
+        if classe and classe.annee_scolaire.cloturee:
+            raise serializers.ValidationError({"classe": "L'année scolaire est clôturée."})
+        return attrs
+
 
 class ContrainteSerializer(serializers.ModelSerializer):
     """Serializer pour les contraintes."""
 
     type_display = serializers.CharField(source="get_type_display", read_only=True)
-    enseignant_nom = serializers.CharField(
-        source="enseignant.user.get_full_name", read_only=True
-    )
+    enseignant_nom = serializers.CharField(source="enseignant.user.get_full_name", read_only=True)
     salle_nom = serializers.CharField(source="salle.nom", read_only=True)
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
     jour_display = serializers.SerializerMethodField()

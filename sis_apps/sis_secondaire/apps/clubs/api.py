@@ -53,7 +53,7 @@ class ClubsViewSet(viewsets.ModelViewSet):
         club = self.get_object()
         membres = (
             club.membres.filter(statut="actif")
-            .select_related("eleve__user", "eleve__classe")
+            .select_related("eleve__user", "eleve__classe_actuelle")
             .order_by("eleve__user__last_name")
         )
         serializer = MembreClubSerializer(membres, many=True)
@@ -73,9 +73,7 @@ class ClubsViewSet(viewsets.ModelViewSet):
         stats = Club.objects.filter(actif=True).aggregate(
             total=Count("id"),
         )
-        by_type = (
-            Club.objects.filter(actif=True).values("type").annotate(count=Count("id"))
-        )
+        by_type = Club.objects.filter(actif=True).values("type").annotate(count=Count("id"))
         stats["par_type"] = {t["type"]: t["count"] for t in by_type}
         stats["total_membres"] = MembreClub.objects.filter(statut="actif").count()
         return Response(stats)
@@ -91,7 +89,7 @@ class MembresClubViewSet(viewsets.ModelViewSet):
     ordering = ["eleve__user__last_name"]
 
     def get_queryset(self):
-        return MembreClub.objects.select_related("club", "eleve__user", "eleve__classe")
+        return MembreClub.objects.select_related("club", "eleve__user", "eleve__classe_actuelle")
 
     @action(detail=True, methods=["post"])
     def suspendre(self, request, pk=None):

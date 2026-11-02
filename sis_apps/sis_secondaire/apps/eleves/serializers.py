@@ -1,8 +1,20 @@
 """Serializers for eleves (SIS Secondaire)."""
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 
-from .models import AffectationMatiereIndividuelle, Eleve, EleveTuteur, Inscription, Tuteur
+from sis_common.serializers import TenantBoundSerializerMixin
+
+from .models import (
+    AffectationMatiereIndividuelle,
+    Eleve,
+    EleveTuteur,
+    Inscription,
+    Tuteur,
+)
 
 
 class EleveListSerializer(serializers.ModelSerializer):
@@ -11,9 +23,7 @@ class EleveListSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source="user.get_full_name", read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
     classe_nom = serializers.CharField(source="classe_actuelle.nom", read_only=True)
-    niveau_nom = serializers.CharField(
-        source="classe_actuelle.niveau.nom", read_only=True
-    )
+    niveau_nom = serializers.CharField(source="classe_actuelle.niveau.libelle", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
 
     class Meta:
@@ -35,7 +45,7 @@ class EleveListSerializer(serializers.ModelSerializer):
         ]
 
 
-class EleveDetailSerializer(serializers.ModelSerializer):
+class EleveDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour le détail d'un élève."""
 
     full_name = serializers.CharField(source="user.get_full_name", read_only=True)
@@ -84,18 +94,29 @@ class EleveDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "matricule", "qr_code", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "user",
+            "etablissement",
+            "matricule",
+            "qr_code",
+            "created_at",
+            "updated_at",
+        ]
 
 
-class EleveCreateSerializer(serializers.ModelSerializer):
+class EleveCreateSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer pour la création d'un élève."""
 
     # Données utilisateur imbriquées
-    username = serializers.CharField(write_only=True)
+    username = serializers.CharField(
+        write_only=True,
+        validators=[UniqueValidator(queryset=get_user_model().objects.all())],
+    )
     email = serializers.EmailField(write_only=True)
     first_name = serializers.CharField(write_only=True)
     last_name = serializers.CharField(write_only=True)
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, validators=[validate_password])
 
     class Meta:
         model = Eleve
@@ -119,7 +140,9 @@ class EleveCreateSerializer(serializers.ModelSerializer):
             "cantine",
             "interne",
         ]
+        read_only_fields = ["etablissement"]
 
+    @transaction.atomic
     def create(self, validated_data):
         import uuid
 
@@ -133,12 +156,16 @@ class EleveCreateSerializer(serializers.ModelSerializer):
             "first_name": validated_data.pop("first_name"),
             "last_name": validated_data.pop("last_name"),
             "role": "eleve",
+            "etablissement": validated_data["etablissement"],
         }
         password = validated_data.pop("password")
 
         # Créer l'utilisateur
         user = Utilisateur(**user_data)
-        user.set_password(password)
+        if self.context.get("unusable_password"):
+            user.set_unusable_password()
+        else:
+            user.set_password(password)
         user.save()
 
         # Générer un matricule unique
@@ -160,9 +187,7 @@ class InscriptionSerializer(serializers.ModelSerializer):
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
-    annee_libelle = serializers.CharField(
-        source="annee_scolaire.libelle", read_only=True
-    )
+    annee_libelle = serializers.CharField(source="annee_scolaire.libelle", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
 
     class Meta:
@@ -188,9 +213,7 @@ class InscriptionSerializer(serializers.ModelSerializer):
 class TuteurSerializer(serializers.ModelSerializer):
     """Serializer pour les tuteurs."""
 
-    lien_display = serializers.CharField(
-        source="get_lien_parente_display", read_only=True
-    )
+    lien_display = serializers.CharField(source="get_lien_parente_display", read_only=True)
 
     class Meta:
         model = Tuteur
@@ -240,12 +263,8 @@ class AffectationMatiereIndividuelleSerializer(serializers.ModelSerializer):
     annee_libelle = serializers.CharField(source="annee_scolaire.libelle", read_only=True)
     matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
     matiere_code = serializers.CharField(source="matiere.code", read_only=True)
-    programme_source_classe = serializers.CharField(
-        source="programme_source.classe.nom", read_only=True
-    )
-    enseignant_principal_nom = serializers.CharField(
-        source="enseignant_principal.get_full_name", read_only=True
-    )
+    programme_source_classe = serializers.CharField(source="programme_source.classe.nom", read_only=True)
+    enseignant_principal_nom = serializers.CharField(source="enseignant_principal.get_full_name", read_only=True)
 
     class Meta:
         model = AffectationMatiereIndividuelle
@@ -274,19 +293,13 @@ class AffectationMatiereIndividuelleSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         eleve = self.context.get("eleve") or getattr(self.instance, "eleve", None)
-        programme_source = attrs.get("programme_source") or getattr(
-            self.instance, "programme_source", None
-        )
+        programme_source = attrs.get("programme_source") or getattr(self.instance, "programme_source", None)
         matiere = attrs.get("matiere") or getattr(self.instance, "matiere", None)
-        annee_scolaire = attrs.get("annee_scolaire") or getattr(
-            self.instance, "annee_scolaire", None
-        )
+        annee_scolaire = attrs.get("annee_scolaire") or getattr(self.instance, "annee_scolaire", None)
 
         if programme_source:
             if matiere and programme_source.matiere_id != matiere.id:
-                raise serializers.ValidationError(
-                    {"matiere": "La matière doit correspondre au programme source."}
-                )
+                raise serializers.ValidationError({"matiere": "La matière doit correspondre au programme source."})
             attrs.setdefault("matiere", programme_source.matiere)
             attrs.setdefault("annee_scolaire", programme_source.classe.annee_scolaire)
             attrs.setdefault("coefficient", programme_source.coefficient)

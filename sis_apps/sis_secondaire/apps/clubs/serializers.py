@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from sis_common.serializers import TenantBoundSerializerMixin
+
 from .models import Club, MembreClub, SeanceClub
 
 
@@ -9,9 +11,7 @@ class ClubListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les listes de clubs."""
 
     type_display = serializers.CharField(source="get_type_display", read_only=True)
-    responsable_nom = serializers.CharField(
-        source="responsable.get_full_name", read_only=True
-    )
+    responsable_nom = serializers.CharField(source="responsable.get_full_name", read_only=True)
     nb_membres = serializers.SerializerMethodField()
 
     class Meta:
@@ -33,13 +33,11 @@ class ClubListSerializer(serializers.ModelSerializer):
         return obj.membres.filter(statut="actif").count()
 
 
-class ClubDetailSerializer(serializers.ModelSerializer):
+class ClubDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour un club."""
 
     type_display = serializers.CharField(source="get_type_display", read_only=True)
-    responsable_nom = serializers.CharField(
-        source="responsable.get_full_name", read_only=True
-    )
+    responsable_nom = serializers.CharField(source="responsable.get_full_name", read_only=True)
     nb_membres = serializers.SerializerMethodField()
 
     class Meta:
@@ -68,13 +66,13 @@ class ClubDetailSerializer(serializers.ModelSerializer):
         return obj.membres.filter(statut="actif").count()
 
 
-class MembreClubSerializer(serializers.ModelSerializer):
+class MembreClubSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les membres."""
 
     club_nom = serializers.CharField(source="club.nom", read_only=True)
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    eleve_classe = serializers.CharField(source="eleve.classe.nom", read_only=True)
+    eleve_classe = serializers.CharField(source="eleve.classe_actuelle.nom", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
 
     class Meta:

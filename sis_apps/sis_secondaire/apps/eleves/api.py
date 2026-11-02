@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.authorization import request_has_business_access
+from sis_common.learner_import import LearnerImportMixin
 
 from .models import Eleve, EleveTuteur, Inscription, Tuteur
 from .serializers import (
@@ -38,10 +39,12 @@ class IsVieScolariteOrReadOnly(IsAuthenticated):
         )
 
 
-class ElevesViewSet(viewsets.ModelViewSet):
+class ElevesViewSet(LearnerImportMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour élèves."""
 
     permission_classes = [IsVieScolariteOrReadOnly]
+    learner_model = Eleve
+    learner_create_serializer = EleveCreateSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = [
         "statut",
@@ -64,9 +67,7 @@ class ElevesViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Retourne les élèves de l'établissement courant."""
-        qs = Eleve.objects.select_related(
-            "user", "etablissement", "classe_actuelle__niveau"
-        )
+        qs = Eleve.objects.select_related("user", "etablissement", "classe_actuelle__niveau")
 
         # Filtrer par établissement du tenant
         request = self.request
@@ -75,16 +76,17 @@ class ElevesViewSet(viewsets.ModelViewSet):
 
         # Un élève ne voit que son propre profil
         user = request.user
-        if hasattr(user, "eleve_profile"):
-            if not user.is_staff and getattr(user, "role", "") == "eleve":
-                qs = qs.filter(user=user)
+        if not user.is_staff and not getattr(user, "is_superuser", False) and getattr(user, "role", "") == "eleve":
+            qs = qs.filter(user=user)
 
         # Un tuteur ne voit que ses enfants
+        if getattr(user, "role", "") == "parent" and not hasattr(user, "tuteur_profile"):
+            return qs.none()
         if hasattr(user, "tuteur_profile"):
             tuteur = user.tuteur_profile
-            eleves_ids = EleveTuteur.objects.filter(
-                tuteur=tuteur, autorise_acces_portail=True
-            ).values_list("eleve_id", flat=True)
+            eleves_ids = EleveTuteur.objects.filter(tuteur=tuteur, autorise_acces_portail=True).values_list(
+                "eleve_id", flat=True
+            )
             qs = qs.filter(id__in=eleves_ids)
 
         return qs
@@ -122,9 +124,9 @@ class ElevesViewSet(viewsets.ModelViewSet):
     def inscriptions(self, request, pk=None):
         """Liste les inscriptions d'un élève."""
         eleve = self.get_object()
-        inscriptions = eleve.inscriptions.select_related(
-            "classe", "annee_scolaire"
-        ).order_by("-annee_scolaire__date_debut")
+        inscriptions = eleve.inscriptions.select_related("classe", "annee_scolaire").order_by(
+            "-annee_scolaire__date_debut"
+        )
         serializer = InscriptionSerializer(inscriptions, many=True)
         return Response(serializer.data)
 
@@ -147,9 +149,7 @@ class ElevesViewSet(viewsets.ModelViewSet):
         try:
             nouvelle_classe = Classe.objects.get(pk=nouvelle_classe_id)
         except Classe.DoesNotExist:
-            return Response(
-                {"error": "Classe non trouvée."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Classe non trouvée."}, status=status.HTTP_404_NOT_FOUND)
 
         ancienne_classe = eleve.classe_actuelle
         eleve.classe_actuelle = nouvelle_classe
@@ -211,9 +211,7 @@ class InscriptionsViewSet(viewsets.ModelViewSet):
     ordering = ["-annee_scolaire__date_debut", "-date_inscription"]
 
     def get_queryset(self):
-        return Inscription.objects.select_related(
-            "eleve__user", "classe", "annee_scolaire"
-        )
+        return Inscription.objects.select_related("eleve__user", "classe", "annee_scolaire")
 
     @action(detail=True, methods=["post"])
     def valider(self, request, pk=None):

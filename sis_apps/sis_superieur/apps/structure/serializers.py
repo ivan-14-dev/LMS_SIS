@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from sis_common.serializers import TenantBoundSerializerMixin
+
 from .models import Departement, EcoleDoctorale, Faculte
 
 
@@ -30,9 +32,10 @@ class FaculteListSerializer(serializers.ModelSerializer):
         return obj.departements.count()
 
 
-class FaculteDetailSerializer(serializers.ModelSerializer):
+class FaculteDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour une faculté."""
 
+    tenant_field = "universite"
     universite_nom = serializers.CharField(source="universite.nom", read_only=True)
     doyen_nom = serializers.CharField(source="doyen.get_full_name", read_only=True)
     nb_departements = serializers.SerializerMethodField()
@@ -54,19 +57,17 @@ class FaculteDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "universite", "created_at", "updated_at"]
 
     def get_nb_departements(self, obj):
         return obj.departements.count()
 
 
-class DepartementSerializer(serializers.ModelSerializer):
+class DepartementSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les départements."""
 
     faculte_nom = serializers.CharField(source="faculte.nom", read_only=True)
-    directeur_nom = serializers.CharField(
-        source="directeur.get_full_name", read_only=True
-    )
+    directeur_nom = serializers.CharField(source="directeur.get_full_name", read_only=True)
 
     class Meta:
         model = Departement
@@ -85,13 +86,12 @@ class DepartementSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
-class EcoleDoctoraleSerializer(serializers.ModelSerializer):
+class EcoleDoctoraleSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les écoles doctorales."""
 
+    tenant_field = "universite"
     universite_nom = serializers.CharField(source="universite.nom", read_only=True)
-    directeur_nom = serializers.CharField(
-        source="directeur.get_full_name", read_only=True
-    )
+    directeur_nom = serializers.CharField(source="directeur.get_full_name", read_only=True)
 
     class Meta:
         model = EcoleDoctorale
@@ -106,4 +106,4 @@ class EcoleDoctoraleSerializer(serializers.ModelSerializer):
             "domaines",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "universite", "created_at"]

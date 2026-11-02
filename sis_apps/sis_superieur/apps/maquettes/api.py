@@ -39,13 +39,11 @@ class MaquettesViewSet(viewsets.ModelViewSet):
     permission_classes = [IsScolariteOrReadOnly]
     serializer_class = MaquetteSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ["formation", "semestre", "obligatoire"]
-    ordering = ["semestre", "ordre"]
+    filterset_fields = ["formation", "annee_universitaire", "statut"]
+    ordering = ["-annee_universitaire__date_debut", "formation__nom"]
 
     def get_queryset(self):
-        return MaquetteFormation.objects.select_related(
-            "formation", "semestre", "ecue__ue"
-        )
+        return MaquetteFormation.objects.select_related("formation", "annee_universitaire")
 
     @action(detail=False, methods=["get"])
     def par_formation(self, request):
@@ -54,31 +52,15 @@ class MaquettesViewSet(viewsets.ModelViewSet):
         if not formation_id:
             return Response({"error": "formation_id requis."}, status=400)
 
-        maquettes = (
-            self.get_queryset()
-            .filter(formation_id=formation_id)
-            .order_by("semestre__numero", "ordre")
-        )
+        maquettes = self.get_queryset().filter(formation_id=formation_id).order_by("-annee_universitaire__date_debut")
 
         serializer = self.get_serializer(maquettes, many=True)
         return Response(serializer.data)
 
     @action(detail=False, methods=["get"])
     def par_semestre(self, request):
-        """Maquette d'un semestre."""
-        formation_id = request.query_params.get("formation_id")
-        semestre_id = request.query_params.get("semestre_id")
-
-        if not formation_id or not semestre_id:
-            return Response(
-                {"error": "formation_id et semestre_id requis."}, status=400
-            )
-
-        maquettes = (
-            self.get_queryset()
-            .filter(formation_id=formation_id, semestre_id=semestre_id)
-            .order_by("ordre")
+        """The persisted curriculum is annual, not a row per semester."""
+        return Response(
+            {"error": "Utilisez par_formation : la structure des semestres est contenue dans la maquette annuelle."},
+            status=400,
         )
-
-        serializer = self.get_serializer(maquettes, many=True)
-        return Response(serializer.data)

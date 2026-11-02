@@ -81,11 +81,7 @@ class BatimentsInternatViewSet(viewsets.ModelViewSet):
                 "capacite_totale": capacite_totale,
                 "occupants": occupants,
                 "places_disponibles": capacite_totale - occupants,
-                "taux_occupation": (
-                    round(occupants / capacite_totale * 100, 2)
-                    if capacite_totale
-                    else 0
-                ),
+                "taux_occupation": (round(occupants / capacite_totale * 100, 2) if capacite_totale else 0),
             }
         )
 
@@ -116,7 +112,7 @@ class ChambresViewSet(viewsets.ModelViewSet):
                 date_debut__lte=today,
             )
             .filter(Q(date_fin__isnull=True) | Q(date_fin__gte=today))
-            .select_related("eleve__user", "eleve__classe")
+            .select_related("eleve__user", "eleve__classe_actuelle")
         )
         serializer = OccupantChambreSerializer(occupants, many=True)
         return Response(serializer.data)
@@ -132,10 +128,7 @@ class ChambresViewSet(viewsets.ModelViewSet):
                 filter=Q(
                     occupants__date_debut__lte=today,
                 )
-                & (
-                    Q(occupants__date_fin__isnull=True)
-                    | Q(occupants__date_fin__gte=today)
-                ),
+                & (Q(occupants__date_fin__isnull=True) | Q(occupants__date_fin__gte=today)),
             )
         ).filter(nb_occupants_actuels__lt=F("capacite"))
         serializer = ChambreListSerializer(chambres, many=True)
@@ -152,18 +145,14 @@ class OccupantsChambresViewSet(viewsets.ModelViewSet):
     ordering = ["-date_debut"]
 
     def get_queryset(self):
-        return OccupantChambre.objects.select_related(
-            "chambre__batiment", "eleve__user", "eleve__classe"
-        )
+        return OccupantChambre.objects.select_related("chambre__batiment", "eleve__user", "eleve__classe_actuelle")
 
     @action(detail=True, methods=["post"])
     def liberer(self, request, pk=None):
         """Libère la place de l'occupant."""
         occupant = self.get_object()
         if occupant.date_fin:
-            return Response(
-                {"error": "Cette occupation est déjà terminée."}, status=400
-            )
+            return Response({"error": "Cette occupation est déjà terminée."}, status=400)
 
         occupant.date_fin = timezone.now().date()
         occupant.motif_fin = request.data.get("motif", "Libération")
@@ -181,6 +170,4 @@ class EtudesSurveilleesViewSet(viewsets.ModelViewSet):
     ordering = ["-date", "-heure_debut"]
 
     def get_queryset(self):
-        return EtudeSurveillee.objects.select_related(
-            "batiment", "surveillant"
-        ).prefetch_related("eleves_presents")
+        return EtudeSurveillee.objects.select_related("batiment", "surveillant").prefetch_related("eleves_presents")

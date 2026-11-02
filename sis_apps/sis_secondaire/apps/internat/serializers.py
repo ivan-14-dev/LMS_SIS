@@ -3,6 +3,8 @@
 from django.db.models import Q
 from rest_framework import serializers
 
+from sis_common.serializers import DateRangeSerializerMixin
+
 from .models import BatimentInternat, Chambre, EtudeSurveillee, OccupantChambre
 
 
@@ -36,6 +38,7 @@ class ChambreListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les chambres."""
 
     batiment_nom = serializers.CharField(source="batiment.nom", read_only=True)
+    libelle = serializers.CharField(source="__str__", read_only=True)
     type_display = serializers.CharField(source="get_type_display", read_only=True)
     nb_occupants = serializers.SerializerMethodField()
     places_disponibles = serializers.SerializerMethodField()
@@ -46,6 +49,7 @@ class ChambreListSerializer(serializers.ModelSerializer):
             "id",
             "batiment",
             "batiment_nom",
+            "libelle",
             "numero",
             "etage",
             "type",
@@ -94,12 +98,12 @@ class ChambreDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
 
-class OccupantChambreSerializer(serializers.ModelSerializer):
+class OccupantChambreSerializer(DateRangeSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les occupants."""
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    eleve_classe = serializers.CharField(source="eleve.classe.nom", read_only=True)
+    eleve_classe = serializers.CharField(source="eleve.classe_actuelle.nom", read_only=True)
     chambre_numero = serializers.CharField(source="chambre.numero", read_only=True)
     batiment_nom = serializers.CharField(source="chambre.batiment.nom", read_only=True)
 
@@ -126,9 +130,7 @@ class EtudeSurveilleeSerializer(serializers.ModelSerializer):
     """Serializer pour les études surveillées."""
 
     batiment_nom = serializers.CharField(source="batiment.nom", read_only=True)
-    surveillant_nom = serializers.CharField(
-        source="surveillant.get_full_name", read_only=True
-    )
+    surveillant_nom = serializers.CharField(source="surveillant.get_full_name", read_only=True)
     nb_presents = serializers.SerializerMethodField()
 
     class Meta:

@@ -21,6 +21,7 @@ dans son hash : un jeton devient donc automatiquement invalide dès qu'il a
 """
 
 import logging
+from smtplib import SMTPException
 
 from django.conf import settings
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
@@ -53,20 +54,24 @@ def request_password_reset(user_model, email: str) -> None:
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = _token_generator.make_token(user)
     frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000").rstrip("/")
-    reset_link = f"{frontend_url}/reset-password/{uid}/{token}/"
+    reset_link = f"{frontend_url}/reset-password/{uid}/{token}/?sis={settings.SIS_VARIANT}"
 
-    send_mail(
-        subject="Réinitialisation de votre mot de passe SIS",
-        message=(
-            "Vous avez demandé la réinitialisation de votre mot de passe.\n\n"
-            f"Cliquez sur ce lien pour choisir un nouveau mot de passe : {reset_link}\n\n"
-            "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email : "
-            "votre mot de passe actuel reste inchangé."
-        ),
-        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@sis.local"),
-        recipient_list=[user.email],
-        fail_silently=True,
-    )
+    try:
+        send_mail(
+            subject="Réinitialisation de votre mot de passe SIS",
+            message=(
+                "Vous avez demandé la réinitialisation de votre mot de passe.\n\n"
+                f"Cliquez sur ce lien pour choisir un nouveau mot de passe : {reset_link}\n\n"
+                "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email : "
+                "votre mot de passe actuel reste inchangé."
+            ),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@sis.local"),
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+    except (SMTPException, OSError):
+        # Keep the public response indistinguishable while surfacing delivery failures.
+        logger.exception("Password reset email delivery failed.")
 
 
 def confirm_password_reset(user_model, uidb64: str, token: str, new_password: str) -> bool:

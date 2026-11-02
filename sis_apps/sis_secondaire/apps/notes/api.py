@@ -3,10 +3,12 @@
 from decimal import Decimal
 
 from apps.core.serializers import WorkflowEventSerializer
+from apps.eleves.models import Eleve
 from django.db import transaction
 from django.db.models import Avg, Count, F, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -21,6 +23,7 @@ from sis_common.authorization import (
     user_has_any_role,
 )
 from sis_common.document_policies import enforce_financial_clearance, get_action_object
+from sis_common.grade_entry import GradeLearnerSerializer, validate_grade_batch
 from sis_common.official_documents import render_official_pdf, tenant_identity_rows
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
@@ -154,18 +157,16 @@ CONTINUOUS_ASSESSMENT_TYPES = {
 
 
 def _continuous_assessment_template_enabled(request):
-    templates = (
-        getattr(getattr(request, "tenant", None), "configuration_academique", {}) or {}
-    ).get("import_templates", [])
+    templates = (getattr(getattr(request, "tenant", None), "configuration_academique", {}) or {}).get(
+        "import_templates", []
+    )
     return any(template.get("code") == "continuous_assessment_grades" for template in templates)
 
 
 def _ensure_submission_window(obj, label="La période de soumission"):
     now = timezone.now()
     if getattr(obj, "debut_soumission", None) and now < obj.debut_soumission:
-        raise serializers.ValidationError(
-            {"soumission": f"{label} n'est pas encore ouverte."}
-        )
+        raise serializers.ValidationError({"soumission": f"{label} n'est pas encore ouverte."})
     if getattr(obj, "fin_soumission", None) and now > obj.fin_soumission:
         raise serializers.ValidationError({"soumission": f"{label} est expirée."})
 
@@ -173,54 +174,28 @@ def _ensure_submission_window(obj, label="La période de soumission"):
 def _ensure_secondary_continuous_assessment(evaluation):
     if evaluation.type not in CONTINUOUS_ASSESSMENT_TYPES:
         raise serializers.ValidationError(
-            {
-                "evaluation": (
-                    "Seules les évaluations de contrôle continu peuvent être importées ici."
-                )
-            }
+            {"evaluation": ("Seules les évaluations de contrôle continu peuvent être importées ici.")}
         )
     _ensure_submission_window(evaluation)
     if evaluation.classe.annee_scolaire.cloturee or evaluation.periode.cloturee:
         raise serializers.ValidationError(
-            {
-                "evaluation": (
-                    "Cette évaluation est verrouillée car l'année ou la période est clôturée."
-                )
-            }
+            {"evaluation": ("Cette évaluation est verrouillée car l'année ou la période est clôturée.")}
         )
+
+
+def _secondary_eligible_students(evaluation):
+    enrolled = evaluation.classe.inscriptions.filter(
+        statut__in=("en_cours", "validee"),
+    ).values("eleve_id")
+    students = Eleve.objects.filter(Q(classe_actuelle=evaluation.classe) | Q(pk__in=enrolled))
+    if evaluation.eleve_cible_id:
+        students = students.filter(pk=evaluation.eleve_cible_id)
+    return students.select_related("user").order_by("user__last_name", "user__first_name", "pk")
 
 
 def _secondary_eligible_student_map(evaluation, matricules):
-    if evaluation.eleve_cible_id:
-        eleve = (
-            evaluation.classe.eleves_actuels.filter(pk=evaluation.eleve_cible_id).first()
-            or evaluation.classe.inscriptions.select_related("eleve")
-            .filter(
-                eleve_id=evaluation.eleve_cible_id,
-                statut__in=("en_cours", "validee"),
-            )
-            .first()
-        )
-        if not eleve:
-            return set(), {}
-        eleve = getattr(eleve, "eleve", eleve)
-        if eleve.matricule not in matricules:
-            return {eleve.pk}, {}
-        return {eleve.pk}, {eleve.matricule: eleve}
-    enrolled = evaluation.classe.eleves_actuels.filter(matricule__in=matricules)
-    enrolled_ids = set(enrolled.values_list("pk", flat=True))
-    enrolled_map = {eleve.matricule: eleve for eleve in enrolled}
-    validated = (
-        evaluation.classe.inscriptions.filter(
-            eleve__matricule__in=matricules,
-            statut__in=("en_cours", "validee"),
-        )
-        .select_related("eleve")
-    )
-    for inscription in validated:
-        enrolled_ids.add(inscription.eleve_id)
-        enrolled_map[inscription.eleve.matricule] = inscription.eleve
-    return enrolled_ids, enrolled_map
+    students = list(_secondary_eligible_students(evaluation).filter(matricule__in=matricules))
+    return {student.pk for student in students}, {student.matricule: student for student in students}
 
 
 def _import_secondary_notes(evaluation, rows, request):
@@ -236,9 +211,7 @@ def _import_secondary_notes(evaluation, rows, request):
             row_number = row["__row_number__"]
             matricule = str(row["matricule"]).strip()
             if not matricule:
-                raise serializers.ValidationError(
-                    {"matricule": f"Ligne {row_number}: matricule requis."}
-                )
+                raise serializers.ValidationError({"matricule": f"Ligne {row_number}: matricule requis."})
             if matricule in seen:
                 raise serializers.ValidationError(
                     {"file": f"Ligne {row_number}: doublon incohérent détecté pour {matricule}."}
@@ -252,18 +225,14 @@ def _import_secondary_notes(evaluation, rows, request):
             statut = str(row.get("statut") or "presente").strip() or "presente"
             valid_statuses = {code for code, _label in Note.STATUT_CHOICES}
             if statut not in valid_statuses:
-                raise serializers.ValidationError(
-                    {"statut": f"Ligne {row_number}: statut invalide."}
-                )
+                raise serializers.ValidationError({"statut": f"Ligne {row_number}: statut invalide."})
             raw_note = row.get("note")
             valeur = None
             if raw_note not in (None, ""):
                 try:
                     valeur = Decimal(str(raw_note))
                 except (ArithmeticError, TypeError, ValueError):
-                    raise serializers.ValidationError(
-                        {"note": f"Ligne {row_number}: note invalide."}
-                    ) from None
+                    raise serializers.ValidationError({"note": f"Ligne {row_number}: note invalide."}) from None
                 if valeur < 0 or valeur > evaluation.bareme:
                     raise serializers.ValidationError(
                         {"note": f"Ligne {row_number}: la note doit respecter le barème."}
@@ -315,9 +284,7 @@ class IsEnseignantOrVieScolarite(IsAuthenticated):
 
 class IsAcademicAdmin(IsAuthenticated):
     def has_permission(self, request, view):
-        return super().has_permission(
-            request, view
-        ) and has_business_permission_or_role(
+        return super().has_permission(request, view) and has_business_permission_or_role(
             request.user,
             "notes.change_reglevalidation",
             ("direction", "responsable_pedagogique", "vie_scolaire"),
@@ -336,9 +303,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     ordering = ["-date"]
 
     def get_queryset(self):
-        qs = Evaluation.objects.select_related(
-            "matiere", "classe", "periode", "enseignant__user", "eleve_cible__user"
-        )
+        qs = Evaluation.objects.select_related("matiere", "classe", "periode", "enseignant__user", "eleve_cible__user")
         user = self.request.user
         if not user.is_staff and user_has_any_role(user, ("enseignant",)):
             if hasattr(user, "personnel_profile"):
@@ -443,47 +408,39 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         )
         instance.delete()
 
+    @extend_schema(responses=GradeLearnerSerializer(many=True))
+    @action(detail=True, methods=["get"])
+    def apprenants(self, request, pk=None):
+        students = _secondary_eligible_students(self.get_object())
+        page = self.paginate_queryset(students)
+        return self.get_paginated_response(GradeLearnerSerializer(page, many=True).data)
+
     @action(detail=True, methods=["get"])
     def notes(self, request, pk=None):
         """Liste les notes d'une évaluation."""
         evaluation = self.get_object()
-        notes = evaluation.notes.select_related("eleve__user").order_by(
-            "eleve__user__last_name"
-        )
+        notes = evaluation.notes.select_related("eleve__user").order_by("eleve__user__last_name")
         serializer = NoteSerializer(notes, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def saisir_notes(self, request, pk=None):
         """Saisie en masse des notes."""
         evaluation = self.get_object()
         _ensure_secondary_continuous_assessment(evaluation)
-        serializer = NoteSaisieSerializer(data=request.data, many=True)
+        serializer = NoteSaisieSerializer(data=request.data, many=True, allow_empty=False, max_length=1000)
         serializer.is_valid(raise_exception=True)
+        validate_grade_batch(serializer.validated_data, "eleve_id", evaluation.bareme)
 
         student_ids = {item["eleve_id"] for item in serializer.validated_data}
-        if evaluation.eleve_cible_id:
-            eligible_student_ids = {evaluation.eleve_cible_id} if evaluation.eleve_cible_id in student_ids else set()
-        else:
-            eligible_student_ids = set(
-                evaluation.classe.eleves_actuels.filter(pk__in=student_ids).values_list(
-                    "pk", flat=True
-                )
-            )
-            eligible_student_ids.update(
-                evaluation.classe.inscriptions.filter(
-                    eleve_id__in=student_ids,
-                    statut__in=("en_cours", "validee"),
-                ).values_list("eleve_id", flat=True)
-            )
+        eligible_student_ids = set(
+            _secondary_eligible_students(evaluation).filter(pk__in=student_ids).values_list("pk", flat=True)
+        )
         invalid_student_ids = sorted(student_ids - eligible_student_ids)
         if invalid_student_ids:
             raise serializers.ValidationError(
-                {
-                    "eleve_id": (
-                        f"Élèves non autorisés pour cette évaluation: {invalid_student_ids}."
-                    )
-                }
+                {"eleve_id": (f"Élèves non autorisés pour cette évaluation: {invalid_student_ids}.")}
             )
 
         created = 0
@@ -560,9 +517,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError({"file": "Un fichier Excel est requis."})
         rows = load_excel_rows(uploaded_file, CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS)
         if not rows:
-            raise serializers.ValidationError(
-                {"file": "Le fichier ne contient aucune ligne exploitable."}
-            )
+            raise serializers.ValidationError({"file": "Le fichier ne contient aucune ligne exploitable."})
         created, updated = _import_secondary_notes(evaluation, rows, request)
         record_workflow_event(
             request,
@@ -645,11 +600,7 @@ class NotesViewSet(viewsets.ModelViewSet):
         if hasattr(user, "eleve_profile"):
             if not user.is_staff and user_has_any_role(user, ("eleve",)):
                 return qs.filter(eleve__user=user)
-        if (
-            not user.is_staff
-            and user_has_any_role(user, ("enseignant",))
-            and hasattr(user, "personnel_profile")
-        ):
+        if not user.is_staff and user_has_any_role(user, ("enseignant",)) and hasattr(user, "personnel_profile"):
             return qs.filter(evaluation__enseignant=user.personnel_profile)
         if hasattr(user, "tuteur_profile"):
             from apps.eleves.models import EleveTuteur
@@ -739,11 +690,7 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         qs = Bulletin.objects.select_related("eleve__user", "classe", "periode").annotate(
             nb_matieres_individualisees=Count(
                 "eleve__affectations_matiere_individuelles",
-                filter=Q(
-                    eleve__affectations_matiere_individuelles__annee_scolaire_id=F(
-                        "classe__annee_scolaire_id"
-                    )
-                ),
+                filter=Q(eleve__affectations_matiere_individuelles__annee_scolaire_id=F("classe__annee_scolaire_id")),
                 distinct=True,
             )
         )
@@ -758,9 +705,7 @@ class BulletinsViewSet(viewsets.ModelViewSet):
                 tuteur=user.tuteur_profile, autorise_acces_portail=True
             ).values_list("eleve_id", flat=True)
             return qs.filter(eleve_id__in=eleves_ids, publie=True)
-        if not user.is_staff and user_has_any_role(user, ("enseignant",)) and hasattr(
-            user, "personnel_profile"
-        ):
+        if not user.is_staff and user_has_any_role(user, ("enseignant",)) and hasattr(user, "personnel_profile"):
             return qs.filter(classe__prof_principal=user.personnel_profile)
         if not request_has_business_access(
             self.request,
@@ -930,9 +875,7 @@ class ReglesValidationViewSet(viewsets.ModelViewSet):
     ordering = ["priorite", "code"]
 
     def get_queryset(self):
-        return RegleValidation.objects.select_related(
-            "annee_scolaire", "niveau", "classe"
-        )
+        return RegleValidation.objects.select_related("annee_scolaire", "niveau", "classe")
 
     @action(detail=True, methods=["post"])
     def evaluer(self, request, pk=None):
@@ -955,7 +898,5 @@ class EvaluationRegleInputSerializer(serializers.Serializer):
     moyenne = serializers.DecimalField(max_digits=7, decimal_places=2)
     credits = serializers.DecimalField(max_digits=7, decimal_places=2, default=0)
     matieres_echouees = serializers.IntegerField(min_value=0, default=0)
-    note_minimale = serializers.DecimalField(
-        max_digits=7, decimal_places=2, required=False, allow_null=True
-    )
+    note_minimale = serializers.DecimalField(max_digits=7, decimal_places=2, required=False, allow_null=True)
     donnees = serializers.JSONField(default=dict)

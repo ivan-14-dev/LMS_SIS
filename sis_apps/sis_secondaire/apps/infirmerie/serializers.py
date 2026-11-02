@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from sis_common.serializers import TenantBoundSerializerMixin
+
 from .models import DossierMedical, StockMedicament, VisiteInfirmerie
 
 
@@ -10,7 +12,7 @@ class DossierMedicalSerializer(serializers.ModelSerializer):
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    eleve_classe = serializers.CharField(source="eleve.classe.nom", read_only=True)
+    eleve_classe = serializers.CharField(source="eleve.classe_actuelle.nom", read_only=True)
 
     class Meta:
         model = DossierMedical
@@ -40,13 +42,9 @@ class VisiteInfirmerieListSerializer(serializers.ModelSerializer):
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    eleve_classe = serializers.CharField(source="eleve.classe.nom", read_only=True)
-    orientation_display = serializers.CharField(
-        source="get_orientation_display", read_only=True
-    )
-    infirmier_nom = serializers.CharField(
-        source="infirmier.get_full_name", read_only=True
-    )
+    eleve_classe = serializers.CharField(source="eleve.classe_actuelle.nom", read_only=True)
+    orientation_display = serializers.CharField(source="get_orientation_display", read_only=True)
+    infirmier_nom = serializers.CharField(source="infirmier.get_full_name", read_only=True)
 
     class Meta:
         model = VisiteInfirmerie
@@ -68,18 +66,14 @@ class VisiteInfirmerieListSerializer(serializers.ModelSerializer):
         ]
 
 
-class VisiteInfirmerieDetailSerializer(serializers.ModelSerializer):
+class VisiteInfirmerieDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour une visite."""
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    eleve_classe = serializers.CharField(source="eleve.classe.nom", read_only=True)
-    orientation_display = serializers.CharField(
-        source="get_orientation_display", read_only=True
-    )
-    infirmier_nom = serializers.CharField(
-        source="infirmier.get_full_name", read_only=True
-    )
+    eleve_classe = serializers.CharField(source="eleve.classe_actuelle.nom", read_only=True)
+    orientation_display = serializers.CharField(source="get_orientation_display", read_only=True)
+    infirmier_nom = serializers.CharField(source="infirmier.get_full_name", read_only=True)
 
     class Meta:
         model = VisiteInfirmerie
@@ -103,7 +97,7 @@ class VisiteInfirmerieDetailSerializer(serializers.ModelSerializer):
             "parents_prevenus",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "created_at", "infirmier"]
 
 
 class StockMedicamentSerializer(serializers.ModelSerializer):

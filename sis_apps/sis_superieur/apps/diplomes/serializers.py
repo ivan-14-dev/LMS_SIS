@@ -25,6 +25,7 @@ class DiplomeSerializer(serializers.ModelSerializer):
             "code_rncp",
             "credits_ects",
             "conditions",
+            "nb_cessions",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
@@ -36,16 +37,10 @@ class DiplomeSerializer(serializers.ModelSerializer):
 class CessionDiplomeListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les listes de cessions."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
     diplome_nom = serializers.CharField(source="diplome.nom", read_only=True)
-    annee_libelle = serializers.CharField(
-        source="annee_universitaire.libelle", read_only=True
-    )
+    annee_libelle = serializers.CharField(source="annee_universitaire.libelle", read_only=True)
 
     class Meta:
         model = CessionDiplome
@@ -70,19 +65,11 @@ class CessionDiplomeListSerializer(serializers.ModelSerializer):
 class CessionDiplomeDetailSerializer(serializers.ModelSerializer):
     """Serializer complet pour une cession de diplôme."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
     diplome_nom = serializers.CharField(source="diplome.nom", read_only=True)
-    annee_libelle = serializers.CharField(
-        source="annee_universitaire.libelle", read_only=True
-    )
-    signe_par_nom = serializers.CharField(
-        source="signe_par.get_full_name", read_only=True
-    )
+    annee_libelle = serializers.CharField(source="annee_universitaire.libelle", read_only=True)
+    signe_par_nom = serializers.CharField(source="signe_par.get_full_name", read_only=True)
 
     class Meta:
         model = CessionDiplome

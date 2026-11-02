@@ -70,7 +70,17 @@ def _report_metadata(request, report, supplied_filters):
     tenant = getattr(request, "tenant", None)
     filter_pairs = []
     included_filter_keys = set()
-    for key in ("annee", "periode", "session", "semestre", "classe", "formation", "matiere", "ecue", "ue"):
+    for key in (
+        "annee",
+        "periode",
+        "session",
+        "semestre",
+        "classe",
+        "formation",
+        "matiere",
+        "ecue",
+        "ue",
+    ):
         value = supplied_filters.get(key)
         if value not in (None, ""):
             included_filter_keys.add(key)
@@ -78,7 +88,14 @@ def _report_metadata(request, report, supplied_filters):
     extra_filters = {key: value for key, value in supplied_filters.items() if key not in included_filter_keys}
     metadata = [
         ("Établissement", getattr(tenant, "nom", "")),
-        ("Type", tenant.get_type_display() if tenant and hasattr(tenant, "get_type_display") else getattr(tenant, "type", "")),
+        (
+            "Type",
+            (
+                tenant.get_type_display()
+                if tenant and hasattr(tenant, "get_type_display")
+                else getattr(tenant, "type", "")
+            ),
+        ),
         ("Rapport", report.get("label", report.get("code", ""))),
         ("Dataset", report.get("dataset", "")),
         ("Généré le", timezone.now().strftime("%Y-%m-%d %H:%M:%S")),
@@ -149,9 +166,7 @@ def _pdf_response(report, metadata, headers, rows):
     except ImportError as exc:
         raise ValidationError({"format": "Le support PDF n'est pas disponible."}) from exc
 
-    metadata_rows = "".join(
-        f"<tr><th>{escape(label)}</th><td>{escape(value)}</td></tr>" for label, value in metadata
-    )
+    metadata_rows = "".join(f"<tr><th>{escape(label)}</th><td>{escape(value)}</td></tr>" for label, value in metadata)
     table_rows_parts = []
     for row in rows:
         row_cells = "".join(f"<td>{escape(value)}</td>" for value in row)
@@ -183,7 +198,7 @@ def _pdf_response(report, metadata, headers, rows):
     """
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{report["code"]}.pdf"'
-    HTML(string=html).write_pdf(response)
+    HTML(string=html).write_pdf(response, presentational_hints=False)
     return response
 
 

@@ -21,6 +21,9 @@ ne lève pas d'erreur.
 
 import logging
 
+from django.contrib.sessions.models import Session
+from django.utils import timezone
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,6 +38,12 @@ def revoke_all_sessions(user) -> dict:
         les tests : ``{"token_revoked": bool, "jwt_tokens_revoked": int}``.
     """
     summary = {"token_revoked": False, "jwt_tokens_revoked": 0}
+    session_keys = [
+        session.session_key
+        for session in Session.objects.filter(expire_date__gt=timezone.now()).iterator()
+        if session.get_decoded().get("_auth_user_id") == str(user.pk)
+    ]
+    summary["django_sessions_revoked"] = Session.objects.filter(session_key__in=session_keys).delete()[0]
 
     try:
         from rest_framework.authtoken.models import Token
@@ -94,9 +103,7 @@ def list_active_sessions(user) -> list:
         logger.debug("Blacklist SimpleJWT indisponible : aucune session listée pour %s", user.pk)
         return []
 
-    blacklisted_ids = set(
-        BlacklistedToken.objects.filter(token__user=user).values_list("token_id", flat=True)
-    )
+    blacklisted_ids = set(BlacklistedToken.objects.filter(token__user=user).values_list("token_id", flat=True))
     sessions = []
     for token in OutstandingToken.objects.filter(user=user).order_by("-created_at"):
         sessions.append(

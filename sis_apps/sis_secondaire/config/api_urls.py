@@ -9,9 +9,12 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenBlacklistView, TokenRefreshView
 
+from sis_common.session_views import LocalSessionView
+
 router = DefaultRouter()
 
 urlpatterns = [
+    path("auth/session/", LocalSessionView.as_view(), name="local-session"),
     path("auth/token/", MFATokenObtainPairView.as_view(), name="token-obtain-pair"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("auth/token/blacklist/", TokenBlacklistView.as_view(), name="token-blacklist"),

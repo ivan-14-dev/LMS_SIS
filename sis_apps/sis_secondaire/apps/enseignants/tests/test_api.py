@@ -72,3 +72,23 @@ class PersonnelAPITestCase(TenantAPITestCase):
         )
 
         assert response.status_code == 403
+
+    def test_created_teacher_can_authenticate_in_the_institution(self):
+        self.direction.is_superuser = True
+        self.direction.save()
+        self.client.force_authenticate(self.direction)
+        data = {
+            "username": "new-teacher",
+            "email": "teacher@example.test",
+            "first_name": "New",
+            "last_name": "Teacher",
+            "password": TEST_USER_PASSWORD,
+            "date_embauche": "2026-09-01",
+        }
+        response = self.client.post("/api/v1/enseignants/personnel/", data, format="json")
+        assert response.status_code == 201, response.data
+        user = Utilisateur.objects.get(username="new-teacher")
+        assert user.etablissement == self.tenant
+        assert user.check_password(TEST_USER_PASSWORD)
+        assert Personnel.objects.filter(user=user).exists()
+        assert self.client.post("/api/v1/enseignants/personnel/", data, format="json").status_code == 400

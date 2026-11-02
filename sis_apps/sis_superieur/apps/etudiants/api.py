@@ -10,7 +10,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.authorization import request_has_business_access
-from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
+from sis_common.learner_import import LearnerImportMixin
+from sis_common.workflow_tracking import (
+    record_workflow_event,
+    workflow_history_queryset,
+)
 
 from .models import AffectationECUEIndividuelle, Etudiant, InscriptionAdministrative
 from .serializers import (
@@ -49,10 +53,13 @@ class IsScolariteOrReadOnly(IsAuthenticated):
         )
 
 
-class EtudiantsViewSet(viewsets.ModelViewSet):
+class EtudiantsViewSet(LearnerImportMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour étudiants."""
 
     permission_classes = [IsScolariteOrReadOnly]
+    learner_model = Etudiant
+    learner_create_serializer = EtudiantCreateSerializer
+    import_extra_columns = ("matricule", "telephone")
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = [
         "statut",
@@ -73,9 +80,7 @@ class EtudiantsViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Retourne les étudiants de l'établissement courant."""
-        qs = Etudiant.objects.select_related(
-            "user", "universite", "annee_universitaire_actuelle"
-        )
+        qs = Etudiant.objects.select_related("user", "universite", "annee_universitaire_actuelle")
 
         # Filtrer par université du tenant
         request = self.request
@@ -84,9 +89,8 @@ class EtudiantsViewSet(viewsets.ModelViewSet):
 
         # Un étudiant ne voit que son propre profil
         user = request.user
-        if hasattr(user, "etudiant_profile"):
-            if not user.is_staff and getattr(user, "role", "") == "etudiant":
-                qs = qs.filter(user=user)
+        if not user.is_staff and not getattr(user, "is_superuser", False) and getattr(user, "role", "") == "etudiant":
+            qs = qs.filter(user=user)
 
         return qs
 
@@ -138,9 +142,7 @@ class EtudiantsViewSet(viewsets.ModelViewSet):
 
         if nouveau_statut not in dict(Etudiant.STATUT_CHOICES):
             return Response(
-                {
-                    "error": f"Statut invalide. Valeurs possibles: {list(dict(Etudiant.STATUT_CHOICES).keys())}"
-                },
+                {"error": f"Statut invalide. Valeurs possibles: {list(dict(Etudiant.STATUT_CHOICES).keys())}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

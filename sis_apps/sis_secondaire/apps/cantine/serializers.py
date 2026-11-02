@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from sis_common.serializers import DateRangeSerializerMixin
+
 from .models import InscriptionCantine, Menu, PresenceCantine
 
 
@@ -29,15 +31,13 @@ class MenuSerializer(serializers.ModelSerializer):
         return dict(obj._meta.get_field("regime").choices).get(obj.regime, "")
 
 
-class InscriptionCantineSerializer(serializers.ModelSerializer):
+class InscriptionCantineSerializer(DateRangeSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les inscriptions cantine."""
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    eleve_classe = serializers.CharField(source="eleve.classe.nom", read_only=True)
-    forfait_display = serializers.CharField(
-        source="get_forfait_display", read_only=True
-    )
+    eleve_classe = serializers.CharField(source="eleve.classe_actuelle.nom", read_only=True)
+    forfait_display = serializers.CharField(source="get_forfait_display", read_only=True)
     regime_display = serializers.SerializerMethodField()
 
     class Meta:

@@ -1,5 +1,6 @@
 """API views for etablissement (ViewSets DRF) - SIS Supérieur."""
 
+from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -147,9 +148,13 @@ class AnneesUniversitairesViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def activer(self, request, pk=None):
         """Active l'année universitaire."""
+        type(request.tenant).objects.select_for_update().get(pk=request.tenant.pk)
         annee = self.get_object()
+        if annee.cloturee:
+            return Response({"error": "Une année clôturée ne peut pas être réactivée."}, status=400)
         # Désactiver les autres années de la même université
         AnneeUniversitaire.objects.filter(universite=annee.universite, en_cours=True).exclude(pk=annee.pk).update(
             en_cours=False
@@ -160,8 +165,10 @@ class AnneesUniversitairesViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Année activée.", "id": annee.id})
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def cloturer(self, request, pk=None):
         """Clôture l'année universitaire."""
+        type(request.tenant).objects.select_for_update().get(pk=request.tenant.pk)
         annee = self.get_object()
         if annee.cloturee:
             return Response({"error": "Année déjà clôturée."}, status=400)

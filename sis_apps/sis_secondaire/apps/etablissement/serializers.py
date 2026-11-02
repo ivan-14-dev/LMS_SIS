@@ -8,12 +8,14 @@ from sis_common.academic_configuration import (
     catalog_options,
     merge_academic_configuration,
 )
+from sis_common.academic_dates import AcademicDatesMixin
 from sis_common.establishments import (
     FEATURE_LABELS,
     LIVE_PROVIDER_LABELS,
     default_establishment_features,
     default_live_configuration,
 )
+from sis_common.serializers import TenantBoundSerializerMixin
 
 from .models import AnneeScolaire, Etablissement, Niveau, Periode
 
@@ -129,7 +131,7 @@ class EtablissementSerializer(serializers.ModelSerializer):
         return merge_academic_configuration(current, value)
 
 
-class AnneeScolaireSerializer(serializers.ModelSerializer):
+class AnneeScolaireSerializer(AcademicDatesMixin, serializers.ModelSerializer):
     """Serializer pour les années scolaires."""
 
     nb_periodes = serializers.SerializerMethodField()
@@ -148,15 +150,23 @@ class AnneeScolaireSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "etablissement", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "etablissement",
+            "en_cours",
+            "cloturee",
+            "created_at",
+            "updated_at",
+        ]
 
     def get_nb_periodes(self, obj):
         return obj.periodes.count()
 
 
-class PeriodeSerializer(serializers.ModelSerializer):
+class PeriodeSerializer(AcademicDatesMixin, serializers.ModelSerializer):
     """Serializer pour les périodes."""
 
+    academic_year_field = "annee_scolaire"
     annee_libelle = serializers.CharField(source="annee_scolaire.libelle", read_only=True)
     type_display = serializers.CharField(source="get_type_display", read_only=True)
 
@@ -183,7 +193,7 @@ class PeriodeSerializer(serializers.ModelSerializer):
         return value
 
 
-class NiveauSerializer(serializers.ModelSerializer):
+class NiveauSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     class Meta:
         model = Niveau
         fields = ["id", "etablissement", "code", "libelle", "ordre", "cycle"]

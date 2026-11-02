@@ -1,6 +1,12 @@
 """Serializers for enseignants (SIS Secondaire)."""
 
+from apps.utilisateurs.models import Utilisateur
+from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
+
+from sis_common.serializers import TenantBoundSerializerMixin
 
 from .models import AffectationEnseignant, MatiereEnseignee, Personnel
 
@@ -27,7 +33,7 @@ class PersonnelListSerializer(serializers.ModelSerializer):
         ]
 
 
-class PersonnelDetailSerializer(serializers.ModelSerializer):
+class PersonnelDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour le détail d'un personnel."""
 
     full_name = serializers.CharField(source="user.get_full_name", read_only=True)
@@ -68,9 +74,7 @@ class PersonnelDetailSerializer(serializers.ModelSerializer):
 class MatiereEnseigneeSerializer(serializers.ModelSerializer):
     """Serializer pour les matières enseignées."""
 
-    enseignant_nom = serializers.CharField(
-        source="enseignant.user.get_full_name", read_only=True
-    )
+    enseignant_nom = serializers.CharField(source="enseignant.user.get_full_name", read_only=True)
     matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
     matiere_code = serializers.CharField(source="matiere.code", read_only=True)
 
@@ -92,14 +96,10 @@ class MatiereEnseigneeSerializer(serializers.ModelSerializer):
 class AffectationEnseignantSerializer(serializers.ModelSerializer):
     """Serializer pour les affectations enseignant."""
 
-    enseignant_nom = serializers.CharField(
-        source="enseignant.user.get_full_name", read_only=True
-    )
+    enseignant_nom = serializers.CharField(source="enseignant.user.get_full_name", read_only=True)
     matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
     classes_noms = serializers.SerializerMethodField()
-    annee_libelle = serializers.CharField(
-        source="annee_scolaire.libelle", read_only=True
-    )
+    annee_libelle = serializers.CharField(source="annee_scolaire.libelle", read_only=True)
 
     class Meta:
         model = AffectationEnseignant
@@ -125,7 +125,7 @@ class AffectationEnseignantSerializer(serializers.ModelSerializer):
 class PersonnelCreateSerializer(serializers.ModelSerializer):
     """Serializer pour la création de personnel."""
 
-    username = serializers.CharField(write_only=True)
+    username = serializers.CharField(write_only=True, validators=[UniqueValidator(queryset=Utilisateur.objects.all())])
     email = serializers.EmailField(write_only=True)
     first_name = serializers.CharField(write_only=True)
     last_name = serializers.CharField(write_only=True)
@@ -137,6 +137,7 @@ class PersonnelCreateSerializer(serializers.ModelSerializer):
             ("administratif", "Administratif"),
         ],
         default="enseignant",
+        write_only=True,
     )
 
     class Meta:
@@ -154,6 +155,11 @@ class PersonnelCreateSerializer(serializers.ModelSerializer):
             "heures_contractuelles",
         ]
 
+    def validate_password(self, value):
+        validate_password(value)
+        return value
+
+    @transaction.atomic
     def create(self, validated_data):
         import uuid
 
@@ -170,13 +176,11 @@ class PersonnelCreateSerializer(serializers.ModelSerializer):
         }
         password = validated_data.pop("password")
 
-        user = Utilisateur(**user_data)
+        user = Utilisateur(**user_data, etablissement=self.context["request"].tenant)
         user.set_password(password)
         user.save()
 
         matricule = f"PER{timezone.now().year}{uuid.uuid4().hex[:6].upper()}"
 
-        personnel = Personnel.objects.create(
-            user=user, matricule=matricule, **validated_data
-        )
+        personnel = Personnel.objects.create(user=user, matricule=matricule, **validated_data)
         return personnel

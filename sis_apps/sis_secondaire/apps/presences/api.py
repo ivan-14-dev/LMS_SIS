@@ -1,10 +1,12 @@
 """API views for presences (ViewSets DRF) - SIS Secondaire."""
 
+from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -18,6 +20,7 @@ from .serializers import (
     JustificatifSerializer,
     PresenceSaisieSerializer,
     PresenceSerializer,
+    validate_attendance,
 )
 
 
@@ -29,10 +32,24 @@ class IsEnseignantOrVieScolarite(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
+        if getattr(view, "action", None) == "valider":
+            return request_has_business_access(
+                request,
+                "presences.change_appel",
+                ("vie_scolaire", "cpe", "directeur", "proviseur", "principal"),
+                tenant_group_codes=("attendance_manager_secondary",),
+            )
         return request_has_business_access(
             request,
             "presences.change_appel",
-            ("enseignant", "vie_scolaire", "cpe", "directeur", "proviseur", "principal"),
+            (
+                "enseignant",
+                "vie_scolaire",
+                "cpe",
+                "directeur",
+                "proviseur",
+                "principal",
+            ),
             tenant_group_codes=("attendance_manager_secondary",),
         )
 
@@ -67,22 +84,47 @@ class AppelsViewSet(viewsets.ModelViewSet):
             return AppelListSerializer
         return AppelDetailSerializer
 
+    @transaction.atomic
+    def perform_update(self, serializer):
+        appel = Appel.objects.select_for_update().get(pk=serializer.instance.pk)
+        validate_attendance(self.request, appel)
+        serializer.save()
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        appel = Appel.objects.select_for_update().get(pk=instance.pk)
+        validate_attendance(self.request, appel)
+        instance.delete()
+
     @action(detail=True, methods=["get"])
     def presences(self, request, pk=None):
         """Liste les présences de l'appel."""
         appel = self.get_object()
-        presences = appel.presences.select_related("eleve__user").order_by(
-            "eleve__user__last_name"
-        )
+        presences = appel.presences.select_related("eleve__user").order_by("eleve__user__last_name")
         serializer = PresenceSerializer(presences, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def saisir_presences(self, request, pk=None):
         """Saisie en masse des présences."""
         appel = self.get_object()
+        appel = Appel.objects.select_for_update().get(pk=appel.pk)
+        validate_attendance(request, appel)
         serializer = PresenceSaisieSerializer(data=request.data, many=True)
         serializer.is_valid(raise_exception=True)
+        identifiers = [item["eleve_id"] for item in serializer.validated_data]
+        if len(set(identifiers)) != len(identifiers):
+            raise ValidationError({"eleve_id": "Un élève ne peut apparaître qu'une fois dans le lot."})
+        from apps.eleves.models import Eleve
+
+        valid_ids = set(
+            Eleve.objects.filter(pk__in=identifiers, classe_actuelle_id=appel.creneau.classe_id).values_list(
+                "pk", flat=True
+            )
+        )
+        if valid_ids != set(identifiers):
+            raise ValidationError({"eleve_id": "Tous les élèves doivent appartenir à la classe de l'appel."})
 
         created = 0
         updated = 0
@@ -110,9 +152,11 @@ class AppelsViewSet(viewsets.ModelViewSet):
         )
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def fermer(self, request, pk=None):
         """Ferme un appel."""
         appel = self.get_object()
+        appel = Appel.objects.select_for_update().get(pk=appel.pk)
         if appel.statut != "ouvert":
             return Response({"error": "L'appel n'est pas ouvert."}, status=400)
         appel.statut = "ferme"
@@ -120,10 +164,12 @@ class AppelsViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Appel fermé.", "id": appel.id})
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def valider(self, request, pk=None):
         """Valide un appel (par CPE/direction)."""
         appel = self.get_object()
-        if appel.statut == "ouvert":
+        appel = Appel.objects.select_for_update().get(pk=appel.pk)
+        if appel.statut != "ferme":
             return Response({"error": "L'appel doit d'abord être fermé."}, status=400)
         appel.statut = "valide"
         appel.date_validation = timezone.now()
@@ -157,6 +203,29 @@ class PresencesViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["appel", "eleve", "statut"]
     ordering = ["eleve__user__last_name"]
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        appel = Appel.objects.select_for_update().get(pk=serializer.validated_data["appel"].pk)
+        validate_attendance(self.request, appel, serializer.validated_data["eleve"])
+        serializer.save()
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        appel = serializer.validated_data.get("appel", serializer.instance.appel)
+        appel = Appel.objects.select_for_update().get(pk=appel.pk)
+        validate_attendance(
+            self.request,
+            appel,
+            serializer.validated_data.get("eleve", serializer.instance.eleve),
+        )
+        serializer.save()
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        appel = Appel.objects.select_for_update().get(pk=instance.appel_id)
+        validate_attendance(self.request, appel, instance.eleve)
+        instance.delete()
 
     def get_queryset(self):
         qs = Presence.objects.select_related("appel", "eleve__user")
@@ -195,9 +264,7 @@ class JustificatifsViewSet(viewsets.ModelViewSet):
     ordering = ["-date_depot"]
 
     def get_queryset(self):
-        qs = Justificatif.objects.select_related(
-            "presence__eleve__user", "presence__appel", "valide_par__user"
-        )
+        qs = Justificatif.objects.select_related("presence__eleve__user", "presence__appel", "valide_par__user")
         user = self.request.user
         if hasattr(user, "eleve_profile") and not user.is_staff and user_has_any_role(user, ("eleve",)):
             return qs.filter(presence__eleve__user=user)

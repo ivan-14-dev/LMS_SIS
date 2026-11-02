@@ -24,8 +24,7 @@ class IsEnseignantOrScolarite(IsAuthenticated):
         return (
             user.is_staff
             or hasattr(user, "enseignant_profile")
-            or getattr(user, "role", "")
-            in ("scolarite", "directeur", "proviseur", "principal")
+            or getattr(user, "role", "") in ("scolarite", "directeur", "proviseur", "principal")
         )
 
 
@@ -34,13 +33,11 @@ class AppreciationsMatiereViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsEnseignantOrScolarite]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ["eleve", "matiere", "periode", "eleve__classe"]
+    filterset_fields = ["eleve", "matiere", "periode", "eleve__classe_actuelle"]
     ordering = ["eleve__user__last_name", "matiere__nom"]
 
     def get_queryset(self):
-        return AppreciationMatiere.objects.select_related(
-            "eleve__user", "matiere", "periode"
-        )
+        return AppreciationMatiere.objects.select_related("eleve__user", "matiere", "periode")
 
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
@@ -57,11 +54,7 @@ class AppreciationsMatiereViewSet(viewsets.ModelViewSet):
                 {"error": "Paramètres eleve et periode requis."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        appreciations = (
-            self.get_queryset()
-            .filter(eleve_id=eleve_id, periode_id=periode_id)
-            .order_by("matiere__nom")
-        )
+        appreciations = self.get_queryset().filter(eleve_id=eleve_id, periode_id=periode_id).order_by("matiere__nom")
         serializer = AppreciationMatiereSerializer(appreciations, many=True)
         return Response(serializer.data)
 
@@ -82,9 +75,7 @@ class BulletinsViewSet(_BulletinsViewSet):
             )
         appreciations = (
             AppreciationMatiere.objects.select_related("eleve__user", "matiere", "periode")
-            .filter(
-                eleve__classe_id=classe_id, matiere_id=matiere_id, periode_id=periode_id
-            )
+            .filter(eleve__classe_id=classe_id, matiere_id=matiere_id, periode_id=periode_id)
             .order_by("rang", "eleve__user__last_name")
         )
         serializer = AppreciationMatiereSerializer(appreciations, many=True)

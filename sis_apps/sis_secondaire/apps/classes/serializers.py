@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from sis_common.serializers import TenantBoundSerializerMixin
+
 from .models import Classe, Groupe, Matiere, ProgrammeMatiere
 
 
@@ -30,7 +32,7 @@ class ClasseListSerializer(serializers.ModelSerializer):
         ]
 
 
-class ClasseDetailSerializer(serializers.ModelSerializer):
+class ClasseDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour le détail d'une classe."""
 
     niveau_nom = serializers.CharField(source="niveau.libelle", read_only=True)
@@ -59,7 +61,14 @@ class ClasseDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "etablissement", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        year = attrs.get("annee_scolaire", getattr(self.instance, "annee_scolaire", None))
+        if year and year.cloturee:
+            raise serializers.ValidationError({"annee_scolaire": "Cette année est clôturée."})
+        return attrs
 
 
 class GroupeSerializer(serializers.ModelSerializer):
@@ -106,7 +115,7 @@ class MatiereListSerializer(serializers.ModelSerializer):
         ]
 
 
-class MatiereDetailSerializer(serializers.ModelSerializer):
+class MatiereDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour une matière."""
 
     type_display = serializers.CharField(source="get_type_display", read_only=True)
@@ -125,7 +134,7 @@ class MatiereDetailSerializer(serializers.ModelSerializer):
             "description",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "etablissement", "created_at"]
 
 
 class ProgrammeMatiereSerializer(serializers.ModelSerializer):

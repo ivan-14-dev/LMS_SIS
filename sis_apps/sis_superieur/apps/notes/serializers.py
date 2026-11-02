@@ -3,6 +3,9 @@
 from rest_framework import serializers
 
 from sis_common.academic_configuration import validate_rule_criteria
+from sis_common.authorization import user_has_any_role
+from sis_common.grade_entry import validate_assessment_scale
+from sis_common.serializers import TenantBoundSerializerMixin
 from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 
 from .models import Evaluation, MoyenneECUE, MoyenneUE, Note, RegleValidation
@@ -38,6 +41,7 @@ class EvaluationListSerializer(serializers.ModelSerializer):
             "coefficient",
             "ponderation",
             "enseignant_nom",
+            "anonyme",
             "soumission_statut",
             "soumission_alerte",
         ]
@@ -51,13 +55,13 @@ class EvaluationListSerializer(serializers.ModelSerializer):
         return get_submission_window_alert(obj, configuration, "evaluation")
 
 
-class EvaluationDetailSerializer(serializers.ModelSerializer):
+class EvaluationDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour le détail d'une évaluation."""
 
     ecue_nom = serializers.CharField(source="ecue.nom", read_only=True)
     modalite_display = serializers.CharField(source="get_modalite_display", read_only=True)
     enseignant_nom = serializers.CharField(source="enseignant.get_full_name", read_only=True)
-    semestre_libelle = serializers.CharField(source="semestre.libelle", read_only=True)
+    semestre_libelle = serializers.CharField(source="semestre", read_only=True)
     nb_notes = serializers.SerializerMethodField()
     soumission_statut = serializers.SerializerMethodField()
     soumission_alerte = serializers.SerializerMethodField()
@@ -106,9 +110,24 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
         return get_submission_window_alert(obj, configuration, "evaluation")
 
     def validate(self, attrs):
-        debut_soumission = attrs.get(
-            "debut_soumission", getattr(self.instance, "debut_soumission", None)
-        )
+        attrs = super().validate(attrs)
+        validate_assessment_scale(attrs, self.instance)
+        ecue = attrs.get("ecue", getattr(self.instance, "ecue", None))
+        semestre = attrs.get("semestre", getattr(self.instance, "semestre", None))
+        enseignant = attrs.get("enseignant", getattr(self.instance, "enseignant", None))
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None)
+        if tenant and semestre and semestre.annee_universitaire.universite_id != tenant.pk:
+            raise serializers.ValidationError({"semestre": "Ce semestre appartient à un autre établissement."})
+        if tenant and ecue and ecue.ue.maquette.annee_universitaire.universite_id != tenant.pk:
+            raise serializers.ValidationError({"ecue": "Cet ECUE appartient à un autre établissement."})
+        user = getattr(request, "user", None)
+        if user and not user.is_staff and user_has_any_role(user, ("enseignant", "chercheur")):
+            if enseignant and enseignant.pk != user.pk:
+                raise serializers.ValidationError(
+                    {"enseignant": "Vous ne pouvez créer une évaluation pour un autre enseignant."}
+                )
+        debut_soumission = attrs.get("debut_soumission", getattr(self.instance, "debut_soumission", None))
         fin_soumission = attrs.get("fin_soumission", getattr(self.instance, "fin_soumission", None))
         if debut_soumission and fin_soumission and fin_soumission < debut_soumission:
             raise serializers.ValidationError(

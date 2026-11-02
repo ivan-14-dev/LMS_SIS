@@ -2,11 +2,12 @@
 
 from decimal import Decimal
 
-from apps.etudiants.models import AffectationECUEIndividuelle
+from apps.etudiants.models import AffectationECUEIndividuelle, Etudiant
 from django.db import transaction
 from django.db.models import Avg, Count, Exists, OuterRef, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -20,6 +21,7 @@ from sis_common.authorization import (
     request_has_business_access,
     user_has_any_role,
 )
+from sis_common.grade_entry import GradeLearnerSerializer, validate_grade_batch
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
 from sis_common.submission_windows import apply_submission_window_defaults
@@ -140,18 +142,16 @@ CONTINUOUS_ASSESSMENT_MODALITIES = {"cc", "tp", "projet"}
 
 
 def _continuous_assessment_template_enabled(request):
-    templates = (
-        getattr(getattr(request, "tenant", None), "configuration_academique", {}) or {}
-    ).get("import_templates", [])
+    templates = (getattr(getattr(request, "tenant", None), "configuration_academique", {}) or {}).get(
+        "import_templates", []
+    )
     return any(template.get("code") == "continuous_assessment_grades" for template in templates)
 
 
 def _ensure_submission_window(obj, label="La période de soumission"):
     now = timezone.now()
     if getattr(obj, "debut_soumission", None) and now < obj.debut_soumission:
-        raise serializers.ValidationError(
-            {"soumission": f"{label} n'est pas encore ouverte."}
-        )
+        raise serializers.ValidationError({"soumission": f"{label} n'est pas encore ouverte."})
     if getattr(obj, "fin_soumission", None) and now > obj.fin_soumission:
         raise serializers.ValidationError({"soumission": f"{label} est expirée."})
 
@@ -159,51 +159,40 @@ def _ensure_submission_window(obj, label="La période de soumission"):
 def _ensure_superior_continuous_assessment(evaluation):
     if evaluation.modalite not in CONTINUOUS_ASSESSMENT_MODALITIES:
         raise serializers.ValidationError(
-            {
-                "evaluation": (
-                    "Seules les évaluations de contrôle continu peuvent être importées ici."
-                )
-            }
+            {"evaluation": ("Seules les évaluations de contrôle continu peuvent être importées ici.")}
         )
     _ensure_submission_window(evaluation)
     if evaluation.semestre.cloture or evaluation.semestre.annee_universitaire.cloturee:
         raise serializers.ValidationError(
-            {
-                "evaluation": (
-                    "Cette évaluation est verrouillée car le semestre ou l'année est clôturé."
-                )
-            }
+            {"evaluation": ("Cette évaluation est verrouillée car le semestre ou l'année est clôturé.")}
         )
 
 
-def _superior_eligible_student_map(evaluation, matricules):
+def _superior_eligible_students(evaluation):
     enrollments = (
         evaluation.semestre.inscriptions_peda.filter(
-            inscription_admin__etudiant__matricule__in=matricules,
             statut="validee",
         )
         .filter(Q(ecues=evaluation.ecue) | Q(ues=evaluation.ecue.ue))
-        .select_related("inscription_admin__etudiant")
-        .distinct()
+        .values("inscription_admin__etudiant_id")
     )
-    eligible = {
-        inscription.inscription_admin.etudiant.matricule: inscription.inscription_admin.etudiant
-        for inscription in enrollments
+    custom_assignments = AffectationECUEIndividuelle.objects.filter(
+        inscription_admin__annee_universitaire=evaluation.semestre.annee_universitaire,
+        semestre_cible=evaluation.semestre,
+        ecue=evaluation.ecue,
+    ).values("inscription_admin__etudiant_id")
+    return (
+        Etudiant.objects.filter(Q(pk__in=enrollments) | Q(pk__in=custom_assignments))
+        .select_related("user")
+        .order_by("user__last_name", "user__first_name", "pk")
+    )
+
+
+def _superior_eligible_student_map(evaluation, matricules):
+    return {
+        student.matricule: student
+        for student in _superior_eligible_students(evaluation).filter(matricule__in=matricules)
     }
-    custom_assignments = (
-        AffectationECUEIndividuelle.objects.filter(
-            inscription_admin__etudiant__matricule__in=matricules,
-            inscription_admin__annee_universitaire=evaluation.semestre.annee_universitaire,
-            ecue=evaluation.ecue,
-        )
-        .select_related("inscription_admin__etudiant")
-        .distinct()
-    )
-    for affectation in custom_assignments:
-        eligible[affectation.inscription_admin.etudiant.matricule] = (
-            affectation.inscription_admin.etudiant
-        )
-    return eligible
 
 
 def _import_superior_notes(evaluation, rows, request):
@@ -219,9 +208,7 @@ def _import_superior_notes(evaluation, rows, request):
             row_number = row["__row_number__"]
             matricule = str(row["matricule"]).strip()
             if not matricule:
-                raise serializers.ValidationError(
-                    {"matricule": f"Ligne {row_number}: matricule requis."}
-                )
+                raise serializers.ValidationError({"matricule": f"Ligne {row_number}: matricule requis."})
             if matricule in seen:
                 raise serializers.ValidationError(
                     {"file": f"Ligne {row_number}: doublon incohérent détecté pour {matricule}."}
@@ -230,26 +217,18 @@ def _import_superior_notes(evaluation, rows, request):
             etudiant = eligible_map.get(matricule)
             if etudiant is None:
                 raise serializers.ValidationError(
-                    {
-                        "file": (
-                            f"Ligne {row_number}: étudiant hors périmètre pour cette évaluation."
-                        )
-                    }
+                    {"file": (f"Ligne {row_number}: étudiant hors périmètre pour cette évaluation.")}
                 )
             statut = str(row.get("statut") or "presente").strip() or "presente"
             if statut not in valid_statuses:
-                raise serializers.ValidationError(
-                    {"statut": f"Ligne {row_number}: statut invalide."}
-                )
+                raise serializers.ValidationError({"statut": f"Ligne {row_number}: statut invalide."})
             raw_note = row.get("note")
             valeur = None
             if raw_note not in (None, ""):
                 try:
                     valeur = Decimal(str(raw_note))
                 except (ArithmeticError, TypeError, ValueError):
-                    raise serializers.ValidationError(
-                        {"note": f"Ligne {row_number}: note invalide."}
-                    ) from None
+                    raise serializers.ValidationError({"note": f"Ligne {row_number}: note invalide."}) from None
                 if valeur < 0 or valeur > evaluation.bareme:
                     raise serializers.ValidationError(
                         {"note": f"Ligne {row_number}: la note doit respecter le barème."}
@@ -301,9 +280,7 @@ class IsEnseignantOrScolarite(IsAuthenticated):
 
 class IsAcademicAdmin(IsAuthenticated):
     def has_permission(self, request, view):
-        return super().has_permission(
-            request, view
-        ) and has_business_permission_or_role(
+        return super().has_permission(request, view) and has_business_permission_or_role(
             request.user,
             "notes.change_reglevalidation",
             ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
@@ -337,9 +314,9 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
             user,
             "notes.view_evaluation",
             {
-                "formations": "semestre__formation_id",
-                "facultes": "semestre__formation__departement__faculte_id",
-                "departements": "semestre__formation__departement_id",
+                "formations": "ecue__ue__maquette__formation_id",
+                "facultes": "ecue__ue__maquette__formation__departement__faculte_id",
+                "departements": "ecue__ue__maquette__formation__departement_id",
                 "annees": "semestre__annee_universitaire_id",
                 "semestres": "semestre_id",
                 "ues": "ecue__ue_id",
@@ -372,46 +349,42 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         if changed_fields:
             evaluation.save(update_fields=changed_fields)
 
+    @extend_schema(responses=GradeLearnerSerializer(many=True))
+    @action(detail=True, methods=["get"])
+    def apprenants(self, request, pk=None):
+        evaluation = self.get_object()
+        if evaluation.anonyme:
+            raise serializers.ValidationError({"evaluation": "Utilisez le parcours de notation anonyme dédié."})
+        students = _superior_eligible_students(evaluation)
+        page = self.paginate_queryset(students)
+        return self.get_paginated_response(GradeLearnerSerializer(page, many=True).data)
+
     @action(detail=True, methods=["get"])
     def notes(self, request, pk=None):
         """Liste les notes d'une évaluation."""
         evaluation = self.get_object()
-        notes = evaluation.notes.select_related("etudiant__user").order_by(
-            "etudiant__user__last_name"
-        )
+        notes = evaluation.notes.select_related("etudiant__user").order_by("etudiant__user__last_name")
         serializer = NoteSerializer(notes, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def saisir_notes(self, request, pk=None):
         """Saisie en masse des notes."""
         evaluation = self.get_object()
         _ensure_superior_continuous_assessment(evaluation)
-        serializer = NoteSaisieSerializer(data=request.data, many=True)
+        serializer = NoteSaisieSerializer(data=request.data, many=True, allow_empty=False, max_length=1000)
         serializer.is_valid(raise_exception=True)
+        validate_grade_batch(serializer.validated_data, "etudiant_id", evaluation.bareme)
 
         student_ids = {item["etudiant_id"] for item in serializer.validated_data}
         eligible_student_ids = set(
-            evaluation.semestre.inscriptions_peda.filter(
-                inscription_admin__etudiant_id__in=student_ids,
-                statut="validee",
-            )
-            .filter(Q(ecues=evaluation.ecue) | Q(ues=evaluation.ecue.ue))
-            .values_list("inscription_admin__etudiant_id", flat=True)
-        )
-        eligible_student_ids.update(
-            AffectationECUEIndividuelle.objects.filter(
-                inscription_admin__etudiant_id__in=student_ids,
-                inscription_admin__annee_universitaire=evaluation.semestre.annee_universitaire,
-                ecue=evaluation.ecue,
-            ).values_list("inscription_admin__etudiant_id", flat=True)
+            _superior_eligible_students(evaluation).filter(pk__in=student_ids).values_list("pk", flat=True)
         )
         invalid_student_ids = sorted(student_ids - eligible_student_ids)
         if invalid_student_ids:
             raise serializers.ValidationError(
-                {
-                    "etudiant_id": f"Étudiants non inscrits à cette évaluation: {invalid_student_ids}."
-                }
+                {"etudiant_id": f"Étudiants non inscrits à cette évaluation: {invalid_student_ids}."}
             )
 
         created = 0
@@ -469,9 +442,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError({"file": "Un fichier Excel est requis."})
         rows = load_excel_rows(uploaded_file, CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS)
         if not rows:
-            raise serializers.ValidationError(
-                {"file": "Le fichier ne contient aucune ligne exploitable."}
-            )
+            raise serializers.ValidationError({"file": "Le fichier ne contient aucune ligne exploitable."})
         created, updated = _import_superior_notes(evaluation, rows, request)
         return Response(
             {
@@ -527,9 +498,7 @@ class NotesViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         individualized_assignments = AffectationECUEIndividuelle.objects.filter(
             inscription_admin__etudiant_id=OuterRef("etudiant_id"),
-            inscription_admin__annee_universitaire_id=OuterRef(
-                "evaluation__semestre__annee_universitaire_id"
-            ),
+            inscription_admin__annee_universitaire_id=OuterRef("evaluation__semestre__annee_universitaire_id"),
             semestre_cible_id=OuterRef("evaluation__semestre_id"),
             ecue_id=OuterRef("evaluation__ecue_id"),
         )
@@ -561,12 +530,8 @@ class NotesViewSet(viewsets.ModelViewSet):
             "notes.view_note",
             {
                 "formations": "etudiant__inscriptions_admin__formation_id",
-                "facultes": (
-                    "etudiant__inscriptions_admin__formation__departement__faculte_id"
-                ),
-                "departements": (
-                    "etudiant__inscriptions_admin__formation__departement_id"
-                ),
+                "facultes": ("etudiant__inscriptions_admin__formation__departement__faculte_id"),
+                "departements": ("etudiant__inscriptions_admin__formation__departement_id"),
                 "annees": "evaluation__semestre__annee_universitaire_id",
                 "semestres": "evaluation__semestre_id",
                 "ues": "evaluation__ecue__ue_id",
@@ -741,9 +706,7 @@ class ReglesValidationViewSet(viewsets.ModelViewSet):
     ordering = ["priorite", "code"]
 
     def get_queryset(self):
-        return RegleValidation.objects.select_related(
-            "annee_universitaire", "formation", "semestre"
-        )
+        return RegleValidation.objects.select_related("annee_universitaire", "formation", "semestre")
 
     @action(detail=True, methods=["post"])
     def evaluer(self, request, pk=None):
@@ -766,7 +729,5 @@ class EvaluationRegleInputSerializer(serializers.Serializer):
     moyenne = serializers.DecimalField(max_digits=7, decimal_places=2)
     credits = serializers.DecimalField(max_digits=7, decimal_places=2, default=0)
     ecues_echoues = serializers.IntegerField(min_value=0, default=0)
-    note_minimale = serializers.DecimalField(
-        max_digits=7, decimal_places=2, required=False, allow_null=True
-    )
+    note_minimale = serializers.DecimalField(max_digits=7, decimal_places=2, required=False, allow_null=True)
     donnees = serializers.JSONField(default=dict)

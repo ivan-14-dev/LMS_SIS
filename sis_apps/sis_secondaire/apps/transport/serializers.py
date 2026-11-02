@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from sis_common.serializers import TenantBoundSerializerMixin
+
 from .models import Arret, InscriptionTransport, LigneTransport, Vehicule
 
 
@@ -9,6 +11,7 @@ class ArretSerializer(serializers.ModelSerializer):
     """Serializer pour les arrêts."""
 
     ligne_nom = serializers.CharField(source="ligne.nom", read_only=True)
+    libelle = serializers.CharField(source="__str__", read_only=True)
 
     class Meta:
         model = Arret
@@ -16,6 +19,7 @@ class ArretSerializer(serializers.ModelSerializer):
             "id",
             "ligne",
             "ligne_nom",
+            "libelle",
             "nom",
             "heure_passage",
             "ordre",
@@ -102,17 +106,15 @@ class VehiculeSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
 
-class InscriptionTransportSerializer(serializers.ModelSerializer):
+class InscriptionTransportSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les inscriptions transport."""
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    eleve_classe = serializers.CharField(source="eleve.classe.nom", read_only=True)
+    eleve_classe = serializers.CharField(source="eleve.classe_actuelle.nom", read_only=True)
     ligne_nom = serializers.CharField(source="ligne.nom", read_only=True)
     arret_montee_nom = serializers.CharField(source="arret_montee.nom", read_only=True)
-    arret_descente_nom = serializers.CharField(
-        source="arret_descente.nom", read_only=True
-    )
+    arret_descente_nom = serializers.CharField(source="arret_descente.nom", read_only=True)
 
     class Meta:
         model = InscriptionTransport
@@ -133,3 +135,12 @@ class InscriptionTransportSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        ligne = attrs.get("ligne", getattr(self.instance, "ligne", None))
+        for name in ("arret_montee", "arret_descente"):
+            arret = attrs.get(name, getattr(self.instance, name, None))
+            if ligne and arret and arret.ligne_id != ligne.pk:
+                raise serializers.ValidationError({name: "L'arrêt doit appartenir à la ligne sélectionnée."})
+        return attrs

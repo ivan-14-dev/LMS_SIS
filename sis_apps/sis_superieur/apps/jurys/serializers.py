@@ -10,9 +10,7 @@ class JuryListSerializer(serializers.ModelSerializer):
 
     semestre_libelle = serializers.CharField(source="semestre.__str__", read_only=True)
     formation_nom = serializers.CharField(source="formation.nom", read_only=True)
-    president_nom = serializers.CharField(
-        source="president.get_full_name", read_only=True
-    )
+    president_nom = serializers.CharField(source="president.get_full_name", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     nb_membres = serializers.SerializerMethodField()
 
@@ -43,12 +41,8 @@ class JuryDetailSerializer(serializers.ModelSerializer):
     semestre_libelle = serializers.CharField(source="semestre.__str__", read_only=True)
     formation_nom = serializers.CharField(source="formation.nom", read_only=True)
     parcours_nom = serializers.CharField(source="parcours.nom", read_only=True)
-    president_nom = serializers.CharField(
-        source="president.get_full_name", read_only=True
-    )
-    secretaire_nom = serializers.CharField(
-        source="secretaire.get_full_name", read_only=True
-    )
+    president_nom = serializers.CharField(source="president.get_full_name", read_only=True)
+    secretaire_nom = serializers.CharField(source="secretaire.get_full_name", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     membres_list = serializers.SerializerMethodField()
 
@@ -116,17 +110,11 @@ class DeliberationSerializer(serializers.ModelSerializer):
 class DecisionJurySerializer(serializers.ModelSerializer):
     """Serializer pour les décisions par UE."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
     ue_code = serializers.CharField(source="ue.code", read_only=True)
     ue_nom = serializers.CharField(source="ue.nom", read_only=True)
-    decision_display = serializers.CharField(
-        source="get_decision_display", read_only=True
-    )
+    decision_display = serializers.CharField(source="get_decision_display", read_only=True)
 
     class Meta:
         model = DecisionJury
@@ -154,14 +142,11 @@ class DecisionJurySerializer(serializers.ModelSerializer):
 class DecisionGlobaleSerializer(serializers.ModelSerializer):
     """Serializer pour les décisions globales."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
-    decision_display = serializers.CharField(
-        source="get_decision_display", read_only=True
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
+    decision_display = serializers.CharField(source="get_decision_display", read_only=True)
+    moyenne = serializers.DecimalField(
+        source="moyenne_generale", max_digits=5, decimal_places=2, required=False, allow_null=True
     )
 
     class Meta:
@@ -176,8 +161,6 @@ class DecisionGlobaleSerializer(serializers.ModelSerializer):
             "decision_display",
             "mention",
             "moyenne",
-            "credits_valides",
-            "passage_niveau_suivant",
             "commentaire",
             "created_at",
         ]

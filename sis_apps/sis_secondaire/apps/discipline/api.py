@@ -54,20 +54,13 @@ class IncidentsViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Incident.objects.select_related(
-            "eleve__user", "eleve__classe", "rapporteur__user"
+            "eleve__user", "eleve__classe_actuelle", "rapporteur__user"
         ).prefetch_related("temoins__user")
 
     def get_serializer_class(self):
         if self.action == "list":
             return IncidentListSerializer
         return IncidentDetailSerializer
-
-    def perform_create(self, serializer):
-        # L'enseignant connecté est le rapporteur par défaut
-        rapporteur = None
-        if hasattr(self.request.user, "personnel_profile"):
-            rapporteur = self.request.user.personnel_profile
-        serializer.save(rapporteur=rapporteur)
 
     @action(detail=True, methods=["get"])
     def sanctions(self, request, pk=None):
@@ -161,7 +154,7 @@ class ConseilsDisciplineViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return ConseilDiscipline.objects.select_related(
-            "eleve__user", "eleve__classe", "president__user", "sanction"
+            "eleve__user", "eleve__classe_actuelle", "president__user", "sanction"
         ).prefetch_related("membres__user", "incidents")
 
     def get_serializer_class(self):
@@ -184,9 +177,7 @@ class ConseilsDisciplineViewSet(viewsets.ModelViewSet):
         """Annule le conseil."""
         conseil = self.get_object()
         if conseil.statut != "planifie":
-            return Response(
-                {"error": "Le conseil ne peut pas être annulé."}, status=400
-            )
+            return Response({"error": "Le conseil ne peut pas être annulé."}, status=400)
         conseil.statut = "annule"
         conseil.save(update_fields=["statut"])
         return Response({"detail": "Conseil annulé.", "id": conseil.id})

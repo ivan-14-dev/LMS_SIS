@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from sis_common.serializers import TenantBoundSerializerMixin
+
 from .models import AppreciationConseil, ConseilClasse, DecisionConseil
 
 
@@ -9,10 +11,8 @@ class ConseilClasseListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les listes de conseils."""
 
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
-    periode_nom = serializers.CharField(source="periode.nom", read_only=True)
-    president_nom = serializers.CharField(
-        source="president.get_full_name", read_only=True
-    )
+    periode_nom = serializers.CharField(source="periode", read_only=True)
+    president_nom = serializers.CharField(source="president.get_full_name", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     nb_decisions = serializers.SerializerMethodField()
 
@@ -35,17 +35,13 @@ class ConseilClasseListSerializer(serializers.ModelSerializer):
         return obj.decisions.count()
 
 
-class ConseilClasseDetailSerializer(serializers.ModelSerializer):
+class ConseilClasseDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour un conseil de classe."""
 
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
-    periode_nom = serializers.CharField(source="periode.nom", read_only=True)
-    president_nom = serializers.CharField(
-        source="president.get_full_name", read_only=True
-    )
-    secretaire_nom = serializers.CharField(
-        source="secretaire.get_full_name", read_only=True
-    )
+    periode_nom = serializers.CharField(source="periode", read_only=True)
+    president_nom = serializers.CharField(source="president.get_full_name", read_only=True)
+    secretaire_nom = serializers.CharField(source="secretaire.get_full_name", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     participants_list = serializers.SerializerMethodField()
 
@@ -75,15 +71,21 @@ class ConseilClasseDetailSerializer(serializers.ModelSerializer):
     def get_participants_list(self, obj):
         return [{"id": p.id, "nom": p.get_full_name()} for p in obj.participants.all()]
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        classe = attrs.get("classe", getattr(self.instance, "classe", None))
+        periode = attrs.get("periode", getattr(self.instance, "periode", None))
+        if classe and periode and classe.annee_scolaire_id != periode.annee_scolaire_id:
+            raise serializers.ValidationError({"periode": "La période doit appartenir à l'année de la classe."})
+        return attrs
+
 
 class DecisionConseilSerializer(serializers.ModelSerializer):
     """Serializer pour les décisions."""
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    decision_display = serializers.CharField(
-        source="get_decision_display", read_only=True
-    )
+    decision_display = serializers.CharField(source="get_decision_display", read_only=True)
 
     class Meta:
         model = DecisionConseil

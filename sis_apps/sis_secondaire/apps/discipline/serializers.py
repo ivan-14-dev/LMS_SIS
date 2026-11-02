@@ -2,28 +2,28 @@
 
 from rest_framework import serializers
 
+from sis_common.serializers import DateRangeSerializerMixin, TenantBoundSerializerMixin
+
 from .models import ConseilDiscipline, Incident, Sanction
 
 
 class IncidentListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les listes d'incidents."""
 
+    libelle = serializers.SerializerMethodField()
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    eleve_classe = serializers.CharField(source="eleve.classe.nom", read_only=True)
+    eleve_classe = serializers.CharField(source="eleve.classe_actuelle.nom", read_only=True)
     type_display = serializers.CharField(source="get_type_display", read_only=True)
-    gravite_display = serializers.CharField(
-        source="get_gravite_display", read_only=True
-    )
+    gravite_display = serializers.CharField(source="get_gravite_display", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
-    rapporteur_nom = serializers.CharField(
-        source="rapporteur.user.get_full_name", read_only=True
-    )
+    rapporteur_nom = serializers.CharField(source="rapporteur.user.get_full_name", read_only=True)
 
     class Meta:
         model = Incident
         fields = [
             "id",
+            "libelle",
             "eleve",
             "eleve_matricule",
             "eleve_nom",
@@ -39,21 +39,20 @@ class IncidentListSerializer(serializers.ModelSerializer):
             "rapporteur_nom",
         ]
 
+    def get_libelle(self, obj):
+        return f"{obj.pk} - {obj}"
 
-class IncidentDetailSerializer(serializers.ModelSerializer):
+
+class IncidentDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour un incident."""
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    eleve_classe = serializers.CharField(source="eleve.classe.nom", read_only=True)
+    eleve_classe = serializers.CharField(source="eleve.classe_actuelle.nom", read_only=True)
     type_display = serializers.CharField(source="get_type_display", read_only=True)
-    gravite_display = serializers.CharField(
-        source="get_gravite_display", read_only=True
-    )
+    gravite_display = serializers.CharField(source="get_gravite_display", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
-    rapporteur_nom = serializers.CharField(
-        source="rapporteur.user.get_full_name", read_only=True
-    )
+    rapporteur_nom = serializers.CharField(source="rapporteur.user.get_full_name", read_only=True)
     temoins_noms = serializers.SerializerMethodField()
     nb_sanctions = serializers.SerializerMethodField()
 
@@ -91,19 +90,15 @@ class IncidentDetailSerializer(serializers.ModelSerializer):
         return obj.sanctions.count()
 
 
-class SanctionSerializer(serializers.ModelSerializer):
+class SanctionSerializer(DateRangeSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les sanctions."""
 
-    eleve_nom = serializers.CharField(
-        source="incident.eleve.user.get_full_name", read_only=True
-    )
+    date_range_fields = ("date_effet", "date_fin")
+
+    eleve_nom = serializers.CharField(source="incident.eleve.user.get_full_name", read_only=True)
     type_display = serializers.CharField(source="get_type_display", read_only=True)
-    incident_date = serializers.DateTimeField(
-        source="incident.date_incident", read_only=True
-    )
-    incident_type = serializers.CharField(
-        source="incident.get_type_display", read_only=True
-    )
+    incident_date = serializers.DateTimeField(source="incident.date_incident", read_only=True)
+    incident_type = serializers.CharField(source="incident.get_type_display", read_only=True)
 
     class Meta:
         model = Sanction
@@ -131,10 +126,8 @@ class ConseilDisciplineListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les conseils de discipline."""
 
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    eleve_classe = serializers.CharField(source="eleve.classe.nom", read_only=True)
-    president_nom = serializers.CharField(
-        source="president.user.get_full_name", read_only=True
-    )
+    eleve_classe = serializers.CharField(source="eleve.classe_actuelle.nom", read_only=True)
+    president_nom = serializers.CharField(source="president.user.get_full_name", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
 
     class Meta:
@@ -156,15 +149,11 @@ class ConseilDisciplineDetailSerializer(serializers.ModelSerializer):
     """Serializer complet pour un conseil de discipline."""
 
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
-    eleve_classe = serializers.CharField(source="eleve.classe.nom", read_only=True)
-    president_nom = serializers.CharField(
-        source="president.user.get_full_name", read_only=True
-    )
+    eleve_classe = serializers.CharField(source="eleve.classe_actuelle.nom", read_only=True)
+    president_nom = serializers.CharField(source="president.user.get_full_name", read_only=True)
     membres_noms = serializers.SerializerMethodField()
     incidents_details = serializers.SerializerMethodField()
-    sanction_type = serializers.CharField(
-        source="sanction.get_type_display", read_only=True
-    )
+    sanction_type = serializers.CharField(source="sanction.get_type_display", read_only=True)
 
     class Meta:
         model = ConseilDiscipline

@@ -44,7 +44,7 @@ class DossiersMedicauxViewSet(viewsets.ModelViewSet):
     search_fields = ["eleve__user__last_name", "eleve__matricule"]
 
     def get_queryset(self):
-        return DossierMedical.objects.select_related("eleve__user", "eleve__classe")
+        return DossierMedical.objects.select_related("eleve__user", "eleve__classe_actuelle")
 
     @action(detail=True, methods=["get"])
     def visites(self, request, pk=None):
@@ -66,9 +66,7 @@ class VisitesInfirmerieViewSet(viewsets.ModelViewSet):
     ordering = ["-date", "-heure_arrivee"]
 
     def get_queryset(self):
-        return VisiteInfirmerie.objects.select_related(
-            "eleve__user", "eleve__classe", "infirmier"
-        )
+        return VisiteInfirmerie.objects.select_related("eleve__user", "eleve__classe_actuelle", "infirmier")
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -99,9 +97,7 @@ class VisitesInfirmerieViewSet(viewsets.ModelViewSet):
             "aujourdhui": qs.filter(date__date=today).count(),
         }
         by_orientation = qs.values("orientation").annotate(count=Count("id"))
-        stats["par_orientation"] = {
-            o["orientation"]: o["count"] for o in by_orientation
-        }
+        stats["par_orientation"] = {o["orientation"]: o["count"] for o in by_orientation}
         return Response(stats)
 
 

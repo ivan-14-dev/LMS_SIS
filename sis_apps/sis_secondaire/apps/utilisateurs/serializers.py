@@ -4,6 +4,8 @@ from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
+from sis_common.serializers import TenantBoundSerializerMixin
+
 from .models import Utilisateur
 
 
@@ -41,7 +43,7 @@ class UtilisateurListSerializer(serializers.ModelSerializer):
         ]
 
 
-class UtilisateurDetailSerializer(serializers.ModelSerializer):
+class UtilisateurDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour le détail d'un utilisateur."""
 
     full_name = serializers.CharField(source="get_full_name", read_only=True)
@@ -65,14 +67,22 @@ class UtilisateurDetailSerializer(serializers.ModelSerializer):
             "user_permissions",
             "attributs_acces",
             "telephone",
-            "avatar",
+            "photo",
+            "mfa_active",
             "date_joined",
             "last_login",
         ]
-        read_only_fields = ["id", "date_joined", "last_login"]
+        read_only_fields = [
+            "id",
+            "date_joined",
+            "last_login",
+            "etablissement",
+            "is_staff",
+            "mfa_active",
+        ]
 
 
-class UtilisateurCreateSerializer(serializers.ModelSerializer):
+class UtilisateurCreateSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer pour la création d'utilisateur."""
 
     password = serializers.CharField(write_only=True, validators=[validate_password])
@@ -90,8 +100,10 @@ class UtilisateurCreateSerializer(serializers.ModelSerializer):
             "role",
             "etablissement",
         ]
+        read_only_fields = ["etablissement"]
 
     def validate(self, attrs):
+        attrs = super().validate(attrs)
         if attrs["password"] != attrs.pop("password_confirm"):
             raise serializers.ValidationError({"password_confirm": "Les mots de passe ne correspondent pas."})
         return attrs

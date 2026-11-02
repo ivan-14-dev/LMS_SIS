@@ -48,20 +48,15 @@ class CreneauxViewSet(viewsets.ModelViewSet):
     ordering = ["jour", "heure_debut"]
 
     def get_queryset(self):
-        qs = Creneau.objects.select_related(
-            "classe", "matiere", "enseignant__user", "salle"
-        )
+        qs = Creneau.objects.select_related("classe", "matiere", "enseignant__user", "salle")
         user = self.request.user
         # Un enseignant ne voit que ses créneaux par défaut (sauf liste complète)
-        if hasattr(user, "personnel_profile") and not self.request.query_params.get(
-            "all"
-        ):
-            if not user.is_staff and getattr(user, "role", "") == "enseignant":
-                qs = qs.filter(enseignant=user.personnel_profile)
+        if not user.is_staff and getattr(user, "role", "") == "enseignant":
+            qs = qs.filter(enseignant__user=user)
         # Un élève ne voit que l'EDT de sa classe
-        if hasattr(user, "eleve_profile"):
-            if not user.is_staff and getattr(user, "role", "") == "eleve":
-                qs = qs.filter(classe=user.eleve_profile.classe)
+        if not user.is_staff and getattr(user, "role", "") == "eleve":
+            profile = getattr(user, "eleve_profile", None)
+            qs = qs.filter(classe_id=profile.classe_actuelle_id) if profile else qs.none()
         return qs.filter(actif=True)
 
     def get_serializer_class(self):
@@ -110,13 +105,12 @@ class CreneauxViewSet(viewsets.ModelViewSet):
             if hasattr(request.user, "personnel_profile"):
                 enseignant_id = request.user.personnel_profile.id
             else:
-                return Response(
-                    {"error": "Paramètre enseignant_id requis."}, status=400
-                )
+                return Response({"error": "Paramètre enseignant_id requis."}, status=400)
 
         semaine = request.query_params.get("semaine", 0)
         creneaux = (
-            Creneau.objects.filter(enseignant_id=enseignant_id, actif=True)
+            self.get_queryset()
+            .filter(enseignant_id=enseignant_id, actif=True)
             .filter(Q(semaine=0) | Q(semaine=semaine))
             .select_related("classe", "matiere", "enseignant__user", "salle")
             .order_by("jour", "heure_debut")
@@ -149,7 +143,8 @@ class CreneauxViewSet(viewsets.ModelViewSet):
 
         semaine = request.query_params.get("semaine", 0)
         creneaux = (
-            Creneau.objects.filter(salle_id=salle_id, actif=True)
+            self.get_queryset()
+            .filter(salle_id=salle_id, actif=True)
             .filter(Q(semaine=0) | Q(semaine=semaine))
             .select_related("classe", "matiere", "enseignant__user", "salle")
             .order_by("jour", "heure_debut")
@@ -177,9 +172,7 @@ class CreneauxViewSet(viewsets.ModelViewSet):
         """Détecte les conflits d'EDT."""
         from collections import defaultdict
 
-        creneaux = Creneau.objects.filter(actif=True).select_related(
-            "classe", "enseignant", "salle"
-        )
+        creneaux = self.get_queryset().filter(actif=True).select_related("classe", "enseignant", "salle")
 
         conflits = []
         # Grouper par (jour, heure_debut, heure_fin)

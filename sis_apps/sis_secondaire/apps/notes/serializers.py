@@ -5,6 +5,9 @@ from apps.eleves.models import AffectationMatiereIndividuelle
 from rest_framework import serializers
 
 from sis_common.academic_configuration import validate_rule_criteria
+from sis_common.authorization import user_has_any_role
+from sis_common.grade_entry import validate_assessment_scale
+from sis_common.serializers import TenantBoundSerializerMixin
 from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 
 from .models import Bulletin, Evaluation, Note, RegleValidation
@@ -75,7 +78,7 @@ class EvaluationListSerializer(serializers.ModelSerializer):
         return get_submission_window_alert(obj, configuration, "evaluation")
 
 
-class EvaluationDetailSerializer(serializers.ModelSerializer):
+class EvaluationDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour une évaluation."""
 
     matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
@@ -141,12 +144,26 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
         return get_submission_window_alert(obj, configuration, "evaluation")
 
     def validate(self, attrs):
+        attrs = super().validate(attrs)
+        validate_assessment_scale(attrs, self.instance)
         classe = attrs.get("classe", getattr(self.instance, "classe", None))
         matiere = attrs.get("matiere", getattr(self.instance, "matiere", None))
+        periode = attrs.get("periode", getattr(self.instance, "periode", None))
+        enseignant = attrs.get("enseignant", getattr(self.instance, "enseignant", None))
+        if classe and periode and classe.annee_scolaire_id != periode.annee_scolaire_id:
+            raise serializers.ValidationError({"periode": "La période doit appartenir à l'année de la classe."})
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None)
+        if tenant and periode and periode.annee_scolaire.etablissement_id != tenant.pk:
+            raise serializers.ValidationError({"periode": "Cette période appartient à un autre établissement."})
+        user = getattr(request, "user", None)
+        if user and not user.is_staff and user_has_any_role(user, ("enseignant",)):
+            if enseignant and enseignant.user_id != user.pk:
+                raise serializers.ValidationError(
+                    {"enseignant": "Vous ne pouvez créer une évaluation pour un autre enseignant."}
+                )
         eleve_cible = attrs.get("eleve_cible", getattr(self.instance, "eleve_cible", None))
-        debut_soumission = attrs.get(
-            "debut_soumission", getattr(self.instance, "debut_soumission", None)
-        )
+        debut_soumission = attrs.get("debut_soumission", getattr(self.instance, "debut_soumission", None))
         fin_soumission = attrs.get("fin_soumission", getattr(self.instance, "fin_soumission", None))
         if debut_soumission and fin_soumission and fin_soumission < debut_soumission:
             raise serializers.ValidationError(
@@ -154,20 +171,26 @@ class EvaluationDetailSerializer(serializers.ModelSerializer):
             )
         if not eleve_cible:
             return attrs
-        class_member = eleve_cible.classe_actuelle_id == getattr(classe, "id", None) or classe.inscriptions.filter(
-            eleve=eleve_cible,
-            statut__in=("en_cours", "validee"),
-        ).exists()
+        class_member = (
+            eleve_cible.classe_actuelle_id == getattr(classe, "id", None)
+            or classe.inscriptions.filter(
+                eleve=eleve_cible,
+                statut__in=("en_cours", "validee"),
+            ).exists()
+        )
         if not class_member:
             raise serializers.ValidationError(
                 {"eleve_cible": "L'élève ciblé doit appartenir à la classe de l'évaluation."}
             )
         subject_in_program = ProgrammeMatiere.objects.filter(classe=classe, matiere=matiere).exists()
-        if not subject_in_program and not AffectationMatiereIndividuelle.objects.filter(
-            eleve=eleve_cible,
-            annee_scolaire=classe.annee_scolaire,
-            matiere=matiere,
-        ).exists():
+        if (
+            not subject_in_program
+            and not AffectationMatiereIndividuelle.objects.filter(
+                eleve=eleve_cible,
+                annee_scolaire=classe.annee_scolaire,
+                matiere=matiere,
+            ).exists()
+        ):
             raise serializers.ValidationError(
                 {
                     "eleve_cible": (

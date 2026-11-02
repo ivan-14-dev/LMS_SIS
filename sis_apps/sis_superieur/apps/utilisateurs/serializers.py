@@ -4,6 +4,8 @@ from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
+from sis_common.serializers import TenantBoundSerializerMixin
+
 from .models import Utilisateur
 
 
@@ -44,7 +46,7 @@ class UtilisateurListSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "full_name", "role_display"]
 
 
-class UtilisateurDetailSerializer(serializers.ModelSerializer):
+class UtilisateurDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour le détail."""
 
     full_name = serializers.CharField(source="get_full_name", read_only=True)
@@ -93,13 +95,15 @@ class UtilisateurDetailSerializer(serializers.ModelSerializer):
             "is_etudiant",
             "is_enseignant",
             "is_admin",
+            "etablissement",
+            "mfa_active",
         ]
         extra_kwargs = {
             "mfa_secret": {"write_only": True},
         }
 
 
-class UtilisateurCreateSerializer(serializers.ModelSerializer):
+class UtilisateurCreateSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer pour la création d'utilisateur."""
 
     password = serializers.CharField(write_only=True, validators=[validate_password])
@@ -119,8 +123,10 @@ class UtilisateurCreateSerializer(serializers.ModelSerializer):
             "telephone",
             "langue",
         ]
+        read_only_fields = ["etablissement"]
 
     def validate(self, attrs):
+        attrs = super().validate(attrs)
         if attrs.get("password") != attrs.get("password_confirm"):
             raise serializers.ValidationError({"password_confirm": "Les mots de passe ne correspondent pas."})
         return attrs
