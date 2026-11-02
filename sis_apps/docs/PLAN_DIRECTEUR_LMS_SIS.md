@@ -7,7 +7,7 @@ Ils définissent 20 domaines fonctionnels, huit familles d'établissements et se
 piliers : SIS, LMS, ERP, IA, certifications, intégrations, gouvernance.
 Ce document est un planning proposé, pas l'annonce de fonctionnalités déjà livrées.
 
-### Premier incrément réalisé : configuration des offres
+### Incréments réalisés : configuration et raccordement des offres
 
 Le socle dispose maintenant d'un catalogue partagé de profils versionnés,
 d'offres combinables dans un tenant, de calendriers et libellés personnalisables,
@@ -16,11 +16,16 @@ L'onglet **Profils et offres** permet de les modifier et enregistrer sans écrir
 du JSON. Primaire, secondaire, supérieur et formation professionnelle peuvent
 coexister ; un profil personnalisé complète ces modèles.
 
+Les offres sont désormais sélectionnables sur les classes/formations.
+Les nouvelles inscriptions et évaluations conservent une copie de leurs règles ;
+les anciennes données ne sont pas converties rétroactivement. Le contrôle
+continu enregistre notes, compétences et décisions simples, sans convertir
+les résultats non chiffrés en notes et sans attribuer automatiquement de crédits.
+
 **Cela ne termine pas P1 et ne rend pas encore le système universel en production.**
-Ces configurations ne sont pas encore liées aux classes/formations,
-inscriptions, résultats et crédits officiels. Les deux variantes techniques
-restent en place. Le prochain lot doit établir ces liens et leur historique
-sans modifier rétroactivement les données existantes.
+Les deux variantes techniques restent en place. Les parcours sans classe/UE,
+transferts historisés, agrégation des compétences, examens/jurys, publication
+des résultats et attribution des crédits doivent encore être généralisés.
 Voir le [périmètre et les commandes API](INSTALLATION_ETABLISSEMENT.md#profils-institutionnels-et-offres-mixtes).
 
 ## 1. Conclusion et hypothèses de travail
@@ -141,13 +146,13 @@ la seule livraison de ses premières listes.
 
 | # | Domaine et état | Déjà présent | Reste pour atteindre la cible | Phases |
 |---|---|---|---|---|
-| D01 | Établissements et organisations — **Partiel** | Tenants, établissements, années/périodes, structures, modules activables ; configurations d'offres mixtes et profils versionnés avec simulation. | Relier ces offres aux parcours métier ; gouvernance de réseaux, hiérarchie groupe/campus/annexe, provisioning, partenaires, déclinaisons pays et capacités mesurées. | P1, P6 |
+| D01 | Établissements et organisations — **Partiel** | Tenants, années/périodes, structures, modules ; offres mixtes avec simulation et raccordement aux classes/formations, inscriptions et contrôle continu. | Gouvernance de réseaux, hiérarchie groupe/campus/annexe, provisioning, partenaires, déclinaisons pays et capacités mesurées. | P1, P6 |
 | D02 | Apprenants — **Partiel** | Dossiers élèves/étudiants, matricules, liens familiaux, imports et inscriptions. | Identité pérenne inter-systèmes, cycle préinscription/réinscription/transfert/suspension/abandon, dossier documentaire complet, historique consolidé et Alumni. | P2, P5, P6 |
 | D03 | Enseignants et personnel — **Partiel** | Comptes, dossiers et affectations ; création de personnel dans le parcours secondaire. | Recrutement, contrats, disponibilités et charges cohérentes, congés/remplacements, compétences, formation continue et évaluations professionnelles. | P2, P4 |
 | D04 | Pédagogie et académique — **Partiel** | Classes/matières, formations, UE/ECUE, maquettes, crédits, prérequis et configuration de règles. | Parcours entièrement administrables, référentiels de compétences/objectifs, équivalences, règles locales versionnées et simulables, progression pédagogique reliée au LMS. | P1, P2, P3 |
 | D05 | Cours et contenus LMS — **Externe / à intégrer** | Code Open edX dans le dépôt ; mappings et mécanismes d'intégration SIS. Le pack Compose ne déploie pas le LMS. | Distribution Open edX compatible, parcours Studio/apprenant unifié, cours multimédias, ressources interactives, forums, projets/équipes, parcours conditionnels, versions et bibliothèques partagées. | P3 |
 | D06 | Évaluations et examens — **Partiel + externe** | Saisie d'évaluations et notes ; API de sessions, épreuves, convocations, résultats et correction anonymisée. | Relier création, soumission, correction, jury et publication ; devoirs/remises/rubriques ; banque de questions/QCM via LMS ; gestion des examens physiques/oraux/pratiques, PV, antivirus des dépôts. Surveillance distante seulement après choix juridique et pédagogique. | P2, P3, P5 |
-| D07 | Notes et bulletins — **Partiel** | Saisie transactionnelle, barèmes ; modèles/API de moyennes, bulletins, relevés, crédits et rattrapages ; PDF. | Qualifier coefficients, arrondis, absences, compensation, classement et passages ; carnet enseignant complet, compétences, validations avant publication et gestion des rectifications. | P2, P3, P5 |
+| D07 | Notes et bulletins — **Partiel** | Saisie transactionnelle de notes/compétences/décisions simples en contrôle continu, règles historisées ; modèles/API de moyennes, bulletins, crédits et rattrapages ; PDF. | Qualifier coefficients, arrondis, absences, compensation, classement et passages ; agrégation des compétences, carnet enseignant, validations avant publication et rectifications. | P2, P3, P5 |
 | D08 | Emplois du temps — **Partiel** | Créneaux/salles, vues de consultation, contraintes et endpoint de détection de conflits ; création secondaire. | Achever les actions supérieures, tester tous les chevauchements, calendriers unifiés, événements, remplacements, planification hybride/multi-campus et affectation automatique. | P2, P4, P6 |
 | D09 | Finance — **Partiel** | Frais, factures, paiements, bourses et workflows de validation/remboursement côté API ; interface de consultation. | Parcours de facturation/encaissement complet, réductions/échéanciers, paiements partiels, reçus, dettes, connecteurs bancaires/mobile money, rapprochement, multidevise, comptabilité/budget/dépenses et paie via ERP. | P4, P6 |
 | D10 | Communication — **Partiel** | Notifications in-app, email, SMS et webhook ; préférences et suivi de livraison dans le socle. | Qualifier les fournisseurs réels ; messagerie et annonces, conversations autorisées, notifications push/temps réel, urgences, calendrier partagé, traduction assistée et politique de conservation. | P2, P3, P4, P6 |
@@ -183,7 +188,7 @@ la seule livraison de ses premières listes.
 
 | Moteur cible | Point de départ | Travaux nécessaires |
 |---|---|---|
-| Configuration institutionnelle | Catalogues, dimensions, règles, groupes et fonctionnalités ; offres/profils versionnés et simulation disponibles. | Liaison aux dossiers et résultats, héritage réseau/établissement/campus, historique des règles appliquées et migrations de configuration. |
+| Configuration institutionnelle | Catalogues, dimensions, groupes ; offres composables et simulation ; règles conservées dans les inscriptions et évaluations de contrôle continu. | Héritage réseau/établissement/campus, gouvernance des révisions, migrations de configuration et extension aux examens/publications/crédits. |
 | Workflow Engine | Transitions spécialisées, événements et historique ; paramètres de validation et financiers. | Définitions versionnées, étapes/acteurs/conditions, délais, délégations, escalades, reprise après erreur et éditeur utilisable. Ne pas modifier rétroactivement les dossiers en cours. |
 | Rules Engine | Barèmes, critères et résolution de certaines politiques. | Priorités explicites, dates d'effet, simulation sur jeux d'exemples, explication du calcul et règles de pays/profil. Pas d'exécution libre de code utilisateur. |
 | Form Builder | Formulaires développés et paramètres administratifs existants. | Champs personnalisés typés, validations, sections conditionnelles, droits par champ, pièces jointes, versions et stratégie de conservation des données après retrait d'un champ. |
@@ -277,8 +282,10 @@ responsable produit et les référents métier. Aucun pourcentage global fictif.
 - [x] Livrer un catalogue versionné et un éditeur de configurations d'offres
   combinables pour primaire, secondaire, supérieur et formation professionnelle,
   avec crédits facultatifs et simulation des règles.
-- [ ] Relier les offres aux classes/formations, inscriptions et évaluations,
-  avec historique des versions appliquées aux résultats officiels.
+- [x] Relier les offres aux classes/formations, inscriptions et évaluations
+  de contrôle continu, avec conservation des règles appliquées aux résultats.
+- [ ] Étendre ces liens aux transferts, examens, jurys, publications et crédits ;
+  compléter la gouvernance et l'historique des révisions de règles.
 - [ ] Permettre plusieurs types d'offres dans une même institution et un
   assistant de configuration avec modules, règles, rôles et import de données.
 - [ ] Uniformiser le contrôle des droits : rôle, attribut, relation et séparation

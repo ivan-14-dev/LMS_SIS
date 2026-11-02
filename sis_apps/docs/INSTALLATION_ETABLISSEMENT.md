@@ -224,22 +224,56 @@ barème produit une erreur. La simulation ne publie aucune note ou décision et
 n'attribue aucun crédit. Modifier les règles masque un ancien résultat de
 simulation qui ne correspondrait plus au formulaire.
 
-**Périmètre de ce premier lot : configuration et simulation uniquement.**
-Les classes, formations, inscriptions, calculs de bulletins et écrans de saisie
-de notes existants ne sont pas encore reliés à ces offres. Leurs règles actuelles
-restent inchangées. Les libellés d'une offre ne renomment pas encore tous les
-menus. Les fonctionnalités pédagogiques globales restent gérées dans l'onglet
+**Raccordement métier disponible : classes, formations, inscriptions et contrôle continu.**
+Dans **Classes** ou **Formations**, choisissez une **Offre institutionnelle**.
+Le rattachement conserve une copie complète de ses règles. Les nouvelles
+inscriptions et évaluations héritent de cette copie ; les dossiers déjà créés
+restent inchangés. Pour appliquer de nouvelles règles aux futurs dossiers,
+créez une offre avec un nouveau code et sélectionnez-la sur la classe/formation.
+Modifier ou retirer le modèle du catalogue ne réécrit pas les copies existantes.
+
+Au secondaire, **Classes → Inscriptions annuelles** permet de créer puis valider
+une inscription. Au supérieur, utilisez **Inscriptions administratives** puis
+les affectations pédagogiques existantes. L'offre héritée figure dans la liste.
+Le rattachement d'une inscription ou évaluation déjà historisée est figé :
+un transfert de cursus avec conservation de toutes ses décisions reste un
+parcours distinct à développer.
+
+Dans **Saisir les notes**, les règles historisées déterminent les champs :
+note chiffrée, compétences acquises/non acquises/non renseignées, ou décision
+validé/non validé/non renseigné. La sauvegarde enregistre les résultats réels
+et leurs appréciations ; un zéro reste distinct d'une absence. Un résultat
+renseigné exige le statut **Présentée**. La validation d'un lot est atomique,
+y compris pour les critères inconnus et les types invalides.
+
+Le barème des nouvelles évaluations chiffrées rattachées est repris de l'offre,
+indépendamment du barème libre du formulaire. Il ne peut plus être modifié
+sur l'évaluation. La saisie actuelle accepte des bornes et seuils compris entre
+0 et 999,99 avec au plus deux décimales ; un profil incompatible est refusé au
+rattachement. Les imports Excel de notes restent réservés aux évaluations
+chiffrées. Les résultats par compétences ne sont pas convertis en notes et
+n'entrent donc pas dans les moyennes numériques.
+
+**Limites :** la réussite d'une évaluation ne constitue ni une décision de jury,
+ni une publication de bulletin, ni une attribution automatique de crédits ou
+de diplôme. Les montants de crédits historiques du cursus restent distincts
+de la cible configurée dans l'offre. Examens, notation anonyme, agrégation des
+compétences sur un parcours et règles de publication restent à raccorder.
+Les libellés d'une offre ne renomment pas encore tous les menus.
+Les fonctionnalités pédagogiques globales restent gérées dans l'onglet
 **Modules** ; ajouter une offre n'active ni Open edX ni un service externe.
-Ce lot ne constitue donc pas une prise en charge complète de chaque catégorie
-d'établissement.
+Ce lot ne constitue pas une prise en charge complète de chaque catégorie.
 
 Les configurations sont conservées dans
 `configuration_academique.learning_offerings`, sous forme de définitions
 complètes avec un code unique et une version. Les modifications partielles des
 autres paramètres préservent les offres ; les établissements existants sans
 cette clé continuent de fonctionner. Remplacer la liste remplace les
-configurations d'offres, pas les dossiers académiques. Aucune migration de schéma
-ni conversion des données scolaires existantes n'est nécessaire.
+configurations d'offres, pas les dossiers académiques. Les migrations
+`learning_offering_bindings` ajoutent les références, copies de règles et
+résultats structurés avec des valeurs vides pour les données antérieures,
+sans conversion des anciennes notes. Appliquez la procédure de mise à jour
+du guide : sauvegarde, arrêt, `init` de chaque variante, puis `start` et `check`.
 
 L'API `GET /api/v1/etablissement/current/` expose les modèles dans
 `configuration_schema.institutional_profiles`. La sauvegarde utilise le
@@ -278,6 +312,17 @@ Ces endpoints restent réservés aux administrateurs autorisés du tenant couran
 Les configurations inconnues, versions non prises en charge, doublons et valeurs
 invalides sont refusés ; aucune partie du formulaire n'est enregistrée en cas
 d'erreur.
+
+Le catalogue des offres enregistrées est également consultable par les comptes
+authentifiés du tenant via `GET /api/v1/etablissement/learning-offerings/`,
+sans exposer les autres paramètres administratifs.
+Les API de classes/formations acceptent `offre_code` et renvoient
+`offre_configuration` en lecture seule. Inscriptions et évaluations renvoient
+leur propre copie, elle aussi non modifiable par l'API.
+La saisie de notes accepte `resultat` pour les modes non chiffrés, avec
+`valeur: null` : `{"criteria": {"pratique": true}}` ou `{"passed": false}`.
+Les lectures de notes exposent le barème réel et `resultat_offre`, calculé avec
+les règles conservées sur l'évaluation.
 
 ### Comptes et responsabilités
 
