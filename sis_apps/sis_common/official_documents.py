@@ -12,7 +12,11 @@ def tenant_identity_rows(request, document_label, serial=None, issue_date=None):
         ("Établissement", getattr(tenant, "nom", "")),
         (
             "Type d'établissement",
-            tenant.get_type_display() if tenant and hasattr(tenant, "get_type_display") else getattr(tenant, "type", ""),
+            (
+                tenant.get_type_display()
+                if tenant and hasattr(tenant, "get_type_display")
+                else getattr(tenant, "type", "")
+            ),
         ),
         ("Document", document_label),
         ("Numéro / série", serial or ""),
@@ -45,14 +49,12 @@ def render_official_pdf(filename, title, identity_rows, sections, footer_rows=No
             for label, value in section.get("rows", [])
             if value not in (None, "")
         )
-        sections_html_parts.append(
-            f"""
+        sections_html_parts.append(f"""
         <section>
           <h2>{section_title}</h2>
           <table>{section_rows}</table>
         </section>
-        """
-        )
+        """)
     sections_html = "".join(sections_html_parts)
     footer_html = "".join(
         f"<li><strong>{escape(str(label))}:</strong> {escape(str(value))}</li>"
@@ -87,5 +89,5 @@ def render_official_pdf(filename, title, identity_rows, sections, footer_rows=No
     """
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
-    HTML(string=html).write_pdf(response)
+    HTML(string=html).write_pdf(response, presentational_hints=False)
     return response

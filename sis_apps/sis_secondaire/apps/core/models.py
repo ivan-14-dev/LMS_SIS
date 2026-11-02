@@ -30,8 +30,8 @@ class WorkflowEvent(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["app_label", "model", "object_id"]),
-            models.Index(fields=["action", "created_at"]),
+            models.Index(fields=["app_label", "model", "object_id"], name="core_workfl_app_lab_59e6ad_idx"),
+            models.Index(fields=["action", "created_at"], name="core_workfl_action_6b80c1_idx"),
         ]
 
     def __str__(self):
@@ -62,7 +62,7 @@ class WorkflowNotification(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["recipient", "is_read", "created_at"]),
+            models.Index(fields=["recipient", "is_read", "created_at"], name="core_workfl_recipie_4eb2b3_idx"),
         ]
 
     def __str__(self):

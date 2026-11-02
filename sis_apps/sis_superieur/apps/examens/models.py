@@ -28,9 +28,7 @@ class SessionExamen(models.Model):
         ("rattrapage", "Rattrapage"),
         ("exceptionnelle", "Exceptionnelle"),
     ]
-    semestre = models.ForeignKey(
-        Semestre, on_delete=models.CASCADE, related_name="sessions_examens"
-    )
+    semestre = models.ForeignKey(Semestre, on_delete=models.CASCADE, related_name="sessions_examens")
     numero = models.PositiveSmallIntegerField(choices=NUMERO_CHOICES)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="normale")
     date_debut = models.DateField()
@@ -49,9 +47,7 @@ class SessionExamen(models.Model):
 class EpreuveExamen(models.Model):
     """Épreuve d'examen (1 épreuve = 1 ECUE à 1 date)."""
 
-    session = models.ForeignKey(
-        SessionExamen, on_delete=models.CASCADE, related_name="epreuves"
-    )
+    session = models.ForeignKey(SessionExamen, on_delete=models.CASCADE, related_name="epreuves")
     ecue = models.ForeignKey(ECUE, on_delete=models.CASCADE, related_name="epreuves")
     date = models.DateField()
     heure_debut = models.TimeField()
@@ -95,12 +91,8 @@ class ConvocationExamen(models.Model):
         ("dispense", "Dispensé"),
         ("annule", "Annulé"),
     ]
-    epreuve = models.ForeignKey(
-        EpreuveExamen, on_delete=models.CASCADE, related_name="convocations"
-    )
-    etudiant = models.ForeignKey(
-        "etudiants.Etudiant", on_delete=models.CASCADE, related_name="convocations"
-    )
+    epreuve = models.ForeignKey(EpreuveExamen, on_delete=models.CASCADE, related_name="convocations")
+    etudiant = models.ForeignKey("etudiants.Etudiant", on_delete=models.CASCADE, related_name="convocations")
     numero_place = models.CharField(max_length=10, blank=True)
     salle = models.CharField(max_length=100, blank=True)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="convoque")
@@ -133,19 +125,13 @@ class ResultatExamen(models.Model):
         ("retake", "Rattrapage"),
     ]
 
-    epreuve = models.ForeignKey(
-        EpreuveExamen, on_delete=models.CASCADE, related_name="resultats"
-    )
-    etudiant = models.ForeignKey(
-        "etudiants.Etudiant", on_delete=models.CASCADE, related_name="resultats_examen"
-    )
+    epreuve = models.ForeignKey(EpreuveExamen, on_delete=models.CASCADE, related_name="resultats")
+    etudiant = models.ForeignKey("etudiants.Etudiant", on_delete=models.CASCADE, related_name="resultats_examen")
     note = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     appreciation = models.TextField(blank=True)
     numero_anonyme = models.CharField(max_length=20, blank=True)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="draft")
-    type_resultat = models.CharField(
-        max_length=20, choices=TYPE_RESULTAT_CHOICES, default="normal"
-    )
+    type_resultat = models.CharField(max_length=20, choices=TYPE_RESULTAT_CHOICES, default="normal")
     admis = models.BooleanField(default=False)
     mention = models.CharField(max_length=30, blank=True)
     saisi_par = models.ForeignKey(
@@ -204,7 +190,7 @@ class ResultatExamen(models.Model):
         verbose_name = "Résultat d'examen"
         verbose_name_plural = "Résultats d'examen"
         indexes = [
-            models.Index(fields=["statut", "type_resultat"]),
+            models.Index(fields=["statut", "type_resultat"], name="examens_res_statut_1b028c_idx"),
         ]
 
     def __str__(self):
@@ -222,12 +208,8 @@ class CopieExamen(models.Model):
         ("finalisee", "Finalisée"),
     ]
 
-    convocation = models.OneToOneField(
-        ConvocationExamen, on_delete=models.PROTECT, related_name="copie"
-    )
-    numero_anonyme = models.CharField(
-        max_length=20, unique=True, default=generate_anonymous_number, editable=False
-    )
+    convocation = models.OneToOneField(ConvocationExamen, on_delete=models.PROTECT, related_name="copie")
+    numero_anonyme = models.CharField(max_length=20, unique=True, default=generate_anonymous_number, editable=False)
     fichier = models.FileField(
         upload_to=exam_copy_upload_to,
         storage=PrivateExamStorage(),
@@ -236,9 +218,7 @@ class CopieExamen(models.Model):
     empreinte_sha256 = models.CharField(max_length=64, editable=False)
     taille_octets = models.PositiveBigIntegerField(editable=False)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="deposee")
-    note_finale = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
+    note_finale = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     moderee_par = models.ForeignKey(
         Utilisateur,
         on_delete=models.PROTECT,
@@ -279,26 +259,16 @@ class AffectationCorrection(models.Model):
         ("soumise", "Soumise"),
     ]
 
-    copie = models.ForeignKey(
-        CopieExamen, on_delete=models.CASCADE, related_name="affectations"
-    )
-    correcteur = models.ForeignKey(
-        Utilisateur, on_delete=models.PROTECT, related_name="corrections_assignees"
-    )
-    ordre = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(2)]
-    )
+    copie = models.ForeignKey(CopieExamen, on_delete=models.CASCADE, related_name="affectations")
+    correcteur = models.ForeignKey(Utilisateur, on_delete=models.PROTECT, related_name="corrections_assignees")
+    ordre = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(2)])
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="assignee")
-    affectee_par = models.ForeignKey(
-        Utilisateur, on_delete=models.PROTECT, related_name="affectations_correction"
-    )
+    affectee_par = models.ForeignKey(Utilisateur, on_delete=models.PROTECT, related_name="affectations_correction")
     affectee_le = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(
-                fields=["copie", "ordre"], name="unique_ordre_correction_superieur"
-            ),
+            models.UniqueConstraint(fields=["copie", "ordre"], name="unique_ordre_correction_superieur"),
             models.UniqueConstraint(
                 fields=["copie", "correcteur"],
                 name="unique_correcteur_copie_superieur",
@@ -313,9 +283,7 @@ class AffectationCorrection(models.Model):
 class CorrectionCopie(models.Model):
     """Note remise par un correcteur sans accès à l'identité de l'étudiant."""
 
-    affectation = models.OneToOneField(
-        AffectationCorrection, on_delete=models.CASCADE, related_name="correction"
-    )
+    affectation = models.OneToOneField(AffectationCorrection, on_delete=models.CASCADE, related_name="correction")
     note = models.DecimalField(max_digits=5, decimal_places=2)
     appreciation = models.TextField(blank=True)
     soumise_le = models.DateTimeField(auto_now_add=True)
@@ -328,12 +296,8 @@ class CorrectionCopie(models.Model):
 class AuditCopieExamen(models.Model):
     """Journal append-only des opérations sensibles sur une copie."""
 
-    copie = models.ForeignKey(
-        CopieExamen, on_delete=models.PROTECT, related_name="audit"
-    )
-    acteur = models.ForeignKey(
-        Utilisateur, on_delete=models.PROTECT, related_name="audit_copies_examen"
-    )
+    copie = models.ForeignKey(CopieExamen, on_delete=models.PROTECT, related_name="audit")
+    acteur = models.ForeignKey(Utilisateur, on_delete=models.PROTECT, related_name="audit_copies_examen")
     action = models.CharField(max_length=50)
     details = models.JSONField(default=dict, blank=True)
     cree_le = models.DateTimeField(auto_now_add=True)

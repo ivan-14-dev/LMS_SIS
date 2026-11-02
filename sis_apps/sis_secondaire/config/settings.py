@@ -10,14 +10,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SIS_APPS_DIR = BASE_DIR.parent
 if str(SIS_APPS_DIR) not in sys.path:
     sys.path.insert(0, str(SIS_APPS_DIR))
-LOG_DIR = BASE_DIR / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-
-from sis_common.config import (
+from sis_common.config import (  # noqa: E402
     get_allowed_hosts,
     get_bool_environment,
+    get_database_configuration,
     get_required_secret,
+    get_sis_mode,
+    get_variant_environment,
+    load_environment,
 )
+
+load_environment(BASE_DIR)
+SIS_VARIANT = "secondaire"
+SIS_MODE = get_sis_mode(SIS_VARIANT)
+LOG_DIR = Path(os.environ.get("LOG_DIR", BASE_DIR / "logs"))
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # =============================================================================
 # SECURITY - Configuration obligatoire
@@ -55,7 +62,6 @@ THIRD_PARTY_APPS = [
     "django_tables2",
     "django_celery_beat",
     "axes",
-    "mfa",
     "modeltranslation",
 ]
 
@@ -134,16 +140,7 @@ TEMPLATES = [
 # Database - multi-tenant (schema per tenant)
 DATABASE_ROUTERS = ("django_tenants.routers.TenantSyncRouter",)
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django_tenants.postgresql_backend",
-        "NAME": os.environ.get("DB_NAME", "sis_secondaire"),
-        "USER": os.environ.get("DB_USER", "postgres"),
-        "PASSWORD": os.environ.get("DB_PASSWORD", "postgres"),
-        "HOST": os.environ.get("DB_HOST", "localhost"),
-        "PORT": os.environ.get("DB_PORT", "5432"),
-    }
-}
+DATABASES = {"default": get_database_configuration(SIS_VARIANT)}
 
 # Tenancy
 TENANT_MODEL = "etablissement.Etablissement"
@@ -167,7 +164,7 @@ TENANT_APPS = (
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/1"),
+        "LOCATION": get_variant_environment("REDIS_URL", SIS_VARIANT, "redis://127.0.0.1:6379/1"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
@@ -176,20 +173,24 @@ CACHES = {
 }
 
 # Celery
-from config.celery_beat import CELERY_BEAT_SCHEDULE  # noqa: E402
-from config.celery_routes import (  # noqa: E402
+from config.celery_beat import CELERY_BEAT_SCHEDULE  # noqa: E402,F401
+from config.celery_routes import (  # noqa: E402,F401
     CELERY_TASK_DEFAULT_QUEUE,
     CELERY_TASK_QUEUES,
     CELERY_TASK_ROUTES,
 )
 
-CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/2")
-CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/3")
+CELERY_BROKER_URL = get_variant_environment("CELERY_BROKER_URL", SIS_VARIANT, "redis://127.0.0.1:6379/2")
+CELERY_RESULT_BACKEND = get_variant_environment("CELERY_RESULT_BACKEND", SIS_VARIANT, "redis://127.0.0.1:6379/3")
+CELERY_BROKER_TRANSPORT_OPTIONS = {"global_keyprefix": f"sis_{SIS_VARIANT}:"}
+CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {"global_keyprefix": f"sis_{SIS_VARIANT}:"}
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = "Europe/Paris"
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+# Periodic tasks iterate tenant schemas; Beat itself runs outside any tenant.
+CELERY_BEAT_SCHEDULER = "celery.beat:PersistentScheduler"
+CELERY_BEAT_SCHEDULE_FILENAME = os.environ.get("CELERY_BEAT_SCHEDULE_FILENAME", str(BASE_DIR / "celerybeat-schedule"))
 
 # Auth
 AUTH_USER_MODEL = "utilisateurs.Utilisateur"
@@ -236,13 +237,16 @@ LANGUAGES = [
 
 # Static
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = Path(os.environ.get("STATIC_ROOT", BASE_DIR / "staticfiles"))
 STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 
 # Media
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", BASE_DIR / "media"))
 PRIVATE_EXAM_STORAGE_ROOT = Path(os.environ.get("PRIVATE_EXAM_STORAGE_ROOT", BASE_DIR / "private_exam_copies"))
 EXAM_COPY_MAX_SIZE = int(os.environ.get("EXAM_COPY_MAX_SIZE", 25 * 1024 * 1024))
 PRIVATE_FINANCIAL_STORAGE_ROOT = Path(
@@ -260,6 +264,8 @@ SECURE_HSTS_PRELOAD = True
 SECURE_SSL_REDIRECT = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+if get_bool_environment("TRUST_PROXY"):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # DRF
 REST_FRAMEWORK = {
@@ -275,7 +281,7 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
     ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "sis_common.pagination.SISPagination",
     "PAGE_SIZE": 50,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_CLASSES": [
@@ -398,7 +404,7 @@ DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@sis.local")
 # variables EMAIL_HOST*) via l'environnement pour un envoi SMTP réel en prod.
 EMAIL_BACKEND = os.environ.get(
     "EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend",
+    ("django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.smtp.EmailBackend"),
 )
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "localhost")
 EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 587))

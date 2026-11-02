@@ -30,7 +30,7 @@
     "@mui/material": "^9.2.0",
     "@openedx/paragon": "^22.0.0",
     "@tanstack/react-query": "^5.0.0",
-    "axios": "^1.6.0",
+    "axios": "^1.21.0",
     "core-js": "^3.32.0",
     "lodash": "^4.17.21",
     "prop-types": "^15.8.1",
@@ -45,10 +45,22 @@
   "devDependencies": {
     "@edx/browserslist-config": "^1.2.0",
     "@openedx/frontend-build": "^14.6.17",
+    "@playwright/test": "1.64.1",
     "@testing-library/jest-dom": "^6.1.0",
     "@testing-library/react": "^14.0.0",
+    "ajv": "^8.17.1",
     "glob": "^10.3.0",
     "jest": "^29.7.0"
+  },
+  "overrides": {
+    "@edx/frontend-platform": {
+      "axios": "$axios"
+    },
+    "@openedx/frontend-build": {
+      "webpack-dev-server": "5.2.6",
+      "webpack-dev-middleware": "7.4.6"
+    },
+    "brace-expansion@^1.0.0": "^1.1.21"
   },
   "peerDependencies": {
     "react": "^18.0.0",

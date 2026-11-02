@@ -59,7 +59,7 @@ class Evaluation(models.Model):
         indexes = [
             models.Index(fields=["classe", "date"]),
             models.Index(fields=["matiere", "date"]),
-            models.Index(fields=["eleve_cible", "date"]),
+            models.Index(fields=["eleve_cible", "date"], name="notes_evalu_eleve_c_f95df4_idx"),
         ]
 
     def __str__(self):

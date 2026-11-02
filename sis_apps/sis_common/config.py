@@ -3,7 +3,45 @@
 import os
 import sys
 
+import environ
 from django.core.exceptions import ImproperlyConfigured
+
+
+def load_environment(base_dir):
+    """Prefer process variables, then the variant's .env, then the shared .env."""
+    for path in (base_dir / ".env", base_dir.parent / ".env"):
+        if path.is_file():
+            environ.Env.read_env(path, overwrite=False)
+
+
+def get_variant_environment(name, variant, default=None):
+    return os.environ.get(f"{name}_{variant.upper()}", os.environ.get(name, default))
+
+
+def get_sis_mode(variant):
+    mode = os.environ.get("SIS_MODE", variant)
+    if mode not in ("secondaire", "superieur", "dual"):
+        raise ImproperlyConfigured("SIS_MODE doit être secondaire, superieur ou dual.")
+    return mode
+
+
+def get_database_configuration(variant):
+    password = get_variant_environment("DB_PASSWORD", variant)
+    if not password:
+        if is_test_environment():
+            password = "postgres"
+        else:
+            raise ImproperlyConfigured(f"DB_PASSWORD_{variant.upper()} ou DB_PASSWORD doit être défini.")
+    return {
+        "ENGINE": "django_tenants.postgresql_backend",
+        "NAME": get_variant_environment("DB_NAME", variant, f"sis_{variant}"),
+        "USER": get_variant_environment("DB_USER", variant, "postgres"),
+        "PASSWORD": password,
+        "HOST": get_variant_environment("DB_HOST", variant, "localhost"),
+        "PORT": get_variant_environment("DB_PORT", variant, "5432"),
+        "CONN_MAX_AGE": 60,
+        "CONN_HEALTH_CHECKS": True,
+    }
 
 
 def is_test_environment() -> bool:

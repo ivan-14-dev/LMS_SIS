@@ -37,7 +37,8 @@ class OfficialDocumentsTests(SimpleTestCase):
             def __init__(self, string):
                 self.string = string
 
-            def write_pdf(self, response):
+            def write_pdf(self, response, *, presentational_hints):
+                assert presentational_hints is False
                 response.write(b"%PDF-test")
 
         fake_module.HTML = FakeHTML
@@ -54,3 +55,13 @@ class OfficialDocumentsTests(SimpleTestCase):
         assert response.status_code == 200
         assert response["Content-Disposition"] == 'attachment; filename="document.pdf"'
         assert response.content == b"%PDF-test"
+
+    def test_supported_pdf_engine_renders_a_real_document(self):
+        response = render_official_pdf(
+            "verification.pdf",
+            "Document de verification",
+            [("Institution", "Test")],
+            [{"title": "Resultat", "rows": [("Evaluation", "12/20")]}],
+        )
+        assert response.content.startswith(b"%PDF-")
+        assert len(response.content) > 1000
