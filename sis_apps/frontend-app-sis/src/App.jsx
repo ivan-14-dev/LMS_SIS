@@ -8,10 +8,14 @@ import { getConfig } from '@edx/frontend-platform';
 
 import Header from '@edx/frontend-component-header/dist/Header';
 import Footer from '@edx/frontend-component-footer';
+import { getEnabledVariants } from './services/resources';
 
 // Layout
 import SISLayout from './components/layout/SISLayout';
 import PermissionGuard from './components/auth/PermissionGuard';
+import AccountPage from './components/auth/AccountPage';
+import PasswordRecoveryPage from './components/auth/PasswordRecoveryPage';
+import { usesLocalSession } from './services/localSession';
 
 // Dashboards
 import DashboardSuperieur from './superieur/Dashboard';
@@ -50,6 +54,7 @@ import ClassesPage from './secondaire/classes/ClassesPage';
 import EvaluationsPage from './secondaire/evaluations/EvaluationsPage';
 import BulletinsPage from './secondaire/bulletins/BulletinsPage';
 import PresencesPage from './secondaire/presences/PresencesPage';
+import EmploiDuTempsSecondairePage from './secondaire/emploi-du-temps/EmploiDuTempsPage';
 import DisciplinePage from './secondaire/discipline/DisciplinePage';
 import CantinePage from './secondaire/cantine/CantinePage';
 import TransportPage from './secondaire/transport/TransportPage';
@@ -75,14 +80,17 @@ const App = () => (
       <title>SIS - Système d’Information Scolaire</title>
     </Helmet>
     <div className="d-flex flex-column min-vh-100">
-      <Header />
+      {!usesLocalSession() && <Header />}
       <main className="flex-grow-1">
         <Routes>
+          <Route path="/forgot-password" element={<PasswordRecoveryPage />} />
+          <Route path="/reset-password/:uid/:token" element={<PasswordRecoveryPage />} />
           {/* Redirection par défaut */}
-          <Route path="/" element={<Navigate to="/superieur" replace />} />
+          <Route path="/" element={<Navigate to={`/${getEnabledVariants()[0]}`} replace />} />
 
           {/* ============ SIS SUPÉRIEUR ============ */}
           <Route path="/superieur" element={<SISLayout type="superieur" />}>
+            <Route path="compte" element={<AccountPage variant="superieur" />} />
             <Route index element={<DashboardSuperieur />} />
 
             {/* Gestion académique */}
@@ -146,6 +154,7 @@ const App = () => (
 
           {/* ============ SIS SECONDAIRE ============ */}
           <Route path="/secondaire" element={<SISLayout type="secondaire" />}>
+            <Route path="compte" element={<AccountPage variant="secondaire" />} />
             <Route index element={<DashboardSecondaire />} />
 
             {/* Gestion académique */}
@@ -171,7 +180,7 @@ const App = () => (
             {/* Vie scolaire */}
             <Route path="presences" element={<PresencesPage />} />
             <Route path="discipline" element={<DisciplinePage />} />
-            <Route path="emploi-du-temps" element={<EmploiDuTempsPage />} />
+            <Route path="emploi-du-temps" element={<EmploiDuTempsSecondairePage />} />
 
             {/* Services */}
             <Route path="cantine" element={<CantinePage />} />

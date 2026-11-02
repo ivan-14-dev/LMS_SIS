@@ -18,25 +18,27 @@ const config = {
   CSRF_TOKEN_API_PATH: process.env.CSRF_TOKEN_API_PATH || '/csrf/api/v1/token',
 
   // Site configuration
-  SITE_NAME: 'SIS - Système d\'Information Scolaire',
-  LOGO_URL: 'https://edx-cdn.org/v3/default/logo.svg',
+  SITE_NAME: process.env.SITE_NAME || 'SIS - Système d\'Information Scolaire',
+  LOGO_URL: process.env.LOGO_URL || 'https://edx-cdn.org/v3/default/logo.svg',
   LOGO_TRADEMARK_URL: 'https://edx-cdn.org/v3/default/logo-trademark.svg',
   LOGO_WHITE_URL: 'https://edx-cdn.org/v3/default/logo-white.svg',
   FAVICON_URL: 'https://edx-cdn.org/v3/default/favicon.ico',
 
   // Marketing and support
   MARKETING_SITE_BASE_URL: 'http://localhost:8080',
-  SUPPORT_URL: 'http://localhost:8080/support',
-  SUPPORT_EMAIL: 'support@example.com',
-  TERMS_OF_SERVICE_URL: 'http://localhost:8080/tos',
-  PRIVACY_POLICY_URL: 'http://localhost:8080/privacy',
-  CONTACT_URL: 'http://localhost:8080/contact',
+  SUPPORT_URL: process.env.SUPPORT_URL || '',
+  SUPPORT_EMAIL: process.env.SUPPORT_EMAIL || '',
+  TERMS_OF_SERVICE_URL: process.env.TERMS_OF_SERVICE_URL || '',
+  PRIVACY_POLICY_URL: process.env.PRIVACY_POLICY_URL || '',
+  CONTACT_URL: process.env.CONTACT_URL || process.env.SUPPORT_URL || '',
 
   // Optional features
   ENABLE_ACCESSIBILITY_PAGE: false,
   ORDER_HISTORY_URL: 'http://localhost:8080/orders',
 
   // SIS specific configuration
+  SIS_MODE: process.env.SIS_MODE || 'dual',
+  SIS_AUTH_MODE: process.env.SIS_AUTH_MODE || 'lms',
   SIS_API_BASE_URL: process.env.SIS_API_BASE_URL || 'http://localhost:8001/api/v1',
   SIS_SUPERIEUR_API_URL: process.env.SIS_SUPERIEUR_API_URL || 'http://localhost:8002/api/v1',
   SIS_SECONDAIRE_API_URL: process.env.SIS_SECONDAIRE_API_URL || 'http://localhost:8001/api/v1',

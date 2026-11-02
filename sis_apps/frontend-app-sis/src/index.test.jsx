@@ -1,4 +1,3 @@
-import ReactDOM from 'react-dom';
 import { render, screen } from '@testing-library/react';
 import {
   APP_INIT_ERROR, APP_READY, auth, getConfig, initialize, subscribe,
@@ -6,9 +5,10 @@ import {
 import { configure as configureI18n, getLocale } from '@edx/frontend-platform/i18n';
 import './index';
 
-jest.mock('react-dom', () => ({
-  ...jest.requireActual('react-dom'),
-  render: jest.fn(),
+const mockRender = jest.fn();
+jest.mock('react-dom/client', () => ({
+  createRoot: element => (!element || element.id === 'root'
+    ? { render: mockRender } : jest.requireActual('react-dom/client').createRoot(element)),
 }));
 jest.mock('@edx/frontend-platform', () => ({
   APP_INIT_ERROR: 'app.init.error',
@@ -30,7 +30,7 @@ const failed = subscribe.mock.calls.find(([event]) => event === APP_INIT_ERROR)[
 const initializationOptions = initialize.mock.calls[0][0];
 
 beforeEach(() => {
-  ReactDOM.render.mockClear();
+  mockRender.mockClear();
   auth.mockReset();
   getConfig.mockReturnValue({});
 });
@@ -58,7 +58,7 @@ it('waits for LMS authentication in live mode', async () => {
 
   expect(initializationOptions.handlers.auth(true, true)).toBe(authentication);
   expect(auth).toHaveBeenCalledWith(true, true);
-  expect(ReactDOM.render).not.toHaveBeenCalled();
+  expect(mockRender).not.toHaveBeenCalled();
   await authentication;
 });
 
@@ -67,7 +67,7 @@ it('does not hide an authentication failure by switching to demo mode', async ()
   auth.mockRejectedValue(error);
 
   await expect(initializationOptions.handlers.auth(true, true)).rejects.toBe(error);
-  expect(ReactDOM.render).not.toHaveBeenCalled();
+  expect(mockRender).not.toHaveBeenCalled();
 });
 
 it.each([true, 'true'])('permits an explicit demonstration without LMS login (%p)', (flag) => {
@@ -77,14 +77,14 @@ it.each([true, 'true'])('permits an explicit demonstration without LMS login (%p
 
   expect(auth).not.toHaveBeenCalled();
   ready();
-  render(ReactDOM.render.mock.calls[0][0]);
+  render(mockRender.mock.calls[0][0]);
   expect(screen.getByRole('status')).toHaveTextContent('Mode démonstration');
   expect(screen.getByRole('status')).toHaveTextContent('ne sont pas enregistrées');
 });
 
 it('renders the application after initialization without a demo banner in live mode', () => {
   ready();
-  render(ReactDOM.render.mock.calls[0][0]);
+  render(mockRender.mock.calls[0][0]);
 
   expect(screen.getByText('SIS application')).toBeInTheDocument();
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -92,7 +92,7 @@ it('renders the application after initialization without a demo banner in live m
 
 it('shows a safe startup error rather than application or simulated data', () => {
   failed(new Error('Private server details'));
-  render(ReactDOM.render.mock.calls[0][0]);
+  render(mockRender.mock.calls[0][0]);
 
   expect(screen.getByRole('alert')).toHaveTextContent('Impossible de démarrer le SIS');
   expect(screen.queryByText('SIS application')).not.toBeInTheDocument();

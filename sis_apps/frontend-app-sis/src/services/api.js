@@ -1,6 +1,7 @@
 import { getConfig } from '@edx/frontend-platform';
 import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { localHttpClient, usesLocalSession } from './localSession';
 import {
   mockFetch, mockPost, mockPut, mockDelete, isMockMode,
 } from './mockApi';
@@ -27,6 +28,29 @@ export const getSecondaireApiUrl = () => {
   }
 };
 
+export const getAdminApiUrl = () => {
+  const variant = new URLSearchParams(window.location.search).get('sis');
+  const mode = getConfig().SIS_MODE || 'dual';
+  if (variant === 'secondaire' && ['dual', 'secondaire'].includes(mode)) { return getSecondaireApiUrl(); }
+  if (variant === 'superieur' && ['dual', 'superieur'].includes(mode)) { return getSuperieurApiUrl(); }
+  return getConfig().SIS_ADMIN_API_URL || `${getConfig().LMS_BASE_URL}/api/sis/admin`;
+};
+
+export const normalizePageResponse = (data) => {
+  if (Array.isArray(data)) {
+    return {
+      count: data.length, next: null, previous: null, results: data,
+    };
+  }
+  if (!Array.isArray(data?.results)) { throw new Error('Réponse de liste invalide reçue du serveur.'); }
+  return {
+    count: data?.count || 0,
+    next: data?.next || null,
+    previous: data?.previous || null,
+    results: data?.results || [],
+  };
+};
+
 /**
  * Generic API fetch function
  */
@@ -36,7 +60,7 @@ export const fetchApi = async (url, options = {}) => {
     return mockFetch(url);
   }
 
-  const client = getAuthenticatedHttpClient();
+  const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
   const response = await client.get(url, options);
   return response.data;
 };
@@ -49,7 +73,7 @@ export const postApi = async (url, data, options = {}) => {
     return mockPost(url, data);
   }
 
-  const client = getAuthenticatedHttpClient();
+  const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
   const response = await client.post(url, data, options);
   return response.data;
 };
@@ -62,7 +86,7 @@ export const putApi = async (url, data, options = {}) => {
     return mockPut(url, data);
   }
 
-  const client = getAuthenticatedHttpClient();
+  const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
   const response = await client.put(url, data, options);
   return response.data;
 };
@@ -75,7 +99,7 @@ export const patchApi = async (url, data, options = {}) => {
     return mockPut(url, data);
   }
 
-  const client = getAuthenticatedHttpClient();
+  const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
   const response = await client.patch(url, data, options);
   return response.data;
 };
@@ -88,12 +112,37 @@ export const deleteApi = async (url, options = {}) => {
     return mockDelete(url);
   }
 
-  const client = getAuthenticatedHttpClient();
+  const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
   const response = await client.delete(url, options);
   return response.data;
 };
 
-const getVariantApiUrl = (apiType = 'superieur') => (apiType === 'secondaire' ? getSecondaireApiUrl() : getSuperieurApiUrl());
+const getVariantApiUrl = (apiType = 'superieur') => {
+  if (apiType === 'secondaire') { return getSecondaireApiUrl(); }
+  if (apiType === 'superieur') { return getSuperieurApiUrl(); }
+  if (apiType === 'admin') { return getAdminApiUrl(); }
+  throw new Error('Variante SIS inconnue.');
+};
+
+export const fetchCollection = async (url, options = {}) => {
+  const records = [];
+  const firstUrl = new URL(url, window.location.origin);
+  const visited = new Set();
+  let next = firstUrl.href;
+  while (next) {
+    const parsed = new URL(next, firstUrl);
+    if (parsed.origin !== firstUrl.origin || parsed.pathname !== firstUrl.pathname || visited.has(parsed.href)) {
+      throw new Error('Lien de pagination invalide reçu du serveur.');
+    }
+    visited.add(parsed.href);
+    // Each next URL depends on the preceding response.
+    // eslint-disable-next-line no-await-in-loop
+    const page = normalizePageResponse(await fetchApi(parsed.href, options));
+    records.push(...page.results);
+    next = page.next;
+  }
+  return records;
+};
 
 export const useWorkflowNotifications = (apiType = 'superieur', onlyUnread = true, params = {}) => useQuery({
   queryKey: ['workflow-notifications', apiType, onlyUnread, params],
@@ -173,7 +222,7 @@ export const useWorkflowEvents = (apiType = 'superieur', params = {}) => useQuer
  */
 export const createResourceHooks = (resourceName, apiType = 'superieur') => {
   const getBaseUrl = () => {
-    const baseUrl = apiType === 'superieur' ? getSuperieurApiUrl() : getSecondaireApiUrl();
+    const baseUrl = getVariantApiUrl(apiType);
     return `${baseUrl}/${resourceName}`;
   };
 
@@ -184,8 +233,8 @@ export const createResourceHooks = (resourceName, apiType = 'superieur') => {
       const url = queryString ? `${getBaseUrl()}/?${queryString}` : `${getBaseUrl()}/`;
 
       return useQuery({
-        queryKey: [resourceName, 'list', params],
-        queryFn: () => fetchApi(url),
+        queryKey: [resourceName, 'list', params, getBaseUrl()],
+        queryFn: ({ signal }) => fetchCollection(url, { signal }),
         select: (data) => {
           // Handle paginated response { results: [...] } or direct array
           if (Array.isArray(data)) { return data; }
@@ -197,7 +246,7 @@ export const createResourceHooks = (resourceName, apiType = 'superieur') => {
 
     // Detail hook
     useDetail: (id, enabled = true) => useQuery({
-      queryKey: [resourceName, 'detail', id],
+      queryKey: [resourceName, 'detail', id, getBaseUrl()],
       queryFn: () => fetchApi(`${getBaseUrl()}/${id}/`),
       enabled: enabled && !!id,
     }),
@@ -286,10 +335,10 @@ export const useUpdateEtudiant = etudiantHooks.useUpdate;
 export const useDeleteEtudiant = etudiantHooks.useDelete;
 
 // Formations
-export const formationHooks = createResourceHooks('formations', 'superieur');
+export const formationHooks = createResourceHooks('formations/formations', 'superieur');
 export const useFormations = () => useQuery({
   queryKey: ['formations', 'list'],
-  queryFn: () => fetchApi(`${getSuperieurApiUrl()}/formations/formations/`),
+  queryFn: () => fetchCollection(`${getSuperieurApiUrl()}/formations/formations/`),
   select: (data) => {
     if (Array.isArray(data)) { return data; }
     if (data?.results && Array.isArray(data.results)) { return data.results; }
@@ -308,13 +357,13 @@ export const useInscriptions = inscriptionHooks.useList;
 export const useInscription = inscriptionHooks.useDetail;
 
 // Notes
-export const noteHooks = createResourceHooks('notes', 'superieur');
+export const noteHooks = createResourceHooks('notes/notes', 'superieur');
 export const useNotes = (params = {}) => useQuery({
   queryKey: ['notes', 'list', params],
   queryFn: () => {
     const queryString = new URLSearchParams(params).toString();
     const url = queryString ? `${getSuperieurApiUrl()}/notes/notes/?${queryString}` : `${getSuperieurApiUrl()}/notes/notes/`;
-    return fetchApi(url);
+    return fetchCollection(url);
   },
   select: (data) => {
     if (Array.isArray(data)) { return data; }
@@ -329,18 +378,18 @@ export const useExamens = examenHooks.useList;
 export const useExamen = examenHooks.useDetail;
 
 // Bourses
-export const typeBourseHooks = createResourceHooks('types-bourses', 'superieur');
-export const demandeBourseHooks = createResourceHooks('demandes-bourses', 'superieur');
-export const attributionBourseHooks = createResourceHooks('attributions-bourses', 'superieur');
+export const typeBourseHooks = createResourceHooks('bourses/types-bourses', 'superieur');
+export const demandeBourseHooks = createResourceHooks('bourses/demandes-bourses', 'superieur');
+export const attributionBourseHooks = createResourceHooks('bourses/attributions-bourses', 'superieur');
 export const useTypesBourses = typeBourseHooks.useList;
 export const useDemandesBourses = demandeBourseHooks.useList;
 export const useDemandeBourse = demandeBourseHooks.useDetail;
 export const useCreateDemandeBourse = demandeBourseHooks.useCreate;
 
 // Emploi du temps
-export const creneauCoursHooks = createResourceHooks('creneaux-cours', 'superieur');
-export const salleHooks = createResourceHooks('salles', 'superieur');
-export const reservationHooks = createResourceHooks('reservations', 'superieur');
+export const creneauCoursHooks = createResourceHooks('edt/creneaux-cours', 'superieur');
+export const salleHooks = createResourceHooks('edt/salles', 'superieur');
+export const reservationHooks = createResourceHooks('edt/reservations', 'superieur');
 export const useCreneauxCours = creneauCoursHooks.useList;
 export const useSalles = salleHooks.useList;
 export const useReservations = reservationHooks.useList;
@@ -351,7 +400,7 @@ export const useEnseignants = enseignantHooks.useList;
 export const useEnseignant = enseignantHooks.useDetail;
 
 // Stages
-export const stageHooks = createResourceHooks('stages', 'superieur');
+export const stageHooks = createResourceHooks('stages/conventions-stage', 'superieur');
 export const useStages = stageHooks.useList;
 
 // Mémoires
@@ -359,8 +408,8 @@ export const memoireHooks = createResourceHooks('memoires', 'superieur');
 export const useMemoires = memoireHooks.useList;
 
 // Recherche
-export const labHooks = createResourceHooks('laboratoires', 'superieur');
-export const projetRechercheHooks = createResourceHooks('projets-recherche', 'superieur');
+export const labHooks = createResourceHooks('recherche/laboratoires', 'superieur');
+export const projetRechercheHooks = createResourceHooks('recherche/projets-recherche', 'superieur');
 export const useLaboratoires = labHooks.useList;
 export const useProjetsRecherche = projetRechercheHooks.useList;
 
@@ -369,7 +418,7 @@ export const diplomeHooks = createResourceHooks('diplomes', 'superieur');
 export const useDiplomes = diplomeHooks.useList;
 
 // Paiements
-export const paiementHooks = createResourceHooks('paiements', 'superieur');
+export const paiementHooks = createResourceHooks('paiements/transactions', 'superieur');
 export const usePaiements = () => useQuery({
   queryKey: ['paiements', 'list'],
   queryFn: () => fetchApi(`${getSuperieurApiUrl()}/paiements/transactions/`),
@@ -389,11 +438,11 @@ export const releveHooks = createResourceHooks('releves', 'superieur');
 export const useReleves = releveHooks.useList;
 
 // Mobilité
-export const mobiliteHooks = createResourceHooks('mobilites', 'superieur');
+export const mobiliteHooks = createResourceHooks('mobilite/candidatures-mobilite', 'superieur');
 export const useMobilites = mobiliteHooks.useList;
 
 // Bibliothèque
-export const empruntHooks = createResourceHooks('emprunts', 'superieur');
+export const empruntHooks = createResourceHooks('bibliotheque/emprunts', 'superieur');
 export const useEmprunts = empruntHooks.useList;
 
 // ============ SIS SECONDAIRE HOOKS ============
@@ -405,10 +454,10 @@ export const useEleve = eleveHooks.useDetail;
 export const useCreateEleve = eleveHooks.useCreate;
 
 // Classes
-export const classeHooks = createResourceHooks('classes', 'secondaire');
+export const classeHooks = createResourceHooks('classes/classes', 'secondaire');
 export const useClasses = () => useQuery({
   queryKey: ['classes', 'list'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/classes/classes/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/classes/classes/`),
   select: (data) => {
     if (Array.isArray(data)) { return data; }
     if (data?.results && Array.isArray(data.results)) { return data.results; }
@@ -422,13 +471,13 @@ export const useClasse = (id, enabled = true) => useQuery({
 });
 
 // Évaluations
-export const evaluationHooks = createResourceHooks('evaluations', 'secondaire');
+export const evaluationHooks = createResourceHooks('notes/evaluations', 'secondaire');
 export const useEvaluations = (params = {}) => useQuery({
   queryKey: ['evaluations', 'list', params],
   queryFn: () => {
     const queryString = new URLSearchParams(params).toString();
     const url = queryString ? `${getSecondaireApiUrl()}/notes/evaluations/?${queryString}` : `${getSecondaireApiUrl()}/notes/evaluations/`;
-    return fetchApi(url);
+    return fetchCollection(url);
   },
   select: (data) => {
     if (Array.isArray(data)) { return data; }
@@ -446,25 +495,25 @@ export const presenceHooks = createResourceHooks('presences', 'secondaire');
 export const usePresences = presenceHooks.useList;
 
 // Discipline
-export const incidentHooks = createResourceHooks('incidents', 'secondaire');
-export const sanctionHooks = createResourceHooks('sanctions', 'secondaire');
+export const incidentHooks = createResourceHooks('discipline/incidents', 'secondaire');
+export const sanctionHooks = createResourceHooks('discipline/sanctions', 'secondaire');
 export const useIncidents = incidentHooks.useList;
 export const useSanctions = sanctionHooks.useList;
 
 // Cantine
-export const cantineHooks = createResourceHooks('inscriptions-cantine', 'secondaire');
+export const cantineHooks = createResourceHooks('cantine/inscriptions-cantine', 'secondaire');
 export const useCantine = cantineHooks.useList;
 
 // Transport
-export const transportHooks = createResourceHooks('lignes-transport', 'secondaire');
+export const transportHooks = createResourceHooks('transport/lignes-transport', 'secondaire');
 export const useTransport = transportHooks.useList;
 
 // Infirmerie
-export const infirmerieHooks = createResourceHooks('visites-infirmerie', 'secondaire');
+export const infirmerieHooks = createResourceHooks('infirmerie/visites-infirmerie', 'secondaire');
 export const useInfirmerie = infirmerieHooks.useList;
 
 // Internat
-export const internatHooks = createResourceHooks('chambres', 'secondaire');
+export const internatHooks = createResourceHooks('internat/chambres', 'secondaire');
 export const useInternat = internatHooks.useList;
 
 // Clubs
@@ -472,13 +521,13 @@ export const clubHooks = createResourceHooks('clubs', 'secondaire');
 export const useClubs = clubHooks.useList;
 
 // Conseil de classe
-export const conseilClasseHooks = createResourceHooks('conseils-classe', 'secondaire');
+export const conseilClasseHooks = createResourceHooks('conseils/conseils-classe', 'secondaire');
 export const useConseilsClasse = (params = {}) => useQuery({
   queryKey: ['conseils-classe', 'list', params],
   queryFn: () => {
     const queryString = new URLSearchParams(params).toString();
     const url = queryString ? `${getSecondaireApiUrl()}/conseils/conseils-classe/?${queryString}` : `${getSecondaireApiUrl()}/conseils/conseils-classe/`;
-    return fetchApi(url);
+    return fetchCollection(url);
   },
   select: (data) => {
     if (Array.isArray(data)) { return data; }
@@ -491,19 +540,19 @@ export const useConseilsClasse = (params = {}) => useQuery({
 export const useEleveDetail = (id) => eleveHooks.useDetail(id);
 export const useNotesByEleve = (eleveId) => useQuery({
   queryKey: ['notes-eleve', eleveId],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/notes/notes/?eleve=${eleveId}`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/notes/notes/?eleve=${eleveId}`),
   enabled: !!eleveId,
   select: (data) => (Array.isArray(data) ? data : data?.results || []),
 });
 export const usePresencesByEleve = (eleveId) => useQuery({
   queryKey: ['presences-eleve', eleveId],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/eleves/${eleveId}/presences/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/presences/?eleve=${eleveId}`),
   enabled: !!eleveId,
   select: (data) => (Array.isArray(data) ? data : data?.results || []),
 });
 export const useSecondaireMatieres = () => useQuery({
   queryKey: ['secondaire', 'matieres'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/classes/matieres/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/classes/matieres/`),
   select: (data) => (Array.isArray(data) ? data : data?.results || []),
 });
 export const useEleveMatieresIndividuelles = (eleveId) => useQuery({
@@ -537,7 +586,7 @@ export const useSemestres = (params = {}) => useQuery({
   queryFn: () => {
     const queryString = new URLSearchParams(params).toString();
     const url = queryString ? `${getSuperieurApiUrl()}/etablissement/semestres/?${queryString}` : `${getSuperieurApiUrl()}/etablissement/semestres/`;
-    return fetchApi(url);
+    return fetchCollection(url);
   },
   select: (data) => (Array.isArray(data) ? data : data?.results || []),
 });
@@ -546,7 +595,7 @@ export const useECUEs = (params = {}) => useQuery({
   queryFn: () => {
     const queryString = new URLSearchParams(params).toString();
     const url = queryString ? `${getSuperieurApiUrl()}/ue-ecue/ecues/?${queryString}` : `${getSuperieurApiUrl()}/ue-ecue/ecues/`;
-    return fetchApi(url);
+    return fetchCollection(url);
   },
   select: (data) => (Array.isArray(data) ? data : data?.results || []),
 });
@@ -580,49 +629,49 @@ export const useRetirerMatiereIndividuelleEtudiant = () => {
 // Cantine extended
 export const useInscritsCantin = () => useQuery({
   queryKey: ['inscrits-cantine'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/inscriptions-cantine/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/cantine/inscriptions-cantine/`),
 });
 export const useRepas = () => useQuery({
   queryKey: ['repas'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/repas/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/cantine/presences-cantine/`),
 });
 export const useMenus = () => useQuery({
   queryKey: ['menus'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/menus/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/cantine/menus/`),
 });
 
 // Transport extended
 export const useInscritsTransport = () => useQuery({
   queryKey: ['inscrits-transport'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/inscriptions-transport/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/transport/inscriptions-transport/`),
 });
 export const useCircuits = () => useQuery({
   queryKey: ['circuits'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/circuits/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/transport/lignes-transport/`),
 });
 export const useVehicules = () => useQuery({
   queryKey: ['vehicules'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/vehicules/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/transport/vehicules/`),
 });
 
 // Infirmerie extended
 export const useVisitesInfirmerie = () => useQuery({
   queryKey: ['visites-infirmerie'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/visites-infirmerie/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/infirmerie/visites-infirmerie/`),
 });
 export const useDossiersMediaux = () => useQuery({
   queryKey: ['dossiers-medicaux'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/dossiers-medicaux/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/infirmerie/dossiers-medicaux/`),
 });
 
 // Internat extended
 export const useInternes = () => useQuery({
   queryKey: ['internes'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/internes/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/internat/occupants-chambres/`),
 });
 export const useChambres = () => useQuery({
   queryKey: ['chambres'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/chambres/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/internat/chambres/`),
 });
 
 // Clubs extended
@@ -633,76 +682,61 @@ export const useMembresClub = (clubId) => useQuery({
 });
 export const useActivitesClub = () => useQuery({
   queryKey: ['activites-club'],
-  queryFn: () => fetchApi(`${getSecondaireApiUrl()}/activites-clubs/`),
+  queryFn: () => fetchCollection(`${getSecondaireApiUrl()}/clubs/activites-clubs/`),
 });
 
 // ============ ADMIN HOOKS ============
 
-export const getAdminApiUrl = () => getConfig().SIS_ADMIN_API_URL || `${getConfig().LMS_BASE_URL}/api/sis/admin`;
-
 export const getIntegrationApiUrl = () => `${getAdminApiUrl()}/integration`;
 export const getCurrentEstablishmentUrl = () => `${getAdminApiUrl()}/etablissement/current/`;
-export const normalizePageResponse = (data) => {
-  if (Array.isArray(data)) {
-    return {
-      count: data.length, next: null, previous: null, results: data,
-    };
-  }
-  return {
-    count: data?.count || 0,
-    next: data?.next || null,
-    previous: data?.previous || null,
-    results: data?.results || [],
-  };
-};
 
 export const useIntegrationHealth = () => useQuery({
-  queryKey: ['integration', 'health'],
+  queryKey: ['integration', 'health', getIntegrationApiUrl()],
   queryFn: () => fetchApi(`${getIntegrationApiUrl()}/health/`),
   staleTime: 30 * 1000,
 });
 
 export const useIntegrationStats = () => useQuery({
-  queryKey: ['integration', 'stats'],
+  queryKey: ['integration', 'stats', getIntegrationApiUrl()],
   queryFn: () => fetchApi(`${getIntegrationApiUrl()}/sync/status/`),
   staleTime: 30 * 1000,
 });
 
 export const useIntegrationUserMappings = (page = 1) => useQuery({
-  queryKey: ['integration', 'user-mappings', page],
+  queryKey: ['integration', 'user-mappings', page, getIntegrationApiUrl()],
   queryFn: () => fetchApi(`${getIntegrationApiUrl()}/mappings/users/?page=${page}`),
   select: normalizePageResponse,
 });
 
 export const useIntegrationCourseMappings = (page = 1) => useQuery({
-  queryKey: ['integration', 'course-mappings', page],
+  queryKey: ['integration', 'course-mappings', page, getIntegrationApiUrl()],
   queryFn: () => fetchApi(`${getIntegrationApiUrl()}/mappings/courses/?page=${page}`),
   select: normalizePageResponse,
 });
 
 export const useIntegrationOutboxEvents = (page = 1) => useQuery({
-  queryKey: ['integration', 'outbox', page],
+  queryKey: ['integration', 'outbox', page, getIntegrationApiUrl()],
   queryFn: () => fetchApi(`${getIntegrationApiUrl()}/outbox/?page=${page}`),
   select: normalizePageResponse,
 });
 
 // Utilisateurs
-export const utilisateurHooks = createResourceHooks('utilisateurs', 'admin');
+export const utilisateurHooks = createResourceHooks('utilisateurs/comptes', 'admin');
 export const useUtilisateurs = () => useQuery({
-  queryKey: ['utilisateurs'],
-  queryFn: () => fetchApi(`${getAdminApiUrl()}/utilisateurs/`),
+  queryKey: ['utilisateurs', getAdminApiUrl()],
+  queryFn: () => fetchCollection(`${getAdminApiUrl()}/utilisateurs/comptes/`),
 });
 
 // Structure pédagogique
 export const useDepartements = () => useQuery({
-  queryKey: ['departements'],
-  queryFn: () => fetchApi(`${getAdminApiUrl()}/departements/`),
+  queryKey: ['departements', getAdminApiUrl()],
+  queryFn: () => fetchCollection(`${getAdminApiUrl()}/structure/departements/`),
 });
 export const useNiveaux = () => useQuery({
-  queryKey: ['niveaux'],
-  queryFn: () => fetchApi(`${getAdminApiUrl()}/niveaux/`),
+  queryKey: ['niveaux', getAdminApiUrl()],
+  queryFn: () => fetchCollection(`${getAdminApiUrl()}/etablissement/niveaux/`),
 });
 export const useMatieres = () => useQuery({
-  queryKey: ['matieres'],
-  queryFn: () => fetchApi(`${getAdminApiUrl()}/matieres/`),
+  queryKey: ['matieres', getAdminApiUrl()],
+  queryFn: () => fetchCollection(`${getAdminApiUrl()}/classes/matieres/`),
 });

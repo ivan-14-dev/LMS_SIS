@@ -1,87 +1,128 @@
 import React from 'react';
-import { Badge, Button, Row, Col, Tabs, Tab } from '@openedx/paragon';
-import { Add, DirectionsBus } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable, StatCard } from '../../components/common';
-import { useInscritsTransport, useCircuits, useVehicules } from '../../services/api';
+import { Stack } from '@mui/material';
+import ResourceManager from '../../components/common/ResourceManager';
 
-const TransportPage = () => {
-  const { data: inscritsData, isLoading: loadingInscrits } = useInscritsTransport();
-  const { data: circuitsData, isLoading: loadingCircuits } = useCircuits();
-  const { data: vehiculesData } = useVehicules();
-  
-  const inscrits = Array.isArray(inscritsData) ? inscritsData : [];
-  const circuits = Array.isArray(circuitsData) ? circuitsData : [];
-  const vehicules = Array.isArray(vehiculesData) ? vehiculesData : [];
-
-  const inscritsColumns = [
-    { Header: 'Matricule', accessor: 'eleve_matricule' },
-    { Header: 'Élève', accessor: 'eleve_nom' },
-    { Header: 'Classe', accessor: 'classe_nom' },
-    { Header: 'Circuit', accessor: 'circuit_nom' },
-    { Header: 'Arrêt', accessor: 'arret' },
-    {
-      Header: 'Paiement',
-      accessor: 'paiement_ok',
-      Cell: ({ value }) => (
-        <Badge variant={value ? 'success' : 'danger'}>{value ? 'À jour' : 'Impayé'}</Badge>
-      ),
-    },
-  ];
-
-  const circuitsColumns = [
-    { Header: 'Code', accessor: 'code' },
-    { Header: 'Nom', accessor: 'nom' },
-    { Header: 'Véhicule', accessor: 'vehicule_immatriculation' },
-    { Header: 'Chauffeur', accessor: 'chauffeur_nom' },
-    { Header: 'Élèves', accessor: 'nb_eleves' },
-    { Header: 'Arrêts', accessor: 'nb_arrets' },
-    {
-      Header: 'Statut',
-      accessor: 'actif',
-      Cell: ({ value }) => (
-        <Badge variant={value ? 'success' : 'secondary'}>{value ? 'Actif' : 'Inactif'}</Badge>
-      ),
-    },
-  ];
-
-  return (
-    <div>
-      <PageHeader
-        title="Transport"
-        subtitle="Gestion du transport scolaire"
-        actions={[
-          { label: 'Nouvelle inscription', icon: <Add />, variant: 'primary', onClick: () => {} },
-        ]}
-      />
-      <Row className="mb-4">
-        <Col md={3}>
-          <StatCard title="Élèves transportés" value={inscrits.length} icon={<DirectionsBus />} variant="primary" />
-        </Col>
-        <Col md={3}>
-          <StatCard title="Circuits actifs" value={circuits.filter(c => c.actif).length} variant="success" />
-        </Col>
-        <Col md={3}>
-          <StatCard title="Véhicules" value={vehicules.length} variant="info" />
-        </Col>
-        <Col md={3}>
-          <StatCard title="Paiements en retard" value={inscrits.filter(i => !i.paiement_ok).length} variant="danger" />
-        </Col>
-      </Row>
-
-      <Tabs defaultActiveKey="inscrits">
-        <Tab eventKey="inscrits" title="Élèves inscrits">
-          <div className="pt-3">
-            <SISDataTable title="" data={inscrits} columns={inscritsColumns} loading={loadingInscrits} searchable exportable />
-          </div>
-        </Tab>
-        <Tab eventKey="circuits" title="Circuits">
-          <div className="pt-3">
-            <SISDataTable title="" data={circuits} columns={circuitsColumns} loading={loadingCircuits} searchable exportable />
-          </div>
-        </Tab>
-      </Tabs>
-    </div>
-  );
-};
+const TransportPage = () => (
+  <Stack spacing={4}>
+    <ResourceManager
+      variant="secondaire"
+      resource="transport/lignes-transport"
+      title="Lignes de transport"
+      columns={[
+        { Header: 'Nom', accessor: 'nom' },
+        { Header: 'Arrêts', accessor: 'nb_arrets' },
+        { Header: 'Distance (km)', accessor: 'distance_km' },
+        { Header: 'Durée (minutes)', accessor: 'duree_estimee_min' },
+      ]}
+      fields={[
+        { name: 'nom', label: 'Nom', required: true },
+        {
+          name: 'itineraire', label: 'Itinéraire', required: true, multiline: true,
+        },
+        {
+          name: 'distance_km', label: 'Distance (km)', type: 'number', defaultValue: 0, required: true,
+        },
+        {
+          name: 'duree_estimee_min', label: 'Durée (minutes)', type: 'number', defaultValue: 0, required: true,
+        },
+        {
+          name: 'actif', label: 'Actif', type: 'checkbox', defaultValue: true,
+        },
+      ]}
+    />
+    <ResourceManager
+      variant="secondaire"
+      resource="transport/arrets"
+      title="Arrêts"
+      searchable={false}
+      columns={[
+        { Header: 'Ligne', accessor: 'ligne_nom' },
+        { Header: 'Nom', accessor: 'nom' },
+        { Header: 'Passage', accessor: 'heure_passage' },
+        { Header: 'Ordre', accessor: 'ordre' },
+      ]}
+      fields={[
+        {
+          name: 'ligne', label: 'Ligne', resource: 'transport/lignes-transport', required: true,
+        },
+        { name: 'nom', label: 'Nom', required: true },
+        {
+          name: 'heure_passage', label: 'Passage', type: 'time', required: true,
+        },
+        {
+          name: 'ordre', label: 'Ordre', type: 'number', defaultValue: 1, required: true,
+        },
+        { name: 'adresse', label: 'Adresse' },
+      ]}
+    />
+    <ResourceManager
+      variant="secondaire"
+      resource="transport/vehicules"
+      title="Véhicules"
+      columns={[
+        { Header: 'Immatriculation', accessor: 'immatriculation' },
+        { Header: 'Capacité', accessor: 'capacite' },
+        { Header: 'Chauffeur', accessor: 'chauffeur' },
+        { Header: 'Ligne', accessor: 'ligne_nom' },
+      ]}
+      fields={[
+        { name: 'immatriculation', label: 'Immatriculation', required: true },
+        {
+          name: 'capacite', label: 'Capacité', type: 'number', required: true,
+        },
+        { name: 'marque', label: 'Marque' },
+        { name: 'modele', label: 'Modèle' },
+        { name: 'chauffeur', label: 'Chauffeur' },
+        { name: 'telephone_chauffeur', label: 'Téléphone du chauffeur' },
+        { name: 'ligne', label: 'Ligne', resource: 'transport/lignes-transport' },
+      ]}
+    />
+    <ResourceManager
+      variant="secondaire"
+      resource="transport/inscriptions-transport"
+      title="Inscriptions au transport"
+      searchable={false}
+      columns={[
+        { Header: 'Élève', accessor: 'eleve_nom' },
+        { Header: 'Classe', accessor: 'eleve_classe' },
+        { Header: 'Ligne', accessor: 'ligne_nom' },
+        { Header: 'Montée', accessor: 'arret_montee_nom' },
+        { Header: 'Descente', accessor: 'arret_descente_nom' },
+      ]}
+      fields={[
+        {
+          name: 'eleve', label: 'Élève', resource: 'eleves', labelField: 'matricule', required: true,
+        },
+        {
+          name: 'ligne', label: 'Ligne', resource: 'transport/lignes-transport', required: true,
+        },
+        {
+          name: 'arret_montee',
+          label: 'Arrêt de montée',
+          resource: 'transport/arrets',
+          labelField: 'libelle',
+          required: true,
+        },
+        {
+          name: 'arret_descente',
+          label: 'Arrêt de descente',
+          resource: 'transport/arrets',
+          labelField: 'libelle',
+          required: true,
+        },
+        {
+          name: 'annee_scolaire',
+          label: 'Année scolaire',
+          resource: 'etablissement/annees',
+          labelField: 'libelle',
+          required: true,
+        },
+        {
+          name: 'actif', label: 'Actif', type: 'checkbox', defaultValue: true,
+        },
+      ]}
+    />
+  </Stack>
+);
 
 export default TransportPage;

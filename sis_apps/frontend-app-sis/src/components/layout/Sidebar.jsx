@@ -3,13 +3,14 @@ import PropTypes from 'prop-types';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Icon } from '@openedx/paragon';
 import {
-  School, People, Assignment, Grade, CalendarMonth, Money, 
+  School, People, Assignment, Grade, CalendarMonth, Money,
   Book, Flight, Science, Description, Group, Gavel,
   Business, Person, AccountBalance, Settings,
   ChildCare, Class, Assessment, EventNote, Restaurant,
   DirectionsBus, LocalHospital, Hotel, SportsEsports,
-  Groups, Face
+  Groups, Face,
 } from '@openedx/paragon/icons';
+import { getEnabledVariants } from '../../services/resources';
 
 const menuSuperieur = [
   {
@@ -148,16 +149,30 @@ const Sidebar = ({ type }) => {
         <h4>{getTitle()}</h4>
       </div>
       <nav className="sis-sidebar__nav">
+        {getEnabledVariants().map(variant => (
+          <NavLink className="sis-sidebar__item" key={variant} to={`/${variant}`}>
+            SIS {variant}
+          </NavLink>
+        ))}
+        <NavLink className="sis-sidebar__item" to={`/admin/etablissement${location.search}`}>
+          Administration
+        </NavLink>
+        {type !== 'admin' && (
+          <NavLink className="sis-sidebar__item" to={`/${type}/compte`}>Mon compte</NavLink>
+        )}
+        {type === 'admin' && getEnabledVariants().map(variant => (
+          <NavLink className="sis-sidebar__item" key={`admin-${variant}`} to={`${location.pathname}?sis=${variant}`}>
+            Administrer : {variant}
+          </NavLink>
+        ))}
         {menu.map((section) => (
           <div key={section.title} className="sis-sidebar__section">
             <div className="sis-sidebar__section-title">{section.title}</div>
             {section.items.map((item) => (
               <NavLink
                 key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `sis-sidebar__item ${isActive ? 'sis-sidebar__item--active' : ''}`
-                }
+                to={`${item.path}${type === 'admin' ? location.search : ''}`}
+                className={({ isActive }) => `sis-sidebar__item ${isActive ? 'sis-sidebar__item--active' : ''}`}
               >
                 <Icon src={item.icon} className="icon" />
                 {item.label}

@@ -1,92 +1,88 @@
 import React from 'react';
-import { Badge, Button, Row, Col, Tabs, Tab } from '@openedx/paragon';
-import { Add, LocalHospital } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable, StatCard } from '../../components/common';
-import { useVisitesInfirmerie, useDossiersMediaux } from '../../services/api';
+import { Alert, Stack } from '@mui/material';
+import ResourceManager from '../../components/common/ResourceManager';
 
-const InfirmeriePage = () => {
-  const { data: visitesData, isLoading: loadingVisites } = useVisitesInfirmerie();
-  const { data: dossiersData, isLoading: loadingDossiers } = useDossiersMediaux();
-  
-  const visites = Array.isArray(visitesData) ? visitesData : [];
-  const dossiers = Array.isArray(dossiersData) ? dossiersData : [];
-
-  const visitesColumns = [
-    { Header: 'Date', accessor: 'date' },
-    { Header: 'Heure', accessor: 'heure' },
-    { Header: 'Élève', accessor: 'eleve_nom' },
-    { Header: 'Classe', accessor: 'classe_nom' },
-    { Header: 'Motif', accessor: 'motif' },
-    { Header: 'Soins', accessor: 'soins_prodigues' },
-    {
-      Header: 'Suite',
-      accessor: 'suite',
-      Cell: ({ value }) => {
-        const variants = {
-          retour_classe: 'success',
-          repos_infirmerie: 'warning',
-          retour_maison: 'danger',
-          urgences: 'danger',
-        };
-        return <Badge variant={variants[value] || 'secondary'}>{value?.replace('_', ' ')}</Badge>;
-      },
-    },
-  ];
-
-  const dossiersColumns = [
-    { Header: 'Matricule', accessor: 'eleve_matricule' },
-    { Header: 'Élève', accessor: 'eleve_nom' },
-    { Header: 'Classe', accessor: 'classe_nom' },
-    { Header: 'Groupe sanguin', accessor: 'groupe_sanguin' },
-    { Header: 'Allergies', accessor: 'allergies' },
-    { Header: 'Maladies chroniques', accessor: 'maladies_chroniques' },
-    {
-      Header: 'Vaccins à jour',
-      accessor: 'vaccins_a_jour',
-      Cell: ({ value }) => (
-        <Badge variant={value ? 'success' : 'warning'}>{value ? 'Oui' : 'Non'}</Badge>
-      ),
-    },
-  ];
-
-  return (
-    <div>
-      <PageHeader
-        title="Infirmerie"
-        subtitle="Suivi médical et sanitaire des élèves"
-        actions={[
-          { label: 'Nouvelle visite', icon: <Add />, variant: 'primary', onClick: () => {} },
-        ]}
-      />
-      <Row className="mb-4">
-        <Col md={3}>
-          <StatCard title="Visites (mois)" value={visites.length} icon={<LocalHospital />} variant="primary" />
-        </Col>
-        <Col md={3}>
-          <StatCard title="Retours classe" value={visites.filter(v => v.suite === 'retour_classe').length} variant="success" />
-        </Col>
-        <Col md={3}>
-          <StatCard title="Retours maison" value={visites.filter(v => v.suite === 'retour_maison').length} variant="warning" />
-        </Col>
-        <Col md={3}>
-          <StatCard title="Urgences" value={visites.filter(v => v.suite === 'urgences').length} variant="danger" />
-        </Col>
-      </Row>
-
-      <Tabs defaultActiveKey="visites">
-        <Tab eventKey="visites" title="Visites">
-          <div className="pt-3">
-            <SISDataTable title="" data={visites} columns={visitesColumns} loading={loadingVisites} searchable exportable />
-          </div>
-        </Tab>
-        <Tab eventKey="dossiers" title="Dossiers médicaux">
-          <div className="pt-3">
-            <SISDataTable title="" data={dossiers} columns={dossiersColumns} loading={loadingDossiers} searchable exportable />
-          </div>
-        </Tab>
-      </Tabs>
-    </div>
-  );
-};
+const InfirmeriePage = () => (
+  <Stack spacing={4}>
+    <Alert severity="info">
+      Accès réservé aux personnes habilitées. Les dossiers médicaux structurés restent gérés dans l’administration.
+    </Alert>
+    <ResourceManager
+      variant="secondaire"
+      resource="infirmerie/visites-infirmerie"
+      title="Visites à l'infirmerie"
+      columns={[
+        { Header: 'Date', accessor: 'date' },
+        { Header: 'Élève', accessor: 'eleve_nom' },
+        { Header: 'Classe', accessor: 'eleve_classe' },
+        { Header: 'Arrivée', accessor: 'heure_arrivee' },
+        { Header: 'Sortie', accessor: 'heure_sortie' },
+        { Header: 'Motif', accessor: 'motif' },
+        { Header: 'Orientation', accessor: 'orientation_display' },
+        { Header: 'Infirmier', accessor: 'infirmier_nom' },
+      ]}
+      fields={[
+        {
+          name: 'eleve', label: 'Élève', resource: 'eleves', labelField: 'matricule', required: true,
+        },
+        {
+          name: 'date', label: 'Date et heure', type: 'datetime-local', required: true,
+        },
+        {
+          name: 'heure_arrivee', label: 'Arrivée', type: 'time', required: true,
+        },
+        { name: 'heure_sortie', label: 'Sortie', type: 'time' },
+        {
+          name: 'motif', label: 'Motif', required: true, multiline: true,
+        },
+        { name: 'symptomes', label: 'Symptômes', multiline: true },
+        { name: 'soins', label: 'Soins', multiline: true },
+        { name: 'traitement_administre', label: 'Traitement administré', multiline: true },
+        {
+          name: 'orientation',
+          label: 'Orientation',
+          defaultValue: 'retour_cours',
+          required: true,
+          choices: [
+            { value: 'retour_cours', label: 'Retour en cours' },
+            { value: 'sortie', label: 'Sortie' },
+            { value: 'urgence', label: 'Urgence' },
+            { value: 'parents', label: 'Parents' },
+            { value: 'hospitalisation', label: 'Hospitalisation' },
+          ],
+        },
+        { name: 'parents_prevenus', label: 'Parents prévenus', type: 'checkbox' },
+      ]}
+    />
+    <ResourceManager
+      variant="secondaire"
+      resource="infirmerie/stock-medicaments"
+      title="Stock de l'infirmerie"
+      columns={[
+        { Header: 'Nom', accessor: 'nom' },
+        { Header: 'Quantité', accessor: 'quantite' },
+        { Header: 'Unité', accessor: 'unite' },
+        { Header: 'Seuil', accessor: 'seuil_alerte' },
+        { Header: 'Péremption', accessor: 'date_peremption' },
+        { Header: 'Lot', accessor: 'numero_lot' },
+      ]}
+      fields={[
+        { name: 'nom', label: 'Nom', required: true },
+        { name: 'description', label: 'Description', multiline: true },
+        {
+          name: 'quantite', label: 'Quantité', type: 'number', defaultValue: 0, required: true,
+        },
+        {
+          name: 'seuil_alerte', label: 'Seuil', type: 'number', defaultValue: 10, required: true,
+        },
+        {
+          name: 'unite', label: 'Unité', defaultValue: 'unité', required: true,
+        },
+        { name: 'date_peremption', label: 'Péremption', type: 'date' },
+        { name: 'numero_lot', label: 'Lot' },
+      ]}
+    />
+  </Stack>
+);
 
 export default InfirmeriePage;

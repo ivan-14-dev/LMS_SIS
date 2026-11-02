@@ -5,7 +5,7 @@ import {
   APP_INIT_ERROR, APP_READY, auth, initialize, subscribe,
 } from '@edx/frontend-platform';
 import { AppProvider } from '@edx/frontend-platform/react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -13,6 +13,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import App from './App';
 import sisTheme from './theme/muiTheme';
 import { isMockMode } from './services/mockApi';
+import { isRecoveryPage, usesLocalSession } from './services/localSession';
 
 import './index.scss';
 
@@ -26,8 +27,14 @@ const queryClient = new QueryClient({
   },
 });
 
+let root;
+const renderApplication = (content) => {
+  if (!root) { root = createRoot(document.getElementById('root')); }
+  root.render(content);
+};
+
 subscribe(APP_READY, () => {
-  ReactDOM.render(
+  renderApplication(
     <AppProvider wrapWithRouter={false}>
       <ThemeProvider theme={sisTheme}>
         <CssBaseline />
@@ -41,16 +48,14 @@ subscribe(APP_READY, () => {
         </QueryClientProvider>
       </ThemeProvider>
     </AppProvider>,
-    document.getElementById('root'),
   );
 });
 
 subscribe(APP_INIT_ERROR, () => {
-  ReactDOM.render(
+  renderApplication(
     <div role="alert">
       Impossible de démarrer le SIS. Vérifiez la configuration et la connexion au LMS, puis rechargez la page.
     </div>,
-    document.getElementById('root'),
   );
 });
 
@@ -59,6 +64,8 @@ initialize({
   requireAuthenticatedUser: true,
   hydrateAuthenticatedUser: true,
   handlers: {
-    auth: (requireUser, hydrateUser) => (isMockMode() ? undefined : auth(requireUser, hydrateUser)),
+    auth: (requireUser, hydrateUser) => (
+      isMockMode() || usesLocalSession() || isRecoveryPage() ? undefined : auth(requireUser, hydrateUser)
+    ),
   },
 });

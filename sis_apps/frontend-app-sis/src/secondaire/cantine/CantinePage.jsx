@@ -1,87 +1,112 @@
 import React from 'react';
-import { Badge, Button, Row, Col, Tabs, Tab } from '@openedx/paragon';
-import { Add, Restaurant } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable, StatCard } from '../../components/common';
-import { useInscritsCantin, useRepas, useMenus } from '../../services/api';
+import { Stack } from '@mui/material';
+import ResourceManager from '../../components/common/ResourceManager';
 
-const CantinePage = () => {
-  const { data: inscritsData, isLoading: loadingInscrits } = useInscritsCantin();
-  const { data: repasData, isLoading: loadingRepas } = useRepas();
-  const { data: menusData } = useMenus();
-  
-  const inscrits = Array.isArray(inscritsData) ? inscritsData : [];
-  const repas = Array.isArray(repasData) ? repasData : [];
-  const menus = Array.isArray(menusData) ? menusData : [];
+const regimes = [
+  { value: 'standard', label: 'Standard' },
+  { value: 'vegetarien', label: 'Végétarien' },
+  { value: 'sans_porc', label: 'Sans porc' },
+  { value: 'sans_gluten', label: 'Sans gluten' },
+];
 
-  const inscritsColumns = [
-    { Header: 'Matricule', accessor: 'eleve_matricule' },
-    { Header: 'Élève', accessor: 'eleve_nom' },
-    { Header: 'Classe', accessor: 'classe_nom' },
-    { Header: 'Régime', accessor: 'regime' },
-    {
-      Header: 'Statut paiement',
-      accessor: 'paiement_ok',
-      Cell: ({ value }) => (
-        <Badge variant={value ? 'success' : 'danger'}>{value ? 'À jour' : 'Impayé'}</Badge>
-      ),
-    },
-    { Header: 'Allergies', accessor: 'allergies' },
-  ];
-
-  const repasColumns = [
-    { Header: 'Date', accessor: 'date' },
-    { Header: 'Service', accessor: 'service' },
-    { Header: 'Élèves servis', accessor: 'nb_eleves' },
-    { Header: 'Menu', accessor: 'menu_nom' },
-    {
-      Header: 'Statut',
-      accessor: 'statut',
-      Cell: ({ value }) => (
-        <Badge variant={value === 'termine' ? 'success' : value === 'en_cours' ? 'warning' : 'secondary'}>
-          {value}
-        </Badge>
-      ),
-    },
-  ];
-
-  return (
-    <div>
-      <PageHeader
-        title="Cantine"
-        subtitle="Gestion de la restauration scolaire"
-        actions={[
-          { label: 'Nouvelle inscription', icon: <Add />, variant: 'primary', onClick: () => {} },
-        ]}
-      />
-      <Row className="mb-4">
-        <Col md={3}>
-          <StatCard title="Inscrits cantine" value={inscrits.length} icon={<Restaurant />} variant="primary" />
-        </Col>
-        <Col md={3}>
-          <StatCard title="Repas servis (mois)" value={repas.reduce((sum, r) => sum + r.nb_eleves, 0)} variant="success" />
-        </Col>
-        <Col md={3}>
-          <StatCard title="Paiements en retard" value={inscrits.filter(i => !i.paiement_ok).length} variant="danger" />
-        </Col>
-        <Col md={3}>
-          <StatCard title="Menus actifs" value={menus.filter(m => m.actif).length} variant="info" />
-        </Col>
-      </Row>
-
-      <Tabs defaultActiveKey="inscrits">
-        <Tab eventKey="inscrits" title="Élèves inscrits">
-          <div className="pt-3">
-            <SISDataTable title="" data={inscrits} columns={inscritsColumns} loading={loadingInscrits} searchable exportable />
-          </div>
-        </Tab>
-        <Tab eventKey="repas" title="Historique repas">
-          <div className="pt-3">
-            <SISDataTable title="" data={repas} columns={repasColumns} loading={loadingRepas} searchable exportable />
-          </div>
-        </Tab>
-      </Tabs>
-    </div>
-  );
-};
+const CantinePage = () => (
+  <Stack spacing={4}>
+    <ResourceManager
+      variant="secondaire"
+      resource="cantine/menus"
+      title="Menus de la cantine"
+      searchable={false}
+      columns={[
+        { Header: 'Date', accessor: 'date' },
+        { Header: 'Entrée', accessor: 'entree' },
+        { Header: 'Plat', accessor: 'plat' },
+        { Header: 'Accompagnement', accessor: 'accompagnement' },
+        { Header: 'Dessert', accessor: 'dessert' },
+        { Header: 'Régime', accessor: 'regime_display' },
+        { Header: 'Prix', accessor: 'prix' },
+      ]}
+      fields={[
+        {
+          name: 'date', label: 'Date', type: 'date', required: true,
+        },
+        { name: 'entree', label: 'Entrée' },
+        { name: 'plat', label: 'Plat', required: true },
+        { name: 'accompagnement', label: 'Accompagnement' },
+        { name: 'dessert', label: 'Dessert' },
+        {
+          name: 'regime',
+          label: 'Régime',
+          defaultValue: 'standard',
+          required: true,
+          choices: [...regimes, { value: 'autre', label: 'Autre' }],
+        },
+        {
+          name: 'prix', label: 'Prix', type: 'number', defaultValue: 0, required: true,
+        },
+      ]}
+    />
+    <ResourceManager
+      variant="secondaire"
+      resource="cantine/inscriptions-cantine"
+      title="Inscriptions à la cantine"
+      searchable={false}
+      columns={[
+        { Header: 'Matricule', accessor: 'eleve_matricule' },
+        { Header: 'Élève', accessor: 'eleve_nom' },
+        { Header: 'Classe', accessor: 'eleve_classe' },
+        { Header: 'Forfait', accessor: 'forfait_display' },
+        { Header: 'Régime', accessor: 'regime_display' },
+        { Header: 'Début', accessor: 'date_debut' },
+        { Header: 'Fin', accessor: 'date_fin' },
+      ]}
+      fields={[
+        {
+          name: 'eleve', label: 'Élève', resource: 'eleves', labelField: 'matricule', required: true,
+        },
+        {
+          name: 'forfait',
+          label: 'Forfait',
+          defaultValue: 'annuel',
+          required: true,
+          choices: ['annuel', 'trimestriel', 'mensuel', 'unitaire'].map(value => ({ value, label: value })),
+        },
+        {
+          name: 'regime', label: 'Régime', choices: regimes, defaultValue: 'standard', required: true,
+        },
+        {
+          name: 'date_debut', label: 'Début', type: 'date', required: true,
+        },
+        { name: 'date_fin', label: 'Fin', type: 'date' },
+        {
+          name: 'actif', label: 'Actif', type: 'checkbox', defaultValue: true,
+        },
+      ]}
+    />
+    <ResourceManager
+      variant="secondaire"
+      resource="cantine/presences-cantine"
+      title="Présences à la cantine"
+      searchable={false}
+      columns={[
+        { Header: 'Date', accessor: 'menu_date' },
+        { Header: 'Plat', accessor: 'menu_plat' },
+        { Header: 'Élève', accessor: 'eleve_nom' },
+        { Header: 'Pointage', accessor: 'heure_pointage' },
+      ]}
+      fields={[
+        {
+          name: 'menu', label: 'Menu', resource: 'cantine/menus', labelField: 'date', required: true,
+        },
+        {
+          name: 'eleve', label: 'Élève', resource: 'eleves', labelField: 'matricule', required: true,
+        },
+        {
+          name: 'present', label: 'Présent', type: 'checkbox', defaultValue: true,
+        },
+        { name: 'heure_pointage', label: 'Pointage', type: 'time' },
+      ]}
+    />
+  </Stack>
+);
 
 export default CantinePage;

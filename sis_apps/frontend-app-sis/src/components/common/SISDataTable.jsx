@@ -25,6 +25,7 @@ import {
   Add as AddIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
+import { exportRecords } from '../../services/resources';
 
 const SISDataTable = ({
   title,
@@ -39,6 +40,7 @@ const SISDataTable = ({
   pageSize: initialPageSize,
   emptyMessage,
   onRefresh,
+  serverPagination,
 }) => {
   const [searchValue, setSearchValue] = useState('');
   const [page, setPage] = useState(0);
@@ -46,38 +48,23 @@ const SISDataTable = ({
 
   // Ensure data is always an array
   const safeData = useMemo(() => {
-    if (Array.isArray(data)) return data;
-    if (data?.results && Array.isArray(data.results)) return data.results;
+    if (Array.isArray(data)) { return data; }
+    if (data?.results && Array.isArray(data.results)) { return data.results; }
     return [];
   }, [data]);
 
   const filteredData = useMemo(() => {
-    if (!searchable || !searchValue) return safeData;
-    
+    if (serverPagination || !searchable || !searchValue) { return safeData; }
+
     const lowerSearch = searchValue.toLowerCase();
-    return safeData.filter((row) =>
-      columns.some((col) => {
-        const value = row[col.accessor];
-        return value && String(value).toLowerCase().includes(lowerSearch);
-      })
-    );
-  }, [safeData, searchValue, searchable, columns]);
+    return safeData.filter((row) => columns.some((col) => {
+      const value = row[col.accessor];
+      return value && String(value).toLowerCase().includes(lowerSearch);
+    }));
+  }, [safeData, searchValue, searchable, columns, serverPagination]);
 
   const handleExport = () => {
-    const headers = columns.map((col) => col.Header).join(',');
-    const rows = filteredData.map((row) =>
-      columns.map((col) => {
-        const val = row[col.accessor];
-        return '"' + (val !== undefined ? val : '') + '"';
-      }).join(',')
-    );
-    const csv = [headers, ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = title.toLowerCase().replace(/\s+/g, '_') + '.csv';
-    a.click();
+    exportRecords(title, columns, filteredData);
   };
 
   const handleChangePage = (event, newPage) => {
@@ -100,14 +87,27 @@ const SISDataTable = ({
   return (
     <Card>
       <CardContent sx={{ borderBottom: 1, borderColor: 'divider', py: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2,
+        }}
+        >
           <Typography variant="h6" fontWeight={600}>{title}</Typography>
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Box sx={{
+            display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap',
+          }}
+          >
             {searchable && (
               <TextField
                 placeholder="Rechercher..."
-                value={searchValue}
-                onChange={(e) => { setSearchValue(e.target.value); setPage(0); }}
+                value={serverPagination ? serverPagination.search : searchValue}
+                onChange={(e) => {
+                  if (serverPagination) {
+                    serverPagination.onSearchChange(e.target.value);
+                  } else {
+                    setSearchValue(e.target.value);
+                    setPage(0);
+                  }
+                }}
                 size="small"
                 sx={{ minWidth: 220 }}
                 InputProps={{
@@ -147,8 +147,8 @@ const SISDataTable = ({
             <Table>
               <TableHead>
                 <TableRow>
-                  {columns.map((column, index) => (
-                    <TableCell key={index} sx={{ fontWeight: 600, bgcolor: 'grey.50', whiteSpace: 'nowrap' }}>
+                  {columns.map((column) => (
+                    <TableCell key={column.accessor} sx={{ fontWeight: 600, bgcolor: 'grey.50', whiteSpace: 'nowrap' }}>
                       {column.Header}
                     </TableCell>
                   ))}
@@ -162,17 +162,17 @@ const SISDataTable = ({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredData
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  (serverPagination ? filteredData : filteredData
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage))
                     .map((row, rowIndex) => (
-                      <TableRow 
+                      <TableRow
                         key={row.id || rowIndex}
                         hover
                         sx={{ cursor: onRowClick ? 'pointer' : 'default' }}
                         onClick={() => onRowClick && onRowClick({ original: row })}
                       >
-                        {columns.map((column, colIndex) => (
-                          <TableCell key={colIndex}>{renderCellValue(row, column)}</TableCell>
+                        {columns.map((column) => (
+                          <TableCell key={column.accessor}>{renderCellValue(row, column)}</TableCell>
                         ))}
                       </TableRow>
                     ))
@@ -183,14 +183,15 @@ const SISDataTable = ({
 
           <TablePagination
             component="div"
-            count={filteredData.length}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
+            count={serverPagination ? serverPagination.count : filteredData.length}
+            page={serverPagination ? serverPagination.page : page}
+            onPageChange={serverPagination ? (_, value) => serverPagination.onPageChange(value) : handleChangePage}
+            rowsPerPage={serverPagination ? serverPagination.pageSize : rowsPerPage}
+            onRowsPerPageChange={serverPagination
+              ? event => serverPagination.onPageSizeChange(Number(event.target.value)) : handleChangeRowsPerPage}
             rowsPerPageOptions={[5, 10, 25, 50]}
             labelRowsPerPage="Lignes par page:"
-            labelDisplayedRows={({ from, to, count }) => 'Showing ' + from + ' - ' + to + ' of ' + count + '.'}
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} sur ${count}`}
           />
         </>
       )}
@@ -215,6 +216,15 @@ SISDataTable.propTypes = {
   pageSize: PropTypes.number,
   emptyMessage: PropTypes.string,
   onRefresh: PropTypes.func,
+  serverPagination: PropTypes.shape({
+    page: PropTypes.number.isRequired,
+    pageSize: PropTypes.number.isRequired,
+    count: PropTypes.number.isRequired,
+    search: PropTypes.string.isRequired,
+    onPageChange: PropTypes.func.isRequired,
+    onPageSizeChange: PropTypes.func.isRequired,
+    onSearchChange: PropTypes.func.isRequired,
+  }),
 };
 
 SISDataTable.defaultProps = {
@@ -228,6 +238,7 @@ SISDataTable.defaultProps = {
   pageSize: 10,
   emptyMessage: 'Aucune donnée disponible',
   onRefresh: null,
+  serverPagination: null,
 };
 
 export default SISDataTable;

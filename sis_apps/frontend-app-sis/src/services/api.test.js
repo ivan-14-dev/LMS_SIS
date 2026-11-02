@@ -3,6 +3,7 @@ import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
 import {
   deleteApi,
   fetchApi,
+  fetchCollection,
   getAdminApiUrl,
   getCurrentEstablishmentUrl,
   getIntegrationApiUrl,
@@ -39,6 +40,32 @@ const requests = [
 beforeEach(() => {
   jest.clearAllMocks();
   getConfig.mockReturnValue({});
+});
+
+describe('complete collection requests', () => {
+  it('loads later pages instead of truncating at the server page size', async () => {
+    const get = jest.fn()
+      .mockResolvedValueOnce({ data: { count: 51, results: [{ id: 1 }], next: `${url}?page=2` } })
+      .mockResolvedValueOnce({ data: { count: 51, results: [{ id: 51 }], next: null } });
+    getAuthenticatedHttpClient.mockReturnValue({ get });
+    expect(await fetchCollection(url)).toEqual([{ id: 1 }, { id: 51 }]);
+    expect(get).toHaveBeenLastCalledWith(`${url}?page=2`, {});
+  });
+
+  it.each(['https://outside.example/collect', url])('rejects unsafe or cyclic pagination to %s', async (next) => {
+    const get = jest.fn().mockResolvedValue({ data: { count: 2, results: [{ id: 1 }], next } });
+    getAuthenticatedHttpClient.mockReturnValue({ get });
+    await expect(fetchCollection(url)).rejects.toThrow('pagination invalide');
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not return a successful partial export when a later page fails', async () => {
+    const get = jest.fn()
+      .mockResolvedValueOnce({ data: { count: 2, results: [{ id: 1 }], next: `${url}?page=2` } })
+      .mockRejectedValueOnce(new Error('Server unavailable'));
+    getAuthenticatedHttpClient.mockReturnValue({ get });
+    await expect(fetchCollection(url)).rejects.toThrow('Server unavailable');
+  });
 });
 
 describe('explicit mock mode', () => {

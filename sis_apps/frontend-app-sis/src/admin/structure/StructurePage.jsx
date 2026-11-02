@@ -1,127 +1,96 @@
-import React from 'react';
-import { Row, Col, Card, Button, Badge, Tabs, Tab } from '@openedx/paragon';
-import { Add, Edit, AccountTree } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable, StatCard } from '../../components/common';
-import { useDepartements, useNiveaux, useMatieres, useSalles } from '../../services/api';
+import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Box, MenuItem, TextField } from '@mui/material';
+import ResourceManager from '../../components/common/ResourceManager';
+import { getEnabledVariants } from '../../services/resources';
+
+const codeName = [
+  { name: 'code', label: 'Code', required: true },
+  { name: 'nom', label: 'Nom', required: true },
+];
+
+const secondaryResources = [
+  {
+    resource: 'etablissement/niveaux',
+    title: 'Niveaux',
+    fields: [
+      codeName[0], { name: 'libelle', label: 'Libellé', required: true },
+      {
+        name: 'ordre', label: 'Ordre', type: 'number', required: true,
+      },
+      { name: 'cycle', label: 'Cycle', required: true },
+    ],
+  },
+  {
+    resource: 'classes/matieres',
+    title: 'Matières',
+    fields: codeName,
+  },
+  {
+    resource: 'salles',
+    title: 'Salles',
+    fields: [
+      ...codeName, {
+        name: 'capacite', label: 'Capacité', type: 'number', required: true,
+      },
+      { name: 'batiment', label: 'Bâtiment' }, {
+        name: 'etage', label: 'Étage', type: 'number', defaultValue: 0,
+      },
+    ],
+  },
+];
+const higherResources = [
+  {
+    resource: 'structure/facultes',
+    title: 'Facultés',
+    fields: [
+      ...codeName, {
+        name: 'date_creation', label: 'Date de création', type: 'date', required: true,
+      },
+      {
+        name: 'doyen', label: 'Doyen', resource: 'utilisateurs/comptes', labelField: 'full_name',
+      },
+    ],
+  },
+  {
+    resource: 'structure/departements',
+    title: 'Départements',
+    fields: [...codeName, {
+      name: 'faculte', label: 'Faculté', resource: 'structure/facultes', required: true,
+    }],
+  },
+  {
+    resource: 'structure/ecoles-doctorales',
+    title: 'Écoles doctorales',
+    fields: codeName,
+  },
+];
 
 const StructurePage = () => {
-  const { data: departements = [], isLoading: loadingDept } = useDepartements();
-  const { data: niveaux = [], isLoading: loadingNiv } = useNiveaux();
-  const { data: matieres = [], isLoading: loadingMat } = useMatieres();
-  const { data: salles = [], isLoading: loadingSalles } = useSalles();
-
-  const departementColumns = [
-    { Header: 'Code', accessor: 'code' },
-    { Header: 'Nom', accessor: 'nom' },
-    { Header: 'Responsable', accessor: 'responsable_nom' },
-    { Header: 'Formations', accessor: 'nb_formations' },
-    { Header: 'Enseignants', accessor: 'nb_enseignants' },
-    {
-      Header: 'Actions',
-      accessor: 'id',
-      Cell: () => <Button size="sm" variant="outline-primary" iconBefore={Edit}>Éditer</Button>,
-    },
-  ];
-
-  const niveauColumns = [
-    { Header: 'Code', accessor: 'code' },
-    { Header: 'Nom', accessor: 'nom' },
-    { Header: 'Type', accessor: 'type' },
-    { Header: 'Ordre', accessor: 'ordre' },
-    {
-      Header: 'Actif',
-      accessor: 'actif',
-      Cell: ({ value }) => <Badge variant={value ? 'success' : 'secondary'}>{value ? 'Oui' : 'Non'}</Badge>,
-    },
-  ];
-
-  const matiereColumns = [
-    { Header: 'Code', accessor: 'code' },
-    { Header: 'Nom', accessor: 'nom' },
-    { Header: 'Coefficient', accessor: 'coefficient' },
-    { Header: 'Catégorie', accessor: 'categorie' },
-    {
-      Header: 'Actif',
-      accessor: 'actif',
-      Cell: ({ value }) => <Badge variant={value ? 'success' : 'secondary'}>{value ? 'Oui' : 'Non'}</Badge>,
-    },
-  ];
-
-  const salleColumns = [
-    { Header: 'Code', accessor: 'code' },
-    { Header: 'Nom', accessor: 'nom' },
-    { Header: 'Type', accessor: 'type' },
-    { Header: 'Capacité', accessor: 'capacite' },
-    { Header: 'Bâtiment', accessor: 'batiment' },
-    { Header: 'Équipements', accessor: 'equipements' },
-    {
-      Header: 'Disponible',
-      accessor: 'disponible',
-      Cell: ({ value }) => <Badge variant={value ? 'success' : 'danger'}>{value ? 'Oui' : 'Non'}</Badge>,
-    },
-  ];
-
+  const [params] = useSearchParams();
+  const [selected, setSelected] = useState(0);
+  const enabled = getEnabledVariants();
+  const variant = enabled.includes(params.get('sis')) ? params.get('sis') : enabled[0];
+  const options = variant === 'secondaire' ? secondaryResources : higherResources;
+  const active = options[selected];
   return (
-    <div>
-      <PageHeader
-        title="Structure"
-        subtitle="Configuration de la structure pédagogique et administrative"
+    <Box>
+      <TextField select label="Structure" value={selected} onChange={event => setSelected(event.target.value)} sx={{ mb: 3, minWidth: 250 }}>
+        {options.map((item, index) => <MenuItem value={index} key={item.resource}>{item.title}</MenuItem>)}
+      </TextField>
+      <ResourceManager
+        key={`${variant}-${active.resource}`}
+        variant={variant}
+        resource={active.resource}
+        title={active.title}
+        fields={active.fields}
+        searchable={false}
+        columns={[
+          { Header: 'Code', accessor: 'code' },
+          { Header: 'Nom', accessor: active.resource === 'etablissement/niveaux' ? 'libelle' : 'nom' },
+        ]}
       />
-
-      <Row className="mb-4">
-        <Col md={3}>
-          <StatCard title="Départements" value={departements.length} icon={<AccountTree />} variant="primary" />
-        </Col>
-        <Col md={3}>
-          <StatCard title="Niveaux" value={niveaux.length} variant="success" />
-        </Col>
-        <Col md={3}>
-          <StatCard title="Matières" value={matieres.length} variant="info" />
-        </Col>
-        <Col md={3}>
-          <StatCard title="Salles" value={salles.length} variant="warning" />
-        </Col>
-      </Row>
-
-      <Tabs defaultActiveKey="departements">
-        <Tab eventKey="departements" title="Départements">
-          <div className="pt-3">
-            <div className="mb-3">
-              <Button variant="primary" iconBefore={Add}>Nouveau département</Button>
-            </div>
-            <SISDataTable title="" data={departements} columns={departementColumns} loading={loadingDept} searchable exportable />
-          </div>
-        </Tab>
-
-        <Tab eventKey="niveaux" title="Niveaux">
-          <div className="pt-3">
-            <div className="mb-3">
-              <Button variant="primary" iconBefore={Add}>Nouveau niveau</Button>
-            </div>
-            <SISDataTable title="" data={niveaux} columns={niveauColumns} loading={loadingNiv} searchable exportable />
-          </div>
-        </Tab>
-
-        <Tab eventKey="matieres" title="Matières">
-          <div className="pt-3">
-            <div className="mb-3">
-              <Button variant="primary" iconBefore={Add}>Nouvelle matière</Button>
-            </div>
-            <SISDataTable title="" data={matieres} columns={matiereColumns} loading={loadingMat} searchable exportable />
-          </div>
-        </Tab>
-
-        <Tab eventKey="salles" title="Salles">
-          <div className="pt-3">
-            <div className="mb-3">
-              <Button variant="primary" iconBefore={Add}>Nouvelle salle</Button>
-            </div>
-            <SISDataTable title="" data={salles} columns={salleColumns} loading={loadingSalles} searchable exportable />
-          </div>
-        </Tab>
-      </Tabs>
-    </div>
+    </Box>
   );
 };
-
 export default StructurePage;
