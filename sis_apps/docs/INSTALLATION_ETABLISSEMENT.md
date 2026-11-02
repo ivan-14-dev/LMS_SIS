@@ -200,6 +200,85 @@ Configurez le MFA local depuis **Mon compte**. Conservez une procédure de secou
 administrative contrôlée ; le lien de récupération réinitialise le mot de passe,
 mais ne désactive pas le second facteur.
 
+### Profils institutionnels et offres mixtes
+
+Dans **Administration → Établissement → Profils et offres**, un administrateur
+peut composer plusieurs configurations dans le même établissement. Le catalogue
+commun aux deux SIS propose primaire, collège/lycée, université/grande école,
+formation professionnelle et profil personnalisé. Un établissement peut ainsi
+décrire simultanément un cursus universitaire et une formation courte.
+
+Pour chaque offre :
+
+1. Choisissez un profil, puis **Ajouter une offre**.
+2. Adaptez son nom, ses libellés, son calendrier et son mode d'évaluation.
+3. Configurez soit un barème et un seuil, soit des compétences, soit une
+   décision validé/non validé. Les crédits sont facultatifs, avec un système
+   et une cible propres à l'offre lorsqu'ils sont activés.
+4. Utilisez **Simuler** pour vérifier les règles côté serveur.
+5. Cliquez sur **Enregistrer la configuration** pour conserver les offres.
+
+La simulation distingue une note manquante d'un zéro. Pour les compétences,
+toutes doivent être renseignées ; une compétence inconnue ou une note hors
+barème produit une erreur. La simulation ne publie aucune note ou décision et
+n'attribue aucun crédit. Modifier les règles masque un ancien résultat de
+simulation qui ne correspondrait plus au formulaire.
+
+**Périmètre de ce premier lot : configuration et simulation uniquement.**
+Les classes, formations, inscriptions, calculs de bulletins et écrans de saisie
+de notes existants ne sont pas encore reliés à ces offres. Leurs règles actuelles
+restent inchangées. Les libellés d'une offre ne renomment pas encore tous les
+menus. Les fonctionnalités pédagogiques globales restent gérées dans l'onglet
+**Modules** ; ajouter une offre n'active ni Open edX ni un service externe.
+Ce lot ne constitue donc pas une prise en charge complète de chaque catégorie
+d'établissement.
+
+Les configurations sont conservées dans
+`configuration_academique.learning_offerings`, sous forme de définitions
+complètes avec un code unique et une version. Les modifications partielles des
+autres paramètres préservent les offres ; les établissements existants sans
+cette clé continuent de fonctionner. Remplacer la liste remplace les
+configurations d'offres, pas les dossiers académiques. Aucune migration de schéma
+ni conversion des données scolaires existantes n'est nécessaire.
+
+L'API `GET /api/v1/etablissement/current/` expose les modèles dans
+`configuration_schema.institutional_profiles`. La sauvegarde utilise le
+`PATCH` existant, par exemple :
+
+```json
+{
+  "configuration_academique": {
+    "learning_offerings": [{
+      "code": "formation-soir",
+      "label": "Formation pratique du soir",
+      "profile": "vocational",
+      "version": 1,
+      "calendar": "session",
+      "terminology": {
+        "learner": "Stagiaire",
+        "educator": "Formateur",
+        "group": "Groupe"
+      },
+      "assessment": {
+        "mode": "competency",
+        "criteria": [{"code": "pratique", "label": "Maîtriser le geste professionnel"}]
+      },
+      "credits": null
+    }]
+  }
+}
+```
+
+`POST /api/v1/etablissement/current/offering-preview/` reçoit `offering`
+(la définition complète) et `result` : `{"score": 12}` pour les notes,
+`{"criteria": {"pratique": true}}` pour les compétences, ou `{"passed": true}`
+pour la décision simple. Une valeur `null` indique un résultat non renseigné.
+La réponse porte le statut `passed`, `failed` ou `incomplete`.
+Ces endpoints restent réservés aux administrateurs autorisés du tenant courant.
+Les configurations inconnues, versions non prises en charge, doublons et valeurs
+invalides sont refusés ; aucune partie du formulaire n'est enregistrée en cas
+d'erreur.
+
 ### Comptes et responsabilités
 
 L'administrateur initial est un compte de secours privilégié, pas un compte

@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from sis_common.authorization import has_business_permission_or_role
+from sis_common.institutional_profiles import OfferingPreviewMixin
 
 from .models import AnneeUniversitaire, Semestre, Universite
 from .serializers import (
@@ -90,6 +91,10 @@ class CurrentUniversiteView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class OfferingPreviewView(OfferingPreviewMixin, CurrentUniversiteView):
+    """Simulation des règles d'une offre, réservée aux administrateurs du tenant."""
 
 
 class UniversitesViewSet(viewsets.ModelViewSet):

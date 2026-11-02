@@ -25,6 +25,8 @@ import {
   parseObjectField,
   stringifyAcademicConfiguration,
 } from './academicConfigurationForm';
+import { apiErrorMessage } from '../../services/resources';
+import InstitutionalProfilesEditor from './InstitutionalProfilesEditor';
 
 const EMPTY_FORM = {
   fonctionnalites: {},
@@ -47,7 +49,7 @@ const EtablissementPage = () => {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['etablissement-current'],
+    queryKey: ['etablissement-current', endpoint],
     queryFn: () => fetchApi(endpoint),
   });
 
@@ -71,7 +73,7 @@ const EtablissementPage = () => {
     mutationFn: (data) => patchApi(endpoint, data),
     onSuccess: (data) => {
       setFormData(data);
-      queryClient.setQueryData(['etablissement-current'], data);
+      queryClient.setQueryData(['etablissement-current', endpoint], data);
     },
   });
 
@@ -241,11 +243,25 @@ const EtablissementPage = () => {
         <Alert variant="success">La configuration a été enregistrée.</Alert>
       )}
       {updateMutation.isError && (
-        <Alert variant="danger">L’enregistrement a échoué. Vérifiez les valeurs saisies.</Alert>
+        <Alert variant="danger">{apiErrorMessage(updateMutation.error)}</Alert>
       )}
 
       <Form onSubmit={handleSubmit}>
         <Tabs defaultActiveKey="general">
+          <Tab eventKey="profiles" title="Profils et offres">
+            {academicError ? <Alert variant="danger">{academicError}</Alert> : (
+              <InstitutionalProfilesEditor
+                value={academicConfiguration.learning_offerings === undefined
+                  ? [] : academicConfiguration.learning_offerings}
+                schema={configurationSchema.institutional_profiles || {}}
+                endpoint={endpoint}
+                onChange={learningOfferings => syncAcademicConfiguration({
+                  ...academicConfiguration,
+                  learning_offerings: learningOfferings,
+                })}
+              />
+            )}
+          </Tab>
           <Tab eventKey="general" title="Identité">
             <Card className="mt-3">
               <Card.Body>
@@ -660,7 +676,8 @@ const EtablissementPage = () => {
                               <Col md={6}>
                                 <Form.Group className="mb-2">
                                   <Form.Label>Rôles à notifier</Form.Label>
-                                  <Form.Select
+                                  <Form.Control
+                                    as="select"
                                     multiple
                                     value={settings.recipient_role_codes || []}
                                     onChange={(event) => updateSubmissionWindowField(
@@ -672,7 +689,7 @@ const EtablissementPage = () => {
                                     {submissionRecipientRoleOptions.map((option) => (
                                       <option key={option.code} value={option.code}>{option.label}</option>
                                     ))}
-                                  </Form.Select>
+                                  </Form.Control>
                                   <Form.Text muted>
                                     Maintenez Ctrl/Cmd pour sélectionner plusieurs rôles.
                                   </Form.Text>
@@ -681,7 +698,8 @@ const EtablissementPage = () => {
                               <Col md={6}>
                                 <Form.Group className="mb-0">
                                   <Form.Label>Groupes dynamiques à notifier</Form.Label>
-                                  <Form.Select
+                                  <Form.Control
+                                    as="select"
                                     multiple
                                     value={settings.recipient_group_codes || []}
                                     onChange={(event) => updateSubmissionWindowField(
@@ -693,7 +711,7 @@ const EtablissementPage = () => {
                                     {(academicConfiguration.permission_groups || []).map((group) => (
                                       <option key={group.code} value={group.code}>{group.label || group.code}</option>
                                     ))}
-                                  </Form.Select>
+                                  </Form.Control>
                                   <Form.Text muted>
                                     Les groupes proviennent de la section « Groupes de permissions dynamiques ».
                                   </Form.Text>
@@ -741,20 +759,22 @@ const EtablissementPage = () => {
                               <Col md={6}>
                                 <Form.Group className="mb-0">
                                   <Form.Label>Sévérité</Form.Label>
-                                  <Form.Select
+                                  <Form.Control
+                                    as="select"
                                     value={settings.notification_severity || 'warning'}
                                     onChange={(event) => updateSubmissionWindowField(windowType.code, 'notification_severity', event.target.value)}
                                   >
                                     {submissionSeverityOptions.map((option) => (
                                       <option key={option.code} value={option.code}>{option.label}</option>
                                     ))}
-                                  </Form.Select>
+                                  </Form.Control>
                                 </Form.Group>
                               </Col>
                             </Row>
                             <Form.Group className="mt-3 mb-0">
                               <Form.Label>Canaux de notification</Form.Label>
-                              <Form.Select
+                              <Form.Control
+                                as="select"
                                 multiple
                                 value={settings.notification_channels || []}
                                 onChange={(event) => updateSubmissionWindowField(
@@ -766,9 +786,10 @@ const EtablissementPage = () => {
                                 {submissionChannelOptions.map((option) => (
                                   <option key={option.code} value={option.code}>{option.label}</option>
                                 ))}
-                              </Form.Select>
+                              </Form.Control>
                               <Form.Text muted>
-                                Le centre de notifications reste alimenté, et les canaux email/SMS/webhook déclenchent aussi des diffusions externes lorsqu'ils sont configurés.
+                                Le centre de notifications reste alimenté, et les canaux email/SMS/webhook
+                                déclenchent aussi des diffusions externes lorsqu’ils sont configurés.
                               </Form.Text>
                             </Form.Group>
                             <Row className="mt-3">
@@ -794,7 +815,8 @@ const EtablissementPage = () => {
                                     placeholder="https://example.com/hook-1, https://example.com/hook-2"
                                   />
                                   <Form.Text muted>
-                                    Les emails utilisent les adresses des destinataires ; les webhooks sont appelés une fois par événement.
+                                    Les emails utilisent les adresses des destinataires ;
+                                    les webhooks sont appelés une fois par événement.
                                   </Form.Text>
                                 </Form.Group>
                               </Col>
@@ -804,7 +826,8 @@ const EtablissementPage = () => {
                       );
                     })}
                     <Alert variant="info" className="mb-0">
-                      Les décalages sont appliqués automatiquement si une évaluation ou une épreuve ne définit pas ses propres dates de soumission.
+                      Les décalages sont appliqués automatiquement si une évaluation ou une épreuve
+                      ne définit pas ses propres dates de soumission.
                     </Alert>
                   </Card.Body>
                 </Card>

@@ -23,6 +23,7 @@ from .models import AnneeScolaire, Etablissement, Niveau, Periode
 class EtablissementSerializer(serializers.ModelSerializer):
     """Serializer pour les établissements."""
 
+    configuration_academique = serializers.JSONField(required=False)
     type_display = serializers.SerializerMethodField()
     type_options = serializers.SerializerMethodField()
     feature_options = serializers.SerializerMethodField()

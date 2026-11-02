@@ -7,6 +7,8 @@ from decimal import Decimal, InvalidOperation
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 
+from sis_common.institutional_profiles import institutional_profile_schema, validate_learning_offerings
+
 DIMENSION_AXES = {
     "institutional": "Institutionnel",
     "academic": "Académique",
@@ -594,9 +596,7 @@ REPORT_DATASET_SCHEMAS = {
         },
     },
 }
-REPORT_DATASET_LABELS = {
-    code: details["label"] for code, details in REPORT_DATASET_SCHEMAS.items()
-}
+REPORT_DATASET_LABELS = {code: details["label"] for code, details in REPORT_DATASET_SCHEMAS.items()}
 
 FINANCIAL_WORKFLOW_SCOPES = {
     "tenant": "Établissement",
@@ -605,6 +605,7 @@ FINANCIAL_WORKFLOW_SCOPES = {
 }
 
 DEFAULT_ACADEMIC_CONFIGURATION = {
+    "learning_offerings": [],
     "language": "fr",
     "framework": "custom",
     "grading_scale": {"minimum": 0, "maximum": 20, "pass_mark": 10},
@@ -690,7 +691,10 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             "recipient_role_codes": [],
             "recipient_group_codes": [],
             "title_template": "Clôture de soumission imminente",
-            "message_template": "Clôture de la {window_label} de {object_label} dans moins de {threshold_hours}h (limite: {deadline}).",
+            "message_template": (
+                "Clôture de la {window_label} de {object_label} "
+                "dans moins de {threshold_hours}h (limite: {deadline})."
+            ),
             "notification_category": "submission_deadline",
             "notification_severity": "warning",
             "notification_channels": ["in_app"],
@@ -706,7 +710,10 @@ DEFAULT_ACADEMIC_CONFIGURATION = {
             "recipient_role_codes": [],
             "recipient_group_codes": [],
             "title_template": "Clôture de soumission imminente",
-            "message_template": "Clôture de la {window_label} de {object_label} dans moins de {threshold_hours}h (limite: {deadline}).",
+            "message_template": (
+                "Clôture de la {window_label} de {object_label} "
+                "dans moins de {threshold_hours}h (limite: {deadline})."
+            ),
             "notification_category": "submission_deadline",
             "notification_severity": "warning",
             "notification_channels": ["in_app"],
@@ -1245,9 +1252,7 @@ def _validate_financial_workflows(items):
         _validate_code_items(steps, f"financial_workflows[{index}].steps")
         for step_index, step in enumerate(steps):
             if "terminal" in step and not isinstance(step["terminal"], bool):
-                raise ValidationError(
-                    f"financial_workflows[{index}].steps[{step_index}].terminal doit être booléen."
-                )
+                raise ValidationError(f"financial_workflows[{index}].steps[{step_index}].terminal doit être booléen.")
         transitions = workflow.get("transitions", [])
         if not isinstance(transitions, list):
             raise ValidationError(f"financial_workflows[{index}].transitions doit être une liste.")
@@ -1316,14 +1321,10 @@ def _validate_import_templates(items):
         )
         unknown_extensions = set(extensions) - {"xlsx", "xls"}
         if unknown_extensions:
-            raise ValidationError(
-                f"import_templates[{index}].allowed_extensions doit être parmi: xls, xlsx."
-            )
+            raise ValidationError(f"import_templates[{index}].allowed_extensions doit être parmi: xls, xlsx.")
         strict_columns = template.get("strict_columns", True)
         if not isinstance(strict_columns, bool):
-            raise ValidationError(
-                f"import_templates[{index}].strict_columns doit être booléen."
-            )
+            raise ValidationError(f"import_templates[{index}].strict_columns doit être booléen.")
 
 
 def _validate_exam_result_workflows(items, template_codes=None):
@@ -1332,7 +1333,8 @@ def _validate_exam_result_workflows(items, template_codes=None):
         scope = workflow.get("scope")
         if scope not in EXAM_RESULT_WORKFLOW_SCOPES:
             raise ValidationError(
-                f"exam_result_workflows[{index}].scope doit être l'un de: {', '.join(sorted(EXAM_RESULT_WORKFLOW_SCOPES))}."
+                f"exam_result_workflows[{index}].scope doit être l'un de: "
+                f"{', '.join(sorted(EXAM_RESULT_WORKFLOW_SCOPES))}."
             )
         variants = workflow.get("variants", [])
         _validate_string_list(
@@ -1342,9 +1344,7 @@ def _validate_exam_result_workflows(items, template_codes=None):
         )
         unknown_variants = set(variants) - {"secondaire", "superieur"}
         if unknown_variants:
-            raise ValidationError(
-                f"exam_result_workflows[{index}].variants contient une valeur invalide."
-            )
+            raise ValidationError(f"exam_result_workflows[{index}].variants contient une valeur invalide.")
         for key in (
             "verification_group_codes",
             "validation_group_codes",
@@ -1353,29 +1353,19 @@ def _validate_exam_result_workflows(items, template_codes=None):
             "import_template_codes",
         ):
             _validate_string_list(workflow.get(key, []), f"exam_result_workflows[{index}].{key}")
-        unknown_formats = set(workflow.get("allowed_export_formats", [])) - set(
-            REPORT_EXPORT_FORMATS
-        )
+        unknown_formats = set(workflow.get("allowed_export_formats", [])) - set(REPORT_EXPORT_FORMATS)
         if unknown_formats:
-            raise ValidationError(
-                f"exam_result_workflows[{index}].allowed_export_formats contient un format invalide."
-            )
+            raise ValidationError(f"exam_result_workflows[{index}].allowed_export_formats contient un format invalide.")
         configured_template_codes = set(template_codes or ())
         unknown_templates = set(workflow.get("import_template_codes", [])) - configured_template_codes
         if unknown_templates:
-            raise ValidationError(
-                f"exam_result_workflows[{index}].import_template_codes contient un modèle invalide."
-            )
+            raise ValidationError(f"exam_result_workflows[{index}].import_template_codes contient un modèle invalide.")
         correction_window_days = workflow.get("correction_window_days", 0)
         if not isinstance(correction_window_days, int) or correction_window_days < 0:
-            raise ValidationError(
-                f"exam_result_workflows[{index}].correction_window_days doit être un entier positif."
-            )
+            raise ValidationError(f"exam_result_workflows[{index}].correction_window_days doit être un entier positif.")
         for key in ("allow_retake_after_closure", "allow_student_submission"):
             if key in workflow and not isinstance(workflow[key], bool):
-                raise ValidationError(
-                    f"exam_result_workflows[{index}].{key} doit être booléen."
-                )
+                raise ValidationError(f"exam_result_workflows[{index}].{key} doit être booléen.")
         if "targets" in workflow:
             _validate_targets(workflow["targets"], f"exam_result_workflows[{index}].targets")
 
@@ -1385,11 +1375,7 @@ def _validate_submission_windows(value):
         raise ValidationError("submission_windows doit être un objet.")
     unknown_types = set(value) - set(SUBMISSION_WINDOW_TYPES)
     if unknown_types:
-        raise ValidationError(
-            "submission_windows contient un type invalide: "
-            + ", ".join(sorted(unknown_types))
-            + "."
-        )
+        raise ValidationError("submission_windows contient un type invalide: " + ", ".join(sorted(unknown_types)) + ".")
     for code, settings in value.items():
         if not isinstance(settings, dict):
             raise ValidationError(f"submission_windows.{code} doit être un objet.")
@@ -1416,9 +1402,7 @@ def _validate_submission_windows(value):
                 raise ValidationError(f"submission_windows.{code}.{key} doit être une liste.")
             for index, item in enumerate(values):
                 if not isinstance(item, str) or not item.strip():
-                    raise ValidationError(
-                        f"submission_windows.{code}.{key}[{index}] doit être une chaîne non vide."
-                    )
+                    raise ValidationError(f"submission_windows.{code}.{key}[{index}] doit être une chaîne non vide.")
         for key in ("title_template", "message_template"):
             value = settings.get(key, "")
             if not isinstance(value, str) or not value.strip():
@@ -1450,17 +1434,13 @@ def _validate_submission_windows(value):
             try:
                 _url_validator(sms_gateway_url)
             except ValidationError as error:
-                raise ValidationError(
-                    f"submission_windows.{code}.sms_gateway_url doit être une URL valide."
-                ) from error
+                raise ValidationError(f"submission_windows.{code}.sms_gateway_url doit être une URL valide.") from error
         webhook_urls = settings.get("webhook_urls", [])
         if not isinstance(webhook_urls, list):
             raise ValidationError(f"submission_windows.{code}.webhook_urls doit être une liste.")
         for index, item in enumerate(webhook_urls):
             if not isinstance(item, str) or not item.strip():
-                raise ValidationError(
-                    f"submission_windows.{code}.webhook_urls[{index}] doit être une chaîne non vide."
-                )
+                raise ValidationError(f"submission_windows.{code}.webhook_urls[{index}] doit être une chaîne non vide.")
             try:
                 _url_validator(item)
             except ValidationError as error:
@@ -1488,10 +1468,7 @@ def _report_dataset_schema(variant=None):
                 "fields": dataset.get("fields", []),
                 "allowed_filters": dataset.get("allowed_filters", []),
                 "group_by_options": dataset.get("group_by_options", []),
-                "export_formats": [
-                    {"code": code, "label": label}
-                    for code, label in REPORT_EXPORT_FORMATS.items()
-                ],
+                "export_formats": [{"code": code, "label": label} for code, label in REPORT_EXPORT_FORMATS.items()],
             }
         )
     return datasets
@@ -1503,6 +1480,7 @@ def academic_configuration_schema(variant=None):
         "superieur": SUPERIOR_USER_ROLES,
     }.get(variant, {**SECONDARY_USER_ROLES, **SUPERIOR_USER_ROLES})
     return {
+        "institutional_profiles": institutional_profile_schema(),
         "dimension_axes": [{"code": code, "label": label} for code, label in DIMENSION_AXES.items()],
         "dimension_scopes": [{"code": code, "label": label} for code, label in DIMENSION_SCOPES.items()],
         "validation_scopes": [{"code": code, "label": label} for code, label in VALIDATION_POLICY_SCOPES.items()],
@@ -1510,34 +1488,21 @@ def academic_configuration_schema(variant=None):
         "financial_workflow_scopes": [
             {"code": code, "label": label} for code, label in FINANCIAL_WORKFLOW_SCOPES.items()
         ],
-        "report_export_formats": [
-            {"code": code, "label": label} for code, label in REPORT_EXPORT_FORMATS.items()
-        ],
-        "import_template_types": [
-            {"code": code, "label": label} for code, label in IMPORT_TEMPLATE_TYPES.items()
-        ],
+        "report_export_formats": [{"code": code, "label": label} for code, label in REPORT_EXPORT_FORMATS.items()],
+        "import_template_types": [{"code": code, "label": label} for code, label in IMPORT_TEMPLATE_TYPES.items()],
         "exam_result_workflow_scopes": [
-            {"code": code, "label": label}
-            for code, label in EXAM_RESULT_WORKFLOW_SCOPES.items()
+            {"code": code, "label": label} for code, label in EXAM_RESULT_WORKFLOW_SCOPES.items()
         ],
-        "submission_window_types": [
-            {"code": code, "label": label}
-            for code, label in SUBMISSION_WINDOW_TYPES.items()
-        ],
-        "submission_window_recipient_roles": [
-            {"code": code, "label": label} for code, label in role_options.items()
-        ],
+        "submission_window_types": [{"code": code, "label": label} for code, label in SUBMISSION_WINDOW_TYPES.items()],
+        "submission_window_recipient_roles": [{"code": code, "label": label} for code, label in role_options.items()],
         "submission_window_template_variables": [
-            {"code": code, "label": label}
-            for code, label in SUBMISSION_WINDOW_TEMPLATE_VARIABLES.items()
+            {"code": code, "label": label} for code, label in SUBMISSION_WINDOW_TEMPLATE_VARIABLES.items()
         ],
         "submission_window_severities": [
-            {"code": code, "label": label}
-            for code, label in SUBMISSION_WINDOW_SEVERITIES.items()
+            {"code": code, "label": label} for code, label in SUBMISSION_WINDOW_SEVERITIES.items()
         ],
         "submission_window_notification_channels": [
-            {"code": code, "label": label}
-            for code, label in SUBMISSION_WINDOW_NOTIFICATION_CHANNELS.items()
+            {"code": code, "label": label} for code, label in SUBMISSION_WINDOW_NOTIFICATION_CHANNELS.items()
         ],
     }
 
@@ -1619,9 +1584,7 @@ def resolve_exam_result_workflow(configuration, candidates, variant=None):
 
 
 def resolve_submission_window_settings(configuration, window_type):
-    defaults = deepcopy(
-        DEFAULT_ACADEMIC_CONFIGURATION.get("submission_windows", {}).get(window_type, {})
-    )
+    defaults = deepcopy(DEFAULT_ACADEMIC_CONFIGURATION.get("submission_windows", {}).get(window_type, {}))
     current = (configuration or {}).get("submission_windows", {}).get(window_type, {})
     if not isinstance(current, dict):
         return defaults
@@ -1647,6 +1610,7 @@ def validate_academic_configuration(value):
     if unknown:
         raise ValidationError(f"Clés de configuration académique inconnues: {', '.join(sorted(unknown))}.")
 
+    validate_learning_offerings(value.get("learning_offerings", []))
     scale = value.get("grading_scale", {})
     if not isinstance(scale, dict):
         raise ValidationError("grading_scale doit être un objet.")
@@ -1683,6 +1647,8 @@ def validate_academic_configuration(value):
 
 
 def merge_academic_configuration(current, updates):
+    if not isinstance(updates, dict):
+        raise ValidationError("La configuration académique doit être un objet.")
     merged = default_academic_configuration()
     merged.update(current or {})
     merged.update(updates or {})

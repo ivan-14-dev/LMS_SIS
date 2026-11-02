@@ -22,6 +22,7 @@ from .models import AnneeUniversitaire, Semestre, Universite
 class UniversiteSerializer(serializers.ModelSerializer):
     """Serializer pour les universités."""
 
+    configuration_academique = serializers.JSONField(required=False)
     type_display = serializers.SerializerMethodField()
     type_options = serializers.SerializerMethodField()
     feature_options = serializers.SerializerMethodField()

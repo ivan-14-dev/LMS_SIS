@@ -229,6 +229,52 @@ async function verifyGradeEntry(page, variant, credentials, dates) {
   }
 }
 
+async function verifyInstitutionalProfiles(page, variant) {
+  const initial = page.waitForResponse(response => response.url().endsWith('/etablissement/current/')
+    && response.request().method() === 'GET');
+  await page.goto(`/admin/etablissement?sis=${variant}`);
+  const original = (await (await initial).json()).configuration_academique;
+  await expect(page.getByRole('tab', { name: 'Profils et offres' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Profils et offres' }).click();
+  const labels = ['École primaire', 'Collège / lycée', 'Université / grande école', 'Formation professionnelle'];
+  /* eslint-disable no-await-in-loop -- Les offres sont ajoutées successivement dans le même formulaire. */
+  for (const label of labels) {
+    await page.getByRole('combobox', { name: 'Profil à ajouter', exact: true }).click();
+    await page.getByRole('option', { name: label, exact: true }).click();
+    await page.getByRole('button', { name: 'Ajouter une offre', exact: true }).click();
+    await expect(page.getByRole('region', { name: label, exact: true })).toBeVisible();
+  }
+  /* eslint-enable no-await-in-loop */
+  const primary = page.getByRole('region', { name: 'École primaire', exact: true });
+  const secondary = page.getByRole('region', { name: 'Collège / lycée', exact: true });
+  const university = page.getByRole('region', { name: 'Université / grande école', exact: true });
+  const vocational = page.getByRole('region', { name: 'Formation professionnelle', exact: true });
+  await expect(primary.getByLabel('Utiliser des crédits')).not.toBeChecked();
+  await expect(university.getByLabel('Utiliser des crédits')).toBeChecked();
+  await expect(vocational.getByRole('combobox', { name: 'Calendrier' })).toHaveText('Sessions courtes');
+  await secondary.getByLabel('Note à simuler').fill('0');
+  const preview = page.waitForResponse(response => response.url().endsWith('/offering-preview/')
+    && response.request().method() === 'POST');
+  await secondary.getByRole('button', { name: 'Simuler', exact: true }).click();
+  const simulated = await preview;
+  expect(simulated.status()).toBe(200);
+  expect((await simulated.json()).status).toBe('failed');
+  await expect(secondary.getByText(/Critères non satisfaits/)).toBeVisible();
+  const saved = page.waitForResponse(response => response.url().endsWith('/etablissement/current/')
+    && response.request().method() === 'PATCH');
+  await page.getByRole('button', { name: 'Enregistrer la configuration', exact: true }).click();
+  const response = await saved;
+  expect(response.status()).toBe(200);
+  const configuration = (await response.json()).configuration_academique;
+  expect(configuration.learning_offerings).toHaveLength(4);
+  expect(configuration.grading_scale).toEqual(original.grading_scale);
+  await expect(page.getByText('La configuration a été enregistrée.')).toBeVisible();
+  await page.reload();
+  await page.getByRole('tab', { name: 'Profils et offres' }).click();
+  await expect(page.getByRole('region', { name: 'École primaire', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Formation professionnelle', exact: true })).toBeVisible();
+}
+
 for (const variant of variants) {
   test(`${variant}: real login, academic year, import, export, pagination and MFA`, async ({ page }) => {
     if (variant === 'secondaire') {
@@ -258,6 +304,8 @@ for (const variant of variants) {
     await expect(page.getByText('Enregistrement effectué.')).toBeVisible();
     await page.getByRole('button', { name: 'Activer', exact: true }).click();
     await expect(page.getByText('Activer : opération effectuée.')).toBeVisible();
+
+    await verifyInstitutionalProfiles(page, variant);
 
     const resource = variant === 'secondaire' ? 'eleves' : 'etudiants';
     await page.goto(`/${variant}/${resource}`);
