@@ -7,6 +7,21 @@ from . import api
 app_name = "eleves_api"
 
 urlpatterns = [
+    path(
+        "inscriptions/",
+        api.InscriptionsViewSet.as_view({"get": "list", "post": "create"}),
+        name="inscriptions-list",
+    ),
+    path(
+        "inscriptions/<int:pk>/",
+        api.InscriptionsViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
+        name="inscriptions-detail",
+    ),
+    path(
+        "inscriptions/<int:pk>/valider/",
+        api.InscriptionsViewSet.as_view({"post": "valider"}),
+        name="inscriptions-valider",
+    ),
     path("importer/", api.ElevesViewSet.as_view({"post": "importer"}), name="importer"),
     path(
         "modele-import/",

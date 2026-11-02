@@ -50,6 +50,8 @@ class Formation(models.Model):
     )
     nom = models.CharField(max_length=200)
     code = models.CharField(max_length=30)
+    offre_code = models.CharField(max_length=64, blank=True, default="")
+    offre_configuration = models.JSONField(default=dict, blank=True, editable=False)
     type = models.CharField(max_length=100)
     niveau = models.CharField(max_length=100, blank=True)
     duree_annees = models.PositiveSmallIntegerField(default=3)

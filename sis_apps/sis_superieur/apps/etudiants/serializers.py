@@ -7,6 +7,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
+from sis_common.learning_offerings import ModelValidationSerializerMixin
 from sis_common.serializers import TenantBoundSerializerMixin
 
 from .models import AffectationECUEIndividuelle, Etudiant, InscriptionAdministrative
@@ -153,7 +154,9 @@ class EtudiantCreateSerializer(TenantBoundSerializerMixin, serializers.ModelSeri
         return etudiant
 
 
-class InscriptionAdministrativeSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
+class InscriptionAdministrativeSerializer(
+    ModelValidationSerializerMixin, TenantBoundSerializerMixin, serializers.ModelSerializer
+):
     """Serializer pour les inscriptions administratives."""
 
     etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
@@ -166,6 +169,7 @@ class InscriptionAdministrativeSerializer(TenantBoundSerializerMixin, serializer
         model = InscriptionAdministrative
         fields = [
             "id",
+            "offre_configuration",
             "etudiant",
             "etudiant_matricule",
             "etudiant_nom",

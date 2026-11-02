@@ -21,7 +21,12 @@ from sis_common.authorization import (
     request_has_business_access,
     user_has_any_role,
 )
-from sis_common.grade_entry import GradeLearnerSerializer, validate_grade_batch
+from sis_common.grade_entry import (
+    GradeLearnerSerializer,
+    ensure_numeric_import,
+    validate_grade_batch,
+    validate_offering_grade,
+)
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
 from sis_common.submission_windows import apply_submission_window_defaults
@@ -196,6 +201,7 @@ def _superior_eligible_student_map(evaluation, matricules):
 
 
 def _import_superior_notes(evaluation, rows, request):
+    ensure_numeric_import(evaluation)
     _ensure_superior_continuous_assessment(evaluation)
     matricules = [str(row["matricule"]).strip() for row in rows]
     eligible_map = _superior_eligible_student_map(evaluation, matricules)
@@ -237,6 +243,7 @@ def _import_superior_notes(evaluation, rows, request):
                 raise serializers.ValidationError(
                     {"note": f"Ligne {row_number}: une note est requise pour une copie présentée."}
                 )
+            validate_offering_grade(evaluation, valeur, {}, statut)
             note, was_created = Note.objects.update_or_create(
                 evaluation=evaluation,
                 etudiant=etudiant,
@@ -375,7 +382,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         _ensure_superior_continuous_assessment(evaluation)
         serializer = NoteSaisieSerializer(data=request.data, many=True, allow_empty=False, max_length=1000)
         serializer.is_valid(raise_exception=True)
-        validate_grade_batch(serializer.validated_data, "etudiant_id", evaluation.bareme)
+        validate_grade_batch(serializer.validated_data, "etudiant_id", evaluation)
 
         student_ids = {item["etudiant_id"] for item in serializer.validated_data}
         eligible_student_ids = set(
@@ -395,6 +402,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
                 etudiant_id=item["etudiant_id"],
                 defaults={
                     "valeur": item["valeur"],
+                    "resultat": item["resultat"],
                     "statut": item.get("statut", "presente"),
                     "appreciation": item.get("appreciation", ""),
                     "saisi_par": request.user,
@@ -423,6 +431,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
                 {"workflow": "Le modèle d'import des notes de contrôle continu n'est pas activé."}
             )
         evaluation = self.get_object()
+        ensure_numeric_import(evaluation)
         _ensure_superior_continuous_assessment(evaluation)
         return template_response(
             CONTINUOUS_ASSESSMENT_IMPORT_COLUMNS,

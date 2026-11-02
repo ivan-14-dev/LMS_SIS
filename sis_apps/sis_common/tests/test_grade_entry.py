@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -5,8 +6,28 @@ from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.utilisateurs.models import Utilisateur
 from django.apps import apps
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django_tenants.utils import schema_context
+
+from sis_common.institutional_profiles import institutional_profile_schema
+from sis_common.learning_offerings import offering_grade_result
+
+
+@pytest.mark.parametrize("answer", [True, False, None])
+def test_partial_competency_answers_require_presence_but_unanswered_absence_is_allowed(answer):
+    offering = next(
+        item["template"] for item in institutional_profile_schema()["profiles"] if item["code"] == "primary"
+    )
+    offering["assessment"]["criteria"].append({"code": "writing", "label": "Écriture"})
+    evaluation = SimpleNamespace(offre_configuration=offering)
+    result = {"criteria": {"competence_1": answer}}
+    assert offering_grade_result(evaluation, None, result, "presente")["status"] == "incomplete"
+    if answer is None:
+        assert offering_grade_result(evaluation, None, result, "absente")["status"] == "incomplete"
+    else:
+        with pytest.raises(ValidationError, match="Présentée"):
+            offering_grade_result(evaluation, None, result, "absente")
 
 
 class GradeEntryWorkflowTest(TenantAPITestCase):
@@ -112,6 +133,148 @@ class GradeEntryWorkflowTest(TenantAPITestCase):
 
     def save_grades(self, rows):
         return self.client.post(f"{self.url}saisir_notes/", rows, format="json")
+
+    def bind_offering(self, profile):
+        offering = next(
+            item["template"] for item in institutional_profile_schema()["profiles"] if item["code"] == profile
+        )
+        if offering["assessment"]["mode"] == "numeric":
+            offering["assessment"].update(minimum=5, maximum=100, pass_mark=75)
+        self.tenant.configuration_academique["learning_offerings"] = [offering]
+        self.tenant.save(update_fields=["configuration_academique"])
+        parent = self.classe if self.secondary else self.formation
+        self.parent_url = (
+            f"/api/v1/classes/classes/{parent.pk}/" if self.secondary else f"/api/v1/formations/formations/{parent.pk}/"
+        )
+        response = self.client.patch(self.parent_url, {"offre_code": offering["code"]}, format="json")
+        assert response.status_code == 200, response.data
+        assert response.data["offre_configuration"] == offering
+        response = self.client.post(self.base, self.payload, format="json")
+        assert response.status_code == 201, response.data
+        self.evaluation = apps.get_model("notes.Evaluation").objects.get(pk=response.data["id"])
+        self.url = f"{self.base}{self.evaluation.pk}/"
+        return offering
+
+    def test_numeric_offer_is_inherited_and_snapshot_survives_catalogue_edits(self):
+        legacy = self.evaluation
+        offering = self.bind_offering("secondary")
+        legacy.refresh_from_db()
+        assert legacy.offre_configuration == {}
+        assert legacy.bareme == 20
+        assert self.evaluation.bareme == 100
+        assert self.evaluation.offre_configuration == offering
+        assert self.save_grades([self.row(self.learners[0], "4")]).status_code == 400
+        response = self.save_grades([self.row(self.learners[0], "75")])
+        assert response.status_code == 200, response.data
+        self.tenant.configuration_academique["learning_offerings"][0]["assessment"]["pass_mark"] = 90
+        self.tenant.save(update_fields=["configuration_academique"])
+        note = self.client.get(f"{self.url}notes/").data[0]
+        assert note["resultat_offre"]["status"] == "passed"
+        assert note["valeur"] == "75.00"
+        assert self.client.patch(self.url, {"bareme": 20}, format="json").status_code == 400
+        self.evaluation.refresh_from_db()
+        assert self.evaluation.bareme == 100
+        assert self.evaluation.offre_configuration["assessment"]["pass_mark"] == 75
+
+    def test_new_enrollment_inherits_offer_without_rewriting_existing_records(self):
+        offering = self.bind_offering("vocational")
+        if self.secondary:
+            response = self.client.post(
+                "/api/v1/eleves/inscriptions/",
+                {
+                    "eleve": self.learners[2].pk,
+                    "classe": self.classe.pk,
+                    "annee_scolaire": self.year.pk,
+                    "date_inscription": self.today.isoformat(),
+                },
+                format="json",
+            )
+        else:
+            response = self.client.post(
+                "/api/v1/inscriptions/",
+                {
+                    "etudiant": self.learners[2].pk,
+                    "formation": self.formation.pk,
+                    "annee_universitaire": self.year.pk,
+                    "date_inscription": self.today.isoformat(),
+                },
+                format="json",
+            )
+            previous = apps.get_model("etudiants.InscriptionAdministrative").objects.get(etudiant=self.learners[0])
+            assert previous.offre_configuration == {}
+        assert response.status_code == 201, response.data
+        assert response.data["offre_configuration"] == offering
+        assert response.data["offre_configuration"]["credits"] is None
+        if self.secondary:
+            enrollment_id = response.data["id"]
+            self.client.force_authenticate(self.learners[0].user)
+            assert self.client.get("/api/v1/eleves/inscriptions/").data["count"] == 0
+            assert self.client.get(f"/api/v1/eleves/inscriptions/{enrollment_id}/").status_code == 404
+            assert self.client.post(f"/api/v1/eleves/inscriptions/{enrollment_id}/valider/").status_code == 403
+
+    def test_competency_results_are_persisted_without_fabricated_numeric_grades(self):
+        self.bind_offering("vocational")
+        first, second = self.learners[:2]
+        response = self.save_grades(
+            [
+                self.row(first, None, resultat={"criteria": {"competence_1": True}}),
+                self.row(second, None, resultat={"criteria": {"competence_1": None}}),
+            ]
+        )
+        assert response.status_code == 200, response.data
+        notes = self.client.get(f"{self.url}notes/").data
+        assert [note["valeur"] for note in notes] == [None, None]
+        assert [note["resultat_offre"]["status"] for note in notes] == ["passed", "incomplete"]
+        response = self.save_grades([self.row(first, None, resultat={"criteria": {"competence_1": False}})])
+        assert response.status_code == 200, response.data
+        assert self.client.get(f"{self.url}notes/").data[0]["resultat_offre"]["status"] == "failed"
+        notes_count = self.note_model.objects.count()
+        assert self.client.get(f"{self.url}modele_import_notes/").status_code == 400
+        assert self.note_model.objects.count() == notes_count
+
+    def test_invalid_typed_results_and_numeric_substitutes_are_rejected_atomically(self):
+        self.bind_offering("primary")
+        valid = self.row(self.learners[0], None, resultat={"criteria": {"competence_1": True}})
+        invalid_results = [
+            self.row(self.learners[1], "20", resultat={"criteria": {"competence_1": True}}),
+            self.row(self.learners[1], None, resultat={"criteria": {"unknown": True}}),
+            self.row(self.learners[1], None, resultat={"criteria": {"competence_1": "true"}}),
+            self.row(self.learners[1], None, statut="absente", resultat={"criteria": {"competence_1": True}}),
+        ]
+        for invalid in invalid_results:
+            response = self.save_grades([valid, invalid])
+            assert response.status_code == 400, response.data
+            assert not self.evaluation.notes.exists()
+
+    def test_explicit_pass_fail_and_direct_note_updates_use_the_same_policy(self):
+        self.bind_offering("custom")
+        response = self.save_grades([self.row(self.learners[0], None, resultat={"passed": False})])
+        assert response.status_code == 200, response.data
+        note = self.client.get(f"{self.url}notes/").data[0]
+        assert note["resultat_offre"]["status"] == "failed"
+        url = f"/api/v1/notes/notes/{note['id']}/"
+        response = self.client.patch(url, {"resultat": {"passed": "false"}}, format="json")
+        assert response.status_code == 400, response.data
+        response = self.client.patch(url, {"resultat": {"passed": True}}, format="json")
+        assert response.status_code == 200, response.data
+        assert response.data["resultat_offre"]["status"] == "passed"
+        self.client.force_authenticate(self.learners[0].user)
+        assert self.client.patch(url, {"resultat": {"passed": False}}, format="json").status_code == 403
+
+    def test_binding_rejects_unknown_offers_and_ignores_forged_rule_snapshots(self):
+        offering = self.bind_offering("higher_education")
+        response = self.client.patch(self.parent_url, {"offre_code": "other-institution"}, format="json")
+        assert response.status_code == 400, response.data
+        response = self.client.patch(
+            self.url, {"offre_configuration": {**offering, "profile": "forged"}}, format="json"
+        )
+        assert response.status_code == 200, response.data
+        assert response.data["offre_configuration"] == offering
+        self.client.force_authenticate(self.teacher)
+        response = self.client.get("/api/v1/etablissement/learning-offerings/")
+        assert response.status_code == 200, response.data
+        assert response.data == [offering]
+        assert self.client.get("/api/v1/etablissement/current/").status_code == 403
 
     def test_roster_pages_match_eligible_learners_and_grades_preserve_zero_and_absence(self):
         response = self.client.get(f"{self.url}apprenants/", {"page_size": 1, "page": 2})

@@ -5,6 +5,7 @@ from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
 from sis_common.encryption import EncryptedCharField
+from sis_common.learning_offerings import OfferingSnapshotModel
 
 
 class Etudiant(models.Model):
@@ -28,12 +29,8 @@ class Etudiant(models.Model):
     ]
     SEXE_CHOICES = [("M", "Masculin"), ("F", "Féminin")]
 
-    universite = models.ForeignKey(
-        Universite, on_delete=models.CASCADE, related_name="etudiants"
-    )
-    user = models.OneToOneField(
-        Utilisateur, on_delete=models.CASCADE, related_name="etudiant_profile"
-    )
+    universite = models.ForeignKey(Universite, on_delete=models.CASCADE, related_name="etudiants")
+    user = models.OneToOneField(Utilisateur, on_delete=models.CASCADE, related_name="etudiant_profile")
     matricule = models.CharField(max_length=50, unique=True)
     ine = models.CharField(max_length=20, blank=True)
     date_naissance = models.DateField()
@@ -46,12 +43,8 @@ class Etudiant(models.Model):
     pays = models.CharField(max_length=100, default="France")
     telephone = models.CharField(max_length=20)
     email_personnel = models.EmailField(blank=True)
-    statut = models.CharField(
-        max_length=20, choices=STATUT_CHOICES, default="pre_inscrit"
-    )
-    regime = models.CharField(
-        max_length=30, choices=REGIME_CHOICES, default="formation_initiale"
-    )
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="pre_inscrit")
+    regime = models.CharField(max_length=30, choices=REGIME_CHOICES, default="formation_initiale")
     boursier = models.BooleanField(default=False)
     date_premiere_inscription = models.DateField(null=True, blank=True)
     annee_universitaire_actuelle = models.ForeignKey(
@@ -81,8 +74,10 @@ class Etudiant(models.Model):
         return f"{self.matricule} - {self.user.get_full_name()}"
 
 
-class InscriptionAdministrative(models.Model):
+class InscriptionAdministrative(OfferingSnapshotModel):
     """Inscription administrative (IA) d'un étudiant."""
+
+    offering_parent_path = "formation"
 
     STATUT_CHOICES = [
         ("provisoire", "Provisoire"),
@@ -90,9 +85,7 @@ class InscriptionAdministrative(models.Model):
         ("refusee", "Refusée"),
         ("annulee", "Annulée"),
     ]
-    etudiant = models.ForeignKey(
-        Etudiant, on_delete=models.CASCADE, related_name="inscriptions_admin"
-    )
+    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="inscriptions_admin")
     annee_universitaire = models.ForeignKey(
         AnneeUniversitaire, on_delete=models.PROTECT, related_name="inscriptions_admin"
     )
@@ -109,9 +102,7 @@ class InscriptionAdministrative(models.Model):
         blank=True,
     )
     date_inscription = models.DateField()
-    statut = models.CharField(
-        max_length=20, choices=STATUT_CHOICES, default="provisoire"
-    )
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="provisoire")
     regime = models.CharField(max_length=30, default="formation_initiale")
     bourse_id = models.CharField(max_length=50, blank=True, help_text="ID bourse CROUS")
     pieces_fournies = models.JSONField(default=list, blank=True)
@@ -149,14 +140,10 @@ class InscriptionPedagogique(models.Model):
         related_name="inscriptions_peda",
     )
     ues = models.ManyToManyField("ue_ecue.UE", related_name="inscriptions_peda")
-    ecues = models.ManyToManyField(
-        "ue_ecue.ECUE", blank=True, related_name="inscriptions_peda"
-    )
+    ecues = models.ManyToManyField("ue_ecue.ECUE", blank=True, related_name="inscriptions_peda")
     groupe_td = models.CharField(max_length=20, blank=True)
     groupe_tp = models.CharField(max_length=20, blank=True)
-    statut = models.CharField(
-        max_length=20, choices=STATUT_CHOICES, default="brouillon"
-    )
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="brouillon")
     date_soumission = models.DateTimeField(null=True, blank=True)
     date_validation = models.DateTimeField(null=True, blank=True)
     validee_par = models.ForeignKey(
@@ -223,12 +210,8 @@ class AcquisitionECTS(models.Model):
         ("echec", "Échec"),
         ("dispense", "Dispensé"),
     ]
-    etudiant = models.ForeignKey(
-        Etudiant, on_delete=models.CASCADE, related_name="acquisitions_ects"
-    )
-    ue = models.ForeignKey(
-        "ue_ecue.UE", on_delete=models.PROTECT, related_name="acquisitions"
-    )
+    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="acquisitions_ects")
+    ue = models.ForeignKey("ue_ecue.UE", on_delete=models.PROTECT, related_name="acquisitions")
     annee_universitaire = models.ForeignKey(
         AnneeUniversitaire, on_delete=models.PROTECT, related_name="acquisitions_ects"
     )

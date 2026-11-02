@@ -2,6 +2,7 @@
 
 from rest_framework import serializers
 
+from sis_common.learning_offerings import OfferingAssignmentSerializerMixin
 from sis_common.serializers import TenantBoundSerializerMixin
 
 from .models import Classe, Groupe, Matiere, ProgrammeMatiere
@@ -20,6 +21,8 @@ class ClasseListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "nom",
+            "offre_code",
+            "offre_configuration",
             "niveau",
             "niveau_nom",
             "annee_scolaire",
@@ -32,7 +35,9 @@ class ClasseListSerializer(serializers.ModelSerializer):
         ]
 
 
-class ClasseDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
+class ClasseDetailSerializer(
+    OfferingAssignmentSerializerMixin, TenantBoundSerializerMixin, serializers.ModelSerializer
+):
     """Serializer complet pour le détail d'une classe."""
 
     niveau_nom = serializers.CharField(source="niveau.libelle", read_only=True)
@@ -47,6 +52,8 @@ class ClasseDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerial
             "id",
             "etablissement",
             "nom",
+            "offre_code",
+            "offre_configuration",
             "niveau",
             "niveau_nom",
             "annee_scolaire",

@@ -8,10 +8,13 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from sis_common.academic_configuration import evaluate_rule_criteria
+from sis_common.learning_offerings import OfferingGradeModel, OfferingSnapshotModel
 
 
-class Evaluation(models.Model):
+class Evaluation(OfferingSnapshotModel):
     """Évaluation (CC, examen, oral, etc.)."""
+
+    offering_parent_path = "ecue.ue.maquette.formation"
 
     MODALITE_CHOICES = [
         ("cc", "Contrôle continu"),
@@ -64,7 +67,7 @@ class Evaluation(models.Model):
         return dict(self.MODALITE_CHOICES).get(self.modalite, self.modalite)
 
 
-class Note(models.Model):
+class Note(OfferingGradeModel):
     """Note d'un étudiant à une évaluation."""
 
     STATUT_CHOICES = [

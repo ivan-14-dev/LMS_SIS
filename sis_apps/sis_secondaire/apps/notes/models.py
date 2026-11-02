@@ -8,10 +8,13 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from sis_common.academic_configuration import evaluate_rule_criteria
+from sis_common.learning_offerings import OfferingGradeModel, OfferingSnapshotModel
 
 
-class Evaluation(models.Model):
+class Evaluation(OfferingSnapshotModel):
     """Évaluation (DS, interro, oral, etc.)."""
+
+    offering_parent_path = "classe"
 
     TYPE_CHOICES = [
         ("interrogation", "Interrogation"),
@@ -69,7 +72,7 @@ class Evaluation(models.Model):
         return dict(self.TYPE_CHOICES).get(self.type, self.type)
 
 
-class Note(models.Model):
+class Note(OfferingGradeModel):
     """Note d'un élève à une évaluation."""
 
     STATUT_CHOICES = [

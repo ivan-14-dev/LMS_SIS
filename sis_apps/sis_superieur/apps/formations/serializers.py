@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from sis_common.learning_offerings import OfferingAssignmentSerializerMixin
+
 from .models import Formation, MaquetteFormation, Parcours
 
 
@@ -11,9 +13,7 @@ class FormationListSerializer(serializers.ModelSerializer):
     type_display = serializers.CharField(source="get_type_display", read_only=True)
     niveau_display = serializers.CharField(source="get_niveau_display", read_only=True)
     departement_nom = serializers.CharField(source="departement.nom", read_only=True)
-    responsable_nom = serializers.CharField(
-        source="responsable.get_full_name", read_only=True
-    )
+    responsable_nom = serializers.CharField(source="responsable.get_full_name", read_only=True)
 
     class Meta:
         model = Formation
@@ -21,6 +21,8 @@ class FormationListSerializer(serializers.ModelSerializer):
             "id",
             "code",
             "nom",
+            "offre_code",
+            "offre_configuration",
             "type",
             "type_display",
             "niveau",
@@ -35,16 +37,14 @@ class FormationListSerializer(serializers.ModelSerializer):
         ]
 
 
-class FormationDetailSerializer(serializers.ModelSerializer):
+class FormationDetailSerializer(OfferingAssignmentSerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour une formation."""
 
     type_display = serializers.CharField(source="get_type_display", read_only=True)
     niveau_display = serializers.CharField(source="get_niveau_display", read_only=True)
     regime_display = serializers.CharField(source="get_regime_display", read_only=True)
     departement_nom = serializers.CharField(source="departement.nom", read_only=True)
-    responsable_nom = serializers.CharField(
-        source="responsable.get_full_name", read_only=True
-    )
+    responsable_nom = serializers.CharField(source="responsable.get_full_name", read_only=True)
     nb_parcours = serializers.SerializerMethodField()
 
     class Meta:
@@ -53,6 +53,8 @@ class FormationDetailSerializer(serializers.ModelSerializer):
             "id",
             "code",
             "nom",
+            "offre_code",
+            "offre_configuration",
             "type",
             "type_display",
             "niveau",
@@ -111,9 +113,7 @@ class MaquetteFormationSerializer(serializers.ModelSerializer):
     """Serializer pour les maquettes de formation."""
 
     formation_nom = serializers.CharField(source="formation.nom", read_only=True)
-    annee_libelle = serializers.CharField(
-        source="annee_universitaire.libelle", read_only=True
-    )
+    annee_libelle = serializers.CharField(source="annee_universitaire.libelle", read_only=True)
 
     class Meta:
         model = MaquetteFormation

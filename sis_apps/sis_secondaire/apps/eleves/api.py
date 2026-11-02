@@ -1,5 +1,6 @@
 """API views for eleves (ViewSets DRF) - SIS Secondaire."""
 
+from django.db import transaction
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
@@ -211,12 +212,27 @@ class InscriptionsViewSet(viewsets.ModelViewSet):
     ordering = ["-annee_scolaire__date_debut", "-date_inscription"]
 
     def get_queryset(self):
-        return Inscription.objects.select_related("eleve__user", "classe", "annee_scolaire")
+        qs = Inscription.objects.select_related("eleve__user", "classe", "annee_scolaire")
+        qs = qs.filter(eleve__etablissement=self.request.tenant)
+        if request_has_business_access(
+            self.request,
+            "eleves.view_inscription",
+            ("vie_scolaire", "directeur", "proviseur", "principal", "cpe"),
+            tenant_group_codes=("student_manager_secondary",),
+        ):
+            return qs
+        return qs.filter(
+            Q(eleve__user=self.request.user)
+            | Q(eleve__tuteurs_lies__tuteur__user=self.request.user, eleve__tuteurs_lies__autorise_acces_portail=True)
+        ).distinct()
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def valider(self, request, pk=None):
         """Valide une inscription."""
         inscription = self.get_object()
+        if inscription.annee_scolaire.cloturee:
+            return Response({"detail": "Cette année est clôturée."}, status=status.HTTP_400_BAD_REQUEST)
         if inscription.statut != "en_cours":
             return Response(
                 {"error": "Seules les inscriptions en cours peuvent être validées."},

@@ -6,6 +6,7 @@ from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
 from sis_common.encryption import EncryptedTextField
+from sis_common.learning_offerings import OfferingSnapshotModel
 
 
 class Eleve(models.Model):
@@ -21,20 +22,14 @@ class Eleve(models.Model):
     ]
     SEXE_CHOICES = [("M", "Masculin"), ("F", "Féminin")]
 
-    etablissement = models.ForeignKey(
-        Etablissement, on_delete=models.CASCADE, related_name="eleves"
-    )
-    user = models.OneToOneField(
-        Utilisateur, on_delete=models.CASCADE, related_name="eleve_profile"
-    )
+    etablissement = models.ForeignKey(Etablissement, on_delete=models.CASCADE, related_name="eleves")
+    user = models.OneToOneField(Utilisateur, on_delete=models.CASCADE, related_name="eleve_profile")
     matricule = models.CharField(max_length=50, unique=True)
     date_naissance = models.DateField()
     lieu_naissance = models.CharField(max_length=200)
     sexe = models.CharField(max_length=1, choices=SEXE_CHOICES)
     nationalite = models.CharField(max_length=100, default="Française")
-    ine = models.CharField(
-        max_length=20, blank=True, help_text="Identifiant National Élève"
-    )
+    ine = models.CharField(max_length=20, blank=True, help_text="Identifiant National Élève")
     adresse = models.TextField(blank=True)
     code_postal = models.CharField(max_length=10, blank=True)
     ville = models.CharField(max_length=100, blank=True)
@@ -72,8 +67,10 @@ class Eleve(models.Model):
         return f"{self.matricule} - {self.user.get_full_name()}"
 
 
-class Inscription(models.Model):
+class Inscription(OfferingSnapshotModel):
     """Inscription annuelle d'un élève dans une classe."""
+
+    offering_parent_path = "classe"
 
     STATUT_CHOICES = [
         ("en_cours", "En cours"),
@@ -82,15 +79,9 @@ class Inscription(models.Model):
         ("annulee", "Annulée"),
     ]
 
-    eleve = models.ForeignKey(
-        Eleve, on_delete=models.CASCADE, related_name="inscriptions"
-    )
-    classe = models.ForeignKey(
-        Classe, on_delete=models.PROTECT, related_name="inscriptions"
-    )
-    annee_scolaire = models.ForeignKey(
-        AnneeScolaire, on_delete=models.PROTECT, related_name="inscriptions"
-    )
+    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="inscriptions")
+    classe = models.ForeignKey(Classe, on_delete=models.PROTECT, related_name="inscriptions")
+    annee_scolaire = models.ForeignKey(AnneeScolaire, on_delete=models.PROTECT, related_name="inscriptions")
     date_inscription = models.DateField()
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="en_cours")
     motif = models.TextField(blank=True)
@@ -115,9 +106,7 @@ class Tuteur(models.Model):
         ("autre", "Autre"),
     ]
 
-    etablissement = models.ForeignKey(
-        Etablissement, on_delete=models.CASCADE, related_name="tuteurs"
-    )
+    etablissement = models.ForeignKey(Etablissement, on_delete=models.CASCADE, related_name="tuteurs")
     user = models.OneToOneField(
         Utilisateur,
         on_delete=models.CASCADE,
@@ -144,12 +133,8 @@ class Tuteur(models.Model):
 class EleveTuteur(models.Model):
     """Lien entre un élève et ses tuteurs."""
 
-    eleve = models.ForeignKey(
-        Eleve, on_delete=models.CASCADE, related_name="tuteurs_lies"
-    )
-    tuteur = models.ForeignKey(
-        Tuteur, on_delete=models.CASCADE, related_name="enfants_lies"
-    )
+    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="tuteurs_lies")
+    tuteur = models.ForeignKey(Tuteur, on_delete=models.CASCADE, related_name="enfants_lies")
     est_payeur = models.BooleanField(default=False)
     est_contact_urgence = models.BooleanField(default=True)
     autorise_acces_portail = models.BooleanField(default=True)

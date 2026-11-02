@@ -7,6 +7,7 @@ from rest_framework import serializers
 from sis_common.academic_configuration import validate_rule_criteria
 from sis_common.authorization import user_has_any_role
 from sis_common.grade_entry import validate_assessment_scale
+from sis_common.learning_offerings import ModelValidationSerializerMixin
 from sis_common.serializers import TenantBoundSerializerMixin
 from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 
@@ -32,6 +33,7 @@ class EvaluationListSerializer(serializers.ModelSerializer):
         model = Evaluation
         fields = [
             "id",
+            "offre_configuration",
             "titre",
             "type",
             "type_display",
@@ -64,7 +66,7 @@ class EvaluationListSerializer(serializers.ModelSerializer):
         return bool(obj.eleve_cible_id)
 
     def get_nb_notes(self, obj):
-        return obj.notes.exclude(valeur__isnull=True).count()
+        return obj.notes.exclude(valeur__isnull=True, resultat={}).count()
 
     def get_notes_saisies(self, obj):
         return self.get_nb_notes(obj) > 0
@@ -78,7 +80,9 @@ class EvaluationListSerializer(serializers.ModelSerializer):
         return get_submission_window_alert(obj, configuration, "evaluation")
 
 
-class EvaluationDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
+class EvaluationDetailSerializer(
+    ModelValidationSerializerMixin, TenantBoundSerializerMixin, serializers.ModelSerializer
+):
     """Serializer complet pour une évaluation."""
 
     matiere_nom = serializers.CharField(source="matiere.nom", read_only=True)
@@ -97,6 +101,7 @@ class EvaluationDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSe
         model = Evaluation
         fields = [
             "id",
+            "offre_configuration",
             "titre",
             "type",
             "type_display",
@@ -130,7 +135,7 @@ class EvaluationDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSe
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def get_nb_notes(self, obj):
-        return obj.notes.exclude(valeur__isnull=True).count()
+        return obj.notes.exclude(valeur__isnull=True, resultat={}).count()
 
     def get_individualisee(self, obj):
         return bool(obj.eleve_cible_id)
@@ -202,13 +207,14 @@ class EvaluationDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSe
         return attrs
 
 
-class NoteSerializer(serializers.ModelSerializer):
+class NoteSerializer(ModelValidationSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les notes."""
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     evaluation_titre = serializers.CharField(source="evaluation.titre", read_only=True)
+    bareme = serializers.DecimalField(source="evaluation.bareme", max_digits=5, decimal_places=2, read_only=True)
 
     class Meta:
         model = Note
@@ -220,6 +226,9 @@ class NoteSerializer(serializers.ModelSerializer):
             "eleve_matricule",
             "eleve_nom",
             "valeur",
+            "bareme",
+            "resultat",
+            "resultat_offre",
             "appreciation",
             "statut",
             "statut_display",
@@ -235,6 +244,7 @@ class NoteSaisieSerializer(serializers.Serializer):
 
     eleve_id = serializers.IntegerField()
     valeur = serializers.DecimalField(max_digits=5, decimal_places=2, allow_null=True)
+    resultat = serializers.JSONField(required=False, default=dict)
     statut = serializers.ChoiceField(choices=Note.STATUT_CHOICES, default="presente")
     appreciation = serializers.CharField(required=False, allow_blank=True)
 

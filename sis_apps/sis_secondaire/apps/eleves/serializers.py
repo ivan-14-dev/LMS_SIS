@@ -6,6 +6,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
+from sis_common.learning_offerings import ModelValidationSerializerMixin
 from sis_common.serializers import TenantBoundSerializerMixin
 
 from .models import (
@@ -181,7 +182,7 @@ class EleveCreateSerializer(TenantBoundSerializerMixin, serializers.ModelSeriali
         return eleve
 
 
-class InscriptionSerializer(serializers.ModelSerializer):
+class InscriptionSerializer(ModelValidationSerializerMixin, TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les inscriptions."""
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
@@ -194,6 +195,7 @@ class InscriptionSerializer(serializers.ModelSerializer):
         model = Inscription
         fields = [
             "id",
+            "offre_configuration",
             "eleve",
             "eleve_matricule",
             "eleve_nom",
@@ -208,6 +210,16 @@ class InscriptionSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        classe = attrs.get("classe", getattr(self.instance, "classe", None))
+        year = attrs.get("annee_scolaire", getattr(self.instance, "annee_scolaire", None))
+        if classe and year and classe.annee_scolaire_id != year.pk:
+            raise serializers.ValidationError({"annee_scolaire": "L'année doit être celle de la classe."})
+        if year and year.cloturee:
+            raise serializers.ValidationError({"annee_scolaire": "Cette année est clôturée."})
+        return attrs
 
 
 class TuteurSerializer(serializers.ModelSerializer):

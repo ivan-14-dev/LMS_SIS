@@ -18,6 +18,8 @@ class Classe(models.Model):
     annee_scolaire = models.ForeignKey(AnneeScolaire, on_delete=models.CASCADE, related_name="classes")
     niveau = models.ForeignKey(Niveau, on_delete=models.PROTECT, related_name="classes")
     nom = models.CharField(max_length=50, help_text="Ex: 6e A, Terminale C")
+    offre_code = models.CharField(max_length=64, blank=True, default="")
+    offre_configuration = models.JSONField(default=dict, blank=True, editable=False)
     effectif_max = models.PositiveIntegerField(default=40)
     salle_principale = models.ForeignKey(
         "salles.Salle",
