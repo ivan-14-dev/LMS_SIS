@@ -1,0 +1,10 @@
+services:
+  mysql-job:
+    mem_limit: 256m
+    cpus: 1
+  lms-job:
+    mem_limit: 1536m
+    cpus: 2
+  cms-job:
+    mem_limit: 1536m
+    cpus: 2

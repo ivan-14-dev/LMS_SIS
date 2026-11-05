@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openedx-sis-provisioning"
+version = "0.1.0"
+description = "Explicitly authorized SIS provisioning for Open edX"
+requires-python = ">=3.11"
+dependencies = ["Django>=4.2,<6", "djangorestframework>=3.14,<4", "edx-django-utils", "edx-drf-extensions"]
+
+[project.entry-points."lms.djangoapp"]
+sis_provisioning = "sis_provisioning.apps:SISProvisioningConfig"
+
+[project.entry-points."cms.djangoapp"]
+sis_provisioning = "sis_provisioning.apps:SISProvisioningConfig"
+
+[tool.setuptools.packages.find]
+include = ["sis_provisioning*"]

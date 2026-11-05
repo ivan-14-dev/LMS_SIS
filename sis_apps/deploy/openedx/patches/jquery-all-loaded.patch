@@ -1,0 +1,15 @@
+--- a/lms/static/js/jquery.allLoaded.js
++++ b/lms/static/js/jquery.allLoaded.js
+@@ -24,10 +24,9 @@
+                 if (!waiting) {
+                     fn.call(window);
+                 }
+-                this.unbind(handler);
+             };
+-
++
+-            return $elems.load(handler);
++            return $elems.one('load', handler);
+         }
+     });
+ })(jQuery);

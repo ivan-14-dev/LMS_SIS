@@ -15,6 +15,17 @@ terminées dans la TODO, mais seulement **1 exigence vérifiée sur 94**
 connexions est rouge. Les cases ci-dessous désignent des **lots encore à
 valider**, même si certains composants existent déjà.
 
+**Qualification du lot de code du 5 novembre 2026 :** les suites backend
+isolées passent (570 tests secondaire, 564 supérieur), ainsi que 316 tests
+frontend sur 29 suites et le build de production. Les contrôles ciblés des
+écrans IAM/portails passent, mais le lint global frontend échoue encore
+(328 erreurs). Ces preuves portent sur le code et des services de test, pas
+sur un déploiement institutionnel de ces commits : vérifier les migrations
+sur une copie des données, notamment les doublons de références carte avant
+la contrainte unique, et requalifier le vrai Stripe, Open edX et les parcours
+navigateur. Aucune nouvelle campagne à 500 connexions n'a été validée ;
+ne cocher aucune exigence supplémentaire sur la seule base de ce lot.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tutor-sis-local-urls"
+version = "0.1.1"
+description = "Opt-in loopback HTTP origins with explicit ports for Tutor local"
+requires-python = ">=3.10"
+dependencies = ["tutor>=22.0.4,<23"]
+
+[project.entry-points."tutor.plugin.v1"]
+sis_local_urls = "tutor_sis_local_urls.plugin"
+
+[tool.setuptools.packages.find]
+include = ["tutor_sis_local_urls*"]
+
+[tool.setuptools.package-data]
+tutor_sis_local_urls = ["templates/local/*.yml"]

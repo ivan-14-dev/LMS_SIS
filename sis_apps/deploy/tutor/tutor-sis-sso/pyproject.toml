@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tutor-sis-sso"
+version = "0.1.0"
+description = "Explicit trusted SIS origins for the Open edX browser session"
+requires-python = ">=3.10"
+dependencies = ["tutor>=22.0.4,<23"]
+
+[project.entry-points."tutor.plugin.v1"]
+sis_sso = "tutor_sis_sso.plugin"
+
+[tool.setuptools.packages.find]
+include = ["tutor_sis_sso*"]

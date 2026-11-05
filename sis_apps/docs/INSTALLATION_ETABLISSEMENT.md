@@ -7,6 +7,8 @@ les workers, le planificateur et le proxy HTTPS. Elle **n'installe pas Open edX*
 le LMS et Studio doivent déjà fonctionner et être administrés séparément.
 La compatibilité d'une version Tutor avec ce fork doit être qualifiée avant
 d'en faire une distribution complète LMS + SIS.
+Le déploiement séparé décrit ci-dessous utilise Tutor 22.0.4 ; il ne remplace
+ni les bases SIS ni leurs comptes et ne prouve pas à lui seul leur intégration.
 
 Les variantes sont `secondaire`, `superieur` et `dual`. En mode dual, chaque SIS
 possède sa base, ses fichiers et ses sessions. Un compte administrateur dans un
@@ -50,6 +52,20 @@ python3 scripts/sisctl.py configure \
 ```
 
 L'issuer par défaut est `LMS_URL/oauth2` ; utilisez `--issuer` s'il diffère.
+Les clients SIS demandent explicitement `asymmetric_jwt=true` à Open edX :
+son endpoint OAuth peut sinon retourner un jeton symétrique, qui ne peut pas
+être vérifié avec le JWKS public. Ne partagez pas le secret de signature du
+LMS pour contourner ce refus. Le SIS accepte uniquement le RS512 configuré,
+l'issuer et l'audience attendus, et un jeton explicitement non restreint
+(`is_restricted=false`) ; les restrictions LMS ne sont pas des droits SIS.
+
+Un mapping actif vers un compte SIS actif reste obligatoire. Un compte ayant
+activé le MFA local **ne peut pas se connecter avec le seul jeton LMS** :
+il doit utiliser la connexion locale et son second facteur. La fédération
+du MFA n'est pas encore implémentée. La recette API avec des jetons réellement
+signés par Open edX couvre ces refus et les révocations locales, mais ne
+constitue pas une qualification du SSO navigateur.
+
 Le secret OAuth est demandé sans affichage. Les autres secrets sont générés
 aléatoirement dans `.env`, avec des permissions `0600`. Une configuration
 existante n'est jamais écrasée.
@@ -72,6 +88,508 @@ Le MFA SIS local ne protège pas une connexion fédérée : celle-ci doit être
 protégée par le LMS ou son fournisseur d'identité. Les utilisateurs importés
 reçoivent un mot de passe inutilisable ; ils doivent utiliser la récupération
 par email ou être associés explicitement à une identité Open edX.
+
+### Préparer le LMS séparé avec Tutor
+
+Les comptes SIS disposent d'un UUID technique stable pour les intégrations.
+Ne pas le recalculer lors d'un changement de nom, d'adresse ou de rôle. Les
+anciens mappings LMS restent valides ; cette migration ne fusionne pas des
+comptes existants et n'active pas le SSO. Un retour arrière applicatif peut
+conserver la colonne et son défaut SQL ; ne pas annuler cette migration pour
+revenir à l'image précédente, ce qui supprimerait les nouveaux identifiants.
+
+Tutor et les versions qualifiées des plugins actifs Indigo/MFE sont épinglés
+dans `deploy/tutor/requirements.txt`. Les autres plugins installés avec `full`
+ne sont pas pour autant activés : forums, certificats avancés et services
+complémentaires exigent leur propre configuration et recette.
+[Tutor indique](https://docs.tutor.edly.io/gettingstarted/requirements.html)
+au minimum 4 Go de RAM/2 CPU/8 Go de disque et recommande 8 Go/4 CPU/25 Go,
+**en plus des besoins du SIS et des autres services de l'hôte**. Réserver aussi
+les pics des migrations/imports et sauvegardes. Ne pas arrêter un service tiers
+ou modifier son proxy pour libérer les ports.
+
+Depuis `sis_apps`, utiliser un environnement Python et une racine Tutor distincts
+du dépôt et du Compose SIS. Les fichiers générés contiennent des secrets :
+
+```sh
+umask 077
+python3 -m venv /chemin/prive/deploiement-lms/venv
+/chemin/prive/deploiement-lms/venv/bin/python -m pip install -r deploy/tutor/requirements.txt
+export PATH="/chemin/prive/deploiement-lms/venv/bin:$PATH"
+export TUTOR_ROOT=/chemin/prive/deploiement-lms/tutor
+tutor config save \
+  --set LOCAL_PROJECT_NAME=lms-etablissement \
+  --set LMS_HOST=lms.ecole.example \
+  --set CMS_HOST=studio.lms.ecole.example \
+  --set MFE_HOST=apps.lms.ecole.example \
+  --set PLATFORM_NAME='Plateforme de formation' \
+  --set CONTACT_EMAIL=formation@ecole.example \
+  --set LANGUAGE_CODE=fr \
+  --set ENABLE_HTTPS=true
+tutor local launch --non-interactive --pullimages
+```
+
+Ces commandes supposent DNS, ressources et ports validés pour le serveur LMS.
+En présence d'un proxy, suivre la
+[configuration officielle](https://docs.tutor.edly.io/sysadmin/proxy.html) :
+`ENABLE_WEB_PROXY=false`, port HTTP interne dédié lié à `127.0.0.1` et routes
+explicites pour LMS/Studio/MFE. Conserver `ENABLE_HTTPS=true` lorsque le proxy
+termine TLS. Ne jamais afficher `config.yml` ou les fichiers Compose rendus
+dans un ticket public.
+
+Pour une **qualification locale isolée**, sans changement du proxy existant :
+
+```sh
+tutor config save \
+  --set LOCAL_PROJECT_NAME=sis-lms-qualification \
+  --set LMS_HOST=lms.sis.localhost \
+  --set CMS_HOST=studio.lms.sis.localhost \
+  --set MFE_HOST=apps.lms.sis.localhost \
+  --set CONTACT_EMAIL=lms@example.test \
+  --set ENABLE_HTTPS=false \
+  --set ENABLE_WEB_PROXY=false \
+  --set CADDY_HTTP_PORT=127.0.0.1:59080 \
+  --set OPENEDX_LMS_UWSGI_WORKERS=1 \
+  --set OPENEDX_CMS_UWSGI_WORKERS=1
+install -m 600 deploy/tutor/qualification.override.yml \
+  "$TUTOR_ROOT/env/local/docker-compose.override.yml"
+install -m 600 deploy/tutor/qualification.jobs.override.yml \
+  "$TUTOR_ROOT/env/local/docker-compose.jobs.override.yml"
+tutor local dc config --quiet
+tutor local dc pull
+tutor local start --detach permissions mysql mongodb redis meilisearch smtp
+tutor local do init
+tutor local start --detach
+```
+
+Contrôler que le port 59080 est disponible avant ces commandes. Cette configuration
+borne les ressources et limite les workers à un processus ; elle n'est pas un
+dimensionnement de production. L'initialisation précède le démarrage des services
+applicatifs pour ne pas cumuler leurs pics mémoire.
+
+#### Accès local normal sur un port explicite
+
+`CADDY_HTTP_PORT` ne modifie que le port publié, pas les URL générées par Tutor.
+Pour ouvrir le LMS dans un navigateur ordinaire, sans `--host-resolver-rules`,
+utiliser l'adaptateur **local uniquement**, désactivé par défaut :
+
+```sh
+python -m pip install ./deploy/openedx/tutor-sis-local-urls
+tutor plugins enable sis_local_urls
+tutor config save \
+  --set SIS_LOCAL_URLS_ENABLED=true \
+  --set SIS_LOCAL_URLS_PORT=59080 \
+  --set ENABLE_HTTPS=false --set ENABLE_WEB_PROXY=false \
+  --set CADDY_HTTP_PORT=127.0.0.1:59080 \
+  --set LMS_HOST=lms.sis.localhost:59080 \
+  --set CMS_HOST=studio.lms.sis.localhost:59080 \
+  --set MFE_HOST=apps.lms.sis.localhost:59080 \
+  --set JWT_COMMON_ISSUER=http://lms.sis.localhost:59080/oauth2
+tutor local dc config --quiet
+```
+
+Sauvegarder d'abord la racine existante à froid et vérifier la lecture intégrale
+du snapshot chiffré. L'adaptateur possède
+`env/local/docker-compose.prod.override.yml` : ne pas écraser un fichier
+opérateur préexistant à cet emplacement. Les limites de ressources restent dans
+`docker-compose.override.yml`, inchangé. Conserver la wheel de l'adaptateur avec
+la racine sauvegardée et la réinstaller avant toute régénération/restauration.
+Il refuse HTTPS, les domaines autres que `localhost`/`*.localhost`, les ports
+incohérents et toute publication autre que `127.0.0.1`. Il nécessite Compose
+supportant `!override` et ne s'applique pas à `tutor dev`.
+
+Caddy écoute aussi le port 59080 **dans son réseau Docker** ; ses alias DNS,
+les domaines des cookies LMS/Studio et leurs `ALLOWED_HOSTS` restent sans port.
+Le port public vient de `Host`, non du `X-Forwarded-Port` standard de Tutor.
+Les MFE récupèrent leurs URL aux API de configuration runtime : aucune
+reconstruction de leur image n'est nécessaire. L'image Open edX et les données
+ne sont pas modifiées.
+
+Sur une installation existante, changer **seulement** `redirect_uris` de
+l'application OAuth `cms-sso` vers
+`http://studio.lms.sis.localhost:59080/complete/edx-oauth2/`, par une opération
+administrative ciblée sans journaliser les identifiants. Ne pas relancer
+`launch`, l'initialisation complète, ni `create_dot_application` (cette commande
+peut journaliser les secrets). Le callback de développement d'une future
+initialisation est normalisé sans double port par le plugin. Recréer uniquement :
+
+```sh
+tutor local dc up -d --no-deps --force-recreate \
+  caddy lms cms lms-worker cms-worker mfe smtp
+curl --fail http://lms.sis.localhost:59080/heartbeat
+curl --fail http://studio.lms.sis.localhost:59080/heartbeat
+```
+
+Ouvrir `http://lms.sis.localhost:59080/` et
+`http://studio.lms.sis.localhost:59080/` directement ; les applications utilisent
+`http://apps.lms.sis.localhost:59080/`. Vérifier connexion, cours, réponse/score
+historique sans soumission, Studio et déconnexion. Les mots de passe, MFA,
+permissions et clés de signature restent inchangés. Un SIS raccordé doit
+recevoir les mêmes URL publiques et l'issuer exact
+`http://lms.sis.localhost:59080/oauth2` ; les anciens JWT peuvent nécessiter une
+nouvelle connexion. Ne pas modifier automatiquement les autres déploiements SIS.
+
+La recette navigateur sans règle de résolution a relu le cours et son score 1/1,
+ouvert Studio et vérifié la fermeture des sessions. Avec l'image native qualifiée,
+le retour automatique après déconnexion apprenant peut rester sur « déconnecté » :
+le lien de retour visible fonctionne et l'API refuse bien la session terminée.
+L'adaptateur 0.1.1 corrige les deux anciens chemins de logos du pied de page
+Indigo vers les PNG déjà présents sous `/static/indigo/images/` : images
+identiques, sans reconstruction ni changement de marque. L'endpoint optionnel
+d'onboarding de télésurveillance peut encore retourner 404 pour un cours non
+surveillé ; ne pas activer cette fonction ni simuler son endpoint pour le masquer.
+
+Après disponibilité réelle de LMS/Studio/MFE : créer des comptes de recette
+séparés, publier un cours, l'inscrire à un apprenant, effectuer une activité,
+puis contrôler le résultat après redémarrage. Les commandes `tutor local do
+createuser --help` et `importdemocourse --help` décrivent les opérations supportées.
+Ne pas transmettre un mot de passe personnel en argument ni importer des dossiers
+utilisateur dans la démonstration.
+
+La qualification locale du 4 novembre 2026 couvre un cours créé dans Studio,
+un exercice à sélection unique enregistré et publié, une inscription apprenant
+et une correction réelle à 1/1. Après arrêt et redémarrage des services, le
+cours, l'inscription, la réponse et le score ont été relus sans nouvelle
+soumission. Cet exercice est **non noté dans la moyenne du cours** : il ne
+constitue ni un résultat académique officiel, ni une synchronisation vers le SIS.
+La personnalisation complète du LMS reste à qualifier. Le pilote SSO navigateur
+distinct est décrit ci-dessous.
+
+Pour la sauvegarde du LMS, conserver une destination et une clé distinctes de
+celles du SIS, hors de `TUTOR_ROOT`. Arrêter tous ses services avant de
+sauvegarder l'ensemble de cette racine : configuration, environnements générés,
+MySQL, MongoDB, fichiers et autres données persistantes. Le snapshot local de
+qualification utilise Restic 0.18.1, un montage source en lecture seule et
+`--network none` ; `check --read-data` a vérifié les données chiffrées avant le
+redémarrage. La restauration vers une racine et un projet Tutor distincts a
+également été vérifiée, LMS source arrêté : connexions, cours, inscription,
+réponse et score conservés, sans nouvelle soumission. Cette recette a pris
+environ 74 secondes sur 642 Mio de données et avec les images déjà disponibles ;
+ce n'est pas un engagement de RTO en production.
+
+Ces contrôles ne remplacent pas une copie hors machine ni un exercice
+institutionnel. Conserver la clé séparément et reprendre la même version Tutor
+et les mêmes images lors de la restauration. Régénérer les environnements avec
+`TUTOR_ROOT` pointant sur la racine restaurée et vérifier les montages : ils ne
+doivent pas référencer les données de la source. Ne jamais restaurer sur une
+installation en service.
+
+La création d'un compte via le connecteur SIS ne doit pas transformer un
+administrateur institutionnel en administrateur global Open edX. Les privilèges
+globaux LMS sont provisionnés séparément par l'exploitant ; les droits
+pédagogiques sont à attribuer sur les cours concernés.
+
+**Différence avec l'API native :** dans la distribution qualifiée,
+`/api/user/v1/accounts` expose une lecture, pas une création par `POST`.
+La modification d'un compte utilise `application/merge-patch+json` et ne permet
+pas à un compte technique de modifier arbitrairement les autres comptes.
+Les clients SIS utilisent désormais l'extension de provisioning décrite
+ci-dessous, pas un faux `POST` sur cette API native. L'extension doit être
+installée explicitement ; son absence produit une erreur, pas un compte fictif
+ni un rattachement automatique par adresse email.
+
+**Contrat d'inscription qualifié :** les deux clients SIS utilisent
+`POST /api/enrollment/v1/enrollment` avec `user`, `course_details.course_id`,
+`is_active` et, pour l'inscription, `mode`. La désinscription utilise le même
+endpoint avec `is_active=false`, sans remplacer le mode existant.
+`GET /api/enrollment/v1/enrollments?course_id=...` lit toutes les pages ;
+un lien externe ou ne conservant pas le filtre est refusé. Les confirmations
+incomplètes ou incohérentes provoquent une erreur, pas un succès local.
+L'API native ne fournit pas d'identifiant numérique d'inscription à inventer.
+
+Ce parcours a été exercé avec OAuth sur le LMS isolé, puis depuis l'API de
+chaque SIS avec PostgreSQL jetable : refus apprenant, interruption réseau,
+événement en attente, reprise réelle et appels répétés sans doublon.
+La désinscription répétée et la réactivation ont également été vérifiées au
+niveau des clients. Les résultats pédagogiques existants sont conservés.
+Le traitement en lot s'arrête à la première erreur : il conserve les succès
+précédents et met l'échec en attente, mais pas les éléments non encore tentés.
+
+Cette recette exige des mappings explicites vers des comptes et cours
+préexistants ; elle ne qualifie pas leur provisioning ni le SSO. Le listing
+global et les inscriptions d'autrui nécessitent les autorisations Open edX
+appropriées : la recette utilise un compte technique synthétique explicitement
+privilégié, jamais une promotion automatique d'un compte SIS. Conserver les
+identifiants OAuth dans un fichier privé hors dépôt ; la commande Open edX
+de création d'application peut les écrire dans sa sortie. Ne pas publier
+ces journaux ni utiliser ces secrets de recette en production.
+
+### Provisionner les comptes SIS dans Open edX
+
+Le paquet `deploy/openedx/sis-provisioning` fournit l'extension Django LMS
+`openedx-sis-provisioning`. Elle est distincte du plugin Tutor de SSO navigateur.
+Depuis `sis_apps`, construisez une image dédiée à partir de la distribution
+qualifiée, puis sélectionnez-la dans **la bonne racine Tutor** :
+
+```sh
+docker build -t ecole-openedx:sis-provisioning-0.1.0 \
+  deploy/openedx
+tutor config save --set DOCKER_IMAGE_OPENEDX=ecole-openedx:sis-provisioning-0.1.0
+tutor local run --rm lms ./manage.py lms migrate sis_provisioning --noinput
+tutor local start --detach lms lms-worker cms cms-worker
+```
+
+Sauvegardez le LMS avant cette opération. L'image de base par défaut est
+`overhangio/openedx:22.0.4-indigo` ; un autre fork ou une autre version nécessite
+une recette propre, pas seulement un changement de tag. Pour une installation
+distante, publier l'image sur le registre privé autorisé de l'établissement ou
+la transférer avec les outils Docker approuvés ; un tag local n'existe pas
+automatiquement sur une autre machine.
+
+Le contexte `deploy/openedx` contient aussi le correctif de déconnexion
+`jquery.allLoaded` pour cette version : chaque iframe attend un seul événement
+`load`, sans appeler une méthode jQuery sur un élément DOM. La construction
+applique le patch sans approximation puis régénère les assets LMS et Studio.
+Conserver ce contexte complet, pas uniquement le paquet Python.
+
+Utilisez un compte OAuth technique dédié, actif, sans mot de passe utilisable
+et sans `is_staff`/`is_superuser`. Son application OAuth doit utiliser
+`client-credentials`. Pour le seul provisioning des comptes, accordez la permission
+`sis_provisioning.provision_accounts` à ce compte. Exemple pour un compte
+**déjà créé et vérifié**, nommé `sis-service` :
+
+```sh
+tutor local run --rm lms ./manage.py lms shell -c \
+  'from django.contrib.auth import get_user_model; from django.contrib.auth.models import Permission; u = get_user_model().objects.get(username="sis-service", is_active=True); assert not u.is_staff and not u.is_superuser and not u.has_usable_password(); u.user_permissions.add(Permission.objects.get(content_type__app_label="sis_provisioning", codename="provision_accounts"))'
+```
+
+Cette permission n'autorise pas automatiquement les inscriptions d'autrui ou
+la gestion des cours dans les API natives. Qualifiez séparément les droits
+nécessaires aux autres opérations du connecteur ; ne faites pas de chaque
+utilisateur provisionné un administrateur global pour les obtenir.
+
+Le contrat est `POST /api/sis/v1/accounts/{username}/` avec `email` et `name`.
+Le nom LMS opaque dérivé de l'UUID SIS est conservé lors des reprises.
+Un `POST` répété ne crée pas de doublon pour le même service propriétaire.
+`PATCH` exige en plus l'identifiant numérique `id` déjà enregistré dans le SIS.
+Les champs de mot de passe, de rôle global et d'activation sont refusés.
+Le service ne peut modifier ni les comptes d'un autre service, ni un compte
+désactivé ou devenu privilégié. Les clients vérifient identité, profil et
+absence de privilèges dans la confirmation avant de marquer la synchronisation
+comme réussie.
+
+La création réutilise les validations natives du LMS et respecte sa politique
+de création de comptes. Elle crée un compte actif avec un mot de passe
+aléatoire inconnu de l'utilisateur et du SIS, jamais retourné ni conservé en
+clair. L'utilisateur doit définir son mot de passe avec **Mot de passe oublié**
+sur le LMS. Le SMTP du LMS doit donc être configuré et qualifié. Le lien natif
+de récupération a été vérifié comme lié au bon compte ; ce contrôle ne vaut
+pas preuve de livraison par votre fournisseur d'email. Le provisioning ne
+simule ni acceptation des conditions d'utilisation ni activation par email.
+Les changements de profil ne réinitialisent pas le mot de passe.
+
+La présence d'un compte SIS ne déclenche plus de création massive nocturne
+par défaut. Dans **Administration → Intégration LMS → Utilisateurs**,
+**Associer un utilisateur** propose les comptes éligibles sans mapping :
+sélectionnez la personne, examinez la cible et confirmez explicitement.
+Une simple consultation ou annulation ne crée pas de compte LMS.
+Les indicateurs « activation non vérifiée » ne sont pas des autorisations
+de synchroniser automatiquement ; **Synchroniser tous** reste désactivé.
+La reprise outbox des opérations déjà demandées continue de fonctionner.
+Les anciennes tâches opérateur de synchronisation massive restent disponibles
+pour les intégrations maîtrisées, mais ne sont plus planifiées par défaut.
+Après une mise à jour, redémarrez Beat pour retirer ces anciennes entrées de
+son stockage persistant ; cela n'annule pas les tâches déjà en file.
+
+Un compte LMS préexistant n'est **jamais adopté par simple correspondance de
+nom ou d'email**. Après contrôle manuel de son association dans le tenant SIS,
+un opérateur autorisé peut le rattacher explicitement :
+
+```sh
+tutor local run --rm lms ./manage.py lms sis_bind_account \
+  --manager sis-service --username ancien-compte --confirm
+```
+
+Cette commande ne renomme pas le compte et ne change pas son mot de passe.
+Elle refuse les comptes privilégiés, désactivés ou appartenant déjà à un autre
+service. Une association SIS révoquée doit être traitée explicitement :
+la synchronisation ne la réactive plus et relit sous verrou l'état du compte.
+
+**Qualification du 4 novembre 2026 :** les deux API SIS ont créé et modifié des
+comptes dans le vrai LMS avec un service OAuth non-staff. Après une création
+effective dont la réponse HTTP a été volontairement perdue, la reprise outbox
+a retrouvé le même identifiant distant, même avec un profil SIS modifié entre
+les tentatives. Les appels répétés ne créent pas de doublon ; un apprenant LMS
+ordinaire est refusé. Les mots de passe et MFA SIS sont inchangés.
+
+Conservez le contexte exact de l'image avec la sauvegarde de la racine Tutor,
+en complément de la configuration et des bases :
+
+```sh
+mkdir -p "$TUTOR_ROOT/plugins-artifacts"
+tar --exclude=__pycache__ --exclude=build --exclude='*.egg-info' \
+  -czf "$TUTOR_ROOT/plugins-artifacts/sis-openedx-0.1.0-source.tar.gz" \
+  -C deploy openedx
+```
+
+Lors d'une restauration, reconstruisez ou récupérez l'image correspondante
+avant de démarrer le LMS. Ne restaurez pas les seuls registres dans un autre
+LMS sans leurs comptes, index SQL et contenus MongoDB associés.
+
+### Créer et raccorder les cours Studio
+
+La même image installe une extension **CMS**, distincte des routes de comptes
+du LMS. Les anciennes routes `/api/courses/v1/courses/` ne fournissent pas ce
+provisioning dans la distribution qualifiée. Les deux SIS utilisent désormais
+`POST`, `GET` et `PATCH /api/sis/v1/courses/{course_id}/` sur l'origine **Studio**.
+Le seul champ modifiable est `display_name`. Une réponse doit confirmer
+l'identifiant exact et le nom demandé ; une redirection, un refus ou un
+identifiant différent ne produit pas de succès local.
+
+Accordez au service dédié la permission `sis_provisioning.provision_courses`.
+Il doit également satisfaire les règles natives de création dans
+l'organisation concernée. Exemple pour les deux variantes :
+
+```sh
+tutor local run --rm cms ./manage.py cms shell -c \
+  'from django.contrib.auth import get_user_model; from django.contrib.auth.models import Permission; from common.djangoapps.student.roles import OrgContentCreatorRole; u = get_user_model().objects.get(username="sis-service", is_active=True); assert not u.is_staff and not u.is_superuser and not u.has_usable_password(); u.user_permissions.add(Permission.objects.get(content_type__app_label="sis_provisioning", codename="provision_courses")); OrgContentCreatorRole(org="SIS").add_users(u); OrgContentCreatorRole(org="SIS-U").add_users(u)'
+```
+
+Ne conservez que les organisations nécessaires. Ces rôles ne ferment pas une
+politique Studio autorisant déjà toute création : le contrôle natif des
+créateurs (`ENABLE_CREATOR_GROUP`) doit être configuré et qualifié si une
+restriction par organisation est requise.
+
+Les UUID des matières/classes et ECUE rendent les nouveaux identifiants
+indépendants des libellés, des codes locaux et de l'année civile du rejeu.
+Les identifiants des associations historiques sont conservés. Un ECUE ne peut
+être synchronisé pour une autre année que celle de son semestre. Une association
+révoquée n'est pas réactivée et une ancienne demande outbox ne remplace pas une
+synchronisation plus récente déjà réussie.
+
+La création passe par les fonctions natives de Studio. Le service reçoit les
+droits natifs sur **ce cours**, jamais `is_staff` ou `is_superuser` globaux.
+Le cours est initialement vide, hors catalogue ; ce contrat n'écrit ni contenu
+pédagogique ni date de publication. Les enseignants utilisent ensuite Studio
+après attribution de leurs droits.
+
+L'intention de propriété est conservée avant la création. Celle-ci écrit
+dans MySQL **et** MongoDB : elle reste en autocommit, protégée par un verrou
+nommé MySQL par association, pour ne pas annuler l'index SQL après une création
+MongoDB effective. Une initialisation interrompue peut reprendre les étapes
+natives manquantes. Ce mécanisme est qualifié sur le MySQL de la distribution,
+pas sur un backend SQL alternatif. Un cours supprimé, remplacé ou appartenant
+à un autre service n'est pas recréé ou adopté implicitement.
+
+Pour un cours existant, vérifiez d'abord son association SIS et accordez
+explicitement au service les droits d'auteur nécessaires dans l'équipe Studio.
+Puis effectuez le rattachement opérateur :
+
+```sh
+tutor local run --rm cms ./manage.py cms sis_bind_course \
+  --manager sis-service --course-id 'course-v1:SIS+EXISTANT+2026' --confirm
+```
+
+Cette commande exige les droits préexistants, ne les accorde pas elle-même,
+ne transfère pas un cours détenu par un autre service et préserve contenu,
+équipe et résultats. Elle est idempotente. Un rattachement manuel interrompu
+se termine avec cette commande, pas par une création automatique.
+
+**Qualification du 4 novembre 2026 :** chaque API SIS a créé un vrai cours,
+perdu volontairement sa réponse, puis repris l'outbox après modification du
+code local sans créer de doublon. Les modifications répétées et le refus d'un
+apprenant LMS ont été exercés par HTTP/OAuth. Une interruption interne après
+création MongoDB a également été reprise avec l'index SQL conservé. Le cours
+historique de qualification a été rattaché explicitement, sans changement des
+réponses, notes, contenus ou membres antérieurs de l'équipe.
+
+L'attribution automatique des enseignants, les contenus/publications, les
+inscriptions selon le cycle de vie et les suspensions/départs restent à
+raccorder. Les méthodes de blocs, publication et autres opérations historiques
+du client ne sont pas rendues compatibles par ce seul incrément.
+
+**Limite d'inscription confirmée :** l'API native
+`POST /api/enrollment/v1/enrollment` refuse l'inscription d'autrui par ce
+service non-staff, même sur un cours qu'il possède et pour un compte qu'il
+provisionne. Le refus HTTP 404 a été reproduit avec un JWT valide, alors que
+la lecture du cours Studio réussit ; aucune inscription ni aucun rôle n'a
+changé. Les premières recettes du contrat d'inscription utilisaient un autre
+service privilégié : elles ne qualifient pas ce service à droits limités.
+Ne lui attribuez ni privilège global ni clé API globale pour contourner ce
+refus. Un contrat d'inscription explicitement borné reste à implémenter avant
+d'activer cette chaîne complète en établissement.
+
+### Raccorder le navigateur SIS au LMS
+
+Le plugin local `deploy/tutor/tutor-sis-sso` ajoute les origines SIS explicitement
+autorisées aux listes de redirection, CORS et CSRF du LMS. Il conserve les origines
+natives et **ne modifie pas le domaine des cookies**. Il ne crée aucun compte,
+mapping, inscription ou privilège. Sa liste `SIS_SSO_ORIGINS` est vide par défaut.
+
+Depuis `sis_apps`, avec le venv Tutor et `TUTOR_ROOT` du LMS sélectionnés :
+
+```sh
+python -m pip install ./deploy/tutor/tutor-sis-sso
+tutor plugins enable sis_sso
+tutor config save --set 'SIS_SSO_ORIGINS=["https://sis.lms.ecole.example"]'
+tutor local restart lms lms-worker
+```
+
+Utilisez des origines exactes, avec le port non standard le cas échéant, sans
+chemin, paramètres, identifiants ni joker. HTTPS est obligatoire lorsque Tutor
+active HTTPS. Le frontend doit pouvoir recevoir les cookies JWT natifs du LMS :
+si `SESSION_COOKIE_DOMAIN=lms.ecole.example`, utilisez par exemple
+`sis.lms.ecole.example`, pas un domaine frère arbitraire. Les API SIS doivent
+également recevoir les cookies requis ou le jeton Bearer du client. Ne pas
+élargir le domaine des cookies à des sites qui ne sont pas sous votre contrôle.
+Une autorisation CORS seule ne rend pas les cookies partageables.
+
+Configurez le SIS avec `--auth-mode lms`, les URL publiques correctes, l'issuer,
+l'audience et le JWKS public du LMS. Associez explicitement chaque utilisateur
+au compte Open edX existant dans le bon tenant et affectez-lui son établissement
+et son dossier métier. Le MFA local reste incompatible avec le seul jeton LMS :
+conservez une voie de connexion locale pour les comptes concernés.
+Reconstruisez le frontend après changement de mode ou d'URL. Utilisez des tags
+d'image frontend **distincts pour chaque configuration** : les URL et le mode
+d'authentification sont intégrés lors du build, pas injectés au démarrage Nginx.
+
+Conservez aussi le paquet du plugin dans la sauvegarde du LMS, sans y inclure
+le venv système :
+
+```sh
+mkdir -p "$TUTOR_ROOT/plugins-artifacts"
+python -m pip wheel --no-deps ./deploy/tutor/tutor-sis-sso \
+  --wheel-dir "$TUTOR_ROOT/plugins-artifacts"
+```
+
+À la restauration, réinstallez cette wheel dans le venv Tutor compatible avant
+de régénérer les environnements ; restaurer `config.yml` ne réinstalle pas les
+plugins Python.
+
+**Pilote local du 4 novembre 2026 :** un SIS secondaire séparé, avec base et
+comptes synthétiques, utilise `http://sis.lms.sis.localhost:59082` et l'API
+`http://secondaire.lms.sis.localhost:59082/api/v1`. Le plugin autorise uniquement
+l'origine frontend du pilote. Le routage Chromium conserve les origines :
+
+```sh
+chromium \
+  --user-data-dir=/chemin/prive/recette-sso-chromium \
+  --host-resolver-rules='MAP sis.lms.sis.localhost 127.0.0.1:59082,MAP secondaire.lms.sis.localhost 127.0.0.1:59082,MAP *.sis.localhost 127.0.0.1:59080' \
+  http://sis.lms.sis.localhost:59082/secondaire
+```
+
+La recette part du SIS, utilise le vrai formulaire LMS, charge le dossier élève
+avec sa classe et ouvre le cours sans seconde connexion. Elle relit la réponse
+et le score 1/1 sans nouvelle soumission, revient au SIS, puis vérifie la
+déconnexion, la suppression des cookies JWT et l'exigence d'une nouvelle
+connexion. Les appels SIS ne produisent plus de 500 : les portails élève,
+parent et enseignant utilisent maintenant le libellé réel du niveau scolaire.
+Les builds `npm run build` désactivent la télémétrie New Relic non configurée ;
+les erreurs applicatives restent visibles dans l'interface.
+La configuration et la wheel du plugin ont été incluses dans une sauvegarde
+chiffrée du LMS vérifiée par lecture intégrale. Après redémarrage, le même
+parcours et le score ont été relus. Cela ne remplace pas une nouvelle recette
+de restauration incluant le plugin sur une machine distincte.
+
+**Limites connues :** HTTP et routage local ne qualifient pas le DNS/TLS d'un
+établissement. Le parcours navigateur supérieur, les autres rôles,
+l'attribution des enseignants et la fédération MFA restent à qualifier. L'erreur
+native de déconnexion `this.unbind is not a function` a été corrigée dans
+l'image dérivée décrite ci-dessus. Après reconstruction et déploiement, le
+parcours complet réussit sans exception JavaScript tolérée : redirection vers
+le catalogue, cookies JWT effacés et nouvelle connexion obligatoire.
+Les SIS utilisateur conservent leur
+authentification locale : le pilote ne les bascule pas en SSO.
 
 ### Configurer les emails et l'identité visuelle
 
@@ -144,6 +662,40 @@ Ouvrez l'URL `FRONTEND_URL`. Dans l'administration, sélectionnez le SIS concern
 4. Créez les comptes avec les rôles adaptés. Pour le SSO, renseignez les
    associations Open edX dans l'administration Django de **chaque tenant**.
 5. Créez les apprenants ou téléchargez le modèle d'import depuis leur liste.
+
+### Types de périodes propres à l'établissement
+
+Dans **Administration → Établissement → Organisation académique → Mode avancé
+JSON**, complétez la configuration existante avec `catalogs.period_types`.
+Exemple de fragment à intégrer :
+
+```json
+{
+  "catalogs": {
+    "period_types": [
+      {"code": "session_courte", "label": "Session courte"},
+      {"code": "session_stage", "label": "Période de stage"}
+    ]
+  }
+}
+```
+
+Après enregistrement, **Années académiques → Périodes** (secondaire) ou
+**Semestres** (supérieur) charge ce catalogue dans le champ **Type**.
+Un catalogue absent ou vide conserve les choix historiques de la variante.
+Un échec de chargement est affiché, sans remplacer silencieusement le catalogue.
+Seuls les codes et libellés sont communiqués aux lecteurs authentifiés :
+`GET /api/v1/etablissement/periodes/types/` ou
+`GET /api/v1/etablissement/semestres/types/`.
+
+Retirer un code n'efface ni ne convertit les périodes existantes : leur valeur
+reste sélectionnable lors d'une modification, avec « configuration conservée ».
+Les libellés suivent le catalogue courant ; si un code en est retiré, son code
+est affiché. Les dates doivent rester dans l'année ouverte, et une période
+clôturée reste non modifiable. Nommer un type « stage » ou « vacances »
+ne crée pas automatiquement les règles métier correspondantes.
+
+### Parcours pédagogiques
 
 Au secondaire, **Emploi du temps** permet de créer le personnel enseignant et
 les créneaux ; **Présences** permet de créer un appel, saisir ses présences,
@@ -239,6 +791,16 @@ Le rattachement d'une inscription ou évaluation déjà historisée est figé :
 un transfert de cursus avec conservation de toutes ses décisions reste un
 parcours distinct à développer.
 
+**Transferts simples contrôlés.** Au secondaire, sélectionnez la classe puis
+**Changer de classe** sur l'élève ; au supérieur, utilisez **Transférer** sur
+l'inscription administrative validée. Un motif est obligatoire. L'année doit
+être ouverte ; au secondaire, la destination appartient à la même année.
+Le dossier et son inscription sont modifiés ensemble, avec notification et
+historique. Les dossiers comportant des règles d'offre historisées, des notes,
+des résultats ou, au supérieur, des choix pédagogiques/acquis sont refusés
+explicitement : leur transfert nécessite un traitement d'équivalences, non
+une suppression ou une conversion automatique des acquis.
+
 Dans **Saisir les notes**, les règles historisées déterminent les champs :
 note chiffrée, compétences acquises/non acquises/non renseignées, ou décision
 validé/non validé/non renseigné. La sauvegarde enregistre les résultats réels
@@ -324,6 +886,437 @@ La saisie de notes accepte `resultat` pour les modes non chiffrés, avec
 Les lectures de notes exposent le barème réel et `resultat_offre`, calculé avec
 les règles conservées sur l'évaluation.
 
+### Identité, navigation et préférences d'affichage
+
+Le nom et la couleur définis dans **Établissement** alimentent l'espace connecté.
+Le logo est téléversé depuis l'administration Django, comme indiqué dans
+l'onglet **Apparence**. L'API du profil ne transmet que cette identité,
+pas les paramètres administratifs. Une couleur trop peu contrastée est
+ajustée pour l'affichage, sans modifier la configuration enregistrée.
+Une image impossible à charger est signalée dans la navigation.
+La police Inter est servie par l'application, sans appel à un service de
+polices. La présentation suit les conventions de la
+[charte edX pour Paragon](https://github.com/edx/brand/tree/master/paragon) :
+vert sombre `#00262B`, accent `#D23228`, fonds neutres, titres de 40/32/22 px,
+boutons et champs rectangulaires, libellés au-dessus des champs.
+La couleur institutionnelle personnalise le monogramme, et non les actions :
+la même charte reste reconnaissable dans tous les espaces. Aucun logo edX
+n'est utilisé comme identité de l'établissement.
+
+Les tableaux de bord de gestion, des enseignants et des apprenants utilisent
+Material UI 7 : grilles responsives, cartes, onglets, notifications et navigation.
+La charte edX reste appliquée par le thème commun. Les autres pages conservent
+leurs composants MUI ou Paragon harmonisés ; cette migration ne remplace pas
+le moteur pédagogique. Les dépendances Material UI et icônes restent en version
+majeure 7, avec `react-is` aligné sur React 18 pour éviter les erreurs de rendu.
+
+La navigation de gestion comporte au maximum sept entrées : **Accueil**,
+**Scolarité**, **Pédagogie**, **Vie de l'établissement**, **Documents**,
+**Suivi et accès**, **Administration**. Les pages liées sont accessibles par
+les onglets de chaque espace. Les étudiants ont une navigation réduite à
+leur dossier, leurs documents, leurs démarches et leurs notifications.
+Seuls les espaces et onglets autorisés sont affichés ; les URL directes et
+les contrôles serveur sont conservés. Le compte reste accessible dans la
+barre supérieure, et les favoris sur l'accueil et dans la palette.
+Les dossiers élèves, étudiants et familles présentent leurs résultats,
+documents publiés et factures dans des onglets pleine largeur ; un seul
+tableau est affiché à la fois, sans supprimer les données des autres onglets.
+Les services du secondaire (présences, discipline, cantine, transport, internat,
+infirmerie, clubs et emploi du temps) suivent également cette disposition :
+un titre de page et des onglets métier, avec les actions de gestion dans le
+tableau actif.
+
+Le bouton de recherche ouvre la palette des modules autorisés ; **Ctrl+K / ⌘K** fait de même.
+Utilisez les flèches et Entrée pour naviguer, Tab pour les étoiles de favoris,
+Échap pour fermer. La palette ne recherche pas de dossiers personnels et
+n'exécute pas d'opération métier. Les favoris restent filtrés par les droits
+et modules actifs ; ils ne donnent jamais un accès supplémentaire.
+
+Le bouton **Préférences d'affichage** permet de choisir **Clair/Sombre** et
+d'effacer les favoris. Ces préférences sont conservées dans le navigateur,
+séparément pour chaque compte, établissement et API. Elles ne sont pas
+synchronisées entre appareils ; aucun dossier ni jeton d'authentification
+n'y est ajouté. Un stockage refusé ou corrompu est signalé, et les changements
+restent alors temporaires. La barre supérieure distingue le nom de
+l'établissement de l'espace métier ; elle ne permet pas de s'attribuer un rôle.
+
+### Catalogue privé des modules installés
+
+Dans **Administration → Établissement → Modules**, le catalogue installé est
+distinct des anciennes options pédagogiques. Le catalogue comporte
+le noyau identité/autorisations, le noyau historique/notifications, tous deux
+obligatoires, et les modules facultatifs **Réclamations privées** et
+**Missions et accès délégués**. Ils sont activés par défaut pour conserver
+le fonctionnement des établissements déjà installés.
+
+Chaque carte affiche l'état effectif, les changements non publiés, la version,
+l'éditeur, les variantes compatibles, les dépendances, permissions et règles
+de conservation. Activer un module n'attribue pas ses permissions à un compte.
+La simulation explicite les menus et API concernés, les accès bloqués ou
+rétablis, et le maintien des dossiers et notifications déjà engagées.
+
+Modifiez son activation, indiquez un motif, utilisez **Simuler les modules**,
+puis **Appliquer les modules**. La simulation ne modifie rien. L'application
+enregistre une révision et un événement audité dans la même transaction ;
+une révision périmée est refusée et exige un rechargement. Les droits de
+configuration de l'établissement courant sont nécessaires.
+
+Une désactivation interdit les API de réclamation, pièces comprises, même
+pour un administrateur, et retire l'entrée de navigation lors du chargement
+des capacités. Les dossiers et historiques sont conservés et redeviennent
+accessibles à la réactivation, avec les mêmes permissions individuelles.
+Les notifications déjà engagées continuent via le noyau obligatoire.
+
+La désactivation de `sis.delegations` bloque également toutes les API de mission
+(liste, détail, choix, dossiers, historique et actions), y compris pour les
+administrateurs, et retire les liens « Mes missions » / « Accès délégués ».
+Elle ne change aucun rôle et ne supprime aucune mission. La réactivation
+rétablit le service, mais les dates, révocations et droits du responsable
+restent contrôlés : une mission expirée ne redevient pas utilisable.
+
+API : `GET /api/v1/etablissement/current/modules/` retourne le catalogue,
+les valeurs effectives, leur origine et la révision. `POST` simule et `PATCH`
+applique un objet tel que :
+
+```json
+{
+  "revision": 0,
+  "enabled": {"sis.complaints": false},
+  "reason": "Suspension temporaire du service"
+}
+```
+
+Le registre `sis_common/module_registry.py` contient uniquement du code
+préinstallé et contrôlé avec la version de l'application. Les six options
+historiques ne sont pas un catalogue de plugins. Aucun téléversement ni
+chargement arbitraire de code tiers n'est proposé ; compatibilité des packages,
+approbation, mises à jour d'extensions externes et marketplace restent des
+lots distincts. Les activations de modules restent au niveau du tenant :
+elles ne sont pas encore un paramètre héritable.
+
+### Organisation et règles héritées
+
+Dans **Établissement → Organisation et règles**, les boutons **Organigramme**,
+**Rattachements** et **Règles héritées** ouvrent trois vues distinctes.
+Dans l'organigramme, **Ajouter** crée une unité en mode libre : code, nom,
+type et parent éventuel. Les catégories comprennent université, entreprise,
+faculté, école, direction, service, département, filière, niveau, classe,
+groupe, unité d'enseignement, équipe, campus et programme. **Autre** exige
+une précision de catégorie. L'ordre des catégories n'est pas imposé : adaptez
+les branches à votre établissement.
+
+Les anciens périmètres campus/département/programme conservent leur mode et
+leurs règles historiques. Une unité libre peut prolonger un ancien périmètre,
+sans convertir celui-ci. Ces unités ne remplacent pas les facultés, filières
+ou dossiers académiques existants. **Modifier** permet le renommage et la
+précision ; code, type, parent et mode restent figés. Aucun déplacement,
+détachement ou suppression d'unité n'est exposé.
+
+Dans **Rattachements**, choisissez une unité puis une catégorie d'objets.
+**Rattacher un objet existant** ouvre une recherche paginée : sélectionnez
+l'objet et confirmez le rattachement figé. Les objets déjà rattachés sont
+indisponibles ; changer de sélection ou de page retire le consentement.
+**Annuler** n'écrit rien. **Consulter** affiche les détails et relations réels,
+avec navigation vers les unités liées et pagination des relations nombreuses.
+
+Le catalogue fermé expose utilisateurs, classes/formations, livres et
+créneaux de cours, ainsi que les objets académiques réellement présents :
+niveaux/groupes/matières au secondaire ; facultés/départements/écoles
+doctorales/parcours/UE/ECUE au supérieur. Aucun modèle de groupe ou niveau
+supérieur autonome n'est inventé. Le catalogue de livres n'accorde pas de
+téléchargement privé. Ces opérations nécessitent un administrateur actif
+du tenant ; elles n'octroient ni droit supplémentaire ni accès LMS.
+
+Créez d'abord vos offres dans **Profils et offres** et enregistrez le catalogue.
+Dans **Règles héritées**, sélectionnez ensuite le périmètre et choisissez d'hériter, de ne définir aucune
+offre par défaut, ou de publier une offre. Un verrou interdit les redéfinitions
+inférieures. Un motif est obligatoire. La date d'effet peut être future ; vide,
+elle signifie maintenant. Les heures saisies utilisent le fuseau de l'appareil.
+**Simuler les règles** affiche la valeur effective, sa provenance, son verrou
+et les valeurs descendantes neutralisées, sans écrire de publication.
+**Publier les règles** crée une révision immuable et son événement d'audit dans
+la même transaction. Une révision périmée ou une date antidatée sont refusées.
+
+Chaque publication remplace les valeurs locales du périmètre à sa date d'effet.
+L'historique affiche les 50 publications les plus récentes du périmètre ;
+**Consulter les règles à cette date** résout une date passée ou future.
+La simulation porte sur la date choisie, pas sur tous les calendriers futurs.
+Une publication future reste enregistrée même après une nouvelle publication
+immédiate : pour la remplacer, publiez au même instant d'effet ; la révision
+la plus récente à cet instant prévaut.
+
+Dans la création d'une classe ou d'une formation, choisissez éventuellement
+l'unité d'organisation. Sans offre explicite, l'offre effective à cet instant
+est copiée avec sa provenance. Une offre verrouillée ne peut pas être contournée
+par un code différent ou par une modification ultérieure du catalogue.
+Le rattachement de la classe/formation est figé. Les anciens groupes,
+inscriptions, évaluations et résultats ne sont pas recalculés. Un choix explicite
+non verrouillé conserve les protections de snapshots déjà applicables.
+Une ancienne classe/formation encore sans unité peut recevoir son premier
+rattachement dans la vue dédiée ; son offre et sa provenance historiques ne
+sont pas recalculées.
+
+API : `GET /api/v1/etablissement/unites/`, création par `POST` et renommage
+par `PATCH /api/v1/etablissement/unites/{id}/`.
+La création API conserve le mode historique par défaut ; fournissez
+`"topology_version": 2` pour le mode libre. Le type `custom` exige
+`category_label`. `catalogue/` expose les catégories permises, `references/`
+les objets existants paginés. `POST {id}/attachments/` attend
+`{"kind": "book", "object_id": 123, "confirm": true}` ;
+`GET {id}/attachments/` liste les liens et `GET {id}/attached-object/`
+consulte un objet avec `kind` et `object_id`. Ces routes sont relatives à
+`/api/v1/etablissement/unites/`.
+`GET /api/v1/etablissement/current/hierarchy/` accepte `unit` et `at`
+(ISO 8601 avec fuseau). Sur cette dernière route, `POST` simule et `PATCH` publie :
+
+```json
+{
+  "unit": null,
+  "base_revision": 0,
+  "values": {"learning.offering": null},
+  "locks": ["learning.offering"],
+  "effective_from": null,
+  "reason": "Aucune offre par défaut autorisée"
+}
+```
+
+`values: {}` avec `locks: []` restaure l'héritage local. Une valeur non nulle de
+`learning.offering` est l'objet d'offre versionné complet, pas seulement son code.
+La révision vient de la lecture actuelle. Le droit d'administration de
+l'établissement est requis pour simuler, publier et consulter ces règles.
+Cet incrément ne fournit pas encore la hiérarchie plateforme/pays/réseau,
+les autorisations par campus ni un moteur générique de workflows.
+
+### Calendriers, examens et traçabilité
+
+Les clôtures et activations passent par les actions dédiées, pas par un
+changement direct de statut. Les créations, modifications, déplacements et
+suppressions des objets académiques couverts sont contrôlés contre leurs
+années/périodes/sessions d'origine et de destination. Les notes et résultats
+empêchent la suppression en cascade de leurs parents. Les exceptions de
+rattrapage restent soumises aux règles et fenêtres configurées.
+
+Dans **Examens**, les deux variantes permettent de gérer sessions, épreuves,
+convocations et résultats. Le résultat suit les actions **Soumettre → Vérifier
+→ Valider → Publier**, selon les droits et la politique de l'établissement.
+Modifier une note encore modifiable exige une nouvelle vérification ; une
+modération ne peut pas écraser un résultat publié. La publication et la
+réouverture sont tracées et notifient l'apprenant.
+
+Au supérieur, le détail d'une **Formation** permet de gérer parcours, maquettes,
+UE et ECUE, et de consulter les étudiants et créneaux de cette formation.
+**Emploi du temps** expose les vues formation/enseignant/salle, les horaires
+types, les créneaux, les réservations et leur décision. La détection des
+conflits n'est pas encore un moteur exhaustif de planification multi-campus.
+
+Le **Journal des opérations** filtre par personne et dates inclusives ; ces
+filtres s'appliquent aussi au bilan et aux exports. Les réclamations, missions,
+signatures et archives privées restent dans leurs historiques autorisés,
+hors du journal global. Les journaux techniques conservent les
+identifiants de requête, tenant et acteur, la méthode, le chemin, le statut
+et la durée, sans enregistrer les corps de requête ni les secrets.
+
+Ces protections ne constituent pas une homologation de tous les métiers :
+jurys, diplômes et équivalences restent à compléter.
+
+### Admissions et changements de cursus entre années
+
+Les admissions réutilisent les dossiers existants, sans créer un autre compte.
+Une inscription commence **En cours** au secondaire, **Provisoire** au supérieur.
+Les actions **Valider**, **Refuser** et **Annuler la demande** contrôlent l'état
+de départ ; refus et annulation exigent un motif. Un statut ne peut pas être
+forcé par création ou modification CRUD. Un dossier déjà validé ne peut pas
+être refusé ou annulé par ce circuit de demandes en attente.
+
+**Réinscrire / changer de cursus** crée une nouvelle inscription à examiner,
+dans une année postérieure sans chevauchement, avec la classe/formation choisie.
+L'année d'origine peut être clôturée puisqu'aucun résultat ni inscription
+d'origine n'est modifié. La destination doit être ouverte, appartenir au même
+établissement et respecter les périmètres du gestionnaire. Les doublons sont
+refusés. Les règles de la destination sont enregistrées dans la nouvelle
+inscription ; les anciennes règles, notes et inscriptions pédagogiques restent
+inchangées. Les deux historiques conservent le lien de transition, le motif,
+l'acteur et la date ; l'apprenant reçoit une notification interne.
+
+Au secondaire, valider une année future ne remplace pas immédiatement la classe
+actuelle. Le basculement ultérieur des classes n'est pas automatisé par ce lot.
+Les transferts dans la même année restent limités aux dossiers compatibles :
+les équivalences, admissions de candidats sans dossier, sélection/classement,
+listes d'attente et transferts inter-établissements ne sont pas automatisés.
+
+### Missions déléguées aux apprenants
+
+Un responsable doté de `core.manage_accessdelegation` peut créer un **Accès
+délégué**, avec bénéficiaire, ressource, dossiers précis, dates et motif.
+Les classes sont proposées au secondaire ; les formations et conventions de
+stage au supérieur. Le responsable doit aussi pouvoir lire ces dossiers,
+dans ses périmètres actuels. Un indicateur `is_staff` ne suffit pas.
+
+L'apprenant retrouve **Mes missions** dans son portail. Il consulte seulement
+des résumés des dossiers sélectionnés, sans changer de rôle ni obtenir des
+droits de modification, de signature ou d'accès aux notes/données financières.
+Une mission est limitée à 100 dossiers, sans accès global implicite.
+Expiration, révocation ou perte d'habilitation du responsable retirent l'accès
+côté serveur. Création et révocation notifient le bénéficiaire ; consultations
+et décisions sont tracées dans l'historique privé de la mission.
+
+### Documents personnels et téléchargements
+
+L'entrée **Mes documents** du menu **Mon espace** donne accès aux documents
+déjà établis, sans créer un autre dossier apprenant :
+
+| Variante et compte | Documents accessibles |
+|---|---|
+| Secondaire, élève | Ses bulletins avec `publie=true`. |
+| Secondaire, parent | Bulletins publiés des enfants dont le lien familial autorise le portail ; la révocation retire cet accès. |
+| Supérieur, étudiant/doctorant | Ses relevés avec `signe=true`, transcripts et attestations avec un `signe_par` renseigné. |
+
+Un compte actif doit appartenir à l'établissement demandé. Les lectures par
+identifiant, historiques et téléchargements appliquent les mêmes restrictions
+que les listes. Un compte apprenant marqué `is_staff` ne devient pas pour autant
+gestionnaire de documents. Les gestionnaires continuent d'utiliser
+**Bulletins** ou **Relevés de notes** pour consulter leurs documents, y compris
+les brouillons, et l'historique, selon leurs droits et périmètres.
+
+La recherche et la pagination sont serveur ; **Exporter la liste filtrée (CSV)**
+reprend toutes les pages autorisées pour cette recherche. **Télécharger le PDF**
+utilise la session authentifiée, affiche les refus/erreurs et trace le succès
+dans l'historique du document avec l'acteur et la date. La réponse PDF utilise
+`Cache-Control: private, no-store` ; aucun chemin de stockage n'est exposé comme
+lien public. Un téléchargement ne réappose pas de signature et ne notifie pas
+un titulaire de signature.
+
+**Limites :** la validation administrative existante n'est pas une signature
+cryptographique vérifiable. Les PDF ordinaires sont générés à la demande depuis
+les synthèses enregistrées ; seules les versions explicitement apposées dans
+le circuit ci-dessous sont archivées. Les relevés détaillés exhaustifs, les
+diplômes dans cet espace, les exports de données XLSX/JSON et les gros exports
+asynchrones restent à compléter. Le CSV est produit côté navigateur : seuls
+ses appels de lecture ont la traçabilité technique, sans nouvel événement
+d'audit métier d'export.
+
+### Signatures approuvées et versions archivées
+
+Le menu **Signatures** exige des habilitations explicites, attribuées depuis
+l'administration des utilisateurs/groupes :
+
+| Permission | Usage |
+|---|---|
+| `core.request_signature` | Demander une identité de signature personnelle et gérer ses mandats. |
+| `core.approve_signature` | Approuver/refuser la demande d'une autre personne, suspendre/révoquer. |
+| `core.use_signature` | Apposer une signature autorisée ; les droits de modification et périmètres du document restent nécessaires. |
+| `core.revoke_documentarchive` | Révoquer une version accessible, sans effacer son PDF ni sa preuve. |
+
+1. Le titulaire renseigne sa fonction, les types de documents et la période.
+2. Une autre personne habilitée contrôle la demande dans **Validations
+   indépendantes** et motive sa décision. L'auto-approbation est interdite,
+   même à un super-administrateur.
+3. La validation génère une clé Ed25519 ; sa partie privée est chiffrée avec
+   `FIELD_ENCRYPTION_KEY` et n'est jamais renvoyée par l'API.
+4. Dans **Documents archivés**, le titulaire choisit un document déjà publié
+   ou administrativement validé et sa signature approuvée. Un autre opérateur
+   doit également être habilité et posséder un mandat explicite, daté, non
+   révoqué, accordé par le titulaire. Le titulaire peut suspendre/révoquer sa
+   signature ; une réactivation nécessite un autre validateur.
+5. Chaque apposition enregistre atomiquement le PDF, sa version, son SHA-256,
+   le manifeste et la preuve détachée, l'opérateur et son éventuel mandat,
+   l'événement et les notifications internes au titulaire et au bénéficiaire.
+   Une notification impossible empêche l'apposition. Un rejeu de la même clé
+   d'idempotence renvoie la même archive, sans nouvelle apposition.
+
+Dans **Mes documents → Versions signées**, le bénéficiaire télécharge le PDF
+archivé et sa preuve JSON. **Vérifier l'intégrité** contrôle la version conservée
+ou compare un PDF téléversé (limite PDF commune, 25 Mo par défaut). Le serveur
+utilise la clé approuvée connue de l'établissement, pas une clé fournie par le
+visiteur. L'intégrité et la révocation sont affichées séparément : une version
+révoquée demeure vérifiable et conservée. L'expiration d'une autorisation
+interdit les nouvelles appositions, sans invalider rétroactivement les preuves.
+Un téléchargement ne réappose pas de signature.
+
+Les archives et révocations sont protégées contre modification/suppression
+par l'ORM et par des déclencheurs PostgreSQL. Une correction produit une
+nouvelle version ; les PDF binaires sont inclus dans la sauvegarde PostgreSQL.
+Conserver aussi la clé de chiffrement dans la sauvegarde chiffrée et sécurisée :
+sa perte bloque les nouvelles signatures utilisant les clés existantes.
+
+**Portée de la preuve :** signature institutionnelle détachée d'un manifeste,
+pas de PAdES incorporé au PDF, de certificat qualifié, d'horodatage de confiance
+externe ni de conformité juridique automatique. La date est celle du serveur.
+Pour une vérification hors ligne, l'empreinte de clé doit être obtenue par un
+canal institutionnel de confiance ; le fichier JSON seul n'établit pas l'identité.
+L'immutabilité applicative/base ne constitue pas un stockage WORM résistant
+à un administrateur d'infrastructure. Conservation légale, signature qualifiée,
+certification externe et politique de purge doivent être qualifiées séparément.
+
+### Réclamations privées des apprenants
+
+Dans **Mes réclamations**, un élève/étudiant/doctorant peut déposer une demande
+sur un résultat, une inscription, des frais ou un autre sujet. Objet, motif
+et référence du dossier concerné sont conservés avec un numéro `REC-…`.
+Les demandes des parents pour leurs enfants ne sont pas encore prises en charge.
+
+Après l'envoi, l'apprenant peut ajouter des **PDF privés** : dix pièces au plus,
+25 Mo par fichier dans la configuration standard. Le serveur vérifie extension,
+type MIME, taille et signature PDF ; ce contrôle **n'est pas une analyse
+antivirus**. Les fichiers sont stockés sous `PRIVATE_EXAM_STORAGE_ROOT/reclamations`,
+dans le volume de données privé déjà sauvegardé par le pack Docker. Ne pas
+publier ce répertoire via un serveur de fichiers.
+
+Deux habilitations Django, propres au tenant, organisent le traitement :
+
+| Permission | Accès |
+|---|---|
+| `core.affecter_reclamation` | Recevoir les nouvelles demandes, consulter la file de l'établissement et affecter un agent. |
+| `core.traiter_reclamation` | Consulter et traiter uniquement les demandes affectées à cet agent. |
+
+Le super administrateur initial peut affecter un dossier à lui-même pour la
+recette. En exploitation, utilisez des comptes nominatifs : attribuez ces
+permissions explicitement, directement ou via un groupe. Les API existantes
+`GET /api/v1/utilisateurs/permissions/` (suivre la pagination), les groupes
+`/api/v1/utilisateurs/groupes/` et `PATCH /api/v1/utilisateurs/comptes/{id}/`
+permettent cette administration depuis un compte habilité. Sélectionnez les
+permissions par `app_label: core` et `codename`, pas par identifiants supposés.
+Les listes `user_permissions` et `groups` d'un PATCH **remplacent** les listes
+existantes : les lire et préserver leurs autres valeurs avant toute modification.
+L'écran simplifié Utilisateurs n'est pas encore un éditeur complet d'habilitations.
+
+Un coordinateur peut réaffecter un dossier ; l'ancien agent perd alors l'accès
+s'il n'a pas aussi l'habilitation de coordination. Le demandeur ne peut pas
+affecter ni décider son propre dossier, même s'il possède ces habilitations.
+Les rôles usuels du personnel et `is_staff` seuls ne donnent pas accès à ce module.
+
+Le parcours standard est **Soumise → En cours → Complément demandé ou Réponse
+apportée → Clôturée**. Le demandeur peut répondre à une demande de complément,
+clôturer une réponse ou déposer un recours motivé depuis une réponse/clôture.
+Le recours rouvre le dossier et avertit le service ; les décisions précédentes
+restent dans l'historique. Délais, relances et niveaux de recours configurables
+ne sont pas encore implémentés. Une décision de réclamation ne modifie jamais
+automatiquement les notes, inscriptions ou paiements.
+
+Les notifications internes sont persistées dans la même transaction que les
+changements. Elles ne contiennent pas le motif privé ; leur lien ouvre le dossier
+après un nouveau contrôle d'accès. L'historique détaillé n'est pas exposé dans
+les rapports globaux de workflow. Un téléchargement vérifie le tenant, le droit
+sur la demande et le rattachement de la pièce à celle-ci.
+
+Pour les intégrateurs, la base est `/api/v1/core/reclamations/` :
+
+| Méthode et route relative | Données / résultat |
+|---|---|
+| `GET` / `POST` | Liste paginée filtrable par `statut` / dépôt avec `categorie`, `objet`, `description`, `reference_dossier` facultative. |
+| `GET capacites/` | Droit de dépôt et agents affectables, uniquement pour les coordinateurs. |
+| `GET {id}/` | Détail, historique, pièces, version courante et actions autorisées. |
+| `POST {id}/affecter/` | `version`, `responsable` (identifiant d'un agent habilité). |
+| `POST {id}/message/` | `version`, `message` non vide. |
+| `POST {id}/transition/` | `version`, `message` motivant la transition, `statut` parmi `complement`, `resolue`, `cloturee`, `recours`. |
+| `POST {id}/pieces/` | Multipart : `version`, `fichier` PDF. |
+| `GET {id}/pieces/{piece_id}/telecharger/` | Pièce en téléchargement privé, jamais une URL publique. |
+
+Chaque réponse de mutation renvoie la nouvelle version. Un conflit HTTP 409
+impose de recharger le dossier et de relire les changements avant de réessayer.
+Ni modification libre ni suppression du dossier ou de l'historique ne sont
+exposées par ce parcours.
+
 ### Comptes et responsabilités
 
 L'administrateur initial est un compte de secours privilégié, pas un compte
@@ -332,6 +1325,40 @@ groupes/permissions métier depuis l'administration Django du tenant.
 `is_staff` autorise l'administration Django ; ce n'est pas un rôle métier.
 Testez avec les utilisateurs concernés les droits direction/scolarité,
 enseignant, apprenant et famille avant l'ouverture.
+
+Les API des comptes/groupes, notes et paiements ne déduisent plus une
+habilitation métier du seul drapeau `is_staff`. Les permissions explicites,
+les rôles métier historiques pris en charge et le superutilisateur restent
+distincts. Les vues personnelles des notes et évaluations croisent
+l'appartenance de l'utilisateur avec ses restrictions contextuelles :
+un enseignant ne gagne pas accès à un autre périmètre parce qu'il est `staff`.
+Les changements ne réattribuent pas automatiquement les permissions des
+comptes existants.
+
+Les POST `/api/v1/integration/sync/enroll/` et `sync/teaching/` exigent
+désormais `integration.change_edxaccessintent` ou un superutilisateur ;
+`is_staff` seul ne suffit pas et n'est pas requis pour ces deux routes.
+La permission peut être limitée dans `attributs_acces.permission_scopes`,
+par exemple avec un identifiant de mapping **fictif** :
+
+```json
+{
+  "permission_scopes": {
+    "integration.change_edxaccessintent": {
+      "courses": [42],
+      "kinds": ["enrollment"]
+    }
+  }
+}
+```
+
+`courses` contient les identifiants numériques des associations de cours du
+SIS, pas les clés `course-v1:…` du LMS. `kinds` accepte `enrollment` et
+`teaching`. Une liste vide ou une contrainte inconnue refuse l'opération.
+Ce contrôle précède toute création de décision/outbox ou requête au LMS.
+Les autres opérations administratives d'intégration non migrées conservent
+leur garde technique `staff` ; cette évolution ne constitue pas une
+qualification complète des rôles ni du circuit des notes officielles.
 
 Les écrans historiques complémentaires n'ont pas tous été réécrits :
 des actions et contrats métier restent à qualifier, même lorsqu'une liste

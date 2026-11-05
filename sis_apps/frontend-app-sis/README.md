@@ -144,6 +144,45 @@ L'activation du client réel ne suffit **pas** à rendre l'inscription opératio
 Les tests frontend couvrent le choix explicite du mode, l'initialisation et les appels
 HTTP ; ils ne constituent pas une validation de bout en bout LMS–SIS.
 
+### Synchronisation individuelle des identités LMS
+
+Dans **Administration → Intégration LMS → Utilisateurs**, le personnel autorisé
+peut confirmer la synchronisation d’une association active, y compris sans ID LMS
+encore confirmé. La liste est paginée côté API et repart à la première page lors
+d’un changement de variante SIS.
+
+**Associer un utilisateur** remplace cette table par celle des candidats à une
+première association. **Voir les associations** permet de revenir ; aucune seconde
+table ni sélection globale n’est ajoutée. Seul un administrateur charge les
+candidats, uniquement dans cette vue, via
+`GET /integration/mappings/users/candidates/?page=N`. Le serveur retourne les
+utilisateurs SIS actifs sans **aucune** correspondance (une correspondance
+désactivée les exclut aussi), dans l’ordre des PK. Leur `username_edx` canonique
+vient du serveur ; aucun ID de correspondance n’est fabriqué. Consulter la liste,
+ouvrir le dialogue ou annuler avant envoi ne crée rien.
+
+L’action envoie uniquement `{}` à `POST /integration/sync/user/<user_sis>/`,
+avec le client authentifié (cookies et CSRF en mode session locale). Elle ne choisit
+aucun rôle, nom d’utilisateur ou établissement et n’accorde aucun accès à un cours.
+La confirmation exige HTTP 200, `status: "ok"`, le nom LMS attendu et un ID natif
+entier positif sûr, identique à celui déjà enregistré s’il existe.
+Une réponse invalide ou perdue ne vaut pas succès : la liste
+et les statistiques sont actualisées et une nouvelle confirmation permet de
+réessayer la même identité. Dans la page ouverte, l’incertitude reste attachée au
+SIS, à `user_sis` et au nom LMS après fermeture, actualisation ou retour depuis
+la vue des candidats vers la correspondance nouvellement créée. La confirmation
+doit être donnée de nouveau. Toutes les pages candidats **et** associations en
+cache de cette variante sont invalidées après la demande et lors d’une
+actualisation explicite, car la création retire un candidat et la nouvelle date
+de synchronisation peut déplacer une association. Une page disparue (404) ramène
+à la première page avec un avertissement, sans perdre la sélection ni le reçu
+du dialogue ; les refus 403 et erreurs de lecture sont affichés.
+Les pages des autres variantes ne sont pas invalidées.
+Le backend contrôle aussi les comptes SIS inactifs.
+Le mode démonstration et « Synchroniser tous » ne déclenchent pas cette opération.
+Cette confirmation ne fournit aucun mot de passe et ne garantit pas la connexion :
+la définition du mot de passe humain passe par la récupération par courriel du LMS.
+
 ## 📦 Modules
 
 ### SIS Supérieur

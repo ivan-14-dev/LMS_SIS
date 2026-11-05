@@ -1,0 +1,63 @@
+# Isolated local qualification only, not production sizing.
+services:
+  mysql:
+    mem_limit: 1g
+    cpus: 2
+  mongodb:
+    command: mongod --storageEngine wiredTiger --wiredTigerCacheSizeGB 0.25
+    mem_limit: 512m
+    cpus: 1
+  meilisearch:
+    mem_limit: 256m
+    cpus: 1
+    environment:
+      MEILI_MAX_INDEXING_MEMORY: 128Mb
+      MEILI_MAX_INDEXING_THREADS: 1
+  redis:
+    mem_limit: 192m
+    cpus: 1
+  smtp:
+    mem_limit: 64m
+    cpus: 0.5
+  caddy:
+    mem_limit: 128m
+    cpus: 1
+  mfe:
+    mem_limit: 128m
+    cpus: 1
+  lms:
+    mem_limit: 1024m
+    cpus: 1
+  cms:
+    mem_limit: 1024m
+    cpus: 1
+  lms-worker:
+    mem_limit: 1024m
+    cpus: 1
+    command:
+      - celery
+      - --app=lms.celery
+      - worker
+      - --loglevel=info
+      - --hostname=edx.lms.core.default.%h
+      - --queues=edx.lms.core.default,edx.lms.core.high,edx.lms.core.high_mem
+      - --max-tasks-per-child=100
+      - --prefetch-multiplier=1
+      - --without-gossip
+      - --without-mingle
+      - --concurrency=1
+  cms-worker:
+    mem_limit: 1024m
+    cpus: 1
+    command:
+      - celery
+      - --app=cms.celery
+      - worker
+      - --loglevel=info
+      - --hostname=edx.cms.core.default.%h
+      - --queues=edx.cms.core.default,edx.cms.core.high,edx.cms.core.low
+      - --max-tasks-per-child=100
+      - --prefetch-multiplier=1
+      - --without-gossip
+      - --without-mingle
+      - --concurrency=1

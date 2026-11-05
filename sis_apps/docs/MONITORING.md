@@ -30,6 +30,28 @@ l'API interne, ou passer par un proxy de supervision privé qui fixe le Host et
 `X-Forwarded-Proto: https` lorsque la redirection HTTPS est activée. Ne publiez
 pas le port Gunicorn pour contourner cette protection.
 
+## Supervision manuelle de la file LMS
+
+Dans **Intégration LMS → File d'attente**, un administrateur peut demander le
+traitement des événements admissibles de l'établissement courant :
+`POST /api/v1/integration/outbox/process/` avec le corps JSON `{}` (aucun
+paramètre de sélection de tenant, d'événement ou de version accepté).
+Une réponse **202** et un `task_id` confirment uniquement la mise en file Celery,
+pas l'exécution ni la synchronisation. Une indisponibilité du broker renvoie
+**503**, est journalisée et ne supprime aucun événement.
+
+Le worker réutilise le publisher durable existant, limité à 100 événements par
+appel et au tenant enregistré. Les réservations unitaires, verrous de décision,
+versions, clôtures conditionnelles et délais de reprise sont conservés.
+Les échecs définitifs ne sont pas rejoués ; aucune purge n'est exposée.
+Actualiser la table permet de suivre les résultats.
+
+**Voir les échecs** applique un filtre paginé côté serveur
+(`GET /api/v1/integration/outbox/?statut=failed&statut=dead&page=1`).
+Les reprises transitoires, dont les retraits d'accès en attente, restent dans
+la vue de tous les événements. Les détails affichent l'erreur complète en
+lecture seule, sans créer une nouvelle décision d'accès.
+
 ## Artefacts fournis
 
 - `monitoring/prometheus/scrape_config.yml` : fragment `scrape_configs` +

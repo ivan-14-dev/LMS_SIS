@@ -10,7 +10,7 @@ x-api: &api
   init: true
   security_opt:
     - no-new-privileges:true
-  networks: [sis]
+  networks: [sis, lms]
 
 x-runtime: &runtime
   DB_HOST: postgres-secondaire
@@ -196,6 +196,9 @@ services:
 
 networks:
   sis:
+  lms:
+    name: ${SIS_LMS_NETWORK:-${COMPOSE_PROJECT_NAME:-lms-sis}_lms}
+    external: ${SIS_LMS_NETWORK_EXTERNAL:-false}
 
 volumes:
   postgres-secondaire:

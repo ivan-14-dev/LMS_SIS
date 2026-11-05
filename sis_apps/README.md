@@ -155,6 +155,26 @@ Chaque SIS expose un module `integration` avec :
 - Webhook sortant `sync_status` : monitoring de la file.
 - Tâche `reconcile_lms` (Celery Beat quotidien) : réconciliation bidirectionnelle.
 
+Pour un Tutor local installé dans un autre projet Compose, les API et workers
+peuvent rejoindre son réseau Docker en déclarant dans le `.env` privé :
+
+```dotenv
+SIS_LMS_NETWORK=nom-du-projet-tutor_default
+SIS_LMS_NETWORK_EXTERNAL=true
+```
+
+Le réseau externe doit déjà exister. Sans cette option, le réseau `lms` reste
+isolé dans le projet SIS ; PostgreSQL, Redis et la passerelle restent sur le
+réseau `sis`. Les URL `EDX_LMS_URL` et `EDX_CMS_URL` doivent être accessibles
+depuis les conteneurs et le navigateur, avec les ports réellement exposés.
+Utiliser un service OAuth dédié sans privilèges globaux, jamais un compte
+administrateur humain. Les paramètres sont conservés par les sauvegardes du
+`.env` et réutilisés par les commandes ordinaires de `sisctl.py`.
+
+Un heartbeat LMS/Studio réussi ne prouve ni la livraison des webhooks ni
+l'activation des automatismes : la supervision les indique comme non vérifiés
+tant qu'aucune vérification correspondante n'est disponible.
+
 ## Installation (développement)
 
 ```bash
