@@ -51,6 +51,34 @@ class FakeRequest:
 
 
 class AuthorizationTests(SimpleTestCase):
+    def test_staff_does_not_grant_business_permissions(self):
+        for role, permission in (
+            ("enseignant", "paiements.change_paiement"),
+            ("comptable", "notes.change_note"),
+        ):
+            for staff in (False, True):
+                user = FakeUser()
+                user.role = role
+                user.is_staff = staff
+                assert not has_business_permission_or_role(user, permission)
+
+    def test_staff_keeps_explicit_permissions_and_their_constraints(self):
+        permission = "notes.change_note"
+        user = FakeUser(
+            permissions=[permission],
+            attributes={"permission_scopes": {permission: {"classes": [2]}}},
+        )
+        user.is_staff = True
+        user.role = "direction"
+        assert not has_business_permission_or_role(user, permission, ("direction",))
+        assert not has_business_permission_or_role(user, permission, ("direction",), context={"classes": 3})
+        assert has_business_permission_or_role(user, permission, ("direction",), context={"classes": 2})
+
+    def test_superuser_business_access_does_not_require_staff(self):
+        user = FakeUser()
+        user.is_superuser = True
+        assert has_business_permission_or_role(user, "notes.change_note")
+
     def test_permission_scope_requires_context(self):
         permission = "notes.view_note"
         user = FakeUser(

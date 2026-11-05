@@ -1,6 +1,43 @@
 """Dynamic RBAC and lightweight ABAC helpers shared by both SIS variants."""
 
 
+def is_current_tenant_user(request):
+    """Authorization writes require an account owned by the active database tenant."""
+    from django.db import connection
+
+    tenant = getattr(request, "tenant", None)
+    owner_id = getattr(request.user, "etablissement_id", None)
+    return bool(
+        tenant
+        and getattr(connection, "schema_name", None) == tenant.schema_name
+        and (owner_id == tenant.pk or (owner_id is None and request.user.is_superuser))
+    )
+
+
+def can_delegate_permissions(user, permissions):
+    """A scoped permission cannot be delegated as an unrestricted group grant."""
+    return all(
+        has_business_permission(user, f"{permission.content_type.app_label}.{permission.codename}")
+        for permission in permissions
+    )
+
+
+def validate_account_authorization_changes(request, instance, attrs, initial_data, *, default_role):
+    """Keep legacy account writes from bypassing the controlled group assignment API."""
+    from rest_framework.exceptions import ValidationError
+
+    if request is None or request.user.is_superuser:
+        return
+    if instance is not None and instance.is_superuser:
+        raise ValidationError({"detail": "Un administrateur ne peut pas modifier un super-utilisateur."})
+    for field in ("groups", "user_permissions", "attributs_acces"):
+        if field in initial_data:
+            raise ValidationError({field: "Utilisez l'administration des groupes ou un super-utilisateur."})
+    role = attrs.get("role")
+    if role is not None and role != (instance.role if instance else default_role):
+        raise ValidationError({"role": "Le changement de rôle hérité requiert un super-utilisateur."})
+
+
 def _group_names(user):
     if not hasattr(user, "groups"):
         return []
@@ -104,7 +141,7 @@ def has_business_permission_or_role(
     """Honor dynamic Django permissions while retaining legacy role compatibility."""
     if not user.is_authenticated:
         return False
-    if user.is_superuser or user.is_staff:
+    if user.is_superuser:
         return True
     if user.has_perm(permission):
         return has_business_permission(user, permission, context=context)
