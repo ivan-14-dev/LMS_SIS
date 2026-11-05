@@ -20,10 +20,12 @@ isolées passent (570 tests secondaire, 564 supérieur), ainsi que 316 tests
 frontend sur 29 suites et le build de production. Les contrôles ciblés des
 écrans IAM/portails passent, mais le lint global frontend échoue encore
 (328 erreurs). Ces preuves portent sur le code et des services de test, pas
-sur un déploiement institutionnel de ces commits : vérifier les migrations
-sur une copie des données, notamment les doublons de références carte avant
-la contrainte unique, et requalifier le vrai Stripe, Open edX et les parcours
-navigateur. Aucune nouvelle campagne à 500 connexions n'a été validée ;
+sur un déploiement institutionnel de ces commits. L'image SIS
+`lms-sis:local-20261105-c98acea` se construit et passe `manage.py check` dans
+les deux variantes, mais n'a pas remplacé les services partagés. Vérifier les
+migrations sur une copie des données, notamment les doublons de références
+carte avant la contrainte unique, et requalifier le vrai Stripe, Open edX et
+les parcours navigateur. Aucune nouvelle campagne à 500 connexions n'a été validée ;
 ne cocher aucune exigence supplémentaire sur la seule base de ce lot.
 
 ## Règle de clôture commune
