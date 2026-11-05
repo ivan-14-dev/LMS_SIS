@@ -3,10 +3,13 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
 from apps.etudiants.api import EtudiantsViewSet, InscriptionsAdminViewSet, IsScolariteOrReadOnly
+from apps.etudiants.serializers import InscriptionAdministrativeSerializer
 from django.test import SimpleTestCase
 from django.urls import resolve
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 
 
 class EtudiantsAPITestCase(SimpleTestCase):
@@ -54,9 +57,7 @@ class EtudiantsQuerysetTestCase(SimpleTestCase):
 
         view.get_queryset()
 
-        mock_model.objects.select_related.assert_called_once_with(
-            "user", "universite", "annee_universitaire_actuelle"
-        )
+        mock_model.objects.select_related.assert_called_once_with("user", "universite", "annee_universitaire_actuelle")
         mock_model.objects.select_related.return_value.filter.assert_called_once_with(universite=tenant)
 
     @patch("apps.etudiants.api.Etudiant")
@@ -112,8 +113,9 @@ class EtudiantsActionsTestCase(SimpleTestCase):
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    @patch("apps.etudiants.api.ensure_academic_open")
     @patch("apps.etudiants.api.AffectationECUEIndividuelle")
-    def test_retirer_matiere_individuelle_deletes_found_affectation(self, mock_model):
+    def test_retirer_matiere_individuelle_deletes_found_affectation(self, mock_model, mock_guard):
         affectation = MagicMock()
         mock_model.objects.filter.return_value.first.return_value = affectation
         etudiant = SimpleNamespace(id=1)
@@ -122,6 +124,9 @@ class EtudiantsActionsTestCase(SimpleTestCase):
 
         response = view.retirer_matiere_individuelle(request, pk=1)
 
+        mock_guard.assert_called_once_with(
+            affectation, paths=("inscription_admin.annee_universitaire", "semestre_cible")
+        )
         affectation.delete.assert_called_once()
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
@@ -194,3 +199,73 @@ class InscriptionsAdminWorkflowTestCase(SimpleTestCase):
         assert inscription.motif_refus == "Dossier incomplet"
         inscription.save.assert_called_once_with(update_fields=["statut", "motif_refus", "updated_at"])
         mock_event.assert_called_once()
+
+
+class EnrollmentFormationTenantTestCase(SimpleTestCase):
+    def setUp(self):
+        self.tenant = SimpleNamespace(pk=11)
+        self.student = SimpleNamespace(pk=1, universite_id=11)
+        self.year = SimpleNamespace(pk=2, universite_id=11)
+        self.request = SimpleNamespace(tenant=self.tenant, user=SimpleNamespace(is_superuser=True))
+
+    def formation(self, owner, *, via):
+        return SimpleNamespace(
+            pk=3,
+            departement=SimpleNamespace(faculte=SimpleNamespace(universite_id=owner)) if via == "departement" else None,
+            ecole_doctorale=SimpleNamespace(universite_id=owner) if via == "ecole_doctorale" else None,
+            organisation_unit=SimpleNamespace(etablissement_id=owner) if via == "organisation_unit" else None,
+        )
+
+    def serializer(self, **context):
+        return InscriptionAdministrativeSerializer(context={"request": self.request, **context})
+
+    def test_create_rejects_foreign_department_formation(self):
+        with pytest.raises(ValidationError) as error:
+            self.serializer().validate(
+                {
+                    "etudiant": self.student,
+                    "annee_universitaire": self.year,
+                    "formation": self.formation(22, via="departement"),
+                }
+            )
+        assert "formation" in error.value.detail
+
+    def test_create_rejects_foreign_doctoral_school_and_organisation_unit(self):
+        for via in ("ecole_doctorale", "organisation_unit"):
+            with self.subTest(via=via), pytest.raises(ValidationError) as error:
+                self.serializer().validate(
+                    {
+                        "etudiant": self.student,
+                        "annee_universitaire": self.year,
+                        "formation": self.formation(22, via=via),
+                    }
+                )
+            assert "formation" in error.value.detail
+
+    def test_controlled_transfer_rejects_foreign_formation(self):
+        original = self.formation(11, via="departement")
+        instance = SimpleNamespace(
+            statut="validee",
+            etudiant=self.student,
+            etudiant_id=1,
+            annee_universitaire=self.year,
+            annee_universitaire_id=2,
+            formation=original,
+            formation_id=3,
+            parcours=None,
+            parcours_id=None,
+        )
+        serializer = InscriptionAdministrativeSerializer(
+            instance, context={"request": self.request, "controlled_transfer": True}
+        )
+        with pytest.raises(ValidationError) as error:
+            serializer.validate({"formation": self.formation(22, via="departement")})
+        assert "formation" in error.value.detail
+
+    def test_create_accepts_formation_owned_by_current_university(self):
+        attrs = {
+            "etudiant": self.student,
+            "annee_universitaire": self.year,
+            "formation": self.formation(11, via="departement"),
+        }
+        assert self.serializer().validate(attrs) == attrs

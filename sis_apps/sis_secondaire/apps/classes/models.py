@@ -1,13 +1,17 @@
 """Models for classes (SIS Secondaire)."""
 
+import uuid
+
 from apps.etablissement.models import AnneeScolaire, Etablissement, Niveau
 from apps.utilisateurs.models import Utilisateur
+from django.contrib.postgres.functions import RandomUUID
 from django.db import models
 
 
 class Classe(models.Model):
     """Classe d'un établissement (ex: 6e A, Terminale C)."""
 
+    integration_id = models.UUIDField(default=uuid.uuid4, db_default=RandomUUID(), editable=False, unique=True)
     etablissement = models.ForeignKey(
         Etablissement,
         on_delete=models.CASCADE,
@@ -20,6 +24,8 @@ class Classe(models.Model):
     nom = models.CharField(max_length=50, help_text="Ex: 6e A, Terminale C")
     offre_code = models.CharField(max_length=64, blank=True, default="")
     offre_configuration = models.JSONField(default=dict, blank=True, editable=False)
+    organisation_unit = models.ForeignKey("core.OrganizationUnit", null=True, blank=True, on_delete=models.PROTECT)
+    configuration_origine = models.JSONField(default=dict, blank=True, editable=False)
     effectif_max = models.PositiveIntegerField(default=40)
     salle_principale = models.ForeignKey(
         "salles.Salle",
@@ -91,6 +97,7 @@ class Groupe(models.Model):
 class Matiere(models.Model):
     """Matière enseignée (math, français...)."""
 
+    integration_id = models.UUIDField(default=uuid.uuid4, db_default=RandomUUID(), editable=False, unique=True)
     TYPE_CHOICES = [
         ("fondamentale", "Fondamentale"),
         ("optionnelle", "Optionnelle"),

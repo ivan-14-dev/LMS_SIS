@@ -10,16 +10,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from sis_common.institutional_profiles import preview_offering_result, validate_learning_offering
-
-
-def validate_bound_offering(offering):
-    validate_learning_offering(offering)
-    if offering["assessment"]["mode"] == "numeric":
-        scale = offering["assessment"]
-        values = [Decimal(str(scale[key])) for key in ("minimum", "maximum", "pass_mark")]
-        if any(value < 0 or value > Decimal("999.99") or value % Decimal("0.01") for value in values):
-            raise ValidationError("La saisie actuelle accepte des barèmes de 0 à 999,99 avec au plus deux décimales.")
+from sis_common.hierarchy import explicit_binding_origin, inherited_binding
+from sis_common.institutional_profiles import preview_offering_result, validate_bound_offering
 
 
 def offering_grade_result(evaluation, value, result, status):
@@ -65,15 +57,38 @@ class ModelValidationSerializerMixin:
 class OfferingAssignmentSerializerMixin:
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        tenant = getattr(self.context.get("request"), "tenant", None)
+        if self.instance:
+            if "organisation_unit" in attrs and attrs["organisation_unit"] != self.instance.organisation_unit:
+                raise serializers.ValidationError(
+                    {"organisation_unit": "Unité d'origine figée. Créez un autre groupe pour changer de périmètre."}
+                )
+            if (
+                self.instance.configuration_origine.get("locked")
+                and attrs.get("offre_code", self.instance.offre_code) != self.instance.offre_code
+            ):
+                raise serializers.ValidationError({"offre_code": "Les règles héritées de ce groupe sont verrouillées."})
+        elif tenant is not None:
+            inherited, origin = inherited_binding(tenant, attrs.get("organisation_unit"), attrs.get("offre_code", ""))
+            attrs["configuration_origine"] = origin
+            if inherited is not None:
+                try:
+                    validate_bound_offering(inherited)
+                except ValidationError as error:
+                    raise serializers.ValidationError({"offre_code": error.messages}) from error
+                attrs["offre_code"] = inherited["code"]
+                attrs["offre_configuration"] = inherited
+                return attrs
         if "offre_code" not in attrs:
             return attrs
         code = attrs["offre_code"]
         if self.instance and code == self.instance.offre_code:
             return attrs
+        if self.instance:
+            attrs["configuration_origine"] = explicit_binding_origin(self.instance.organisation_unit)
         if not code:
             attrs["offre_configuration"] = {}
             return attrs
-        tenant = getattr(self.context.get("request"), "tenant", None)
         offerings = (getattr(tenant, "configuration_academique", {}) or {}).get("learning_offerings", [])
         offering = next((item for item in offerings if item["code"] == code), None)
         if offering is None:

@@ -9,8 +9,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from sis_common.academic_configuration import catalog_options
+from sis_common.academic_lifecycle import AcademicLifecycleMixin, ensure_academic_open
 from sis_common.authorization import has_business_permission_or_role
+from sis_common.hierarchy_api import ConfigurationHierarchyMixin, OrganizationUnitsViewSet
 from sis_common.institutional_profiles import OfferingPreviewMixin
+from sis_common.module_configuration import ModuleConfigurationMixin
+from sis_common.workflow_tracking import record_workflow_event
 
 from .models import AnneeUniversitaire, Semestre, Universite
 from .serializers import (
@@ -97,6 +102,18 @@ class OfferingPreviewView(OfferingPreviewMixin, CurrentUniversiteView):
     """Simulation des règles d'une offre, réservée aux administrateurs du tenant."""
 
 
+class ModulesView(ModuleConfigurationMixin, CurrentUniversiteView):
+    """Activation des modules installés pour l'établissement courant."""
+
+
+class ConfigurationHierarchyView(ConfigurationHierarchyMixin, CurrentUniversiteView):
+    """Simulation et publication des règles héritées."""
+
+
+class UnitsViewSet(OrganizationUnitsViewSet):
+    permission_classes = [IsAdminOrReadOnly]
+
+
 class UniversitesViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour universités."""
 
@@ -129,11 +146,12 @@ class UniversitesViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class AnneesUniversitairesViewSet(viewsets.ModelViewSet):
+class AnneesUniversitairesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour années universitaires."""
 
     permission_classes = [IsAdminOrReadOnly]
     serializer_class = AnneeUniversitaireSerializer
+    academic_period_paths = ("",)
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["universite", "en_cours", "cloturee"]
     ordering = ["-date_debut"]
@@ -142,14 +160,14 @@ class AnneesUniversitairesViewSet(viewsets.ModelViewSet):
         return AnneeUniversitaire.objects.select_related("universite").filter(universite=self.request.tenant)
 
     def perform_create(self, serializer):
-        serializer.save(universite=self.request.tenant)
+        self.save_academic(serializer, universite=self.request.tenant)
 
     @action(detail=True, methods=["get"])
     def semestres(self, request, pk=None):
         """Liste les semestres de l'année."""
         annee = self.get_object()
         semestres = annee.semestres.all().order_by("numero")
-        serializer = SemestreSerializer(semestres, many=True)
+        serializer = SemestreSerializer(semestres, many=True, context=self.get_serializer_context())
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
@@ -167,6 +185,7 @@ class AnneesUniversitairesViewSet(viewsets.ModelViewSet):
 
         annee.en_cours = True
         annee.save(update_fields=["en_cours"])
+        record_workflow_event(request, annee, "activation", "Année activée")
         return Response({"detail": "Année activée.", "id": annee.id})
 
     @action(detail=True, methods=["post"])
@@ -180,14 +199,16 @@ class AnneesUniversitairesViewSet(viewsets.ModelViewSet):
         annee.cloturee = True
         annee.en_cours = False
         annee.save(update_fields=["cloturee", "en_cours"])
+        record_workflow_event(request, annee, "cloture", "Année clôturée")
         return Response({"detail": "Année clôturée.", "id": annee.id})
 
 
-class SemestresViewSet(viewsets.ModelViewSet):
+class SemestresViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour semestres."""
 
     permission_classes = [IsAdminOrReadOnly]
     serializer_class = SemestreSerializer
+    academic_period_paths = ("", "annee_universitaire")
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["annee_universitaire", "type", "cloture"]
     ordering = ["annee_universitaire", "numero"]
@@ -197,12 +218,20 @@ class SemestresViewSet(viewsets.ModelViewSet):
             annee_universitaire__universite=self.request.tenant
         )
 
+    @action(detail=False, methods=["get"])
+    def types(self, request):
+        options = catalog_options(request.tenant.configuration_academique, "period_types", Semestre.TYPE_CHOICES)
+        return Response([{"code": item["code"], "label": item["label"]} for item in options])
+
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def cloturer(self, request, pk=None):
         """Clôture le semestre."""
         semestre = self.get_object()
+        ensure_academic_open(semestre, paths=self.academic_period_paths)
         if semestre.cloture:
             return Response({"error": "Semestre déjà clôturé."}, status=400)
         semestre.cloture = True
         semestre.save(update_fields=["cloture"])
+        record_workflow_event(request, semestre, "cloture", "Semestre clôturé")
         return Response({"detail": "Semestre clôturé.", "id": semestre.id})

@@ -16,12 +16,8 @@ class TimestampMixin(serializers.Serializer):
 class AuditMixin(serializers.Serializer):
     """Mixin pour les champs d'audit."""
 
-    created_by = serializers.CharField(
-        source="created_by.get_full_name", read_only=True
-    )
-    modified_by = serializers.CharField(
-        source="modified_by.get_full_name", read_only=True
-    )
+    created_by = serializers.CharField(source="created_by.get_full_name", read_only=True)
+    modified_by = serializers.CharField(source="modified_by.get_full_name", read_only=True)
 
 
 class PaginatedResponseSerializer(serializers.Serializer):

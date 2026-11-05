@@ -212,6 +212,16 @@ class IntegrationAPIEndpointsTestCase(TenantAPITestCase):
         )
         self.client.force_authenticate(user=self.admin)
 
+    @patch("apps.integration.api.get_edx_client")
+    def test_heartbeat_does_not_claim_verified_webhook_delivery(self, mock_client):
+        mock_client.return_value.health_check.return_value = {"lms": True, "cms": True}
+
+        response = self.client.get("/api/v1/integration/health/")
+
+        assert response.status_code == 200
+        assert response.data["connected"] is True
+        assert response.data["webhook_status"] == "unverified"
+
     def test_list_user_mappings(self):
         """Lister les mappings utilisateurs."""
         user = Utilisateur.objects.create_user(

@@ -4,6 +4,89 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from sis_common.complaint_models import ComplaintAttachmentBase, ComplaintBase, ComplaintEntryBase
+from sis_common.delegation_models import AccessDelegationBase
+from sis_common.erp_correspondence import CorrespondanceBase
+from sis_common.hierarchy_models import (
+    ConfigurationRevisionBase,
+    OrganizationAttachmentBase,
+    OrganizationUnitBase,
+    attachment_constraint,
+)
+from sis_common.module_models import ModuleConfigurationBase
+from sis_common.signature_models import (
+    ArchiveRevocationBase,
+    DocumentArchiveBase,
+    SignatureApprovalBase,
+    SignatureMandateBase,
+)
+
+
+class SignatureApproval(SignatureApprovalBase):
+    etablissement = models.ForeignKey("etablissement.Etablissement", on_delete=models.PROTECT)
+
+
+class SignatureMandate(SignatureMandateBase):
+    pass
+
+
+class DocumentArchive(DocumentArchiveBase):
+    etablissement = models.ForeignKey("etablissement.Etablissement", on_delete=models.PROTECT)
+
+
+class ArchiveRevocation(ArchiveRevocationBase):
+    pass
+
+
+class AccessDelegation(AccessDelegationBase):
+    etablissement = models.ForeignKey("etablissement.Etablissement", on_delete=models.PROTECT)
+
+
+class ModuleConfiguration(ModuleConfigurationBase):
+    etablissement = models.OneToOneField("etablissement.Etablissement", on_delete=models.PROTECT)
+
+
+class OrganizationUnit(OrganizationUnitBase):
+    etablissement = models.ForeignKey("etablissement.Etablissement", on_delete=models.PROTECT)
+
+    class Meta(OrganizationUnitBase.Meta):
+        abstract = False
+        unique_together = [("etablissement", "code")]
+
+
+class OrganizationAttachment(OrganizationAttachmentBase):
+    level = models.OneToOneField("etablissement.Niveau", null=True, blank=True, on_delete=models.PROTECT)
+    group = models.OneToOneField("classes.Groupe", null=True, blank=True, on_delete=models.PROTECT)
+    subject = models.OneToOneField("classes.Matiere", null=True, blank=True, on_delete=models.PROTECT)
+    activity = models.OneToOneField("emplois_du_temps.Creneau", null=True, blank=True, on_delete=models.PROTECT)
+
+    class Meta:
+        constraints = [attachment_constraint(("user", "book", "level", "group", "subject", "activity"))]
+
+
+class ConfigurationRevision(ConfigurationRevisionBase):
+    etablissement = models.ForeignKey("etablissement.Etablissement", on_delete=models.PROTECT)
+
+    class Meta(ConfigurationRevisionBase.Meta):
+        abstract = False
+        unique_together = [("etablissement", "revision")]
+
+
+class Reclamation(ComplaintBase):
+    etablissement = models.ForeignKey("etablissement.Etablissement", on_delete=models.PROTECT)
+
+
+class ReclamationEntry(ComplaintEntryBase):
+    pass
+
+
+class ReclamationPiece(ComplaintAttachmentBase):
+    pass
+
+
+class Correspondance(CorrespondanceBase):
+    etablissement = models.ForeignKey("etablissement.Etablissement", on_delete=models.PROTECT)
+
 
 class WorkflowEvent(models.Model):
     """Audit métier pour les transitions de workflow."""

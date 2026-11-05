@@ -169,7 +169,7 @@ class PeriodeSerializer(AcademicDatesMixin, serializers.ModelSerializer):
 
     academic_year_field = "annee_scolaire"
     annee_libelle = serializers.CharField(source="annee_scolaire.libelle", read_only=True)
-    type_display = serializers.CharField(source="get_type_display", read_only=True)
+    type_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Periode
@@ -186,6 +186,11 @@ class PeriodeSerializer(AcademicDatesMixin, serializers.ModelSerializer):
             "cloturee",
         ]
         read_only_fields = ["id"]
+
+    def get_type_display(self, obj):
+        request = self.context.get("request")
+        tenant = request.tenant if request else obj.annee_scolaire.etablissement
+        return catalog_label(tenant.configuration_academique, "period_types", obj.type, obj.TYPE_CHOICES)
 
     def validate_annee_scolaire(self, value):
         request = self.context.get("request")

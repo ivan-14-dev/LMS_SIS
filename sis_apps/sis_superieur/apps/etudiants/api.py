@@ -1,14 +1,17 @@
 """API views for etudiants (ViewSets DRF) - SIS Supérieur."""
 
 from apps.core.serializers import WorkflowEventSerializer
+from django.db import transaction
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import status, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from sis_common.academic_lifecycle import AcademicLifecycleMixin, ensure_academic_open
+from sis_common.admissions import AdmissionTenantAccess, ReenrollmentMixin, scoped_admissions
 from sis_common.authorization import request_has_business_access
 from sis_common.learner_import import LearnerImportMixin
 from sis_common.workflow_tracking import (
@@ -45,15 +48,18 @@ class IsScolariteOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
+        permission = getattr(view, "required_change_permission", "etudiants.change_etudiant")
+        if hasattr(view, "required_change_permission") and request.user.has_perm(permission):
+            return True
         return request_has_business_access(
             request,
-            "etudiants.change_etudiant",
+            permission,
             ("scolarite", "directeur_etudes", "responsable_formation", "doyen"),
             tenant_group_codes=("student_manager_superieur",),
         )
 
 
-class EtudiantsViewSet(LearnerImportMixin, viewsets.ModelViewSet):
+class EtudiantsViewSet(LearnerImportMixin, AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour étudiants."""
 
     permission_classes = [IsScolariteOrReadOnly]
@@ -160,6 +166,7 @@ class EtudiantsViewSet(LearnerImportMixin, viewsets.ModelViewSet):
         )
 
     @action(detail=True, methods=["get", "post"])
+    @transaction.atomic
     def matieres_individuelles(self, request, pk=None):
         """Liste ou crée des ECUE individualisés pour un étudiant."""
         etudiant = self.get_object()
@@ -179,10 +186,15 @@ class EtudiantsViewSet(LearnerImportMixin, viewsets.ModelViewSet):
             context={"request": request, "etudiant": etudiant},
         )
         serializer.is_valid(raise_exception=True)
+        ensure_academic_open(
+            data=serializer.validated_data,
+            paths=("inscription_admin.annee_universitaire", "semestre_cible.annee_universitaire", "semestre_cible"),
+        )
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def retirer_matiere_individuelle(self, request, pk=None):
         """Retire une affectation ECUE individualisée d'un étudiant."""
         etudiant = self.get_object()
@@ -196,28 +208,111 @@ class EtudiantsViewSet(LearnerImportMixin, viewsets.ModelViewSet):
                 {"error": "Affectation individuelle introuvable."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        ensure_academic_open(affectation, paths=("inscription_admin.annee_universitaire", "semestre_cible"))
         affectation.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class InscriptionsAdminViewSet(viewsets.ModelViewSet):
+class InscriptionsAdminViewSet(ReenrollmentMixin, AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet pour les inscriptions administratives."""
 
-    permission_classes = [IsScolariteOrReadOnly]
+    permission_classes = [AdmissionTenantAccess, IsScolariteOrReadOnly]
+    required_change_permission = "etudiants.change_inscriptionadministrative"
     serializer_class = InscriptionAdministrativeSerializer
+    academic_period_paths = ("annee_universitaire",)
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ["statut", "annee_universitaire", "formation", "regime"]
+    filterset_fields = ["statut", "annee_universitaire", "formation", "regime", "etudiant"]
     ordering = ["-annee_universitaire__date_debut", "-date_inscription"]
 
     def get_queryset(self):
-        return InscriptionAdministrative.objects.select_related(
+        queryset = InscriptionAdministrative.objects.select_related(
             "etudiant__user", "annee_universitaire", "formation", "parcours"
-        )
+        ).filter(etudiant__universite=self.request.tenant)
+        user = self.request.user
+        if user.role in ("etudiant", "doctorant", "parent") and not user.is_superuser:
+            return queryset.filter(etudiant__user=user)
+        if (
+            user.has_perm("etudiants.view_inscriptionadministrative")
+            or (
+                self.request.method not in ("GET", "HEAD", "OPTIONS") and user.has_perm(self.required_change_permission)
+            )
+            or request_has_business_access(
+                self.request,
+                "etudiants.view_inscriptionadministrative",
+                ("scolarite", "directeur_etudes", "responsable_formation", "doyen"),
+                tenant_group_codes=("student_manager_superieur",),
+            )
+        ):
+            return scoped_admissions(queryset, self.request)
+        return queryset.filter(etudiant__user=self.request.user)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def transferer(self, request, pk=None):
+        from apps.examens.models import ResultatExamen
+        from apps.notes.models import Note
+
+        inscription = self.get_object()
+        ensure_academic_open(inscription, paths=self.academic_period_paths)
+        motif = serializers.CharField(allow_blank=False, max_length=2000).run_validation(request.data.get("motif"))
+        serializer = self.get_serializer(
+            inscription,
+            data={"formation": request.data.get("formation"), "parcours": request.data.get("parcours")},
+            partial=True,
+            context={**self.get_serializer_context(), "controlled_transfer": True},
+        )
+        serializer.is_valid(raise_exception=True)
+        formation = serializer.validated_data["formation"]
+        if inscription.statut != "validee":
+            raise serializers.ValidationError({"detail": "Le transfert exige une inscription validée."})
+        if formation.pk == inscription.formation_id and serializer.validated_data["parcours"] == inscription.parcours:
+            raise serializers.ValidationError({"formation": "Sélectionnez une autre formation ou un autre parcours."})
+        if (
+            inscription.offre_configuration
+            or formation.offre_configuration
+            or inscription.inscriptions_peda.exists()
+            or inscription.affectations_ecue_individuelles.exists()
+            or inscription.etudiant.acquisitions_ects.filter(
+                annee_universitaire=inscription.annee_universitaire
+            ).exists()
+            or Note.objects.filter(
+                etudiant=inscription.etudiant, evaluation__semestre__annee_universitaire=inscription.annee_universitaire
+            ).exists()
+            or ResultatExamen.objects.filter(
+                etudiant=inscription.etudiant,
+                epreuve__session__semestre__annee_universitaire=inscription.annee_universitaire,
+            ).exists()
+        ):
+            raise serializers.ValidationError(
+                {
+                    "detail": (
+                        "Ce dossier possède des règles, inscriptions pédagogiques ou acquis. "
+                        "Un traitement des équivalences est requis."
+                    )
+                }
+            )
+        previous = {"formation_id": inscription.formation_id, "parcours_id": inscription.parcours_id}
+        self.save_academic(serializer)
+        record_workflow_event(
+            request,
+            inscription,
+            "transfert",
+            "Transfert de formation",
+            message=motif,
+            recipients=_inscription_notification_recipients(request, inscription),
+            metadata={
+                "avant": previous,
+                "apres": {"formation_id": inscription.formation_id, "parcours_id": inscription.parcours_id},
+            },
+        )
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
     def valider(self, request, pk=None):
         """Valide une inscription administrative."""
         inscription = self.get_object()
+        ensure_academic_open(inscription, paths=self.academic_period_paths)
         if inscription.statut != "provisoire":
             return Response(
                 {"error": "Seules les inscriptions provisoires peuvent être validées."},
@@ -241,17 +336,21 @@ class InscriptionsAdminViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Inscription validée.", "id": inscription.id})
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def refuser(self, request, pk=None):
         """Refuse une inscription administrative."""
         inscription = self.get_object()
+        ensure_academic_open(inscription, paths=self.academic_period_paths)
+        if inscription.statut != "provisoire":
+            return Response({"error": "Seule une inscription provisoire peut être refusée."}, status=400)
         motif = request.data.get("motif", "")
-        if not motif:
+        if not isinstance(motif, str) or not motif.strip() or len(motif) > 2000:
             return Response(
                 {"error": "Le motif de refus est obligatoire."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         inscription.statut = "refusee"
-        inscription.motif_refus = motif
+        inscription.motif_refus = motif.strip()
         inscription.save(update_fields=["statut", "motif_refus", "updated_at"])
         record_workflow_event(
             request,

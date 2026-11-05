@@ -12,6 +12,34 @@ from rest_framework_simplejwt.tokens import RefreshToken
 TEST_USER_PASSWORD = "irrelevant-test-value-not-a-real-secret"
 
 
+class ProfilePublicationPermissionTestCase(TenantAPITestCase):
+    def test_profile_exposes_staff_permission_without_allowing_its_update(self):
+        for is_staff in (False, True):
+            user = Utilisateur.objects.create_user(
+                f"publication_permission_{is_staff}",
+                password=TEST_USER_PASSWORD,
+                role="doyen",
+                etablissement=self.tenant,
+                is_staff=is_staff,
+            )
+            self.client.force_authenticate(user=user)
+
+            response = self.client.get("/api/v1/utilisateurs/comptes/me/")
+
+            assert response.status_code == 200
+            assert response.data["is_staff"] is is_staff
+
+            response = self.client.patch(
+                f"/api/v1/utilisateurs/comptes/{user.pk}/",
+                {"is_staff": not is_staff},
+            )
+
+            assert response.status_code == 200
+            user.refresh_from_db()
+            assert user.is_staff is is_staff
+            assert response.data["is_staff"] is is_staff
+
+
 class SessionRevocationTestCase(TenantAPITestCase):
     """Tests de la révocation de session (token DRF + jetons JWT)."""
 

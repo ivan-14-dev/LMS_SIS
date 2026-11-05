@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from sis_common.authorization import has_business_permission_or_role
+
 from .models import FactureFrais, PaiementFrais, TypeFraisInscription
 
 
@@ -173,9 +175,7 @@ class PaiementCreateSerializer(serializers.ModelSerializer):
             "scolarite",
             "comptable",
         }
-        is_manager = user and (
-            user.is_staff or user.has_perm("paiements.add_paiementfrais") or getattr(user, "role", "") in manager_roles
-        )
+        is_manager = user and has_business_permission_or_role(user, "paiements.add_paiementfrais", manager_roles)
         if not is_manager and (not user or facture.etudiant.user_id != user.id):
             raise serializers.ValidationError({"facture": "Vous ne pouvez pas payer cette facture."})
         if facture.statut in ("payee", "annulee"):

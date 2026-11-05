@@ -13,6 +13,7 @@ from sis_common.notification_channels import (
     summarize_notification_delivery_trends,
 )
 from sis_common.reporting import configured_report, export_queryset
+from sis_common.workflow_filters import EVENT_FILTERS, PRIVATE_WORKFLOW_MODELS, filter_events, validated_event_filters
 
 from .serializers import WorkflowEventSerializer
 
@@ -27,11 +28,7 @@ EVENT_REPORT_FIELDS = {
     "request_id": ("Requête", "request_id"),
     "created_at": ("Date", "created_at"),
 }
-EVENT_REPORT_FILTERS = {
-    "action": "action",
-    "app_label": "app_label",
-    "model": "model",
-}
+EVENT_REPORT_FILTERS = EVENT_FILTERS
 EVENT_REPORT_GROUPS = {
     "action": "action",
     "app_label": "app_label",
@@ -70,18 +67,33 @@ class WorkflowEventViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsWorkflowAuditor]
 
     def get_queryset(self):
-        queryset = WorkflowEvent.objects.select_related("actor")
+        queryset = WorkflowEvent.objects.exclude(app_label="core", model__in=PRIVATE_WORKFLOW_MODELS).select_related(
+            "actor"
+        )
         tenant_id = getattr(getattr(self.request, "tenant", None), "id", None)
         if tenant_id is not None:
             queryset = queryset.filter(tenant_id=tenant_id)
-        filters = {}
-        for param, field in EVENT_REPORT_FILTERS.items():
-            value = self.request.query_params.get(param)
-            if value:
-                filters[field] = value
-        if filters:
-            queryset = queryset.filter(**filters)
-        return queryset.order_by("-created_at")
+        return filter_events(queryset, self.request.query_params.dict()).order_by("-created_at", "-id")
+
+    @action(detail=False, methods=["get"])
+    def acteurs(self, request):
+        rows = (
+            self.get_queryset()
+            .exclude(actor=None)
+            .order_by("actor__username")
+            .values("actor_id", "actor__username", "actor__first_name", "actor__last_name")
+            .distinct()
+        )
+        return response.Response(
+            [
+                {
+                    "id": row["actor_id"],
+                    "nom": " ".join(value for value in (row["actor__first_name"], row["actor__last_name"]) if value)
+                    or row["actor__username"],
+                }
+                for row in rows
+            ]
+        )
 
     @action(detail=False, methods=["get"])
     def bilan(self, request):
@@ -92,15 +104,8 @@ class WorkflowEventViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
                 {"group_by": f"Valeurs acceptées: {', '.join(EVENT_REPORT_GROUPS)}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        rows = (
-            self.get_queryset()
-            .values(group_field)
-            .annotate(nombre=Count("id"))
-            .order_by(group_field)
-        )
-        return response.Response(
-            [{"groupe": row[group_field], "nombre": row["nombre"]} for row in rows]
-        )
+        rows = self.get_queryset().values(group_field).annotate(nombre=Count("id")).order_by(group_field)
+        return response.Response([{"groupe": row[group_field], "nombre": row["nombre"]} for row in rows])
 
     @action(detail=False, methods=["post"])
     def exporter(self, request):
@@ -115,7 +120,7 @@ class WorkflowEventViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             report,
             EVENT_REPORT_FIELDS,
             EVENT_REPORT_FILTERS,
-            request.data.get("filters", {}),
+            validated_event_filters(request.data.get("filters", {})),
         )
 
 
@@ -141,9 +146,9 @@ class WorkflowNotificationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet
         return queryset
 
     def get_queryset(self):
-        queryset = WorkflowNotification.objects.filter(
-            recipient=self.request.user
-        ).select_related("event", "event__actor")
+        queryset = WorkflowNotification.objects.filter(recipient=self.request.user).select_related(
+            "event", "event__actor"
+        )
         if self.request.query_params.get("non_lues") == "1":
             queryset = queryset.filter(is_read=False)
         return self._apply_delivery_filters(queryset).order_by("-created_at")

@@ -45,9 +45,7 @@ class AuditLogMiddleware:
                     "path": request.path,
                     "status": response.status_code,
                     "duration_ms": int(duration),
-                    "user_id": (
-                        request.user.id if request.user.is_authenticated else None
-                    ),
+                    "user_id": (request.user.id if request.user.is_authenticated else None),
                     "ip": request.META.get("REMOTE_ADDR"),
                 },
             )

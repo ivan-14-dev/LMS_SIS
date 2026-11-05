@@ -34,9 +34,7 @@ class PortailEtudiantViewSet(viewsets.ViewSet):
 
     def _current_inscription(self, etudiant):
         current_year = etudiant.annee_universitaire_actuelle_id
-        inscriptions = etudiant.inscriptions_admin.select_related(
-            "formation", "parcours", "annee_universitaire"
-        )
+        inscriptions = etudiant.inscriptions_admin.select_related("formation", "parcours", "annee_universitaire")
         if current_year:
             current = inscriptions.filter(annee_universitaire_id=current_year).first()
             if current:
@@ -45,7 +43,7 @@ class PortailEtudiantViewSet(viewsets.ViewSet):
 
     def _latest_releve(self, etudiant):
         return (
-            ReleveNotes.objects.filter(etudiant=etudiant)
+            ReleveNotes.objects.filter(etudiant=etudiant, signe=True)
             .select_related("semestre")
             .order_by("-date_emission")
             .first()
@@ -62,10 +60,9 @@ class PortailEtudiantViewSet(viewsets.ViewSet):
             .select_related("evaluation__ecue__ue", "evaluation__semestre")
             .order_by("-evaluation__date", "-date_saisie")[:5]
         )
-        factures_impayees = (
-            FactureFrais.objects.filter(etudiant=etudiant, statut__in=UNPAID_STATUSES)
-            .order_by("date_echeance", "-date_emission")[:5]
-        )
+        factures_impayees = FactureFrais.objects.filter(etudiant=etudiant, statut__in=UNPAID_STATUSES).order_by(
+            "date_echeance", "-date_emission"
+        )[:5]
 
         return Response(
             {
@@ -85,12 +82,8 @@ class PortailEtudiantViewSet(viewsets.ViewSet):
                     else None
                 ),
                 "statistiques": {
-                    "credits_valides": _decimal_to_float(
-                        latest_releve.credits_valides if latest_releve else 0
-                    ),
-                    "moyenne": _decimal_to_float(
-                        latest_releve.moyenne_generale if latest_releve else None
-                    ),
+                    "credits_valides": _decimal_to_float(latest_releve.credits_valides if latest_releve else 0),
+                    "moyenne": _decimal_to_float(latest_releve.moyenne_generale if latest_releve else None),
                 },
                 "notes_recentes": [
                     {
@@ -108,14 +101,8 @@ class PortailEtudiantViewSet(viewsets.ViewSet):
                         "id": facture.id,
                         "numero": facture.numero,
                         "montant": _decimal_to_float(facture.montant),
-                        "reste_a_payer": _decimal_to_float(
-                            facture.montant - facture.montant_paye
-                        ),
-                        "echeance": (
-                            facture.date_echeance.isoformat()
-                            if facture.date_echeance
-                            else None
-                        ),
+                        "reste_a_payer": _decimal_to_float(facture.montant - facture.montant_paye),
+                        "echeance": (facture.date_echeance.isoformat() if facture.date_echeance else None),
                         "statut": facture.statut,
                     }
                     for facture in factures_impayees
@@ -137,26 +124,18 @@ class PortailEtudiantViewSet(viewsets.ViewSet):
                 "nom_complet": etudiant.user.get_full_name(),
                 "email": etudiant.user.email,
                 "formation": (
-                    {"id": inscription.formation.id, "nom": inscription.formation.nom}
-                    if inscription
-                    else None
+                    {"id": inscription.formation.id, "nom": inscription.formation.nom} if inscription else None
                 ),
                 "parcours": (
                     {"id": inscription.parcours.id, "nom": inscription.parcours.nom}
                     if inscription and inscription.parcours
                     else None
                 ),
-                "annee_universitaire": (
-                    inscription.annee_universitaire.libelle if inscription else None
-                ),
+                "annee_universitaire": (inscription.annee_universitaire.libelle if inscription else None),
                 "statut": etudiant.statut,
                 "regime": etudiant.regime,
-                "credits_valides": _decimal_to_float(
-                    latest_releve.credits_valides if latest_releve else 0
-                ),
-                "moyenne_generale": _decimal_to_float(
-                    latest_releve.moyenne_generale if latest_releve else None
-                ),
+                "credits_valides": _decimal_to_float(latest_releve.credits_valides if latest_releve else 0),
+                "moyenne_generale": _decimal_to_float(latest_releve.moyenne_generale if latest_releve else None),
             }
         )
 
@@ -201,7 +180,7 @@ class PortailEtudiantViewSet(viewsets.ViewSet):
     def releves(self, request):
         """Relevés de notes de l'étudiant."""
         etudiant = self._get_etudiant(request)
-        releves = etudiant.releves.select_related("semestre").order_by("-date_emission")
+        releves = etudiant.releves.filter(signe=True).select_related("semestre").order_by("-date_emission")
         return Response(
             [
                 {
@@ -229,15 +208,9 @@ class PortailEtudiantViewSet(viewsets.ViewSet):
                     "numero": facture.numero,
                     "montant": _decimal_to_float(facture.montant),
                     "paye": _decimal_to_float(facture.montant_paye),
-                    "reste_a_payer": _decimal_to_float(
-                        facture.montant - facture.montant_paye
-                    ),
+                    "reste_a_payer": _decimal_to_float(facture.montant - facture.montant_paye),
                     "statut": facture.statut,
-                    "echeance": (
-                        facture.date_echeance.isoformat()
-                        if facture.date_echeance
-                        else None
-                    ),
+                    "echeance": (facture.date_echeance.isoformat() if facture.date_echeance else None),
                 }
                 for facture in factures
             ]

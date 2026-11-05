@@ -9,8 +9,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from sis_common.academic_configuration import catalog_options
+from sis_common.academic_lifecycle import AcademicLifecycleMixin, ensure_academic_open
 from sis_common.authorization import has_business_permission_or_role
+from sis_common.hierarchy_api import ConfigurationHierarchyMixin, OrganizationUnitsViewSet
+from sis_common.hierarchy_attachments import PreserveOrganizationAttachmentsMixin
 from sis_common.institutional_profiles import OfferingPreviewMixin
+from sis_common.module_configuration import ModuleConfigurationMixin
+from sis_common.workflow_tracking import record_workflow_event
 
 from .models import AnneeScolaire, Etablissement, Niveau, Periode
 from .serializers import (
@@ -86,6 +92,18 @@ class OfferingPreviewView(OfferingPreviewMixin, CurrentEtablissementView):
     """Simulation des règles d'une offre, réservée aux administrateurs du tenant."""
 
 
+class ModulesView(ModuleConfigurationMixin, CurrentEtablissementView):
+    """Activation des modules installés pour l'établissement courant."""
+
+
+class ConfigurationHierarchyView(ConfigurationHierarchyMixin, CurrentEtablissementView):
+    """Simulation et publication des règles héritées."""
+
+
+class UnitsViewSet(OrganizationUnitsViewSet):
+    permission_classes = [IsAdminOrReadOnly]
+
+
 class EtablissementsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour établissements."""
 
@@ -108,11 +126,12 @@ class EtablissementsViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class AnneesScolairesViewSet(viewsets.ModelViewSet):
+class AnneesScolairesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour années scolaires."""
 
     permission_classes = [IsAdminOrReadOnly]
     serializer_class = AnneeScolaireSerializer
+    academic_period_paths = ("",)
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["etablissement", "en_cours", "cloturee"]
     ordering = ["-date_debut"]
@@ -121,14 +140,14 @@ class AnneesScolairesViewSet(viewsets.ModelViewSet):
         return AnneeScolaire.objects.select_related("etablissement").filter(etablissement=self.request.tenant)
 
     def perform_create(self, serializer):
-        serializer.save(etablissement=self.request.tenant)
+        self.save_academic(serializer, etablissement=self.request.tenant)
 
     @action(detail=True, methods=["get"])
     def periodes(self, request, pk=None):
         """Liste les périodes de l'année."""
         annee = self.get_object()
         periodes = annee.periodes.all().order_by("numero")
-        serializer = PeriodeSerializer(periodes, many=True)
+        serializer = PeriodeSerializer(periodes, many=True, context=self.get_serializer_context())
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
@@ -146,6 +165,7 @@ class AnneesScolairesViewSet(viewsets.ModelViewSet):
 
         annee.en_cours = True
         annee.save(update_fields=["en_cours"])
+        record_workflow_event(request, annee, "activation", "Année activée")
         return Response({"detail": "Année activée.", "id": annee.id})
 
     @action(detail=True, methods=["post"])
@@ -159,14 +179,16 @@ class AnneesScolairesViewSet(viewsets.ModelViewSet):
         annee.cloturee = True
         annee.en_cours = False
         annee.save(update_fields=["cloturee", "en_cours"])
+        record_workflow_event(request, annee, "cloture", "Année clôturée")
         return Response({"detail": "Année clôturée.", "id": annee.id})
 
 
-class PeriodesViewSet(viewsets.ModelViewSet):
+class PeriodesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour périodes."""
 
     permission_classes = [IsAdminOrReadOnly]
     serializer_class = PeriodeSerializer
+    academic_period_paths = ("", "annee_scolaire")
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["annee_scolaire", "type", "cloturee"]
     ordering = ["annee_scolaire", "numero"]
@@ -176,18 +198,26 @@ class PeriodesViewSet(viewsets.ModelViewSet):
             annee_scolaire__etablissement=self.request.tenant
         )
 
+    @action(detail=False, methods=["get"])
+    def types(self, request):
+        options = catalog_options(request.tenant.configuration_academique, "period_types", Periode.TYPE_CHOICES)
+        return Response([{"code": item["code"], "label": item["label"]} for item in options])
+
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def cloturer(self, request, pk=None):
         """Clôture la période."""
         periode = self.get_object()
+        ensure_academic_open(periode, paths=self.academic_period_paths)
         if periode.cloturee:
             return Response({"error": "Période déjà clôturée."}, status=400)
         periode.cloturee = True
         periode.save(update_fields=["cloturee"])
+        record_workflow_event(request, periode, "cloture", "Période clôturée")
         return Response({"detail": "Période clôturée.", "id": periode.id})
 
 
-class NiveauxViewSet(viewsets.ModelViewSet):
+class NiveauxViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour niveaux."""
 
     permission_classes = [IsAdminOrReadOnly]

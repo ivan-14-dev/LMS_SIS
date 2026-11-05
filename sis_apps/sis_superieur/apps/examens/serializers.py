@@ -3,6 +3,7 @@
 from rest_framework import serializers
 
 from sis_common.exam_files import hash_uploaded_file
+from sis_common.exam_results import ExamDefinitionValidationMixin, ExamResultValidationMixin
 from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
 
 from .models import (
@@ -24,11 +25,13 @@ class SessionExamenSerializer(serializers.ModelSerializer):
     type_display = serializers.CharField(source="get_type_display", read_only=True)
     semestre_libelle = serializers.CharField(source="semestre.libelle", read_only=True)
     nb_epreuves = serializers.SerializerMethodField()
+    libelle = serializers.CharField(source="__str__", read_only=True)
 
     class Meta:
         model = SessionExamen
         fields = [
             "id",
+            "libelle",
             "semestre",
             "semestre_libelle",
             "numero",
@@ -58,11 +61,13 @@ class EpreuveExamenListSerializer(serializers.ModelSerializer):
     nb_convoques = serializers.SerializerMethodField()
     soumission_statut = serializers.SerializerMethodField()
     soumission_alerte = serializers.SerializerMethodField()
+    libelle = serializers.CharField(source="__str__", read_only=True)
 
     class Meta:
         model = EpreuveExamen
         fields = [
             "id",
+            "libelle",
             "session",
             "session_numero",
             "ecue",
@@ -96,7 +101,7 @@ class EpreuveExamenListSerializer(serializers.ModelSerializer):
         return get_submission_window_alert(obj, configuration, "exam")
 
 
-class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
+class EpreuveExamenDetailSerializer(ExamDefinitionValidationMixin, serializers.ModelSerializer):
     """Serializer complet pour une épreuve."""
 
     ecue_code = serializers.CharField(source="ecue.code", read_only=True)
@@ -159,9 +164,8 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
         return get_submission_window_alert(obj, configuration, "exam")
 
     def validate(self, attrs):
-        debut_soumission = attrs.get(
-            "debut_soumission", getattr(self.instance, "debut_soumission", None)
-        )
+        attrs = super().validate(attrs)
+        debut_soumission = attrs.get("debut_soumission", getattr(self.instance, "debut_soumission", None))
         fin_soumission = attrs.get("fin_soumission", getattr(self.instance, "fin_soumission", None))
         if debut_soumission and fin_soumission and fin_soumission < debut_soumission:
             raise serializers.ValidationError(
@@ -173,12 +177,8 @@ class EpreuveExamenDetailSerializer(serializers.ModelSerializer):
 class ConvocationExamenSerializer(serializers.ModelSerializer):
     """Serializer pour les convocations."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
     epreuve_ecue = serializers.CharField(source="epreuve.ecue.nom", read_only=True)
     epreuve_date = serializers.DateField(source="epreuve.date", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
@@ -203,7 +203,7 @@ class ConvocationExamenSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class ResultatExamenSerializer(serializers.ModelSerializer):
+class ResultatExamenSerializer(ExamResultValidationMixin, serializers.ModelSerializer):
     """Serializer pour les résultats d'examen."""
 
     session_numero = serializers.IntegerField(source="epreuve.session.numero", read_only=True)
@@ -213,9 +213,7 @@ class ResultatExamenSerializer(serializers.ModelSerializer):
     etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
     etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
-    type_resultat_display = serializers.CharField(
-        source="get_type_resultat_display", read_only=True
-    )
+    type_resultat_display = serializers.CharField(source="get_type_resultat_display", read_only=True)
 
     class Meta:
         model = ResultatExamen
@@ -257,6 +255,7 @@ class ResultatExamenSerializer(serializers.ModelSerializer):
             "id",
             "created_at",
             "updated_at",
+            "statut",
             "numero_anonyme",
             "admis",
             "mention",
@@ -277,9 +276,7 @@ class ResultatExamenSerializer(serializers.ModelSerializer):
 
 class CopieExamenSerializer(serializers.ModelSerializer):
     epreuve = serializers.IntegerField(source="convocation.epreuve_id", read_only=True)
-    convocation = serializers.PrimaryKeyRelatedField(
-        queryset=ConvocationExamen.objects.all(), write_only=True
-    )
+    convocation = serializers.PrimaryKeyRelatedField(queryset=ConvocationExamen.objects.all(), write_only=True)
 
     class Meta:
         model = CopieExamen
@@ -308,17 +305,11 @@ class CopieExamenSerializer(serializers.ModelSerializer):
 
     def validate_convocation(self, value):
         if not value.epreuve.anonymat:
-            raise serializers.ValidationError(
-                "L'anonymat doit être activé avant le dépôt des copies."
-            )
+            raise serializers.ValidationError("L'anonymat doit être activé avant le dépôt des copies.")
         if value.statut != "present":
-            raise serializers.ValidationError(
-                "Une copie ne peut être déposée que pour un candidat présent."
-            )
+            raise serializers.ValidationError("Une copie ne peut être déposée que pour un candidat présent.")
         if hasattr(value, "copie"):
-            raise serializers.ValidationError(
-                "Une copie existe déjà pour cette convocation."
-            )
+            raise serializers.ValidationError("Une copie existe déjà pour cette convocation.")
         return value
 
     def create(self, validated_data):
@@ -347,41 +338,24 @@ class AffectationCorrectionSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         copie = attrs["copie"]
         correcteur = attrs["correcteur"]
-        if (
-            correcteur.role not in ("enseignant", "chercheur")
-            and not correcteur.is_staff
-        ) or not correcteur.is_active:
-            raise serializers.ValidationError(
-                {"correcteur": "Le correcteur doit être un enseignant actif."}
-            )
+        if (correcteur.role not in ("enseignant", "chercheur") and not correcteur.is_staff) or not correcteur.is_active:
+            raise serializers.ValidationError({"correcteur": "Le correcteur doit être un enseignant actif."})
         if correcteur.pk == copie.convocation.etudiant.user_id:
-            raise serializers.ValidationError(
-                {"correcteur": "Un candidat ne peut pas corriger sa propre copie."}
-            )
+            raise serializers.ValidationError({"correcteur": "Un candidat ne peut pas corriger sa propre copie."})
         if copie.statut not in ("deposee", "affectee"):
-            raise serializers.ValidationError(
-                {"copie": "Cette copie n'accepte plus de nouvelles affectations."}
-            )
+            raise serializers.ValidationError({"copie": "Cette copie n'accepte plus de nouvelles affectations."})
         if not 1 <= attrs["ordre"] <= copie.epreuve.nombre_corrections:
-            raise serializers.ValidationError(
-                {"ordre": "Cette épreuve ne prévoit pas ce niveau de correction."}
-            )
+            raise serializers.ValidationError({"ordre": "Cette épreuve ne prévoit pas ce niveau de correction."})
         if copie.affectations.count() >= copie.epreuve.nombre_corrections:
-            raise serializers.ValidationError(
-                {"copie": "Toutes les corrections prévues sont déjà affectées."}
-            )
+            raise serializers.ValidationError({"copie": "Toutes les corrections prévues sont déjà affectées."})
         return attrs
 
     def create(self, validated_data):
-        return AffectationCorrection.objects.create(
-            **validated_data, affectee_par=self.context["request"].user
-        )
+        return AffectationCorrection.objects.create(**validated_data, affectee_par=self.context["request"].user)
 
 
 class CorrectionCopieSerializer(serializers.ModelSerializer):
-    numero_anonyme = serializers.CharField(
-        source="affectation.copie.numero_anonyme", read_only=True
-    )
+    numero_anonyme = serializers.CharField(source="affectation.copie.numero_anonyme", read_only=True)
 
     class Meta:
         model = CorrectionCopie
@@ -398,21 +372,15 @@ class CorrectionCopieSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         affectation = attrs["affectation"]
         if affectation.correcteur != self.context["request"].user:
-            raise serializers.ValidationError(
-                {"affectation": "Cette copie ne vous est pas affectée."}
-            )
+            raise serializers.ValidationError({"affectation": "Cette copie ne vous est pas affectée."})
         if affectation.statut != "assignee" or affectation.copie.statut not in (
             "affectee",
             "correction",
         ):
-            raise serializers.ValidationError(
-                {"affectation": "Cette affectation n'accepte plus de correction."}
-            )
+            raise serializers.ValidationError({"affectation": "Cette affectation n'accepte plus de correction."})
         bareme = getattr(affectation.copie.epreuve, "bareme", 20)
         if attrs["note"] > bareme or attrs["note"] < 0:
-            raise serializers.ValidationError(
-                {"note": "La note doit respecter le barème de l'épreuve."}
-            )
+            raise serializers.ValidationError({"note": "La note doit respecter le barème de l'épreuve."})
         return attrs
 
 

@@ -135,6 +135,13 @@ class Paiement(models.Model):
         indexes = [
             models.Index(fields=["facture", "statut"]),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["reference_externe"],
+                condition=models.Q(mode="carte", statut__in=["valide", "rembourse"]) & ~models.Q(reference_externe=""),
+                name="secondaire_card_reference_once",
+            ),
+        ]
 
     def __str__(self):
         return f"Paiement {self.numero} - {self.montant}€"

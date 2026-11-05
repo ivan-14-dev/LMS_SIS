@@ -563,6 +563,9 @@ REPORT_DATASET_SCHEMAS = {
                     {"code": "action", "label": "Action"},
                     {"code": "app_label", "label": "Module"},
                     {"code": "model", "label": "Modèle"},
+                    {"code": "actor", "label": "Personne"},
+                    {"code": "date_debut", "label": "Du"},
+                    {"code": "date_fin", "label": "Au"},
                 ],
                 "group_by_options": [
                     {"code": "action", "label": "Action"},
@@ -586,6 +589,9 @@ REPORT_DATASET_SCHEMAS = {
                     {"code": "action", "label": "Action"},
                     {"code": "app_label", "label": "Module"},
                     {"code": "model", "label": "Modèle"},
+                    {"code": "actor", "label": "Personne"},
+                    {"code": "date_debut", "label": "Du"},
+                    {"code": "date_fin", "label": "Au"},
                 ],
                 "group_by_options": [
                     {"code": "action", "label": "Action"},

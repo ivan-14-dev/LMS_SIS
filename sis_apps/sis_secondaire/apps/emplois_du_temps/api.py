@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.authorization import request_has_business_access
+from sis_common.hierarchy_attachments import PreserveOrganizationAttachmentsMixin
 
 from .models import Contrainte, Creneau
 from .serializers import ContrainteSerializer, CreneauDetailSerializer, CreneauListSerializer
@@ -30,7 +31,7 @@ class IsVieScolariteOrReadOnly(IsAuthenticated):
         )
 
 
-class CreneauxViewSet(viewsets.ModelViewSet):
+class CreneauxViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour créneaux."""
 
     permission_classes = [IsVieScolariteOrReadOnly]

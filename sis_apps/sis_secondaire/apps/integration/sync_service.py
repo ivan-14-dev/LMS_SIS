@@ -5,6 +5,10 @@ import logging
 from django.db import transaction
 from django.utils import timezone
 
+from sis_common.lms_courses import course_sync_requested_at
+from sis_common.lms_identity import lms_course_number, lms_username
+from sis_common.lms_tenants import lms_schema_tenant_id
+
 from .edx_client import get_edx_client
 from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
 
@@ -28,20 +32,24 @@ class SyncService:
         """Crée/met à jour un utilisateur dans le LMS."""
         try:
             with transaction.atomic():
-                mapping, created = EdxUserMapping.objects.get_or_create(
+                user_sis = type(user_sis).objects.select_for_update().get(pk=user_sis.pk)
+                if not user_sis.is_active:
+                    raise ValueError("Un compte SIS désactivé ne peut pas être provisionné.")
+                mapping, created = EdxUserMapping.objects.select_for_update().get_or_create(
                     user_sis=user_sis,
-                    defaults={"username_edx": f"sis-{user_sis.id}"},
+                    defaults={"username_edx": lms_username(user_sis)},
                 )
+                if not mapping.actif:
+                    raise ValueError("Une association LMS révoquée ne peut pas être réactivée par synchronisation.")
                 username = mapping.username_edx
+                full_name = user_sis.get_full_name() or user_sis.username
                 if created or not mapping.user_id_edx:
                     data = {
                         "username": username,
                         "email": user_sis.email,
-                        "name": user_sis.get_full_name(),
+                        "full_name": full_name,
                         "role": role,
                     }
-                    if user_sis.is_staff or user_sis.is_superuser:
-                        data["is_staff"] = True
                     result = self.client.create_user(**data)
                     mapping.user_id_edx = result.get("id")
                 else:
@@ -49,8 +57,9 @@ class SyncService:
                         username,
                         {
                             "email": user_sis.email,
-                            "name": user_sis.get_full_name(),
+                            "name": full_name,
                         },
+                        user_id=mapping.user_id_edx,
                     )
                 mapping.date_sync = timezone.now()
                 mapping.actif = True
@@ -60,108 +69,81 @@ class SyncService:
         except Exception as e:
             # Enregistrée hors de la transaction ci-dessus afin que l'événement
             # outbox ne soit pas annulé par le rollback déclenché par l'échec.
-            self._enqueue_outbox(
-                "user.sync", "user", str(user_sis.id), {"error": str(e), "role": role}
-            )
+            self._enqueue_outbox("user.sync", "user", str(user_sis.id), {"error": str(e), "role": role})
             raise
 
-    def sync_course_to_cms(
-        self, matiere, classe, display_name: str
-    ) -> EdxCourseMapping:
-        """Crée un cours dans Studio (CMS)."""
-        org = "SIS"
-        number = f"{matiere.code}{classe.nom}".replace(" ", "")[:20]
-        run = timezone.now().strftime("%Y")
-        course_key = f"course-v1:{org}+{number}+{run}"
+    def sync_course_to_cms(self, matiere, classe, display_name: str, *, requested_at=None) -> EdxCourseMapping:
+        """Crée ou met à jour un cours sans changer son identité à la reprise."""
+        requested_at = course_sync_requested_at(requested_at)
         try:
-            self.client.create_course(
-                org=org,
-                number=number,
-                run=run,
-                display_name=display_name,
-            )
-            mapping, _ = EdxCourseMapping.objects.update_or_create(
-                matiere=matiere,
-                classe=classe,
-                defaults={"course_id": course_key, "course_name": display_name},
-            )
-            return mapping
+            with transaction.atomic():
+                matiere = type(matiere).objects.select_for_update().get(pk=matiere.pk)
+                classe = type(classe).objects.select_for_update().get(pk=classe.pk)
+                tenant_id = lms_schema_tenant_id()
+                if (
+                    matiere.etablissement_id not in (None, tenant_id)
+                    or classe.etablissement_id not in (None, tenant_id)
+                    or classe.annee_scolaire.etablissement_id != tenant_id
+                    or classe.niveau.etablissement_id != tenant_id
+                ):
+                    raise ValueError("La matière et la classe doivent appartenir au même établissement.")
+                mapping = EdxCourseMapping.objects.select_for_update().filter(matiere=matiere, classe=classe).first()
+                if mapping:
+                    if not mapping.actif:
+                        raise ValueError("Une association de cours révoquée ne peut pas être réactivée.")
+                    if mapping.last_sync_requested_at and requested_at < mapping.last_sync_requested_at:
+                        logger.info("Course sync superseded mapping_id=%s", mapping.pk)
+                        return mapping
+                    result = self.client.update_course(mapping.course_id, {"display_name": display_name})
+                else:
+                    result = self.client.create_course(
+                        org="SIS",
+                        number=lms_course_number(matiere, namespace=classe),
+                        run="sis",
+                        display_name=display_name,
+                    )
+                mapping, _ = EdxCourseMapping.objects.update_or_create(
+                    matiere=matiere,
+                    classe=classe,
+                    defaults={
+                        "course_id": result["id"],
+                        "course_name": result["display_name"],
+                        "last_sync_requested_at": requested_at,
+                    },
+                )
+                return mapping
         except Exception as e:
             self._enqueue_outbox(
                 "course.create",
                 "matiere",
                 str(matiere.id),
-                {"error": str(e), "classe_id": classe.id, "display_name": display_name},
+                {
+                    "error": str(e),
+                    "classe_id": classe.id,
+                    "display_name": display_name,
+                    "requested_at": requested_at.isoformat(),
+                },
             )
             raise
 
-    def sync_enrollment_to_lms(
-        self, eleve, course_mapping, mode: str = "audit"
-    ) -> EdxEnrollment:
-        """Inscrit un élève à un cours LMS."""
-        try:
-            mapping = EdxUserMapping.objects.get(user_sis=eleve.user)
-            username = mapping.username_edx
-            result = self.client.enroll_user(
-                course_mapping.course_id, username, mode=mode
-            )
-            enrollment, _ = EdxEnrollment.objects.update_or_create(
-                eleve=eleve,
-                course=course_mapping,
-                defaults={
-                    "enrollment_id": result.get("id"),
-                    "is_active": True,
-                    "last_sync": timezone.now(),
-                },
-            )
-            return enrollment
-        except Exception as e:
-            self._enqueue_outbox(
-                "enrollment.create",
-                "eleve",
-                str(eleve.id),
-                {
-                    "course": course_mapping.course_id,
-                    "course_mapping_id": course_mapping.id,
-                    "mode": mode,
-                    "error": str(e),
-                },
-            )
-            raise
+    def sync_enrollment_to_lms(self, eleve, course_mapping, mode="audit", *, active=True, requested_at=None):
+        from sis_common.lms_access_sync import dispatch_access
+
+        if mode != "audit":
+            raise ValueError("Le contrat d'inscription à droits limités accepte uniquement le mode audit.")
+        dispatch_access(self, eleve.user, course_mapping, kind="enrollment", active=active, requested_at=requested_at)
+        return EdxEnrollment.objects.filter(eleve=eleve, course=course_mapping).first()
+
+    def sync_teaching_to_lms(self, user, course_mapping, *, active):
+        from sis_common.lms_access_sync import dispatch_access
+
+        return dispatch_access(self, user, course_mapping, kind="teaching", active=active)
 
     def bulk_sync_enrollments_to_lms(self, eleves, course_mapping, mode="audit"):
         """Inscription en masse."""
-        usernames = []
-        enrollments = []
-        for eleve in eleves:
-            try:
-                mapping = EdxUserMapping.objects.get(user_sis=eleve.user)
-                usernames.append(mapping.username_edx)
-                enrollments.append((eleve, mapping))
-            except EdxUserMapping.DoesNotExist:
-                logger.warning(f"No LMS mapping for eleve {eleve.id}")
-        if not usernames:
-            return []
-        results = self.client.bulk_enroll(
-            course_mapping.course_id, usernames, mode=mode
-        )
-        out = []
-        for (eleve, _mapping), result in zip(enrollments, results, strict=False):
-            enrollment, _ = EdxEnrollment.objects.update_or_create(
-                eleve=eleve,
-                course=course_mapping,
-                defaults={
-                    "enrollment_id": result.get("id"),
-                    "is_active": True,
-                    "last_sync": timezone.now(),
-                },
-            )
-            out.append(enrollment)
-        return out
+        return [self.sync_enrollment_to_lms(eleve, course_mapping, mode=mode) for eleve in eleves]
 
-    def sync_grade_to_lms(
-        self, eleve, course_mapping, subsection_id, score, max_score=20.0
-    ):
+    def sync_grade_to_lms(self, eleve, course_mapping, subsection_id, score, max_score=20.0):
         """Envoie une note vers le LMS (override)."""
         mapping = EdxUserMapping.objects.get(user_sis=eleve.user)
         return self.client.post_grade(
@@ -175,9 +157,7 @@ class SyncService:
     def sync_certificate_to_lms(self, eleve, course_mapping, cert_type="honor"):
         """Délivre un certificat LMS."""
         mapping = EdxUserMapping.objects.get(user_sis=eleve.user)
-        return self.client.issue_certificate(
-            course_mapping.course_id, mapping.username_edx, cert_type
-        )
+        return self.client.issue_certificate(course_mapping.course_id, mapping.username_edx, cert_type)
 
     # ====================== LMS → SIS (import) ======================
 
@@ -188,15 +168,9 @@ class SyncService:
         count = 0
         for enrollment in enrollments.select_related("eleve__user"):
             try:
-                mapping_user = EdxUserMapping.objects.get(
-                    user_sis=enrollment.eleve.user
-                )
-                grades = self.client.get_grades(
-                    mapping.course_id, mapping_user.username_edx
-                )
-                enrollment.progression = min(
-                    max(float(grades.get("percent", 0)) * 100, 0), 100
-                )
+                mapping_user = EdxUserMapping.objects.get(user_sis=enrollment.eleve.user)
+                grades = self.client.get_grades(mapping.course_id, mapping_user.username_edx)
+                enrollment.progression = min(max(float(grades.get("percent", 0)) * 100, 0), 100)
                 enrollment.last_sync = timezone.now()
                 enrollment.save()
                 count += 1

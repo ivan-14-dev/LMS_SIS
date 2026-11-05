@@ -79,8 +79,8 @@ class Note(OfferingGradeModel):
         ("triche", "Triche"),
         ("en_attente", "En attente"),
     ]
-    evaluation = models.ForeignKey(Evaluation, on_delete=models.CASCADE, related_name="notes")
-    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="notes")
+    evaluation = models.ForeignKey(Evaluation, on_delete=models.PROTECT, related_name="notes")
+    etudiant = models.ForeignKey(Etudiant, on_delete=models.PROTECT, related_name="notes")
     valeur = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     numero_anonyme = models.CharField(max_length=20, blank=True)
     appreciation = models.TextField(blank=True)

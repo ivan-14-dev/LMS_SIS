@@ -4,6 +4,7 @@ from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
+from sis_common.authorization import can_delegate_permissions, validate_account_authorization_changes
 from sis_common.serializers import TenantBoundSerializerMixin
 
 from .models import Utilisateur
@@ -21,6 +22,15 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = ["id", "name", "permissions"]
+
+    def validate_permissions(self, permissions):
+        if not can_delegate_permissions(self.context["request"].user, permissions):
+            raise serializers.ValidationError("Une permission hors de votre périmètre ne peut pas être déléguée.")
+        return permissions
+
+
+class GroupAssignmentSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(min_value=1)
 
 
 class UtilisateurListSerializer(serializers.ModelSerializer):
@@ -51,6 +61,7 @@ class UtilisateurDetailSerializer(TenantBoundSerializerMixin, serializers.ModelS
 
     full_name = serializers.CharField(source="get_full_name", read_only=True)
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    etablissement_nom = serializers.CharField(source="etablissement.nom", read_only=True)
     is_etudiant = serializers.BooleanField(read_only=True)
     is_enseignant = serializers.BooleanField(read_only=True)
     is_admin = serializers.BooleanField(read_only=True)
@@ -67,6 +78,7 @@ class UtilisateurDetailSerializer(TenantBoundSerializerMixin, serializers.ModelS
             "role",
             "role_display",
             "etablissement",
+            "etablissement_nom",
             "groups",
             "user_permissions",
             "attributs_acces",
@@ -81,6 +93,7 @@ class UtilisateurDetailSerializer(TenantBoundSerializerMixin, serializers.ModelS
             "derniere_connexion",
             "preferences_notification",
             "is_active",
+            "is_staff",
             "date_joined",
             "is_etudiant",
             "is_enseignant",
@@ -96,11 +109,19 @@ class UtilisateurDetailSerializer(TenantBoundSerializerMixin, serializers.ModelS
             "is_enseignant",
             "is_admin",
             "etablissement",
+            "is_staff",
             "mfa_active",
         ]
         extra_kwargs = {
             "mfa_secret": {"write_only": True},
         }
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        validate_account_authorization_changes(
+            self.context.get("request"), self.instance, attrs, self.initial_data, default_role="etudiant"
+        )
+        return attrs
 
 
 class UtilisateurCreateSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
@@ -127,6 +148,9 @@ class UtilisateurCreateSerializer(TenantBoundSerializerMixin, serializers.ModelS
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        validate_account_authorization_changes(
+            self.context.get("request"), None, attrs, self.initial_data, default_role="etudiant"
+        )
         if attrs.get("password") != attrs.get("password_confirm"):
             raise serializers.ValidationError({"password_confirm": "Les mots de passe ne correspondent pas."})
         return attrs

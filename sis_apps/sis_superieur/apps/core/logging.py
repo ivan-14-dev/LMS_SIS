@@ -15,12 +15,22 @@ class JsonFormatter(logging.Formatter):
             "message": record.getMessage(),
             "module": record.module,
         }
-        if hasattr(record, "request_id"):
-            log_data["request_id"] = record.request_id
-        if hasattr(record, "tenant_id"):
-            log_data["tenant_id"] = record.tenant_id
-        if hasattr(record, "user_id"):
-            log_data["user_id"] = record.user_id
+        for field in (
+            "request_id",
+            "tenant_id",
+            "user_id",
+            "actor_id",
+            "method",
+            "path",
+            "status",
+            "duration_ms",
+            "app_label",
+            "model",
+            "object_id",
+            "action",
+        ):
+            if hasattr(record, field):
+                log_data[field] = getattr(record, field)
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_data, default=str)

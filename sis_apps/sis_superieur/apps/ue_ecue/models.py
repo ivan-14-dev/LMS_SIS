@@ -1,7 +1,10 @@
 """Models for UE et ECUE (SIS Supérieur)."""
 
+import uuid
+
 from apps.etablissement.models import Semestre
 from apps.formations.models import MaquetteFormation, Parcours
+from django.contrib.postgres.functions import RandomUUID
 from django.db import models
 
 
@@ -55,6 +58,7 @@ class UE(models.Model):
 class ECUE(models.Model):
     """Élément Constitutif d'UE."""
 
+    integration_id = models.UUIDField(default=uuid.uuid4, db_default=RandomUUID(), editable=False, unique=True)
     ue = models.ForeignKey(UE, on_delete=models.CASCADE, related_name="ecues")
     code = models.CharField(max_length=30)
     nom = models.CharField(max_length=200)

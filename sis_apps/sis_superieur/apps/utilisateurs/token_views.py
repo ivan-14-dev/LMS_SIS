@@ -12,10 +12,12 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from sis_common.local_authentication import TenantRefreshToken
 from sis_common.mfa import verify_code
 
 
 class MFATokenObtainPairSerializer(TokenObtainPairSerializer):
+    token_class = TenantRefreshToken
     mfa_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
     def validate(self, attrs):

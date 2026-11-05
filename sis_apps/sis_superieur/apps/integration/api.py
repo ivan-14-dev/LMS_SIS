@@ -8,11 +8,16 @@ from django.db.models import Count
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.parsers import JSONParser
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from sis_common.lms_access_api import synchronize_access
+from sis_common.lms_outbox import outbox_queryset, request_outbox_processing
+from sis_common.lms_publication_api import course_publication
+from sis_common.lms_tenants import IsCurrentLmsTenantAdmin, current_lms_tenant
 from sis_common.webhooks import verify_hmac_signature
 
 from .edx_client import get_edx_client
@@ -21,6 +26,12 @@ from .serializers import EdxCourseMappingSerializer, EdxUserMappingSerializer, O
 from .sync_service import SyncService
 
 logger = logging.getLogger(__name__)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsCurrentLmsTenantAdmin])
+def publish_course(request, mapping_id):
+    return course_publication(request, mapping_id)
 
 
 def _verify_hmac(request) -> bool:
@@ -171,7 +182,7 @@ def webhook_cms(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsCurrentLmsTenantAdmin])
 def sync_status(request):
     outbox_counts = OutboxEvent.objects.values("statut").annotate(n=Count("id"))
     return Response(
@@ -185,7 +196,7 @@ def sync_status(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsCurrentLmsTenantAdmin])
 def user_mappings(request):
     """Liste paginée des correspondances entre utilisateurs SIS et Open edX."""
     queryset = EdxUserMapping.objects.select_related("user_sis").order_by(
@@ -195,7 +206,7 @@ def user_mappings(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsCurrentLmsTenantAdmin])
 def course_mappings(request):
     """Liste paginée des correspondances entre cours SIS et Open edX."""
     queryset = EdxCourseMapping.objects.select_related("ecue").order_by("course_name")
@@ -203,29 +214,30 @@ def course_mappings(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsCurrentLmsTenantAdmin])
 def outbox_events(request):
     """Liste paginée des événements de synchronisation, filtrable par statut."""
-    queryset = OutboxEvent.objects.all()
-    statut = request.query_params.get("statut")
-    if statut:
-        if statut not in dict(OutboxEvent.STATUT_CHOICES):
-            return Response(
-                {"statut": "Statut invalide."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        queryset = queryset.filter(statut=statut)
-    return _paginated_response(request, queryset, OutboxEventSerializer)
+    return _paginated_response(request, outbox_queryset(request), OutboxEventSerializer)
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsCurrentLmsTenantAdmin])
+@parser_classes([JSONParser])
+def process_outbox(request):
+    return request_outbox_processing(request)
+
+
+@api_view(["POST"])
+@permission_classes([IsCurrentLmsTenantAdmin])
 def sync_user(request, user_id):
     from apps.utilisateurs.models import Utilisateur
 
+    tenant = current_lms_tenant(request)
     try:
         user = Utilisateur.objects.get(pk=user_id)
     except Utilisateur.DoesNotExist:
+        return Response({"error": "User not found"}, status=404)
+    if user.etablissement_id not in (None, tenant.pk):
         return Response({"error": "User not found"}, status=404)
     service = SyncService()
     role = request.data.get("role", "student")
@@ -243,17 +255,24 @@ def sync_user(request, user_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsCurrentLmsTenantAdmin])
 def sync_course(request):
     from apps.etablissement.models import AnneeUniversitaire
     from apps.ue_ecue.models import ECUE
 
+    tenant = current_lms_tenant(request)
     ecue_id = request.data.get("ecue_id")
     annee_id = request.data.get("annee_id")
     try:
         ecue = ECUE.objects.get(pk=ecue_id)
         annee = AnneeUniversitaire.objects.get(pk=annee_id)
     except (ECUE.DoesNotExist, AnneeUniversitaire.DoesNotExist):
+        return Response({"error": "Not found"}, status=404)
+    if (
+        ecue.ue.semestre.annee_universitaire.universite_id != tenant.pk
+        or ecue.ue.maquette.annee_universitaire.universite_id != tenant.pk
+        or annee.universite_id != tenant.pk
+    ):
         return Response({"error": "Not found"}, status=404)
     display_name = request.data.get("display_name", f"{ecue.nom} - {annee.libelle}")
     service = SyncService()
@@ -265,7 +284,7 @@ def sync_course(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsCurrentLmsTenantAdmin])
 def sync_course_live(request, mapping_id):
     """Active BigBlueButton sur un cours Open edX déjà mappé."""
     try:
@@ -324,28 +343,19 @@ def sync_course_live(request, mapping_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsAuthenticated])
 def sync_enroll(request):
-    from apps.etudiants.models import Etudiant
-
-    etudiant_id = request.data.get("etudiant_id")
-    course_mapping_id = request.data.get("course_mapping_id")
-    mode = request.data.get("mode", "audit")
-    try:
-        etudiant = Etudiant.objects.get(pk=etudiant_id)
-        course_mapping = EdxCourseMapping.objects.get(pk=course_mapping_id)
-    except (Etudiant.DoesNotExist, EdxCourseMapping.DoesNotExist):
-        return Response({"error": "Not found"}, status=404)
-    service = SyncService()
-    try:
-        enrollment = service.sync_enrollment_to_lms(etudiant, course_mapping, mode=mode)
-        return Response({"status": "ok", "enrollment_id": enrollment.enrollment_id})
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
+    return synchronize_access(request, kind="enrollment")
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsAuthenticated])
+def sync_teaching(request):
+    return synchronize_access(request, kind="teaching")
+
+
+@api_view(["POST"])
+@permission_classes([IsCurrentLmsTenantAdmin])
 def sync_grade(request):
     from apps.etudiants.models import Etudiant
 
@@ -370,7 +380,7 @@ def sync_grade(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsCurrentLmsTenantAdmin])
 def sync_certificate(request):
     from apps.etudiants.models import Etudiant
 
@@ -391,7 +401,7 @@ def sync_certificate(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsCurrentLmsTenantAdmin])
 def health(request):
     checks = get_edx_client().health_check()
     connected = all(
@@ -405,7 +415,7 @@ def health(request):
             "lms_url": settings.EDX_LMS_URL,
             "cms_url": settings.EDX_CMS_URL,
             "oauth_status": "configured",
-            "webhook_status": "active",
+            "webhook_status": "unverified",
             "last_check": timezone.now(),
         }
     )

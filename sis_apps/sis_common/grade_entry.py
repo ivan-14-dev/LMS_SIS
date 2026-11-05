@@ -10,6 +10,16 @@ class GradeLearnerSerializer(serializers.Serializer):
     nom = serializers.CharField(source="user.get_full_name", read_only=True)
 
 
+class GradeUpdateSerializerMixin:
+    def update(self, instance, validated_data):
+        serializers.raise_errors_on_nested_writes("update", self, validated_data)
+        for name, value in validated_data.items():
+            setattr(instance, name, value)
+        # Keep model validation and signals, without auditing unchanged relations.
+        instance.save(update_fields=set(validated_data))
+        return instance
+
+
 def validate_assessment_scale(attrs, instance):
     for name, default in (("bareme", 20), ("coefficient", 1)):
         value = attrs.get(name, getattr(instance, name, default))
@@ -29,8 +39,7 @@ def ensure_numeric_import(evaluation):
         raise serializers.ValidationError(
             {
                 "evaluation": (
-                    "L'import Excel de notes est réservé aux évaluations chiffrées. "
-                    "Utilisez la saisie des résultats."
+                    "L'import Excel de notes est réservé aux évaluations chiffrées. Utilisez la saisie des résultats."
                 )
             }
         )

@@ -8,6 +8,7 @@ from apps.utilisateurs.models import Utilisateur
 from django.apps import apps
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from django_tenants.utils import schema_context
 from openpyxl import Workbook
 from rest_framework.test import APIClient
@@ -242,6 +243,14 @@ class InstitutionWorkflowTest(TenantAPITestCase):
                 response = self.client.get(url)
                 assert response.status_code == 200, response.data
 
+    @override_settings(
+        CACHES={
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                "LOCATION": "institution-browser-session-contract",
+            }
+        }
+    )
     def test_browser_session_requires_csrf_and_mfa_and_can_be_revoked(self):
         client = APIClient(enforce_csrf_checks=True)
         client.defaults["SERVER_NAME"] = self.get_test_tenant_domain()

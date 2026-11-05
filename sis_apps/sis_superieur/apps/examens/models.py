@@ -125,8 +125,8 @@ class ResultatExamen(models.Model):
         ("retake", "Rattrapage"),
     ]
 
-    epreuve = models.ForeignKey(EpreuveExamen, on_delete=models.CASCADE, related_name="resultats")
-    etudiant = models.ForeignKey("etudiants.Etudiant", on_delete=models.CASCADE, related_name="resultats_examen")
+    epreuve = models.ForeignKey(EpreuveExamen, on_delete=models.PROTECT, related_name="resultats")
+    etudiant = models.ForeignKey("etudiants.Etudiant", on_delete=models.PROTECT, related_name="resultats_examen")
     note = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     appreciation = models.TextField(blank=True)
     numero_anonyme = models.CharField(max_length=20, blank=True)

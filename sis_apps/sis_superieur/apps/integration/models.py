@@ -28,11 +28,10 @@ class EdxUserMapping(models.Model):
 class EdxCourseMapping(models.Model):
     """Mapping entre ECUE et cours LMS."""
 
-    ecue = models.OneToOneField(
-        "ue_ecue.ECUE", on_delete=models.CASCADE, related_name="edx_course"
-    )
+    ecue = models.OneToOneField("ue_ecue.ECUE", on_delete=models.CASCADE, related_name="edx_course")
     course_id = models.CharField(max_length=200, unique=True)
     course_name = models.CharField(max_length=300)
+    last_sync_requested_at = models.DateTimeField(null=True, blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
     actif = models.BooleanField(default=True)
 
@@ -45,12 +44,8 @@ class EdxCourseMapping(models.Model):
 
 
 class EdxEnrollment(models.Model):
-    etudiant = models.ForeignKey(
-        "etudiants.Etudiant", on_delete=models.CASCADE, related_name="edx_enrollments"
-    )
-    course = models.ForeignKey(
-        EdxCourseMapping, on_delete=models.CASCADE, related_name="enrollments"
-    )
+    etudiant = models.ForeignKey("etudiants.Etudiant", on_delete=models.CASCADE, related_name="edx_enrollments")
+    course = models.ForeignKey(EdxCourseMapping, on_delete=models.CASCADE, related_name="enrollments")
     enrollment_id = models.PositiveBigIntegerField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     date_inscription = models.DateTimeField(auto_now_add=True)
@@ -65,12 +60,23 @@ class EdxEnrollment(models.Model):
         return f"{self.etudiant} → {self.course.course_id}"
 
 
+class EdxAccessIntent(models.Model):
+    user = models.ForeignKey("utilisateurs.Utilisateur", on_delete=models.PROTECT)
+    mapping = models.ForeignKey(EdxUserMapping, on_delete=models.PROTECT)
+    course = models.ForeignKey(EdxCourseMapping, on_delete=models.PROTECT)
+    kind = models.CharField(max_length=16, choices=[("enrollment", "Inscription"), ("teaching", "Enseignement")])
+    is_active = models.BooleanField()
+    requested_at = models.DateTimeField()
+    applied_requested_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "course", "kind"], name="unique_sis_access_intent")]
+
+
 class EdxAssessmentMapping(models.Model):
     """Associe une sous-section notée Open edX à une évaluation du SIS."""
 
-    course = models.ForeignKey(
-        EdxCourseMapping, on_delete=models.CASCADE, related_name="assessments"
-    )
+    course = models.ForeignKey(EdxCourseMapping, on_delete=models.CASCADE, related_name="assessments")
     subsection_id = models.CharField(max_length=255)
     evaluation = models.OneToOneField(
         "notes.Evaluation",
@@ -101,9 +107,7 @@ class EdxAssessmentMapping(models.Model):
 
 
 class EdxGradeLog(models.Model):
-    enrollment = models.ForeignKey(
-        EdxEnrollment, on_delete=models.CASCADE, related_name="grade_logs"
-    )
+    enrollment = models.ForeignKey(EdxEnrollment, on_delete=models.CASCADE, related_name="grade_logs")
     subsection_id = models.CharField(max_length=200)
     score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     max_score = models.DecimalField(max_digits=5, decimal_places=2, default=20)

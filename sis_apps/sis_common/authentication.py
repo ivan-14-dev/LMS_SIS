@@ -54,6 +54,7 @@ class EdxJWTAuthentication(BaseAuthentication):
                         "exp",
                         "iat",
                         "iss",
+                        "is_restricted",
                         "preferred_username",
                         "sub",
                     ]
@@ -64,6 +65,8 @@ class EdxJWTAuthentication(BaseAuthentication):
         except (UnicodeDecodeError, ValueError, jwt.PyJWTError):
             raise AuthenticationFailed("Jeton JWT Open edX invalide.") from None
 
+        if payload["is_restricted"] is not False:
+            raise AuthenticationFailed("Ce jeton LMS restreint ne permet pas une connexion au SIS.")
         user = self._get_user(payload)
         if uses_cookie:
             SessionAuthentication().enforce_csrf(request)
@@ -109,12 +112,13 @@ class EdxJWTAuthentication(BaseAuthentication):
             raise AuthenticationFailed("Aucun compte SIS actif n'est associé à cet utilisateur.") from None
 
         edx_user_id = payload.get("user_id")
-        if (
-            edx_user_id is not None
-            and mapping.user_id_edx is not None
-            and str(edx_user_id) != str(mapping.user_id_edx)
-        ):
+        if edx_user_id is not None and mapping.user_id_edx is not None and str(edx_user_id) != str(mapping.user_id_edx):
             raise AuthenticationFailed("Le compte Open edX ne correspond pas au mapping SIS.")
         if not mapping.user_sis.is_active:
             raise AuthenticationFailed("Ce compte SIS est désactivé.")
+        if mapping.user_sis.mfa_active:
+            raise AuthenticationFailed(
+                "Ce compte exige le MFA du SIS. Utilisez la connexion locale.",
+                code="mfa_required",
+            )
         return mapping.user_sis

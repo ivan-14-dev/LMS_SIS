@@ -18,6 +18,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.academic_configuration import resolve_exam_result_workflow
+from sis_common.academic_lifecycle import AcademicLifecycleMixin, ensure_academic_open
 from sis_common.authorization import (
     request_has_business_access,
     user_has_any_role,
@@ -152,11 +153,14 @@ def _exam_result_workflow(request, epreuve=None):
         },
         {"scope": "tenant", "context": {"tenant_id": getattr(getattr(request, "tenant", None), "id", None)}},
     ]
-    return resolve_exam_result_workflow(
-        _exam_configuration(request),
-        candidates,
-        variant="superieur",
-    ) or {}
+    return (
+        resolve_exam_result_workflow(
+            _exam_configuration(request),
+            candidates,
+            variant="superieur",
+        )
+        or {}
+    )
 
 
 def _workflow_group_codes(workflow, key):
@@ -208,9 +212,7 @@ def _ensure_workflow_access(request, workflow, key):
 
 def _ensure_result_mutable(result, workflow):
     if result.statut in ("validated", "published", "closed"):
-        raise ValidationError(
-            {"workflow": "Le résultat est verrouillé. Réouvrez-le explicitement avant modification."}
-        )
+        raise ValidationError({"workflow": "Le résultat est verrouillé. Réouvrez-le explicitement avant modification."})
     if result.statut == "reopened":
         days = workflow.get("correction_window_days", 0)
         if days and result.reouvert_le and timezone.now() > result.reouvert_le + timedelta(days=days):
@@ -251,7 +253,9 @@ def _apply_result_outcome(result, pass_mark):
         result.mention = ""
 
 
-def _set_result_status(result, statut, user, pass_mark):
+def _set_result_status(result, statut, request, pass_mark):
+    user = request.user
+    previous = result.statut
     now = timezone.now()
     fields = ["statut", "updated_at"]
     result.statut = statut
@@ -281,6 +285,14 @@ def _set_result_status(result, statut, user, pass_mark):
         result.cloture_le = now
         fields.extend(["cloture_par", "cloture_le"])
     result.save(update_fields=fields)
+    record_workflow_event(
+        request,
+        result,
+        "publication" if statut == "published" else statut,
+        "Transition du résultat d'examen",
+        metadata={"avant": previous, "apres": statut},
+        recipients=[result.etudiant.user] if statut in ("published", "reopened") else [],
+    )
 
 
 def _pass_mark(request):
@@ -288,23 +300,22 @@ def _pass_mark(request):
     return Decimal(str(grading_scale.get("pass_mark", 10)))
 
 
-class SessionsExamenViewSet(viewsets.ModelViewSet):
+class SessionsExamenViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour sessions d'examens."""
 
     permission_classes = [IsScolariteOrReadOnly]
     serializer_class = SessionExamenSerializer
+    academic_period_paths = ("", "semestre.annee_universitaire", "semestre")
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["semestre", "numero", "type", "cloturee"]
     ordering_fields = ["date_debut", "numero"]
     ordering = ["-date_debut"]
 
     def get_queryset(self):
-        return SessionExamen.objects.select_related("semestre").annotate(
-            nb_epreuves_count=Count("epreuves")
-        )
+        return SessionExamen.objects.select_related("semestre").annotate(nb_epreuves_count=Count("epreuves"))
 
     def perform_create(self, serializer):
-        session = serializer.save()
+        session = self.save_academic(serializer)
         record_workflow_event(
             self.request,
             session,
@@ -316,7 +327,7 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        session = serializer.save()
+        session = self.save_academic(serializer)
         record_workflow_event(
             self.request,
             session,
@@ -343,13 +354,12 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
     def epreuves(self, request, pk=None):
         """Liste les épreuves de la session."""
         session = self.get_object()
-        epreuves = session.epreuves.select_related("ecue").order_by(
-            "date", "heure_debut"
-        )
+        epreuves = session.epreuves.select_related("ecue").order_by("date", "heure_debut")
         serializer = EpreuveExamenListSerializer(epreuves, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def cloturer(self, request, pk=None):
         """Clôture la session."""
         session = self.get_object()
@@ -369,9 +379,11 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Session clôturée.", "id": session.id})
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def reouvrir(self, request, pk=None):
         """Rouvre la session."""
         session = self.get_object()
+        ensure_academic_open(session, paths=("semestre.annee_universitaire", "semestre"))
         if not session.cloturee:
             return Response({"error": "Session déjà ouverte."}, status=400)
         session.cloturee = False
@@ -407,9 +419,7 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
                 "nb_epreuves": epreuves.count(),
                 **totals,
                 "taux_presence": (
-                    round(totals["presents"] / totals["convoques"] * 100, 2)
-                    if totals["convoques"]
-                    else 0
+                    round(totals["presents"] / totals["convoques"] * 100, 2) if totals["convoques"] else 0
                 ),
             }
         )
@@ -422,12 +432,13 @@ class SessionsExamenViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class EpreuvesExamenViewSet(viewsets.ModelViewSet):
+class EpreuvesExamenViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour épreuves d'examens."""
 
     permission_classes = [IsScolariteOrReadOnly]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["session", "ecue", "date"]
+    academic_period_paths = ("session.semestre.annee_universitaire", "session.semestre", "session")
     ordering_fields = ["date", "heure_debut"]
     ordering = ["date", "heure_debut"]
 
@@ -450,7 +461,7 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
         return EpreuveExamenDetailSerializer
 
     def perform_create(self, serializer):
-        epreuve = serializer.save()
+        epreuve = self.save_academic(serializer)
         changed_fields = apply_submission_window_defaults(
             epreuve,
             _exam_configuration(self.request),
@@ -476,7 +487,7 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        epreuve = serializer.save()
+        epreuve = self.save_academic(serializer)
         changed_fields = apply_submission_window_defaults(
             epreuve,
             _exam_configuration(self.request),
@@ -517,9 +528,7 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
     def convocations(self, request, pk=None):
         """Liste les convocations de l'épreuve."""
         epreuve = self.get_object()
-        convocations = epreuve.convocations.select_related("etudiant__user").order_by(
-            "numero_place"
-        )
+        convocations = epreuve.convocations.select_related("etudiant__user").order_by("numero_place")
         serializer = ConvocationExamenSerializer(convocations, many=True)
         return Response(serializer.data)
 
@@ -539,9 +548,11 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def generer_convocations(self, request, pk=None):
         """Génère les convocations automatiquement."""
         epreuve = self.get_object()
+        ensure_academic_open(epreuve, paths=self.academic_period_paths)
         # Récupérer les étudiants inscrits à l'ECUE
         inscrits = list(
             InscriptionPedagogique.objects.filter(
@@ -562,9 +573,7 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
         )
         inscrits = list(dict.fromkeys(inscrits))
         deja_convoques = set(
-            epreuve.convocations.filter(etudiant_id__in=inscrits).values_list(
-                "etudiant_id", flat=True
-            )
+            epreuve.convocations.filter(etudiant_id__in=inscrits).values_list("etudiant_id", flat=True)
         )
         nouvelles_convocations = [
             ConvocationExamen(
@@ -593,9 +602,7 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
     def emargement(self, request, pk=None):
         """Export la liste d'émargement."""
         epreuve = self.get_object()
-        convocations = epreuve.convocations.select_related("etudiant__user").order_by(
-            "numero_place"
-        )
+        convocations = epreuve.convocations.select_related("etudiant__user").order_by("numero_place")
         data = [
             {
                 "place": c.numero_place,
@@ -618,11 +625,16 @@ class EpreuvesExamenViewSet(viewsets.ModelViewSet):
         )
 
 
-class ConvocationsExamenViewSet(viewsets.ModelViewSet):
+class ConvocationsExamenViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour convocations."""
 
     permission_classes = [IsScolariteOrReadOnly]
     serializer_class = ConvocationExamenSerializer
+    academic_period_paths = (
+        "epreuve.session.semestre.annee_universitaire",
+        "epreuve.session.semestre",
+        "epreuve.session",
+    )
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["epreuve", "etudiant", "statut"]
     ordering = ["numero_place"]
@@ -637,20 +649,20 @@ class ConvocationsExamenViewSet(viewsets.ModelViewSet):
         return qs.none()
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def pointer(self, request, pk=None):
         """Pointe la présence d'un étudiant."""
         convocation = self.get_object()
+        ensure_academic_open(convocation, paths=self.academic_period_paths)
         new_statut = request.data.get("statut", "present")
         if new_statut not in ["present", "absent", "dispense"]:
             return Response({"error": "Statut invalide."}, status=400)
         convocation.statut = new_statut
         convocation.save(update_fields=["statut"])
-        return Response(
-            {"detail": f"Convocation mise à jour: {new_statut}", "id": convocation.id}
-        )
+        return Response({"detail": f"Convocation mise à jour: {new_statut}", "id": convocation.id})
 
 
-class ResultatsExamenViewSet(viewsets.ModelViewSet):
+class ResultatsExamenViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour résultats d'examen."""
 
     serializer_class = ResultatExamenSerializer
@@ -709,11 +721,12 @@ class ResultatsExamenViewSet(viewsets.ModelViewSet):
         _ensure_result_mutable(result, workflow)
         type_resultat = serializer.validated_data.get("type_resultat", result.type_resultat)
         _ensure_entry_allowed(result.epreuve, type_resultat, workflow)
-        serializer.save()
+        serializer.save(statut="draft")
 
     def perform_destroy(self, instance):
         workflow = _exam_result_workflow(self.request, instance.epreuve)
         _ensure_result_mutable(instance, workflow)
+        _ensure_entry_allowed(instance.epreuve, instance.type_resultat, workflow)
         instance.delete()
 
     @action(detail=False, methods=["post"])
@@ -768,8 +781,7 @@ class ResultatsExamenViewSet(viewsets.ModelViewSet):
             "etudiant",
         ).filter(epreuve_id__in=epreuve_ids, etudiant__matricule__in=matricules)
         convocation_map = {
-            (convocation.epreuve_id, convocation.etudiant.matricule): convocation
-            for convocation in convocations
+            (convocation.epreuve_id, convocation.etudiant.matricule): convocation for convocation in convocations
         }
         seen = {}
         created = updated = 0
@@ -794,9 +806,7 @@ class ResultatsExamenViewSet(viewsets.ModelViewSet):
                 seen[key] = row.copy()
                 convocation = convocation_map.get(key)
                 if convocation is None:
-                    raise ValidationError(
-                        {"file": f"Ligne {row_number}: apprenant hors périmètre pour cette épreuve."}
-                    )
+                    raise ValidationError({"file": f"Ligne {row_number}: apprenant hors périmètre pour cette épreuve."})
                 workflow = _exam_result_workflow(request, convocation.epreuve)
                 result_type = str(row.get("type_resultat") or "normal").strip().lower()
                 if result_type not in {"normal", "retake"}:
@@ -833,63 +843,73 @@ class ResultatsExamenViewSet(viewsets.ModelViewSet):
         return Response({"resultats_crees": created, "resultats_mis_a_jour": updated})
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def soumettre(self, request, pk=None):
         result = self.get_object()
         workflow = _exam_result_workflow(request, result.epreuve)
         _ensure_workflow_access(request, workflow, "verification_group_codes")
         _ensure_entry_allowed(result.epreuve, result.type_resultat, workflow)
         _ensure_result_mutable(result, workflow)
-        _set_result_status(result, "submitted", request.user, _pass_mark(request))
+        _set_result_status(result, "submitted", request, _pass_mark(request))
         return Response(self.get_serializer(result).data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def verifier(self, request, pk=None):
         result = self.get_object()
         workflow = _exam_result_workflow(request, result.epreuve)
         _ensure_workflow_access(request, workflow, "verification_group_codes")
+        _ensure_entry_allowed(result.epreuve, result.type_resultat, workflow)
         if result.statut not in ("submitted", "reopened"):
             return Response({"error": "Ce résultat doit être soumis avant vérification."}, status=400)
-        _set_result_status(result, "verified", request.user, _pass_mark(request))
+        _set_result_status(result, "verified", request, _pass_mark(request))
         return Response(self.get_serializer(result).data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def valider(self, request, pk=None):
         result = self.get_object()
         workflow = _exam_result_workflow(request, result.epreuve)
         _ensure_workflow_access(request, workflow, "validation_group_codes")
+        _ensure_entry_allowed(result.epreuve, result.type_resultat, workflow)
         if result.statut != "verified":
             return Response({"error": "Ce résultat doit être vérifié avant validation."}, status=400)
-        _set_result_status(result, "validated", request.user, _pass_mark(request))
+        _set_result_status(result, "validated", request, _pass_mark(request))
         return Response(self.get_serializer(result).data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def publier(self, request, pk=None):
         result = self.get_object()
         workflow = _exam_result_workflow(request, result.epreuve)
         _ensure_workflow_access(request, workflow, "publication_group_codes")
+        _ensure_entry_allowed(result.epreuve, result.type_resultat, workflow)
         if result.statut != "validated":
             return Response({"error": "Ce résultat doit être validé avant publication."}, status=400)
-        _set_result_status(result, "published", request.user, _pass_mark(request))
+        _set_result_status(result, "published", request, _pass_mark(request))
         return Response(self.get_serializer(result).data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def reouvrir(self, request, pk=None):
         result = self.get_object()
         workflow = _exam_result_workflow(request, result.epreuve)
         _ensure_workflow_access(request, workflow, "validation_group_codes")
+        _ensure_entry_allowed(result.epreuve, result.type_resultat, workflow)
         if result.statut not in ("validated", "published", "closed"):
             return Response({"error": "Seuls les résultats verrouillés peuvent être réouverts."}, status=400)
-        _set_result_status(result, "reopened", request.user, _pass_mark(request))
+        _set_result_status(result, "reopened", request, _pass_mark(request))
         return Response(self.get_serializer(result).data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def cloturer(self, request, pk=None):
         result = self.get_object()
         workflow = _exam_result_workflow(request, result.epreuve)
         _ensure_workflow_access(request, workflow, "publication_group_codes")
         if result.statut not in ("published", "validated", "reopened"):
             return Response({"error": "Ce résultat ne peut pas être clôturé dans son état actuel."}, status=400)
-        _set_result_status(result, "closed", request.user, _pass_mark(request))
+        _set_result_status(result, "closed", request, _pass_mark(request))
         return Response(self.get_serializer(result).data)
 
 
@@ -906,11 +926,7 @@ class CopiesExamenViewSet(
     filterset_fields = ["convocation__epreuve", "statut"]
 
     def get_permissions(self):
-        permission = (
-            IsExamManager
-            if self.action in ("create", "moderer", "audit")
-            else IsCorrectionParticipant
-        )
+        permission = IsExamManager if self.action in ("create", "moderer", "audit") else IsCorrectionParticipant
         return [permission()]
 
     def get_queryset(self):
@@ -937,9 +953,7 @@ class CopiesExamenViewSet(
     def telecharger(self, request, pk=None):
         copie = self.get_object()
         fichier = copie.fichier.open("rb")
-        AuditCopieExamen.objects.create(
-            copie=copie, acteur=request.user, action="telechargement"
-        )
+        AuditCopieExamen.objects.create(copie=copie, acteur=request.user, action="telechargement")
         return FileResponse(
             fichier,
             as_attachment=True,
@@ -960,34 +974,38 @@ class CopiesExamenViewSet(
                     {"error": "Cette copie n'est pas prête pour la modération."},
                     status=status.HTTP_409_CONFLICT,
                 )
-            corrections = list(
-                copie.affectations.filter(statut="soumise").select_related("correction")
+            workflow = _exam_result_workflow(request, copie.epreuve)
+            existing = (
+                ResultatExamen.objects.select_for_update()
+                .filter(epreuve=copie.epreuve, etudiant=copie.convocation.etudiant)
+                .first()
             )
+            type_resultat = (
+                "retake"
+                if copie.epreuve.session.type == "rattrapage" or copie.epreuve.session.numero == 2
+                else "normal"
+            )
+            _ensure_entry_allowed(copie.epreuve, type_resultat, workflow)
+            if existing:
+                _ensure_result_mutable(existing, workflow)
+            corrections = list(copie.affectations.filter(statut="soumise").select_related("correction"))
             if len(corrections) != copie.epreuve.nombre_corrections:
                 return Response(
                     {"error": "Toutes les corrections attendues ne sont pas soumises."},
                     status=status.HTTP_409_CONFLICT,
                 )
-            moyenne = sum(item.correction.note for item in corrections) / Decimal(
-                len(corrections)
-            )
+            moyenne = sum(item.correction.note for item in corrections) / Decimal(len(corrections))
             try:
                 proposed = request.data.get("note_finale")
-                note_finale = (
-                    Decimal(str(proposed)) if proposed is not None else moyenne
-                )
+                note_finale = Decimal(str(proposed)) if proposed is not None else moyenne
             except (ArithmeticError, TypeError, ValueError):
                 return Response({"note_finale": "Note invalide."}, status=400)
             if note_finale < 0 or note_finale > copie.epreuve.bareme:
-                return Response(
-                    {"note_finale": "La note doit respecter le barème."}, status=400
-                )
+                return Response({"note_finale": "La note doit respecter le barème."}, status=400)
             motif = request.data.get("motif", "").strip()
             if note_finale != moyenne and not motif:
                 return Response(
-                    {
-                        "motif": "Un motif est obligatoire lorsque la note finale diffère de la moyenne."
-                    },
+                    {"motif": "Un motif est obligatoire lorsque la note finale diffère de la moyenne."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             copie.note_finale = note_finale
@@ -1058,15 +1076,11 @@ class AffectationsCorrectionViewSet(
     serializer_class = AffectationCorrectionSerializer
 
     def get_permissions(self):
-        permission = (
-            IsExamManager if self.action == "create" else IsCorrectionParticipant
-        )
+        permission = IsExamManager if self.action == "create" else IsCorrectionParticipant
         return [permission()]
 
     def get_queryset(self):
-        queryset = AffectationCorrection.objects.select_related(
-            "copie__convocation__epreuve", "correcteur"
-        )
+        queryset = AffectationCorrection.objects.select_related("copie__convocation__epreuve", "correcteur")
         if IsExamManager().has_permission(self.request, self):
             return queryset
         return queryset.filter(correcteur=self.request.user)
@@ -1082,9 +1096,7 @@ class AffectationsCorrectionViewSet(
                 copie.statut not in ("deposee", "affectee")
                 or copie.affectations.count() >= copie.epreuve.nombre_corrections
             ):
-                raise ValidationError(
-                    {"copie": "Cette copie n'accepte plus de nouvelles affectations."}
-                )
+                raise ValidationError({"copie": "Cette copie n'accepte plus de nouvelles affectations."})
             affectation = serializer.save(copie=copie)
             affectation.copie.statut = "affectee"
             affectation.copie.save(update_fields=["statut"])
@@ -1128,18 +1140,12 @@ class CorrectionsCopieViewSet(
                 "affectee",
                 "correction",
             ):
-                raise ValidationError(
-                    {"affectation": "Cette affectation n'accepte plus de correction."}
-                )
+                raise ValidationError({"affectation": "Cette affectation n'accepte plus de correction."})
             serializer.save(affectation=affectation)
             affectation.statut = "soumise"
             affectation.save(update_fields=["statut"])
             submitted = copie.affectations.filter(statut="soumise").count()
-            copie.statut = (
-                "a_moderer"
-                if submitted >= copie.epreuve.nombre_corrections
-                else "correction"
-            )
+            copie.statut = "a_moderer" if submitted >= copie.epreuve.nombre_corrections else "correction"
             copie.save(update_fields=["statut"])
             AuditCopieExamen.objects.create(
                 copie=copie,

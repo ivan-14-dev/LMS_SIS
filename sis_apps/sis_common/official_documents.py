@@ -1,7 +1,70 @@
-"""Helpers for rendering official institutional PDFs."""
+"""Helpers for rendering and accessing institutional documents."""
+
+from functools import wraps
 
 from django.http import HttpResponse
 from django.utils.html import escape
+from rest_framework.permissions import IsAuthenticated
+
+from sis_common.authorization import filter_queryset_by_scopes, request_has_business_access
+from sis_common.workflow_tracking import record_workflow_event
+
+
+class DocumentTenantPermission(IsAuthenticated):
+    message = "Les documents sont réservés aux comptes actifs de cet établissement."
+
+    def has_permission(self, request, view):
+        tenant = getattr(request, "tenant", None)
+        return (
+            super().has_permission(request, view)
+            and request.user.is_active
+            and tenant is not None
+            and request.user.etablissement_id == tenant.pk
+            and (
+                request.method in ("GET", "HEAD", "OPTIONS")
+                or request.user.is_superuser
+                or request.user.role not in ("eleve", "etudiant", "doctorant", "parent")
+            )
+        )
+
+
+def scope_student_documents(view, queryset, approved, scopes):
+    request = view.request
+    user = request.user
+    queryset = queryset.filter(etudiant__universite_id=request.tenant.pk)
+    if user.role in ("etudiant", "doctorant") and not user.is_superuser:
+        return queryset.filter(etudiant__user=user, **approved)
+    permission = view.required_change_permission
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        permission = permission.replace(".change_", ".view_")
+    if not (
+        user.has_perm(permission)
+        or request_has_business_access(
+            request,
+            permission,
+            ("president", "vice_president", "doyen", "vice_doyen", "directeur_etudes", "scolarite", "chef_departement"),
+            tenant_group_codes=("academic_registry_superieur", "document_signatory_superieur"),
+        )
+    ):
+        return queryset.none()
+    return filter_queryset_by_scopes(queryset, user, permission, {"etudiants": "etudiant_id", **scopes})
+
+
+def private_document_download(method):
+    @wraps(method)
+    def wrapped(view, request, *args, **kwargs):
+        document = view.get_object()
+        response = method(view, request, *args, **kwargs)
+        if response.status_code == 200:
+            record_workflow_event(
+                request, document, "telechargement", "Document téléchargé", metadata={"format": "pdf"}
+            )
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    wrapped.render_document = method
+    return wrapped
 
 
 def tenant_identity_rows(request, document_label, serial=None, issue_date=None):
@@ -35,7 +98,10 @@ def render_official_pdf(filename, title, identity_rows, sections, footer_rows=No
 
         raise ValidationError({"format": "Le support PDF n'est pas disponible."}) from exc
 
-    footer_rows = footer_rows or []
+    footer_rows = [
+        *(footer_rows or []),
+        ("Authentification", "Copie générée à la demande. Aucune signature cryptographique embarquée."),
+    ]
     identity_html = "".join(
         f"<tr><th>{escape(str(label))}</th><td>{escape(str(value))}</td></tr>"
         for label, value in identity_rows

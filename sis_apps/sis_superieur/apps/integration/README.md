@@ -37,6 +37,9 @@ Ce module permet à chaque SIS de communiquer **bidirectionnellement** avec le *
 2. La fonction essaie immédiatement d'appeler le LMS.
 3. En cas d'échec, un `OutboxEvent` est créé.
 4. Une tâche Celery Beat `publish_outbox_events` réessaie toutes les minutes.
+5. La création/mise à jour d'un cours, y compris au rejeu de l'outbox, revérifie
+   que l'année demandée, le semestre et la maquette de l'ECUE appartiennent
+   à l'université du schéma courant avant tout appel au CMS.
 
 ### LMS → SIS (Webhooks HMAC)
 

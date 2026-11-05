@@ -37,12 +37,8 @@ class PublishOutboxEventsTaskTestCase(TenantTestCase):
             date_debut=datetime.date(2023, 9, 1),
             date_fin=datetime.date(2024, 1, 31),
         )
-        formation = Formation.objects.create(
-            nom="Licence Informatique", code="LINFO", type="licence"
-        )
-        maquette = MaquetteFormation.objects.create(
-            formation=formation, annee_universitaire=annee
-        )
+        formation = Formation.objects.create(nom="Licence Informatique", code="LINFO", type="licence")
+        maquette = MaquetteFormation.objects.create(formation=formation, annee_universitaire=annee)
         ue = UE.objects.create(
             maquette=maquette,
             code="UE1",
@@ -50,9 +46,7 @@ class PublishOutboxEventsTaskTestCase(TenantTestCase):
             credits_ects=6,
             semestre=semestre,
         )
-        ecue = ECUE.objects.create(
-            ue=ue, code="ECUE1", nom="Algorithmique", credits_ects=3
-        )
+        ecue = ECUE.objects.create(ue=ue, code="ECUE1", nom="Algorithmique", credits_ects=3)
         return ecue, annee
 
     @patch("apps.integration.sync_service.get_edx_client")
@@ -171,7 +165,10 @@ class PublishOutboxEventsTaskTestCase(TenantTestCase):
     def test_course_create_event_is_replayed(self, mock_get_client):
         """Un événement course.create rejoué avec succès crée le mapping de cours."""
         mock_client = MagicMock()
-        mock_client.create_course.return_value = {"id": "course-v1:SIS-U+ECUE1+2023"}
+        mock_client.create_course.side_effect = lambda **data: {
+            "id": f"course-v1:{data['org']}+{data['number']}+{data['run']}",
+            "display_name": data["display_name"],
+        }
         mock_get_client.return_value = mock_client
 
         ecue, annee = self._create_ecue_and_annee()
@@ -197,7 +194,7 @@ class PublishOutboxEventsTaskTestCase(TenantTestCase):
     def test_enrollment_create_event_is_replayed(self, mock_get_client):
         """Un événement enrollment.create rejoué avec succès inscrit l'étudiant."""
         mock_client = MagicMock()
-        mock_client.enroll_user.return_value = {"id": 999}
+        mock_client.set_course_access.return_value = {"id": 999}
         mock_get_client.return_value = mock_client
 
         ecue, _annee = self._create_ecue_and_annee()
@@ -224,7 +221,7 @@ class PublishOutboxEventsTaskTestCase(TenantTestCase):
             payload={
                 "error": "LMS timeout",
                 "course_mapping_id": course_mapping.id,
-                "mode": "honor",
+                "mode": "audit",
             },
             statut="pending",
         )
@@ -233,6 +230,7 @@ class PublishOutboxEventsTaskTestCase(TenantTestCase):
 
         event.refresh_from_db()
         assert event.statut == "done"
-        mock_client.enroll_user.assert_called_once_with(
-            course_mapping.course_id, "sis-u-outbox-etudiant", mode="honor"
+        mock_client.set_course_access.assert_called_once_with(
+            course_mapping.course_id, "sis-u-outbox-etudiant",
+            kind="enrollment", active=True, requested_at=event.created_at,
         )

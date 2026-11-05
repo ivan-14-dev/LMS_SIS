@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 
 from apps.core.serializers import WorkflowEventSerializer
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Sum
 from django.http import FileResponse
 from django.utils import timezone
@@ -28,6 +28,7 @@ from .serializers import (
     PaiementFraisSerializer,
     TypeFraisInscriptionSerializer,
 )
+from .services import PaymentConfirmationRejected, PaymentProviderUnavailable, confirm_card_payment
 
 INVOICE_REPORT_FIELDS = {
     "numero": ("Numéro facture", "numero"),
@@ -284,7 +285,7 @@ class PaiementsViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if IsFinanceManager().has_permission(self.request, self):
             return queryset
-        if hasattr(user, "etudiant_profile") and not user.is_staff:
+        if hasattr(user, "etudiant_profile"):
             return queryset.filter(facture__etudiant__user=user)
         return queryset.none()
 
@@ -322,25 +323,53 @@ class PaiementsViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], permission_classes=[IsFinanceManager])
     def valider(self, request, pk=None):
-        with transaction.atomic():
-            paiement = PaiementFrais.objects.select_for_update().get(pk=self.get_object().pk)
-            facture = FactureFrais.objects.select_for_update().get(pk=paiement.facture_id)
-            workflow = self._workflow_for_facture(facture)
-            if paiement.statut != "en_attente":
-                return Response({"error": "Ce paiement a déjà été traité."}, status=409)
-            if not workflow_transition_allowed(workflow, "valider", paiement.statut, "valide"):
-                return Response({"error": "Transition non autorisée par le workflow financier."}, status=409)
-            reste = facture.montant - facture.montant_paye
-            if paiement.montant > reste:
-                return Response({"error": "Le paiement dépasse le solde de la facture."}, status=409)
-            paiement.statut = "valide"
-            paiement.verifie_par = request.user
-            paiement.verifie_le = timezone.now()
-            paiement.motif_rejet = ""
-            paiement.save(update_fields=["statut", "verifie_par", "verifie_le", "motif_rejet"])
-            facture.montant_paye += paiement.montant
-            facture.statut = "payee" if facture.montant_paye >= facture.montant else "partielle"
-            facture.save(update_fields=["montant_paye", "statut", "updated_at"])
+        paiement = None
+        try:
+            with transaction.atomic():
+                paiement = PaiementFrais.objects.select_for_update().get(pk=self.get_object().pk)
+                facture = FactureFrais.objects.select_for_update().get(pk=paiement.facture_id)
+                workflow = self._workflow_for_facture(facture)
+                if paiement.statut != "en_attente":
+                    return Response({"error": "Ce paiement a déjà été traité."}, status=409)
+                if not workflow_transition_allowed(workflow, "valider", paiement.statut, "valide"):
+                    return Response({"error": "Transition non autorisée par le workflow financier."}, status=409)
+                reste = facture.montant - facture.montant_paye
+                if paiement.montant > reste:
+                    return Response({"error": "Le paiement dépasse le solde de la facture."}, status=409)
+                if paiement.mode == "carte":
+                    reused = (
+                        PaiementFrais.objects.filter(
+                            reference_externe=paiement.reference_externe,
+                            mode="carte",
+                            statut__in=("valide", "rembourse"),
+                        )
+                        .exclude(pk=paiement.pk)
+                        .exists()
+                    )
+                    if reused:
+                        return Response({"error": "Référence de carte déjà utilisée."}, status=409)
+                    try:
+                        confirm_card_payment(paiement, facture, request.tenant)
+                    except PaymentConfirmationRejected:
+                        return Response({"error": "Paiement non confirmé pour cette facture."}, status=409)
+                    except PaymentProviderUnavailable:
+                        return Response({"error": "Prestataire de paiement indisponible."}, status=503)
+                paiement.statut = "valide"
+                paiement.verifie_par = request.user
+                paiement.verifie_le = timezone.now()
+                paiement.motif_rejet = ""
+                paiement.save(update_fields=["statut", "verifie_par", "verifie_le", "motif_rejet"])
+                facture.montant_paye += paiement.montant
+                facture.statut = "payee" if facture.montant_paye >= facture.montant else "partielle"
+                facture.save(update_fields=["montant_paye", "statut", "updated_at"])
+        except IntegrityError:
+            if paiement is None or paiement.mode != "carte" or not PaiementFrais.objects.filter(
+                reference_externe=paiement.reference_externe,
+                mode="carte",
+                statut__in=("valide", "rembourse"),
+            ).exclude(pk=paiement.pk).exists():
+                raise
+            return Response({"error": "Référence de carte déjà utilisée."}, status=409)
         record_workflow_event(
             request,
             paiement,

@@ -1,7 +1,10 @@
 """Models for utilisateurs (SIS Secondaire)."""
 
+import uuid
+
 from apps.etablissement.models import Etablissement
 from django.contrib.auth.models import AbstractUser
+from django.contrib.postgres.functions import RandomUUID
 from django.db import models
 
 from sis_common.encryption import EncryptedCharField
@@ -9,6 +12,8 @@ from sis_common.encryption import EncryptedCharField
 
 class Utilisateur(AbstractUser):
     """Utilisateur de la plateforme (élève, parent, enseignant, personnel)."""
+
+    integration_id = models.UUIDField(default=uuid.uuid4, db_default=RandomUUID(), unique=True, editable=False)
 
     ROLE_CHOICES = [
         ("super_admin", "Super administrateur"),

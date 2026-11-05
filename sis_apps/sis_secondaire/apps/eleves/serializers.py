@@ -6,6 +6,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
+from sis_common.admissions import AdmissionSerializerMixin
 from sis_common.learning_offerings import ModelValidationSerializerMixin
 from sis_common.serializers import TenantBoundSerializerMixin
 
@@ -56,6 +57,14 @@ class EleveDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSeriali
     classe_nom = serializers.CharField(source="classe_actuelle.nom", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     sexe_display = serializers.CharField(source="get_sexe_display", read_only=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if "classe_actuelle" in attrs and attrs["classe_actuelle"] != self.instance.classe_actuelle:
+            raise serializers.ValidationError(
+                {"classe_actuelle": "Utilisez le changement de classe motivé ou validez une inscription."}
+            )
+        return attrs
 
     class Meta:
         model = Eleve
@@ -182,7 +191,9 @@ class EleveCreateSerializer(TenantBoundSerializerMixin, serializers.ModelSeriali
         return eleve
 
 
-class InscriptionSerializer(ModelValidationSerializerMixin, TenantBoundSerializerMixin, serializers.ModelSerializer):
+class InscriptionSerializer(
+    AdmissionSerializerMixin, ModelValidationSerializerMixin, TenantBoundSerializerMixin, serializers.ModelSerializer
+):
     """Serializer pour les inscriptions."""
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
@@ -213,6 +224,12 @@ class InscriptionSerializer(ModelValidationSerializerMixin, TenantBoundSerialize
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        if self.instance and not self.context.get("controlled_transfer"):
+            for field in ("eleve", "classe", "annee_scolaire"):
+                if field in attrs and attrs[field].pk != getattr(self.instance, f"{field}_id"):
+                    raise serializers.ValidationError(
+                        {field: "Utilisez le changement de classe motivé, sans réaffecter le dossier."}
+                    )
         classe = attrs.get("classe", getattr(self.instance, "classe", None))
         year = attrs.get("annee_scolaire", getattr(self.instance, "annee_scolaire", None))
         if classe and year and classe.annee_scolaire_id != year.pk:

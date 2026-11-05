@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 
+from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -9,6 +10,10 @@ from rest_framework import filters, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from sis_common.academic_lifecycle import AcademicLifecycleMixin
+from sis_common.authorization import request_has_business_access
+from sis_common.workflow_tracking import record_workflow_event
 
 from .models import Batiment, ConflitHoraire, CreneauCours, CreneauHoraire, Reservation, Salle
 from .serializers import (
@@ -29,10 +34,26 @@ from .serializers import (
 )
 
 
+class IsPlanningManager(IsAuthenticated):
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) and request_has_business_access(
+            request,
+            "emplois_du_temps.change_creneaucours",
+            ("scolarite", "directeur_etudes", "responsable_formation", "doyen"),
+        )
+
+
+class IsPlanningManagerOrReadOnly(IsPlanningManager):
+    def has_permission(self, request, view):
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return IsAuthenticated().has_permission(request, view)
+        return super().has_permission(request, view)
+
+
 class BatimentViewSet(viewsets.ModelViewSet):
     """ViewSet pour les bâtiments."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPlanningManagerOrReadOnly]
     filter_backends = [filters.SearchFilter]
     search_fields = ["nom", "code"]
 
@@ -56,7 +77,7 @@ class BatimentViewSet(viewsets.ModelViewSet):
 class SalleViewSet(viewsets.ModelViewSet):
     """ViewSet pour les salles."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPlanningManagerOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ["batiment", "type", "disponible", "accessibilite_pmr"]
     search_fields = ["nom", "code"]
@@ -98,9 +119,7 @@ class SalleViewSet(viewsets.ModelViewSet):
         date_debut = request.query_params.get("date_debut")
 
         # Créneaux réguliers
-        creneaux = salle.creneaux_cours.select_related(
-            "ecue", "enseignant", "creneau_horaire"
-        )
+        creneaux = salle.creneaux_cours.select_related("ecue", "enseignant", "creneau_horaire")
 
         # Réservations
         reservations = salle.reservations.filter(statut="confirmee")
@@ -114,9 +133,7 @@ class SalleViewSet(viewsets.ModelViewSet):
         return Response(
             {
                 "salle": SalleListSerializer(salle).data,
-                "creneaux_reguliers": CreneauCoursListSerializer(
-                    creneaux, many=True
-                ).data,
+                "creneaux_reguliers": CreneauCoursListSerializer(creneaux, many=True).data,
                 "reservations": ReservationListSerializer(reservations, many=True).data,
             }
         )
@@ -130,21 +147,17 @@ class SalleViewSet(viewsets.ModelViewSet):
         heure_fin = request.query_params.get("heure_fin")
 
         if not all([date, heure_debut, heure_fin]):
-            return Response(
-                {"error": "date, heure_debut et heure_fin sont requis."}, status=400
-            )
+            return Response({"error": "date, heure_debut et heure_fin sont requis."}, status=400)
 
         # Vérifier réservations
-        conflits_reservations = Reservation.objects.filter(
-            salle=salle, date=date, statut="confirmee"
-        ).filter(heure_debut__lt=heure_fin, heure_fin__gt=heure_debut)
+        conflits_reservations = Reservation.objects.filter(salle=salle, date=date, statut="confirmee").filter(
+            heure_debut__lt=heure_fin, heure_fin__gt=heure_debut
+        )
 
         return Response(
             {
                 "disponible": not conflits_reservations.exists(),
-                "conflits": ReservationListSerializer(
-                    conflits_reservations, many=True
-                ).data,
+                "conflits": ReservationListSerializer(conflits_reservations, many=True).data,
             }
         )
 
@@ -152,15 +165,16 @@ class SalleViewSet(viewsets.ModelViewSet):
 class CreneauHoraireViewSet(viewsets.ModelViewSet):
     """ViewSet pour les créneaux horaires types."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPlanningManagerOrReadOnly]
     queryset = CreneauHoraire.objects.all()
     serializer_class = CreneauHoraireSerializer
 
 
-class CreneauCoursViewSet(viewsets.ModelViewSet):
+class CreneauCoursViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet pour les créneaux de cours."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsPlanningManagerOrReadOnly]
+    academic_period_paths = ("semestre.annee_universitaire", "semestre")
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = [
         "semestre",
@@ -193,13 +207,9 @@ class CreneauCoursViewSet(viewsets.ModelViewSet):
         groupe = request.query_params.get("groupe", "")
 
         if not formation_id or not semestre_id:
-            return Response(
-                {"error": "formation_id et semestre_id sont requis."}, status=400
-            )
+            return Response({"error": "formation_id et semestre_id sont requis."}, status=400)
 
-        creneaux = self.get_queryset().filter(
-            formation_id=formation_id, semestre_id=semestre_id
-        )
+        creneaux = self.get_queryset().filter(formation_id=formation_id, semestre_id=semestre_id)
         if groupe:
             creneaux = creneaux.filter(Q(groupe=groupe) | Q(groupe=""))
 
@@ -296,9 +306,7 @@ class CreneauCoursViewSet(viewsets.ModelViewSet):
                         type_conflit="enseignant",
                         creneau_1=creneau,
                         creneau_2=c,
-                        defaults={
-                            "description": f"Enseignant {creneau.enseignant} occupé"
-                        },
+                        defaults={"description": f"Enseignant {creneau.enseignant} occupé"},
                     )
                     conflits.append(conflit)
 
@@ -310,7 +318,7 @@ class CreneauCoursViewSet(viewsets.ModelViewSet):
         )
 
 
-class ReservationViewSet(viewsets.ModelViewSet):
+class ReservationViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet pour les réservations de salles."""
 
     permission_classes = [IsAuthenticated]
@@ -319,20 +327,28 @@ class ReservationViewSet(viewsets.ModelViewSet):
     ordering_fields = ["date", "created_at"]
     ordering = ["date", "heure_debut"]
 
+    def get_permissions(self):
+        return [IsAuthenticated() if self.action in ("list", "retrieve", "create") else IsPlanningManager()]
+
     def get_queryset(self):
-        return Reservation.objects.select_related("salle", "demandeur", "valide_par")
+        queryset = Reservation.objects.select_related("salle", "demandeur", "valide_par")
+        if not IsPlanningManager().has_permission(self.request, self):
+            queryset = queryset.filter(demandeur=self.request.user)
+        return queryset
 
     def get_serializer_class(self):
         if self.action == "list":
             return ReservationListSerializer
-        if self.action == "create":
+        if self.action in ("create", "update", "partial_update"):
             return ReservationCreateSerializer
         return ReservationDetailSerializer
 
     def perform_create(self, serializer):
-        serializer.save(demandeur=self.request.user.utilisateur)
+        reservation = serializer.save(demandeur=self.request.user)
+        record_workflow_event(self.request, reservation, "creation", "Réservation demandée")
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def valider(self, request, pk=None):
         """Valider ou refuser une réservation."""
         reservation = self.get_object()
@@ -347,14 +363,23 @@ class ReservationViewSet(viewsets.ModelViewSet):
 
         data = serializer.validated_data
         if data["action"] == "confirmer":
+            validation = ReservationCreateSerializer(reservation, data={}, partial=True)
+            validation.is_valid(raise_exception=True)
             reservation.statut = "confirmee"
         else:
             reservation.statut = "refusee"
             reservation.motif_refus = data.get("motif_refus", "")
 
-        reservation.valide_par = request.user.utilisateur
+        reservation.valide_par = request.user
         reservation.date_validation = timezone.now()
         reservation.save()
+        record_workflow_event(
+            request,
+            reservation,
+            "validation" if data["action"] == "confirmer" else "refus",
+            "Décision sur la réservation",
+            recipients=[reservation.demandeur],
+        )
 
         return Response(ReservationDetailSerializer(reservation).data)
 

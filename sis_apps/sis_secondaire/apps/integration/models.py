@@ -9,9 +9,7 @@ from django.db import models
 class EdxUserMapping(models.Model):
     """Mapping entre utilisateur SIS et utilisateur LMS Open edX."""
 
-    user_sis = models.OneToOneField(
-        "utilisateurs.Utilisateur", on_delete=models.CASCADE, related_name="edx_mapping"
-    )
+    user_sis = models.OneToOneField("utilisateurs.Utilisateur", on_delete=models.CASCADE, related_name="edx_mapping")
     username_edx = models.CharField(max_length=200, unique=True)
     user_id_edx = models.PositiveBigIntegerField(null=True, blank=True)
     date_sync = models.DateTimeField(null=True, blank=True)
@@ -30,14 +28,11 @@ class EdxUserMapping(models.Model):
 class EdxCourseMapping(models.Model):
     """Mapping entre matière/classe et cours LMS."""
 
-    matiere = models.ForeignKey(
-        Matiere, on_delete=models.CASCADE, related_name="edx_courses"
-    )
-    classe = models.ForeignKey(
-        Classe, on_delete=models.CASCADE, related_name="edx_courses"
-    )
+    matiere = models.ForeignKey(Matiere, on_delete=models.CASCADE, related_name="edx_courses")
+    classe = models.ForeignKey(Classe, on_delete=models.CASCADE, related_name="edx_courses")
     course_id = models.CharField(max_length=200, unique=True)
     course_name = models.CharField(max_length=300)
+    last_sync_requested_at = models.DateTimeField(null=True, blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
     actif = models.BooleanField(default=True)
 
@@ -53,12 +48,8 @@ class EdxCourseMapping(models.Model):
 class EdxEnrollment(models.Model):
     """Inscription d'un élève à un cours LMS."""
 
-    eleve = models.ForeignKey(
-        Eleve, on_delete=models.CASCADE, related_name="edx_enrollments"
-    )
-    course = models.ForeignKey(
-        EdxCourseMapping, on_delete=models.CASCADE, related_name="enrollments"
-    )
+    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="edx_enrollments")
+    course = models.ForeignKey(EdxCourseMapping, on_delete=models.CASCADE, related_name="enrollments")
     enrollment_id = models.PositiveBigIntegerField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     date_inscription = models.DateTimeField(auto_now_add=True)
@@ -75,12 +66,23 @@ class EdxEnrollment(models.Model):
         return f"{self.eleve} → {self.course.course_id}"
 
 
+class EdxAccessIntent(models.Model):
+    user = models.ForeignKey("utilisateurs.Utilisateur", on_delete=models.PROTECT)
+    mapping = models.ForeignKey(EdxUserMapping, on_delete=models.PROTECT)
+    course = models.ForeignKey(EdxCourseMapping, on_delete=models.PROTECT)
+    kind = models.CharField(max_length=16, choices=[("enrollment", "Inscription"), ("teaching", "Enseignement")])
+    is_active = models.BooleanField()
+    requested_at = models.DateTimeField()
+    applied_requested_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "course", "kind"], name="unique_sis_access_intent")]
+
+
 class EdxAssessmentMapping(models.Model):
     """Associe une sous-section notée Open edX à une évaluation du SIS."""
 
-    course = models.ForeignKey(
-        EdxCourseMapping, on_delete=models.CASCADE, related_name="assessments"
-    )
+    course = models.ForeignKey(EdxCourseMapping, on_delete=models.CASCADE, related_name="assessments")
     subsection_id = models.CharField(max_length=255)
     evaluation = models.OneToOneField(
         "notes.Evaluation",
@@ -110,17 +112,13 @@ class EdxAssessmentMapping(models.Model):
                 self.evaluation.matiere_id != self.course.matiere_id
                 or self.evaluation.classe_id != self.course.classe_id
             ):
-                raise ValidationError(
-                    "L'évaluation doit appartenir à la matière et à la classe du cours."
-                )
+                raise ValidationError("L'évaluation doit appartenir à la matière et à la classe du cours.")
 
 
 class EdxGradeLog(models.Model):
     """Log des notes synchronisées depuis LMS."""
 
-    enrollment = models.ForeignKey(
-        EdxEnrollment, on_delete=models.CASCADE, related_name="grade_logs"
-    )
+    enrollment = models.ForeignKey(EdxEnrollment, on_delete=models.CASCADE, related_name="grade_logs")
     subsection_id = models.CharField(max_length=200)
     score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     max_score = models.DecimalField(max_digits=5, decimal_places=2, default=20)

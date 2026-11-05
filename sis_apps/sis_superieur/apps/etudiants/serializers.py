@@ -7,6 +7,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
+from sis_common.admissions import AdmissionSerializerMixin
 from sis_common.learning_offerings import ModelValidationSerializerMixin
 from sis_common.serializers import TenantBoundSerializerMixin
 
@@ -155,7 +156,7 @@ class EtudiantCreateSerializer(TenantBoundSerializerMixin, serializers.ModelSeri
 
 
 class InscriptionAdministrativeSerializer(
-    ModelValidationSerializerMixin, TenantBoundSerializerMixin, serializers.ModelSerializer
+    AdmissionSerializerMixin, ModelValidationSerializerMixin, TenantBoundSerializerMixin, serializers.ModelSerializer
 ):
     """Serializer pour les inscriptions administratives."""
 
@@ -164,6 +165,34 @@ class InscriptionAdministrativeSerializer(
     formation_nom = serializers.CharField(source="formation.nom", read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     annee_universitaire_libelle = serializers.CharField(source="annee_universitaire.libelle", read_only=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if self.instance:
+            for field in ("etudiant", "annee_universitaire", "formation", "parcours"):
+                if field not in attrs:
+                    continue
+                proposed = getattr(attrs[field], "pk", None)
+                if proposed != getattr(self.instance, f"{field}_id") and (
+                    field in ("etudiant", "annee_universitaire") or not self.context.get("controlled_transfer")
+                ):
+                    raise serializers.ValidationError(
+                        {field: "Utilisez le transfert motivé, sans réaffecter l'identité du dossier."}
+                    )
+        formation = attrs.get("formation", getattr(self.instance, "formation", None))
+        parcours = attrs.get("parcours", getattr(self.instance, "parcours", None))
+        if parcours and formation and parcours.formation_id != formation.pk:
+            raise serializers.ValidationError({"parcours": "Ce parcours n'appartient pas à la formation."})
+        tenant = getattr(self.context.get("request"), "tenant", None)
+        if tenant is not None and formation is not None:
+            owners = (
+                getattr(getattr(getattr(formation, "departement", None), "faculte", None), "universite_id", None),
+                getattr(getattr(formation, "ecole_doctorale", None), "universite_id", None),
+                getattr(getattr(formation, "organisation_unit", None), "etablissement_id", None),
+            )
+            if any(owner is not None and owner != tenant.pk for owner in owners):
+                raise serializers.ValidationError({"formation": "Cette formation appartient à un autre établissement."})
+        return attrs
 
     class Meta:
         model = InscriptionAdministrative

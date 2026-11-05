@@ -47,7 +47,7 @@ class PortailEleveViewSet(viewsets.ViewSet):
         return {
             "id": classe.id,
             "nom": classe.nom,
-            "niveau": classe.niveau.nom if classe.niveau else None,
+            "niveau": classe.niveau.libelle if classe.niveau else None,
         }
 
     @action(detail=False, methods=["get"])
@@ -72,9 +72,7 @@ class PortailEleveViewSet(viewsets.ViewSet):
                 },
                 "classe": self._classe_payload(eleve),
                 "statistiques": {
-                    "moyenne": _decimal_to_float(
-                        latest_bulletin.moyenne_generale if latest_bulletin else None
-                    ),
+                    "moyenne": _decimal_to_float(latest_bulletin.moyenne_generale if latest_bulletin else None),
                     "rang": latest_bulletin.rang if latest_bulletin else None,
                     "absences": absences,
                     "retards": retards,
@@ -110,9 +108,7 @@ class PortailEleveViewSet(viewsets.ViewSet):
                 "email": eleve.user.email,
                 "classe": classe["nom"] if classe else None,
                 "niveau": classe["niveau"] if classe else None,
-                "moyenne": _decimal_to_float(
-                    latest_bulletin.moyenne_generale if latest_bulletin else None
-                ),
+                "moyenne": _decimal_to_float(latest_bulletin.moyenne_generale if latest_bulletin else None),
                 "rang": latest_bulletin.rang if latest_bulletin else None,
                 "statut": eleve.statut,
             }
@@ -123,9 +119,7 @@ class PortailEleveViewSet(viewsets.ViewSet):
         """Notes de l'élève."""
         eleve = self._get_eleve(request)
         periode_id = request.query_params.get("periode")
-        notes = Note.objects.filter(eleve=eleve).select_related(
-            "evaluation__matiere", "evaluation__periode"
-        )
+        notes = Note.objects.filter(eleve=eleve).select_related("evaluation__matiere", "evaluation__periode")
         if periode_id:
             notes = notes.filter(evaluation__periode_id=periode_id)
 
@@ -163,17 +157,13 @@ class PortailEleveViewSet(viewsets.ViewSet):
                     "id": bulletin.id,
                     "periode": bulletin.periode.libelle,
                     "classe": bulletin.classe.nom,
-                    "niveau": bulletin.classe.niveau.nom if bulletin.classe.niveau else None,
+                    "niveau": bulletin.classe.niveau.libelle if bulletin.classe.niveau else None,
                     "moyenne": _decimal_to_float(bulletin.moyenne_generale),
                     "rang": bulletin.rang,
                     "appreciation": bulletin.appreciation_conseil,
                     "decision": bulletin.decision,
                     "pdf_disponible": bool(bulletin.pdf_path),
-                    "publie_le": (
-                        bulletin.date_publication.isoformat()
-                        if bulletin.date_publication
-                        else None
-                    ),
+                    "publie_le": (bulletin.date_publication.isoformat() if bulletin.date_publication else None),
                 }
                 for bulletin in bulletins
             ]

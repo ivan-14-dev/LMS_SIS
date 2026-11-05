@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from sis_common.academic_configuration import validate_rule_criteria
 from sis_common.authorization import user_has_any_role
-from sis_common.grade_entry import validate_assessment_scale
+from sis_common.grade_entry import GradeUpdateSerializerMixin, validate_assessment_scale
 from sis_common.learning_offerings import ModelValidationSerializerMixin
 from sis_common.serializers import TenantBoundSerializerMixin
 from sis_common.submission_windows import get_submission_window_alert, get_submission_window_status
@@ -127,7 +127,7 @@ class EvaluationDetailSerializer(
         if tenant and ecue and ecue.ue.maquette.annee_universitaire.universite_id != tenant.pk:
             raise serializers.ValidationError({"ecue": "Cet ECUE appartient à un autre établissement."})
         user = getattr(request, "user", None)
-        if user and not user.is_staff and user_has_any_role(user, ("enseignant", "chercheur")):
+        if user and not user.is_superuser and user_has_any_role(user, ("enseignant", "chercheur")):
             if enseignant and enseignant.pk != user.pk:
                 raise serializers.ValidationError(
                     {"enseignant": "Vous ne pouvez créer une évaluation pour un autre enseignant."}
@@ -141,7 +141,7 @@ class EvaluationDetailSerializer(
         return attrs
 
 
-class NoteSerializer(ModelValidationSerializerMixin, serializers.ModelSerializer):
+class NoteSerializer(ModelValidationSerializerMixin, GradeUpdateSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les notes."""
 
     etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)

@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.authorization import request_has_business_access
+from sis_common.hierarchy_attachments import PreserveOrganizationAttachmentsMixin
 
 from .models import Emprunt, Exemplaire, Livre
 from .serializers import EmpruntSerializer, ExemplaireSerializer, LivreDetailSerializer, LivreListSerializer
@@ -31,7 +32,7 @@ class IsBibliothecaireOrReadOnly(IsAuthenticated):
         )
 
 
-class LivresViewSet(viewsets.ModelViewSet):
+class LivresViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour livres."""
 
     permission_classes = [IsBibliothecaireOrReadOnly]

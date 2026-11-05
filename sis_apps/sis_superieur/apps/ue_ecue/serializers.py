@@ -10,9 +10,7 @@ class UEListSerializer(serializers.ModelSerializer):
 
     type_display = serializers.CharField(source="get_type_display", read_only=True)
     semestre_libelle = serializers.CharField(source="semestre.libelle", read_only=True)
-    formation_nom = serializers.CharField(
-        source="maquette.formation.nom", read_only=True
-    )
+    formation_nom = serializers.CharField(source="maquette.formation.nom", read_only=True)
     volume_horaire_total = serializers.IntegerField(read_only=True)
     nb_ecues = serializers.SerializerMethodField()
 
@@ -44,13 +42,9 @@ class UEDetailSerializer(serializers.ModelSerializer):
     """Serializer complet pour une UE."""
 
     type_display = serializers.CharField(source="get_type_display", read_only=True)
-    mh_global_display = serializers.CharField(
-        source="get_mh_global_display", read_only=True
-    )
+    mh_global_display = serializers.CharField(source="get_mh_global_display", read_only=True)
     semestre_libelle = serializers.CharField(source="semestre.libelle", read_only=True)
-    formation_nom = serializers.CharField(
-        source="maquette.formation.nom", read_only=True
-    )
+    formation_nom = serializers.CharField(source="maquette.formation.nom", read_only=True)
     volume_horaire_total = serializers.IntegerField(read_only=True)
     nb_ecues = serializers.SerializerMethodField()
     parcours_noms = serializers.SerializerMethodField()
@@ -85,6 +79,14 @@ class UEDetailSerializer(serializers.ModelSerializer):
 
     def get_nb_ecues(self, obj):
         return obj.ecues.count()
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        maquette = attrs.get("maquette", getattr(self.instance, "maquette", None))
+        semestre = attrs.get("semestre", getattr(self.instance, "semestre", None))
+        if maquette and semestre and maquette.annee_universitaire_id != semestre.annee_universitaire_id:
+            raise serializers.ValidationError({"semestre": "Le semestre doit appartenir à l'année de la maquette."})
+        return attrs
 
     def get_parcours_noms(self, obj):
         return [p.nom for p in obj.parcours_autorises.all()]

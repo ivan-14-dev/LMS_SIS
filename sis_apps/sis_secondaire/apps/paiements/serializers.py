@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from sis_common.authorization import has_business_permission_or_role
+
 from .models import Facture, Paiement, TypeFrais
 
 
@@ -171,9 +173,7 @@ class PaiementCreateSerializer(serializers.ModelSerializer):
             "comptable",
             "personnel_administratif",
         }
-        is_manager = user and (
-            user.is_staff or user.has_perm("paiements.add_paiement") or getattr(user, "role", "") in manager_roles
-        )
+        is_manager = user and has_business_permission_or_role(user, "paiements.add_paiement", manager_roles)
         owns_invoice = user and (
             facture.eleve.user_id == user.id
             or facture.eleve.tuteurs_lies.filter(tuteur__user=user, autorise_acces_portail=True).exists()

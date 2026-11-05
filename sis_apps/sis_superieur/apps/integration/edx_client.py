@@ -12,6 +12,10 @@ import requests
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
+from sis_common.lms_accounts import create_account, update_account
+from sis_common.lms_courses import create_course, get_course, get_course_revision, publish_course, update_course
+from sis_common.lms_enrollments import course_enrollments, set_enrollment
+
 logger = logging.getLogger(__name__)
 
 
@@ -76,12 +80,8 @@ class EdxClient:
     ):
         self.lms_url = lms_url or getattr(settings, "EDX_LMS_URL", None)
         self.cms_url = cms_url or getattr(settings, "EDX_CMS_URL", None)
-        self.oauth_client_id = oauth_client_id or getattr(
-            settings, "EDX_OAUTH_CLIENT_ID", None
-        )
-        self.oauth_client_secret = oauth_client_secret or getattr(
-            settings, "EDX_OAUTH_CLIENT_SECRET", None
-        )
+        self.oauth_client_id = oauth_client_id or getattr(settings, "EDX_OAUTH_CLIENT_ID", None)
+        self.oauth_client_secret = oauth_client_secret or getattr(settings, "EDX_OAUTH_CLIENT_SECRET", None)
         self.timeout = timeout
         self.verify_ssl = verify_ssl
         self._access_token: str | None = None
@@ -124,18 +124,15 @@ class EdxClient:
             "client_id": self.oauth_client_id,
             "client_secret": self.oauth_client_secret,
             "token_type": "jwt",
+            "asymmetric_jwt": "true",
         }
 
         try:
-            r = requests.post(
-                url, data=data, timeout=self.timeout, verify=self.verify_ssl
-            )
+            r = requests.post(url, data=data, timeout=self.timeout, verify=self.verify_ssl)
             r.raise_for_status()
         except requests.HTTPError as e:
             logger.error(f"Échec d'authentification OAuth: {e}")
-            raise EdxAuthenticationError(
-                f"Impossible d'obtenir un token OAuth: {e}"
-            ) from e
+            raise EdxAuthenticationError(f"Impossible d'obtenir un token OAuth: {e}") from e
         except requests.RequestException as e:
             logger.error(f"Erreur réseau lors de l'authentification: {e}")
             raise EdxClientError(f"Erreur de connexion au LMS: {e}") from e
@@ -190,37 +187,16 @@ class EdxClient:
         role="student",
         extra=None,
     ) -> dict:
-        url = f"{self.lms_url}/api/user/v1/accounts"
-        data = {
-            "username": username,
-            "email": email,
-            "name": full_name,
-            "is_staff": is_staff,
-            "is_superuser": is_superuser,
-            "role": role,
-        }
-        if extra:
-            data.update(extra)
-        r = requests.post(url, json=data, headers=self._headers(), timeout=self.timeout)
-        r.raise_for_status()
-        return r.json()
-
-    def update_user(self, username, data) -> dict:
-        url = f"{self.lms_url}/api/user/v1/accounts/{username}"
-        r = requests.patch(
-            url, json=data, headers=self._headers(), timeout=self.timeout
+        return create_account(
+            self, username, email, full_name, is_staff=is_staff, is_superuser=is_superuser, role=role, extra=extra
         )
-        r.raise_for_status()
-        return r.json()
+
+    def update_user(self, username, data, *, user_id) -> dict:
+        return update_account(self, username, data, user_id=user_id)
 
     def deactivate_user(self, username) -> bool:
         url = f"{self.lms_url}/api/user/v1/accounts/{username}/deactivate"
-        return (
-            requests.post(
-                url, headers=self._headers(), timeout=self.timeout
-            ).status_code
-            == 200
-        )
+        return requests.post(url, headers=self._headers(), timeout=self.timeout).status_code == 200
 
     def get_user(self, username) -> dict | None:
         url = f"{self.lms_url}/api/user/v1/accounts/{username}"
@@ -233,35 +209,21 @@ class EdxClient:
     # ---------- COURSES (CMS) ----------
 
     def create_course(self, org, number, run, display_name, course_data=None) -> dict:
-        url = f"{self.cms_url}/api/courses/v1/courses/"
-        data = {"org": org, "number": number, "run": run, "display_name": display_name}
-        if course_data:
-            data.update(course_data)
-        r = requests.post(url, json=data, headers=self._headers(), timeout=self.timeout)
-        r.raise_for_status()
-        return r.json()
+        return create_course(self, org, number, run, display_name, course_data)
 
     def get_course(self, course_key) -> dict | None:
-        url = f"{self.cms_url}/api/courses/v1/courses/{course_key}"
-        r = requests.get(url, headers=self._headers(), timeout=self.timeout)
-        if r.status_code == 404:
-            return None
-        r.raise_for_status()
-        return r.json()
+        return get_course(self, course_key)
 
     def update_course(self, course_key, data) -> dict:
-        url = f"{self.cms_url}/api/courses/v1/courses/{course_key}"
-        r = requests.patch(
-            url, json=data, headers=self._headers(), timeout=self.timeout
-        )
-        r.raise_for_status()
-        return r.json()
+        return update_course(self, course_key, data)
 
-    def publish_course(self, course_key) -> dict:
-        url = f"{self.cms_url}/api/courses/v1/courses/{course_key}/publish"
-        r = requests.post(url, headers=self._headers(), timeout=self.timeout)
-        r.raise_for_status()
-        return r.json()
+    def get_course_revision(self, course_key) -> dict:
+        return get_course_revision(self, course_key)
+
+    def publish_course(self, course_key, *, expected_revision, operation_id, confirm) -> dict:
+        return publish_course(
+            self, course_key, expected_revision=expected_revision, operation_id=operation_id, confirm=confirm
+        )
 
     def create_course_block(
         self,
@@ -288,17 +250,13 @@ class EdxClient:
 
     def update_block(self, block_id, data) -> dict:
         url = f"{self.cms_url}/api/xblock/v1/xblocks/{block_id}"
-        r = requests.patch(
-            url, json=data, headers=self._headers(), timeout=self.timeout
-        )
+        r = requests.patch(url, json=data, headers=self._headers(), timeout=self.timeout)
         r.raise_for_status()
         return r.json()
 
     def delete_block(self, block_id) -> bool:
         url = f"{self.cms_url}/api/xblock/v1/xblocks/{block_id}"
-        return requests.delete(
-            url, headers=self._headers(), timeout=self.timeout
-        ).status_code in (200, 204)
+        return requests.delete(url, headers=self._headers(), timeout=self.timeout).status_code in (200, 204)
 
     def upload_asset(self, course_key, file_path, content) -> dict:
         """Upload un asset (PDF, image, etc.) dans Studio."""
@@ -311,53 +269,27 @@ class EdxClient:
 
     # ---------- ENROLLMENTS ----------
 
+    def set_course_access(self, course_key, username, *, kind, active, requested_at):
+        from sis_common.lms_access import set_course_access
+
+        return set_course_access(self, course_key, username, kind=kind, active=active, requested_at=requested_at)
+
     def enroll_user(self, course_key, username, mode="audit") -> dict:
-        url = f"{self.lms_url}/api/enrollment/v1/enrollment"
-        data = {
-            "course_id": course_key,
-            "username": username,
-            "mode": mode,
-            "is_active": True,
-        }
-        r = requests.post(
-            url, json=[data], headers=self._headers(), timeout=self.timeout
-        )
-        r.raise_for_status()
-        return r.json()[0] if isinstance(r.json(), list) else r.json()
+        return set_enrollment(self, course_key, username, active=True, mode=mode)
 
     def unenroll_user(self, course_key, username) -> bool:
-        url = f"{self.lms_url}/api/enrollment/v1/enrollment"
-        data = {"course_id": course_key, "username": username}
-        return requests.delete(
-            url, json=data, headers=self._headers(), timeout=self.timeout
-        ).status_code in (200, 204)
+        set_enrollment(self, course_key, username, active=False)
+        return True
 
     def get_enrollments(self, course_key) -> list[dict]:
-        url = f"{self.lms_url}/api/enrollment/v1/enrollment"
-        r = requests.get(
-            url,
-            params={"course_id": course_key},
-            headers=self._headers(),
-            timeout=self.timeout,
-        )
-        r.raise_for_status()
-        return r.json()
+        return course_enrollments(self, course_key)
 
     def bulk_enroll(self, course_key, usernames, mode="audit") -> list[dict]:
-        url = f"{self.lms_url}/api/enrollment/v1/enrollment"
-        data = [
-            {"course_id": course_key, "username": u, "mode": mode, "is_active": True}
-            for u in usernames
-        ]
-        r = requests.post(url, json=data, headers=self._headers(), timeout=self.timeout)
-        r.raise_for_status()
-        return r.json()
+        return [self.enroll_user(course_key, username, mode=mode) for username in usernames]
 
     # ---------- GRADES ----------
 
-    def post_grade(
-        self, course_key, username, subsection_id, score, max_score=100.0
-    ) -> dict:
+    def post_grade(self, course_key, username, subsection_id, score, max_score=100.0) -> dict:
         url = f"{self.lms_url}/api/grades/v1/grade_override/{course_key}/{username}/"
         data = {"subsection_id": subsection_id, "score": score, "max_score": max_score}
         r = requests.post(url, json=data, headers=self._headers(), timeout=self.timeout)
@@ -387,9 +319,7 @@ class EdxClient:
         r.raise_for_status()
         return r.json()
 
-    def configure_course_live(
-        self, course_key, provider_type, enabled: bool = True
-    ) -> dict:
+    def configure_course_live(self, course_key, provider_type, enabled: bool = True) -> dict:
         """Active un fournisseur course_live déjà configuré globalement dans Open edX."""
         provider_ids = {
             "bigbluebutton": "big_blue_button",
@@ -402,9 +332,7 @@ class EdxClient:
             "enabled": enabled,
             "free_tier": edx_provider == "big_blue_button",
         }
-        r = requests.post(
-            url, json=data, headers=self._headers(), timeout=self.timeout
-        )
+        r = requests.post(url, json=data, headers=self._headers(), timeout=self.timeout)
         r.raise_for_status()
         return r.json()
 

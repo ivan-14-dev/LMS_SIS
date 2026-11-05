@@ -4,9 +4,12 @@ from unittest.mock import patch
 import pytest
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.utilisateurs.models import Utilisateur
+from auditlog.models import LogEntry
 from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from django_tenants.utils import schema_context
 
@@ -30,7 +33,7 @@ def test_partial_competency_answers_require_presence_but_unanswered_absence_is_a
             offering_grade_result(evaluation, None, result, "absente")
 
 
-class GradeEntryWorkflowTest(TenantAPITestCase):
+class GradeEntryFixture(TenantAPITestCase):
     def create(self, model, **values):
         return apps.get_model(model).objects.create(**values)
 
@@ -155,6 +158,69 @@ class GradeEntryWorkflowTest(TenantAPITestCase):
         self.url = f"{self.base}{self.evaluation.pk}/"
         return offering
 
+
+class GradeEntryWorkflowTest(GradeEntryFixture):
+    def test_patch_does_not_reload_unchanged_author_relations_for_audit(self):
+        self.client.force_authenticate(self.teacher)
+        assert self.save_grades([self.row(self.learners[0])]).status_code == 200
+        note = self.evaluation.notes.get()
+        created_at = note.date_saisie
+        url = f"/api/v1/notes/notes/{note.pk}/"
+        assert self.client.patch(url, {"appreciation": "Premier retour"}, format="json").status_code == 200
+        note.refresh_from_db()
+        previous_modified = note.modifie_le
+
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.patch(url, {"appreciation": "Retour actualisé"}, format="json")
+
+        assert response.status_code == 200, response.data
+        note.refresh_from_db()
+        assert note.appreciation == "Retour actualisé"
+        assert note.valeur == 14
+        assert note.date_saisie == created_at
+        assert note.modifie_le > previous_modified
+        assert note.modifie_par_id == self.author.pk
+        entry = LogEntry.objects.get_for_object(note).filter(action=LogEntry.Action.UPDATE).latest("pk")
+        assert entry.changes_dict["appreciation"] == ["Premier retour", "Retour actualisé"]
+        assert set(entry.changes_dict) == {"appreciation", "modifie_le"}
+        assert entry.object_repr == str(note)
+        author_table = self.author._meta.db_table
+        author_identity = f'"{author_table}"."{self.author._meta.pk.column}" = {self.author.pk} '
+        author_reads = [
+            query["sql"]
+            for query in queries
+            if query["sql"].lstrip().startswith("SELECT")
+            and f'FROM "{author_table}"' in query["sql"]
+            and author_identity in query["sql"]
+        ]
+        assert len(author_reads) <= 1, author_reads
+
+    def test_put_persists_and_audits_changed_learner_and_grade(self):
+        self.client.force_authenticate(self.teacher)
+        assert self.save_grades([self.row(self.learners[0])]).status_code == 200
+        note = self.evaluation.notes.get()
+        learner_field = "eleve" if self.secondary else "etudiant"
+        response = self.client.put(
+            f"/api/v1/notes/notes/{note.pk}/",
+            {
+                "evaluation": self.evaluation.pk,
+                learner_field: self.learners[1].pk,
+                "valeur": "17",
+                "appreciation": "Correction",
+                "statut": "presente",
+            },
+            format="json",
+        )
+        assert response.status_code == 200, response.data
+        note.refresh_from_db()
+        assert getattr(note, f"{learner_field}_id") == self.learners[1].pk
+        assert note.valeur == 17
+        assert note.appreciation == "Correction"
+        assert note.modifie_par_id == self.author.pk
+        entry = LogEntry.objects.get_for_object(note).filter(action=LogEntry.Action.UPDATE).latest("pk")
+        assert entry.changes_dict[learner_field] == [str(self.learners[0]), str(self.learners[1])]
+        assert entry.changes_dict["valeur"] == ["14.00", "17.00"]
+
     def test_numeric_offer_is_inherited_and_snapshot_survives_catalogue_edits(self):
         legacy = self.evaluation
         offering = self.bind_offering("secondary")
@@ -253,8 +319,13 @@ class GradeEntryWorkflowTest(TenantAPITestCase):
         note = self.client.get(f"{self.url}notes/").data[0]
         assert note["resultat_offre"]["status"] == "failed"
         url = f"/api/v1/notes/notes/{note['id']}/"
+        record = self.note_model.objects.get(pk=note["id"])
+        audit_count = LogEntry.objects.get_for_object(record).count()
         response = self.client.patch(url, {"resultat": {"passed": "false"}}, format="json")
         assert response.status_code == 400, response.data
+        record.refresh_from_db()
+        assert record.resultat == {"passed": False}
+        assert LogEntry.objects.get_for_object(record).count() == audit_count
         response = self.client.patch(url, {"resultat": {"passed": True}}, format="json")
         assert response.status_code == 200, response.data
         assert response.data["resultat_offre"]["status"] == "passed"

@@ -16,6 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.academic_configuration import resolve_validation_policy
+from sis_common.academic_lifecycle import AcademicLifecycleMixin
 from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,
@@ -29,7 +30,12 @@ from sis_common.grade_entry import (
     validate_grade_batch,
     validate_offering_grade,
 )
-from sis_common.official_documents import render_official_pdf, tenant_identity_rows
+from sis_common.official_documents import (
+    DocumentTenantPermission,
+    private_document_download,
+    render_official_pdf,
+    tenant_identity_rows,
+)
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
 from sis_common.submission_windows import (
@@ -298,11 +304,12 @@ class IsAcademicAdmin(IsAuthenticated):
         )
 
 
-class EvaluationsViewSet(viewsets.ModelViewSet):
+class EvaluationsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour évaluations."""
 
     permission_classes = [IsEnseignantOrVieScolarite]
     permission_model = "evaluation"
+    academic_period_paths = ("classe.annee_scolaire", "periode.annee_scolaire", "periode")
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["matiere", "classe", "periode", "type", "enseignant", "eleve_cible"]
     search_fields = ["titre", "description"]
@@ -312,7 +319,18 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Evaluation.objects.select_related("matiere", "classe", "periode", "enseignant__user", "eleve_cible__user")
         user = self.request.user
-        if not user.is_staff and user_has_any_role(user, ("enseignant",)):
+        qs = filter_queryset_by_scopes(
+            qs,
+            user,
+            "notes.view_evaluation",
+            {
+                "classes": "classe_id",
+                "matieres": "matiere_id",
+                "annees": "classe__annee_scolaire_id",
+                "periodes": "periode_id",
+            },
+        )
+        if not user.is_superuser and user_has_any_role(user, ("enseignant",)):
             if hasattr(user, "personnel_profile"):
                 return qs.filter(enseignant=user.personnel_profile)
             return qs.none()
@@ -321,17 +339,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
             "notes.view_evaluation",
             ("direction", "responsable_pedagogique", "vie_scolaire"),
         ):
-            return filter_queryset_by_scopes(
-                qs,
-                user,
-                "notes.view_evaluation",
-                {
-                    "classes": "classe_id",
-                    "matieres": "matiere_id",
-                    "annees": "classe__annee_scolaire_id",
-                    "periodes": "periode_id",
-                },
-            )
+            return qs
         return qs.none()
 
     def get_serializer_class(self):
@@ -340,7 +348,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         return EvaluationDetailSerializer
 
     def perform_create(self, serializer):
-        evaluation = serializer.save()
+        evaluation = self.save_academic(serializer)
         changed_fields = apply_submission_window_defaults(
             evaluation,
             _evaluation_configuration(self.request),
@@ -370,7 +378,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        evaluation = serializer.save()
+        evaluation = self.save_academic(serializer)
         changed_fields = apply_submission_window_defaults(
             evaluation,
             _evaluation_configuration(self.request),
@@ -593,11 +601,12 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class NotesViewSet(viewsets.ModelViewSet):
+class NotesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour notes."""
 
     permission_classes = [IsEnseignantOrVieScolarite]
     permission_model = "note"
+    academic_period_paths = ("evaluation.periode.annee_scolaire", "evaluation.periode")
     serializer_class = NoteSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["evaluation", "eleve", "statut"]
@@ -606,10 +615,21 @@ class NotesViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Note.objects.select_related("evaluation", "eleve__user")
         user = self.request.user
+        qs = filter_queryset_by_scopes(
+            qs,
+            user,
+            "notes.view_note",
+            {
+                "classes": "evaluation__classe_id",
+                "matieres": "evaluation__matiere_id",
+                "annees": "evaluation__classe__annee_scolaire_id",
+                "periodes": "evaluation__periode_id",
+            },
+        )
         if hasattr(user, "eleve_profile"):
-            if not user.is_staff and user_has_any_role(user, ("eleve",)):
+            if not user.is_superuser and user_has_any_role(user, ("eleve",)):
                 return qs.filter(eleve__user=user)
-        if not user.is_staff and user_has_any_role(user, ("enseignant",)) and hasattr(user, "personnel_profile"):
+        if not user.is_superuser and user_has_any_role(user, ("enseignant",)) and hasattr(user, "personnel_profile"):
             return qs.filter(evaluation__enseignant=user.personnel_profile)
         if hasattr(user, "tuteur_profile"):
             from apps.eleves.models import EleveTuteur
@@ -624,17 +644,7 @@ class NotesViewSet(viewsets.ModelViewSet):
             ("direction", "responsable_pedagogique", "vie_scolaire"),
         ):
             return qs.none()
-        return filter_queryset_by_scopes(
-            qs,
-            user,
-            "notes.view_note",
-            {
-                "classes": "evaluation__classe_id",
-                "matieres": "evaluation__matiere_id",
-                "annees": "evaluation__classe__annee_scolaire_id",
-                "periodes": "evaluation__periode_id",
-            },
-        )
+        return qs
 
     @action(detail=False, methods=["get"])
     def bilan(self, request):
@@ -678,51 +688,50 @@ class NotesViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         evaluation = serializer.validated_data["evaluation"]
         _ensure_secondary_continuous_assessment(evaluation)
-        serializer.save(saisi_par=getattr(self.request.user, "personnel_profile", None))
+        self.save_academic(serializer, saisi_par=getattr(self.request.user, "personnel_profile", None))
 
     def perform_update(self, serializer):
-        note = self.get_object()
+        # Recheck scoped access; update() already holds the note lock.
+        note = super(AcademicLifecycleMixin, self).get_object()
+        note.evaluation.refresh_from_db()
         _ensure_secondary_continuous_assessment(note.evaluation)
-        serializer.save(modifie_le=timezone.now(), modifie_par=getattr(self.request.user, "personnel_profile", None))
+        self.save_academic(
+            serializer, modifie_le=timezone.now(), modifie_par=getattr(self.request.user, "personnel_profile", None)
+        )
 
 
 class BulletinsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour bulletins."""
 
-    permission_classes = [IsEnseignantOrVieScolarite]
+    permission_classes = [DocumentTenantPermission, IsEnseignantOrVieScolarite]
     permission_model = "bulletin"
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = [
+        "eleve__matricule",
+        "eleve__user__last_name",
+        "eleve__user__first_name",
+        "classe__nom",
+        "periode__libelle",
+    ]
     filterset_fields = ["eleve", "classe", "periode", "publie"]
     ordering = ["-periode__date_fin"]
 
     def get_queryset(self):
-        qs = Bulletin.objects.select_related("eleve__user", "classe", "periode").annotate(
-            nb_matieres_individualisees=Count(
-                "eleve__affectations_matiere_individuelles",
-                filter=Q(eleve__affectations_matiere_individuelles__annee_scolaire_id=F("classe__annee_scolaire_id")),
-                distinct=True,
+        qs = (
+            Bulletin.objects.filter(eleve__etablissement_id=self.request.tenant.pk)
+            .select_related("eleve__user", "classe", "periode")
+            .annotate(
+                nb_matieres_individualisees=Count(
+                    "eleve__affectations_matiere_individuelles",
+                    filter=Q(
+                        eleve__affectations_matiere_individuelles__annee_scolaire_id=F("classe__annee_scolaire_id")
+                    ),
+                    distinct=True,
+                )
             )
         )
         user = self.request.user
-        if hasattr(user, "eleve_profile"):
-            if not user.is_staff and user_has_any_role(user, ("eleve",)):
-                return qs.filter(eleve__user=user, publie=True)
-        if hasattr(user, "tuteur_profile"):
-            from apps.eleves.models import EleveTuteur
-
-            eleves_ids = EleveTuteur.objects.filter(
-                tuteur=user.tuteur_profile, autorise_acces_portail=True
-            ).values_list("eleve_id", flat=True)
-            return qs.filter(eleve_id__in=eleves_ids, publie=True)
-        if not user.is_staff and user_has_any_role(user, ("enseignant",)) and hasattr(user, "personnel_profile"):
-            return qs.filter(classe__prof_principal=user.personnel_profile)
-        if not request_has_business_access(
-            self.request,
-            "notes.view_bulletin",
-            ("direction", "responsable_pedagogique", "vie_scolaire"),
-        ):
-            return qs.none()
-        return filter_queryset_by_scopes(
+        qs = filter_queryset_by_scopes(
             qs,
             user,
             "notes.view_bulletin",
@@ -732,6 +741,26 @@ class BulletinsViewSet(viewsets.ModelViewSet):
                 "periodes": "periode_id",
             },
         )
+        if user.role == "eleve" and not user.is_superuser:
+            return qs.filter(eleve__user=user, publie=True)
+        if user.role == "parent" or hasattr(user, "tuteur_profile"):
+            return qs.filter(
+                eleve__tuteurs_lies__tuteur__user=user,
+                eleve__tuteurs_lies__autorise_acces_portail=True,
+                publie=True,
+            ).distinct()
+        if not user.is_superuser and user_has_any_role(user, ("enseignant",)) and hasattr(user, "personnel_profile"):
+            return qs.filter(classe__prof_principal=user.personnel_profile)
+        if not (
+            user.has_perm("notes.view_bulletin")
+            or request_has_business_access(
+                self.request,
+                "notes.view_bulletin",
+                ("direction", "responsable_pedagogique", "vie_scolaire"),
+            )
+        ):
+            return qs.none()
+        return qs
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -808,6 +837,7 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
+    @private_document_download
     def pdf_officiel(self, request, pk=None):
         """Génère un PDF officiel du bulletin."""
         bulletin = self.get_object()

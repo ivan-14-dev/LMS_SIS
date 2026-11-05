@@ -104,9 +104,7 @@ def metrics(request):
     edx_mappings = Gauge("sis_edx_mappings_active", "Nombre de mappings EDX actifs", registry=registry)
     edx_mappings.set(EdxUserMapping.objects.filter(actif=True).count())
 
-    edx_enrollments = Gauge(
-        "sis_edx_enrollments_active", "Nombre d'inscriptions EDX actives", registry=registry
-    )
+    edx_enrollments = Gauge("sis_edx_enrollments_active", "Nombre d'inscriptions EDX actives", registry=registry)
     edx_enrollments.set(EdxEnrollment.objects.filter(is_active=True).count())
 
     outbox_pending = Gauge("sis_outbox_events_pending", "Événements outbox en attente", registry=registry)
@@ -115,9 +113,7 @@ def metrics(request):
     outbox_failed = Gauge("sis_outbox_events_failed", "Événements outbox en échec", registry=registry)
     outbox_failed.set(OutboxEvent.objects.filter(statut="failed").count())
 
-    outbox_dead = Gauge(
-        "sis_outbox_events_dead", "Événements outbox définitivement en échec", registry=registry
-    )
+    outbox_dead = Gauge("sis_outbox_events_dead", "Événements outbox définitivement en échec", registry=registry)
     outbox_dead.set(OutboxEvent.objects.filter(statut="dead").count())
 
     scrape_timestamp = Gauge(

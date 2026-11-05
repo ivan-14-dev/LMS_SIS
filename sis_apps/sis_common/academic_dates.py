@@ -8,6 +8,11 @@ class AcademicDatesMixin(TenantBoundSerializerMixin):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        for field in ("cloturee", "cloture", "en_cours"):
+            if field in self.initial_data and serializers.BooleanField().run_validation(
+                self.initial_data[field]
+            ) != getattr(self.instance, field, False):
+                raise serializers.ValidationError({field: "Utilisez l'action d'activation ou de clôture."})
         start = attrs.get("date_debut", getattr(self.instance, "date_debut", None))
         end = attrs.get("date_fin", getattr(self.instance, "date_fin", None))
         if start and end and start > end:

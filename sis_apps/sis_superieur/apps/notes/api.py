@@ -15,6 +15,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.academic_configuration import resolve_validation_policy
+from sis_common.academic_lifecycle import AcademicLifecycleMixin
 from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,
@@ -294,11 +295,12 @@ class IsAcademicAdmin(IsAuthenticated):
         )
 
 
-class EvaluationsViewSet(viewsets.ModelViewSet):
+class EvaluationsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour évaluations."""
 
     permission_classes = [IsEnseignantOrScolarite]
     permission_model = "evaluation"
+    academic_period_paths = ("semestre.annee_universitaire", "semestre", "ecue.ue.maquette.annee_universitaire")
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["ecue", "semestre", "modalite", "enseignant", "anonyme"]
     search_fields = ["titre", "description"]
@@ -308,15 +310,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Evaluation.objects.select_related("ecue", "semestre", "enseignant")
         user = self.request.user
-        if not user.is_staff and user_has_any_role(user, ("enseignant", "chercheur")):
-            return qs.filter(enseignant=user)
-        if not request_has_business_access(
-            self.request,
-            "notes.view_evaluation",
-            ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
-        ):
-            return qs.none()
-        return filter_queryset_by_scopes(
+        qs = filter_queryset_by_scopes(
             qs,
             user,
             "notes.view_evaluation",
@@ -330,6 +324,15 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
                 "ecues": "ecue_id",
             },
         )
+        if not user.is_superuser and user_has_any_role(user, ("enseignant", "chercheur")):
+            return qs.filter(enseignant=user)
+        if not request_has_business_access(
+            self.request,
+            "notes.view_evaluation",
+            ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
+        ):
+            return qs.none()
+        return qs
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -337,7 +340,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         return EvaluationDetailSerializer
 
     def perform_create(self, serializer):
-        evaluation = serializer.save()
+        evaluation = self.save_academic(serializer)
         changed_fields = apply_submission_window_defaults(
             evaluation,
             getattr(getattr(self.request, "tenant", None), "configuration_academique", {}) or {},
@@ -347,7 +350,7 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
             evaluation.save(update_fields=changed_fields)
 
     def perform_update(self, serializer):
-        evaluation = serializer.save()
+        evaluation = self.save_academic(serializer)
         changed_fields = apply_submission_window_defaults(
             evaluation,
             getattr(getattr(self.request, "tenant", None), "configuration_academique", {}) or {},
@@ -494,11 +497,12 @@ class EvaluationsViewSet(viewsets.ModelViewSet):
         )
 
 
-class NotesViewSet(viewsets.ModelViewSet):
+class NotesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour notes."""
 
     permission_classes = [IsEnseignantOrScolarite]
     permission_model = "note"
+    academic_period_paths = ("evaluation.semestre.annee_universitaire", "evaluation.semestre")
     serializer_class = NoteSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["evaluation", "etudiant", "statut"]
@@ -515,9 +519,23 @@ class NotesViewSet(viewsets.ModelViewSet):
             parcours_individualise=Exists(individualized_assignments)
         )
         user = self.request.user
-        if not user.is_staff and user_has_any_role(user, ("etudiant", "doctorant")):
+        qs = filter_queryset_by_scopes(
+            qs,
+            user,
+            "notes.view_note",
+            {
+                "formations": "etudiant__inscriptions_admin__formation_id",
+                "facultes": ("etudiant__inscriptions_admin__formation__departement__faculte_id"),
+                "departements": ("etudiant__inscriptions_admin__formation__departement_id"),
+                "annees": "evaluation__semestre__annee_universitaire_id",
+                "semestres": "evaluation__semestre_id",
+                "ues": "evaluation__ecue__ue_id",
+                "ecues": "evaluation__ecue_id",
+            },
+        )
+        if not user.is_superuser and user_has_any_role(user, ("etudiant", "doctorant")):
             return qs.filter(etudiant__user=user)
-        if not user.is_staff and user_has_any_role(user, ("enseignant", "chercheur")):
+        if not user.is_superuser and user_has_any_role(user, ("enseignant", "chercheur")):
             return qs.filter(evaluation__enseignant=user)
         if not request_has_business_access(
             self.request,
@@ -533,20 +551,7 @@ class NotesViewSet(viewsets.ModelViewSet):
             ),
         ):
             return qs.none()
-        return filter_queryset_by_scopes(
-            qs,
-            user,
-            "notes.view_note",
-            {
-                "formations": "etudiant__inscriptions_admin__formation_id",
-                "facultes": ("etudiant__inscriptions_admin__formation__departement__faculte_id"),
-                "departements": ("etudiant__inscriptions_admin__formation__departement_id"),
-                "annees": "evaluation__semestre__annee_universitaire_id",
-                "semestres": "evaluation__semestre_id",
-                "ues": "evaluation__ecue__ue_id",
-                "ecues": "evaluation__ecue_id",
-            },
-        )
+        return qs
 
     @action(detail=False, methods=["get"])
     def bilan(self, request):
@@ -590,12 +595,14 @@ class NotesViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         evaluation = serializer.validated_data["evaluation"]
         _ensure_superior_continuous_assessment(evaluation)
-        serializer.save(saisi_par=self.request.user)
+        self.save_academic(serializer, saisi_par=self.request.user)
 
     def perform_update(self, serializer):
-        note = self.get_object()
+        # Recheck scoped access; update() already holds the note lock.
+        note = super(AcademicLifecycleMixin, self).get_object()
+        note.evaluation.refresh_from_db()
         _ensure_superior_continuous_assessment(note.evaluation)
-        serializer.save(modifie_le=timezone.now(), modifie_par=self.request.user)
+        self.save_academic(serializer, modifie_le=timezone.now(), modifie_par=self.request.user)
 
 
 class MoyennesECUEViewSet(viewsets.ReadOnlyModelViewSet):
@@ -617,15 +624,7 @@ class MoyennesECUEViewSet(viewsets.ReadOnlyModelViewSet):
             parcours_individualise=Exists(individualized_assignments)
         )
         user = self.request.user
-        if not user.is_staff and user_has_any_role(user, ("etudiant", "doctorant")):
-            return qs.filter(etudiant__user=user)
-        if not request_has_business_access(
-            self.request,
-            "notes.view_moyenneecue",
-            ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
-        ):
-            return qs.none()
-        return filter_queryset_by_scopes(
+        qs = filter_queryset_by_scopes(
             qs,
             user,
             "notes.view_moyenneecue",
@@ -639,6 +638,15 @@ class MoyennesECUEViewSet(viewsets.ReadOnlyModelViewSet):
                 "ues": "ecue__ue_id",
             },
         )
+        if not user.is_superuser and user_has_any_role(user, ("etudiant", "doctorant")):
+            return qs.filter(etudiant__user=user)
+        if not request_has_business_access(
+            self.request,
+            "notes.view_moyenneecue",
+            ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
+        ):
+            return qs.none()
+        return qs
 
     @action(detail=False, methods=["post"])
     def exporter(self, request):
@@ -672,15 +680,7 @@ class MoyennesUEViewSet(viewsets.ReadOnlyModelViewSet):
             parcours_individualise=Exists(individualized_assignments)
         )
         user = self.request.user
-        if not user.is_staff and user_has_any_role(user, ("etudiant", "doctorant")):
-            return qs.filter(etudiant__user=user)
-        if not request_has_business_access(
-            self.request,
-            "notes.view_moyenneue",
-            ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
-        ):
-            return qs.none()
-        return filter_queryset_by_scopes(
+        qs = filter_queryset_by_scopes(
             qs,
             user,
             "notes.view_moyenneue",
@@ -693,6 +693,15 @@ class MoyennesUEViewSet(viewsets.ReadOnlyModelViewSet):
                 "ues": "ue_id",
             },
         )
+        if not user.is_superuser and user_has_any_role(user, ("etudiant", "doctorant")):
+            return qs.filter(etudiant__user=user)
+        if not request_has_business_access(
+            self.request,
+            "notes.view_moyenneue",
+            ("president", "vice_president", "doyen", "directeur_etudes", "scolarite"),
+        ):
+            return qs.none()
+        return qs
 
     @action(detail=False, methods=["post"])
     def exporter(self, request):

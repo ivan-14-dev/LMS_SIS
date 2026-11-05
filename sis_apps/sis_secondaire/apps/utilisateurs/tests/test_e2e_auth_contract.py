@@ -36,9 +36,7 @@ class AccountRecoveryToMFAContractTestCase(TenantAPITestCase):
 
     def test_full_recovery_login_and_mfa_enrollment_journey(self):
         # 1. L'utilisateur a oublié son mot de passe : il demande un lien.
-        request_response = self.client.post(
-            "/api/v1/auth/password-reset/request/", {"email": self.user.email}
-        )
+        request_response = self.client.post("/api/v1/auth/password-reset/request/", {"email": self.user.email})
         assert request_response.status_code == 200
         assert set(request_response.data.keys()) == {"detail"}
         assert len(mail.outbox) == 1
@@ -69,6 +67,9 @@ class AccountRecoveryToMFAContractTestCase(TenantAPITestCase):
         # 4. Authentifié, il démarre l'enrôlement MFA.
         auth_header = "Bearer " + access_token
         self.client.credentials(HTTP_AUTHORIZATION=auth_header)
+        profile_response = self.client.get("/api/v1/utilisateurs/comptes/me/")
+        assert profile_response.status_code == 200
+        assert profile_response.data["etablissement_nom"] == self.tenant.nom
         enroll_response = self.client.post("/api/v1/utilisateurs/comptes/mfa_enroll/")
         assert enroll_response.status_code == 200
         assert set(enroll_response.data.keys()) == {"secret", "provisioning_uri", "detail"}
@@ -76,9 +77,7 @@ class AccountRecoveryToMFAContractTestCase(TenantAPITestCase):
 
         # 5. Il confirme l'enrôlement avec un vrai code TOTP généré à partir du secret.
         code = pyotp.TOTP(secret).now()
-        activate_response = self.client.post(
-            "/api/v1/utilisateurs/comptes/mfa_activate/", {"code": code}
-        )
+        activate_response = self.client.post("/api/v1/utilisateurs/comptes/mfa_activate/", {"code": code})
         assert activate_response.status_code == 200
         assert activate_response.data["mfa_active"] is True
 

@@ -82,8 +82,8 @@ class Note(OfferingGradeModel):
         ("non_rendue", "Non rendue"),
         ("triche", "Triche"),
     ]
-    evaluation = models.ForeignKey(Evaluation, on_delete=models.CASCADE, related_name="notes")
-    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="notes")
+    evaluation = models.ForeignKey(Evaluation, on_delete=models.PROTECT, related_name="notes")
+    eleve = models.ForeignKey(Eleve, on_delete=models.PROTECT, related_name="notes")
     valeur = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     appreciation = models.TextField(blank=True)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="presente")

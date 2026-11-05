@@ -1,18 +1,27 @@
 """API views for utilisateurs (ViewSets DRF) - SIS Secondaire."""
 
 from django.contrib.auth.models import Group, Permission
+from django.db import transaction
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common import mfa as mfa_service
+from sis_common.academic_lifecycle import AcademicLifecycleMixin
 from sis_common.authorization import (
+    can_delegate_permissions,
+    has_business_permission,
     has_business_permission_or_role,
+    is_current_tenant_user,
     permission_snapshot,
 )
+from sis_common.branding import branding_snapshot
+from sis_common.module_registry import module_snapshot
 from sis_common.session_security import (
     list_active_sessions,
     revoke_all_sessions,
@@ -22,6 +31,7 @@ from sis_common.session_security import (
 from .models import Utilisateur
 from .serializers import (
     ChangePasswordSerializer,
+    GroupAssignmentSerializer,
     GroupSerializer,
     MFACodeSerializer,
     MFADisableSerializer,
@@ -54,6 +64,8 @@ class IsDirectionOrReadOnly(IsAuthenticated):
             return True
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
+        if not is_current_tenant_user(request):
+            return False
         permission = {
             "create": "utilisateurs.add_utilisateur",
             "destroy": "utilisateurs.delete_utilisateur",
@@ -69,8 +81,12 @@ class IsDirectionOrReadOnly(IsAuthenticated):
 
 class CanManageAuthorization(IsAuthenticated):
     def has_permission(self, request, view):
-        if not super().has_permission(request, view):
+        if not super().has_permission(request, view) or not is_current_tenant_user(request):
             return False
+        if view.action in ("assign", "unassign"):
+            return has_business_permission(request.user, "auth.change_group") and has_business_permission(
+                request.user, "utilisateurs.change_utilisateur"
+            )
         permission = {
             "GET": "auth.view_group",
             "HEAD": "auth.view_group",
@@ -78,10 +94,10 @@ class CanManageAuthorization(IsAuthenticated):
             "POST": "auth.add_group",
             "DELETE": "auth.delete_group",
         }.get(request.method, "auth.change_group")
-        return request.user.is_staff or request.user.has_perm(permission)
+        return has_business_permission(request.user, permission)
 
 
-class UtilisateursViewSet(viewsets.ModelViewSet):
+class UtilisateursViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour utilisateurs."""
 
     permission_classes = [IsDirectionOrReadOnly]
@@ -127,16 +143,16 @@ class UtilisateursViewSet(viewsets.ModelViewSet):
     def me(self, request):
         """Retourne le profil de l'utilisateur connecté."""
         serializer = UtilisateurDetailSerializer(request.user)
-        return Response(serializer.data)
+        return Response({**serializer.data, "branding": branding_snapshot(request)})
 
     @action(detail=False, methods=["get"])
     def capabilities(self, request):
-        return Response(
-            permission_snapshot(
-                request.user,
-                getattr(request.tenant, "configuration_academique", {}),
-            )
-        )
+        from apps.portail.api import portal_capabilities
+
+        snapshot = permission_snapshot(request.user, getattr(request.tenant, "configuration_academique", {}))
+        snapshot["modules"] = module_snapshot(request.tenant)["enabled"]
+        snapshot.update(portal_capabilities(request))
+        return Response(snapshot)
 
     @action(detail=False, methods=["patch"])
     def update_profile(self, request):
@@ -264,8 +280,68 @@ class PermissionsViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["content_type__app_label"]
     search_fields = ["codename", "name"]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.is_superuser:
+            return queryset
+        granted = self.request.user.get_all_permissions()
+        scopes = (self.request.user.attributs_acces or {}).get("permission_scopes", {})
+        return queryset.filter(
+            pk__in=[
+                permission.pk
+                for permission in queryset
+                if f"{permission.content_type.app_label}.{permission.codename}" in granted
+                and f"{permission.content_type.app_label}.{permission.codename}" not in scopes
+            ]
+        )
+
 
 class GroupesPermissionsViewSet(viewsets.ModelViewSet):
     permission_classes = [CanManageAuthorization]
     serializer_class = GroupSerializer
     queryset = Group.objects.prefetch_related("permissions").order_by("name")
+
+    def get_object(self):
+        group = super().get_object()
+        if self.request.method not in ("GET", "HEAD", "OPTIONS"):
+            group = Group.objects.select_for_update().prefetch_related("permissions").get(pk=group.pk)
+        if self.request.method not in ("GET", "HEAD", "OPTIONS") and not self.request.user.is_superuser:
+            if self.request.user.groups.filter(pk=group.pk).exists() or not can_delegate_permissions(
+                self.request.user, group.permissions.all()
+            ):
+                raise PermissionDenied("Ce groupe ne peut pas être administré par cet utilisateur.")
+        return group
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def assign(self, request, pk=None):
+        group = self.get_object()
+        serializer = GroupAssignmentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = self._assignment_target(request, serializer.validated_data["user_id"])
+        user.groups.add(group)
+        return Response({"user_id": user.pk, "group_id": group.pk})
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def unassign(self, request, pk=None):
+        group = self.get_object()
+        serializer = GroupAssignmentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = self._assignment_target(request, serializer.validated_data["user_id"])
+        user.groups.remove(group)
+        return Response({"user_id": user.pk, "group_id": group.pk})
+
+    def _assignment_target(self, request, user_id):
+        user = get_object_or_404(Utilisateur.objects.select_for_update(), pk=user_id, etablissement=request.tenant)
+        if not request.user.is_superuser and (user.pk == request.user.pk or user.is_superuser):
+            raise PermissionDenied("Impossible de modifier vos propres groupes ou un super-utilisateur.")
+        return user

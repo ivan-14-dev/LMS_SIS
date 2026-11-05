@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.authorization import has_business_permission_or_role
+from sis_common.hierarchy_attachments import PreserveOrganizationAttachmentsMixin
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import Departement, EcoleDoctorale, Faculte
@@ -45,7 +46,7 @@ class IsAdminOrReadOnly(IsAuthenticated):
         )
 
 
-class FacultesViewSet(viewsets.ModelViewSet):
+class FacultesViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour facultés."""
 
     permission_classes = [IsAdminOrReadOnly]
@@ -125,7 +126,7 @@ class FacultesViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class DepartementsViewSet(viewsets.ModelViewSet):
+class DepartementsViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour départements."""
 
     permission_classes = [IsAdminOrReadOnly]
@@ -207,7 +208,7 @@ class DepartementsViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class EcolesDoctoralesViewSet(viewsets.ModelViewSet):
+class EcolesDoctoralesViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour écoles doctorales."""
 
     permission_classes = [IsAdminOrReadOnly]

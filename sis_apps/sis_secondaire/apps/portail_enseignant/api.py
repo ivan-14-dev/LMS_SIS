@@ -42,13 +42,9 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
     def _accessible_classes(self, request):
         enseignant = self._get_enseignant(request)
         classe_ids = {
-            classe.id
-            for affectation in self._affectations_queryset(enseignant)
-            for classe in affectation.classes.all()
+            classe.id for affectation in self._affectations_queryset(enseignant) for classe in affectation.classes.all()
         }
-        classe_ids.update(
-            Classe.objects.filter(prof_principal=request.user).values_list("id", flat=True)
-        )
+        classe_ids.update(Classe.objects.filter(prof_principal=request.user).values_list("id", flat=True))
         return Classe.objects.filter(id__in=classe_ids).select_related("niveau")
 
     @action(detail=False, methods=["get"])
@@ -66,7 +62,7 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
                     {
                         "classe_id": classe.id,
                         "classe_nom": classe.nom,
-                        "niveau": classe.niveau.nom if classe.niveau else None,
+                        "niveau": classe.niveau.libelle if classe.niveau else None,
                         "matiere": affectation.matiere.nom,
                         "annee_scolaire": affectation.annee_scolaire.libelle,
                         "nb_eleves": nb_eleves,
@@ -75,9 +71,7 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
                 )
 
         classes_pp = (
-            Classe.objects.filter(prof_principal=request.user)
-            .select_related("niveau")
-            .order_by("niveau__ordre", "nom")
+            Classe.objects.filter(prof_principal=request.user).select_related("niveau").order_by("niveau__ordre", "nom")
         )
 
         return Response(
@@ -89,7 +83,7 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
                 },
                 "classes": classes,
                 "classes_pp": [
-                    {"id": classe.id, "nom": classe.nom, "niveau": classe.niveau.nom if classe.niveau else None}
+                    {"id": classe.id, "nom": classe.nom, "niveau": classe.niveau.libelle if classe.niveau else None}
                     for classe in classes_pp
                 ],
                 "statistiques": {
@@ -110,7 +104,7 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
                     {
                         "id": classe.id,
                         "nom": classe.nom,
-                        "niveau": classe.niveau.nom if classe.niveau else None,
+                        "niveau": classe.niveau.libelle if classe.niveau else None,
                         "matiere": affectation.matiere.nom,
                         "nb_eleves": classe.eleves_actuels.count(),
                         "heures_semaine": _decimal_to_float(affectation.heures_semaine),
@@ -161,7 +155,7 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
                     "heure_debut": str(creneau.heure_debut),
                     "heure_fin": str(creneau.heure_fin),
                     "classe": creneau.classe.nom,
-                    "niveau": creneau.classe.niveau.nom if creneau.classe.niveau else None,
+                    "niveau": creneau.classe.niveau.libelle if creneau.classe.niveau else None,
                     "matiere": creneau.matiere.nom,
                     "salle": creneau.salle.nom if creneau.salle else None,
                     "type": creneau.type,

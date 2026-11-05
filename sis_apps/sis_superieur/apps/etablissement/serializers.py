@@ -149,7 +149,7 @@ class SemestreSerializer(AcademicDatesMixin, serializers.ModelSerializer):
 
     academic_year_field = "annee_universitaire"
     annee_libelle = serializers.CharField(source="annee_universitaire.libelle", read_only=True)
-    type_display = serializers.CharField(source="get_type_display", read_only=True)
+    type_display = serializers.SerializerMethodField()
     libelle = serializers.SerializerMethodField()
 
     class Meta:
@@ -171,6 +171,11 @@ class SemestreSerializer(AcademicDatesMixin, serializers.ModelSerializer):
 
     def get_libelle(self, obj):
         return str(obj)
+
+    def get_type_display(self, obj):
+        request = self.context.get("request")
+        tenant = request.tenant if request else obj.annee_universitaire.universite
+        return catalog_label(tenant.configuration_academique, "period_types", obj.type, obj.TYPE_CHOICES)
 
     def validate_annee_universitaire(self, value):
         request = self.context.get("request")

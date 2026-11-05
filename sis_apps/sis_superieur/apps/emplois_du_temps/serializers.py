@@ -1,6 +1,9 @@
 """Serializers for emplois du temps (SIS Supérieur)."""
 
+from django.db import connection
 from rest_framework import serializers
+
+from sis_common.academic_lifecycle import ensure_academic_open
 
 from .models import Batiment, ConflitHoraire, CreneauCours, CreneauHoraire, Reservation, Salle
 
@@ -50,9 +53,7 @@ class SalleDetailSerializer(serializers.ModelSerializer):
 
     batiment = BatimentListSerializer(read_only=True)
     type_display = serializers.CharField(source="get_type_display", read_only=True)
-    departement_nom = serializers.CharField(
-        source="departement_gestionnaire.nom", read_only=True
-    )
+    departement_nom = serializers.CharField(source="departement_gestionnaire.nom", read_only=True)
 
     class Meta:
         model = Salle
@@ -88,6 +89,13 @@ class CreneauHoraireSerializer(serializers.ModelSerializer):
         model = CreneauHoraire
         fields = "__all__"
 
+    def validate(self, attrs):
+        start = attrs.get("heure_debut", getattr(self.instance, "heure_debut", None))
+        end = attrs.get("heure_fin", getattr(self.instance, "heure_fin", None))
+        if start and end and start >= end:
+            raise serializers.ValidationError({"heure_fin": "La fin doit suivre le début."})
+        return attrs
+
 
 # === CreneauCours Serializers ===
 class CreneauCoursListSerializer(serializers.ModelSerializer):
@@ -96,12 +104,13 @@ class CreneauCoursListSerializer(serializers.ModelSerializer):
     jour_display = serializers.CharField(source="get_jour_display", read_only=True)
     ecue_code = serializers.CharField(source="ecue.code", read_only=True)
     ecue_nom = serializers.CharField(source="ecue.nom", read_only=True)
-    enseignant_nom = serializers.CharField(source="enseignant.__str__", read_only=True)
+    enseignant_nom = serializers.SerializerMethodField()
     salle_code = serializers.CharField(source="salle.code", read_only=True)
     horaire = serializers.CharField(source="creneau_horaire.__str__", read_only=True)
-    type_display = serializers.CharField(
-        source="get_type_cours_display", read_only=True
-    )
+    type_display = serializers.CharField(source="get_type_cours_display", read_only=True)
+
+    def get_enseignant_nom(self, obj):
+        return str(obj.enseignant) if obj.enseignant_id else ""
 
     class Meta:
         model = CreneauCours
@@ -124,9 +133,7 @@ class CreneauCoursDetailSerializer(serializers.ModelSerializer):
     """Détail complet d'un créneau."""
 
     jour_display = serializers.CharField(source="get_jour_display", read_only=True)
-    type_display = serializers.CharField(
-        source="get_type_cours_display", read_only=True
-    )
+    type_display = serializers.CharField(source="get_type_cours_display", read_only=True)
     ecue = serializers.SerializerMethodField()
     enseignant = serializers.SerializerMethodField()
     salle = SalleListSerializer(read_only=True)
@@ -179,26 +186,30 @@ class CreneauCoursCreateUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        # Vérification des conflits de salle
-        salle = attrs.get("salle")
-        jour = attrs.get("jour")
-        creneau = attrs.get("creneau_horaire")
-        semestre = attrs.get("semestre")
         instance = self.instance
 
+        def value(field):
+            return attrs.get(field, getattr(instance, field, None))
+
+        salle, jour, creneau, semestre = (value(field) for field in ("salle", "jour", "creneau_horaire", "semestre"))
+        ensure_academic_open(instance, attrs, ("semestre.annee_universitaire", "semestre"))
+        ecue, formation = value("ecue"), value("formation")
+        if ecue and (ecue.ue.maquette.formation_id != formation.pk or ecue.ue.semestre_id != semestre.pk):
+            raise serializers.ValidationError({"ecue": "L'ECUE doit appartenir à cette formation et à ce semestre."})
+        if attrs.get("semaine_debut", getattr(instance, "semaine_debut", 1)) > attrs.get(
+            "semaine_fin", getattr(instance, "semaine_fin", 52)
+        ):
+            raise serializers.ValidationError({"semaine_fin": "La dernière semaine doit suivre la première."})
+
         if salle and creneau:
-            conflits = CreneauCours.objects.filter(
-                salle=salle, jour=jour, creneau_horaire=creneau, semestre=semestre
-            )
+            conflits = CreneauCours.objects.filter(salle=salle, jour=jour, creneau_horaire=creneau, semestre=semestre)
             if instance:
                 conflits = conflits.exclude(pk=instance.pk)
             if conflits.exists():
-                raise serializers.ValidationError(
-                    {"salle": "Cette salle est déjà occupée sur ce créneau."}
-                )
+                raise serializers.ValidationError({"salle": "Cette salle est déjà occupée sur ce créneau."})
 
         # Vérification des conflits d'enseignant
-        enseignant = attrs.get("enseignant")
+        enseignant = value("enseignant")
         if enseignant and creneau:
             conflits = CreneauCours.objects.filter(
                 enseignant=enseignant,
@@ -209,9 +220,7 @@ class CreneauCoursCreateUpdateSerializer(serializers.ModelSerializer):
             if instance:
                 conflits = conflits.exclude(pk=instance.pk)
             if conflits.exists():
-                raise serializers.ValidationError(
-                    {"enseignant": "Cet enseignant a déjà un cours sur ce créneau."}
-                )
+                raise serializers.ValidationError({"enseignant": "Cet enseignant a déjà un cours sur ce créneau."})
 
         return attrs
 
@@ -271,24 +280,26 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        salle = attrs.get("salle")
-        date = attrs.get("date")
-        heure_debut = attrs.get("heure_debut")
-        heure_fin = attrs.get("heure_fin")
+        salle = attrs.get("salle", getattr(self.instance, "salle", None))
+        date = attrs.get("date", getattr(self.instance, "date", None))
+        heure_debut = attrs.get("heure_debut", getattr(self.instance, "heure_debut", None))
+        heure_fin = attrs.get("heure_fin", getattr(self.instance, "heure_fin", None))
+        if connection.in_atomic_block:
+            salle = Salle.objects.select_for_update().get(pk=salle.pk)
+        if not salle.disponible:
+            raise serializers.ValidationError({"salle": "Cette salle n'est pas disponible."})
 
         if heure_debut >= heure_fin:
-            raise serializers.ValidationError(
-                {"heure_fin": "L'heure de fin doit être après l'heure de début."}
-            )
+            raise serializers.ValidationError({"heure_fin": "L'heure de fin doit être après l'heure de début."})
 
         # Vérifier si la salle n'est pas déjà réservée
-        conflits = Reservation.objects.filter(
-            salle=salle, date=date, statut="confirmee"
-        ).filter(heure_debut__lt=heure_fin, heure_fin__gt=heure_debut)
+        conflits = Reservation.objects.filter(salle=salle, date=date, statut="confirmee").filter(
+            heure_debut__lt=heure_fin, heure_fin__gt=heure_debut
+        )
+        if self.instance:
+            conflits = conflits.exclude(pk=self.instance.pk)
         if conflits.exists():
-            raise serializers.ValidationError(
-                {"salle": "Cette salle est déjà réservée sur ce créneau."}
-            )
+            raise serializers.ValidationError({"salle": "Cette salle est déjà réservée sur ce créneau."})
 
         return attrs
 
@@ -304,9 +315,7 @@ class ValidationReservationSerializer(serializers.Serializer):
 class ConflitHoraireSerializer(serializers.ModelSerializer):
     """Conflit horaire."""
 
-    type_display = serializers.CharField(
-        source="get_type_conflit_display", read_only=True
-    )
+    type_display = serializers.CharField(source="get_type_conflit_display", read_only=True)
     creneau_1_str = serializers.CharField(source="creneau_1.__str__", read_only=True)
     creneau_2_str = serializers.CharField(source="creneau_2.__str__", read_only=True)
 

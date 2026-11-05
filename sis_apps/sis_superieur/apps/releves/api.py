@@ -6,7 +6,6 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.authorization import has_business_permission_or_role
@@ -14,7 +13,13 @@ from sis_common.document_policies import (
     enforce_financial_clearance,
     get_action_object,
 )
-from sis_common.official_documents import render_official_pdf, tenant_identity_rows
+from sis_common.official_documents import (
+    DocumentTenantPermission,
+    private_document_download,
+    render_official_pdf,
+    scope_student_documents,
+    tenant_identity_rows,
+)
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import Attestation, ReleveNotes, Transcript
@@ -38,7 +43,7 @@ def _student_notification_recipients(request, etudiant):
     return recipients
 
 
-class IsScolariteOrReadOnly(IsAuthenticated):
+class IsScolariteOrReadOnly(DocumentTenantPermission):
     """Permission: scolarité pour écriture."""
 
     def has_permission(self, request, view):
@@ -67,12 +72,15 @@ class RelevesNotesViewSet(viewsets.ModelViewSet):
     required_change_permission = "releves.change_relevenotes"
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["etudiant", "semestre", "signe", "mention"]
-    search_fields = ["etudiant__matricule", "etudiant__user__last_name", "numero_serie"]
+    search_fields = ["etudiant__matricule", "etudiant__user__last_name", "etudiant__user__first_name", "numero_serie"]
     ordering = ["-date_emission"]
 
     def get_queryset(self):
-        return ReleveNotes.objects.select_related(
-            "etudiant__user", "semestre", "signe_par"
+        return scope_student_documents(
+            self,
+            ReleveNotes.objects.select_related("etudiant__user", "semestre", "signe_par"),
+            {"signe": True},
+            {"semestres": "semestre_id", "annees": "semestre__annee_universitaire_id"},
         )
 
     def get_serializer_class(self):
@@ -122,6 +130,7 @@ class RelevesNotesViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
+    @private_document_download
     def pdf_officiel(self, request, pk=None):
         """Génère le PDF officiel du relevé."""
         releve = self.get_object()
@@ -177,7 +186,7 @@ class RelevesNotesViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def mes_releves(self, request):
         """Relevés de l'étudiant connecté."""
-        etudiant = getattr(request.user, "etudiant", None)
+        etudiant = getattr(request.user, "etudiant_profile", None)
         if not etudiant:
             return Response({"error": "Vous n'êtes pas étudiant."}, status=403)
         releves = self.get_queryset().filter(etudiant=etudiant)
@@ -190,14 +199,24 @@ class TranscriptsViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsScolariteOrReadOnly]
     required_change_permission = "releves.change_transcript"
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = [
+        "etudiant__matricule",
+        "etudiant__user__last_name",
+        "etudiant__user__first_name",
+        "numero_serie",
+        "diplome_prepare",
+    ]
     filterset_fields = ["etudiant", "diplome_prepare"]
     ordering = ["-date_emission"]
 
     def get_queryset(self):
-        return Transcript.objects.select_related(
-            "etudiant__user", "signe_par"
-        ).prefetch_related("annees")
+        return scope_student_documents(
+            self,
+            Transcript.objects.select_related("etudiant__user", "signe_par").prefetch_related("annees"),
+            {"signe_par__isnull": False},
+            {"annees": "annees__id"},
+        )
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -207,7 +226,7 @@ class TranscriptsViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def mes_transcripts(self, request):
         """Transcripts de l'étudiant connecté."""
-        etudiant = getattr(request.user, "etudiant", None)
+        etudiant = getattr(request.user, "etudiant_profile", None)
         if not etudiant:
             return Response({"error": "Vous n'êtes pas étudiant."}, status=403)
         transcripts = self.get_queryset().filter(etudiant=etudiant)
@@ -219,7 +238,8 @@ class TranscriptsViewSet(viewsets.ModelViewSet):
         candidates_getter=lambda _view, request, transcript: [
             {"scope": "academic_year", "context": {"academic_year_id": academic_year_id}}
             for academic_year_id in transcript.annees.values_list("id", flat=True)
-        ] + [{"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}}],
+        ]
+        + [{"scope": "tenant", "context": {"tenant_id": getattr(request.tenant, "id", None)}}],
         subject_getter=lambda _view, _request, transcript: transcript.etudiant,
         academic_year_ids_getter=lambda _view, _request, transcript: list(
             transcript.annees.values_list("id", flat=True)
@@ -255,6 +275,7 @@ class TranscriptsViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
+    @private_document_download
     def pdf_officiel(self, request, pk=None):
         """Génère le PDF officiel du transcript."""
         transcript = self.get_object()
@@ -288,13 +309,13 @@ class TranscriptsViewSet(viewsets.ModelViewSet):
                 },
                 {
                     "title": "Années couvertes",
-                    "rows": [
-                        (item.get("libelle"), item.get("id"))
-                        for item in serialized.get("annees_list", [])
-                    ],
+                    "rows": [(item.get("libelle"), item.get("id")) for item in serialized.get("annees_list", [])],
                 },
             ],
-            footer_rows=[("Signé par", serialized.get("signe_par_nom"))],
+            footer_rows=[
+                ("Validation administrative", "Validée" if transcript.signe_par_id else "Brouillon"),
+                ("Signé par", serialized.get("signe_par_nom")),
+            ],
         )
 
 
@@ -304,17 +325,23 @@ class AttestationsViewSet(viewsets.ModelViewSet):
     permission_classes = [IsScolariteOrReadOnly]
     required_change_permission = "releves.change_attestation"
     serializer_class = AttestationSerializer
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ["etudiant__matricule", "etudiant__user__last_name", "etudiant__user__first_name", "numero", "type"]
     filterset_fields = ["etudiant", "type"]
     ordering = ["-date_emission"]
 
     def get_queryset(self):
-        return Attestation.objects.select_related("etudiant__user", "signe_par")
+        return scope_student_documents(
+            self,
+            Attestation.objects.select_related("etudiant__user", "signe_par"),
+            {"signe_par__isnull": False},
+            {},
+        )
 
     @action(detail=False, methods=["get"])
     def mes_attestations(self, request):
         """Attestations de l'étudiant connecté."""
-        etudiant = getattr(request.user, "etudiant", None)
+        etudiant = getattr(request.user, "etudiant_profile", None)
         if not etudiant:
             return Response({"error": "Vous n'êtes pas étudiant."}, status=403)
         attestations = self.get_queryset().filter(etudiant=etudiant)
@@ -365,6 +392,7 @@ class AttestationsViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
+    @private_document_download
     def pdf_officiel(self, request, pk=None):
         """Génère le PDF officiel de l'attestation."""
         attestation = self.get_object()
@@ -395,5 +423,8 @@ class AttestationsViewSet(viewsets.ModelViewSet):
                     ],
                 },
             ],
-            footer_rows=[("Signé par", serialized.get("signe_par_nom"))],
+            footer_rows=[
+                ("Validation administrative", "Validée" if attestation.signe_par_id else "Brouillon"),
+                ("Signé par", serialized.get("signe_par_nom")),
+            ],
         )

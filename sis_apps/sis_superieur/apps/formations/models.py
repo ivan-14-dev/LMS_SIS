@@ -52,6 +52,8 @@ class Formation(models.Model):
     code = models.CharField(max_length=30)
     offre_code = models.CharField(max_length=64, blank=True, default="")
     offre_configuration = models.JSONField(default=dict, blank=True, editable=False)
+    organisation_unit = models.ForeignKey("core.OrganizationUnit", null=True, blank=True, on_delete=models.PROTECT)
+    configuration_origine = models.JSONField(default=dict, blank=True, editable=False)
     type = models.CharField(max_length=100)
     niveau = models.CharField(max_length=100, blank=True)
     duree_annees = models.PositiveSmallIntegerField(default=3)

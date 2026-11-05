@@ -8,6 +8,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from sis_common.academic_lifecycle import AcademicLifecycleMixin
 from sis_common.authorization import has_business_permission_or_role
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
@@ -41,10 +42,11 @@ class IsScolariteOrReadOnly(IsAuthenticated):
         )
 
 
-class UEViewSet(viewsets.ModelViewSet):
+class UEViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour UE."""
 
     permission_classes = [IsScolariteOrReadOnly]
+    academic_period_paths = ("maquette.annee_universitaire", "semestre.annee_universitaire", "semestre")
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["maquette", "semestre", "type"]
     search_fields = ["code", "nom", "description"]
@@ -60,7 +62,7 @@ class UEViewSet(viewsets.ModelViewSet):
         return UEDetailSerializer
 
     def perform_create(self, serializer):
-        ue = serializer.save()
+        ue = self.save_academic(serializer)
         record_workflow_event(
             self.request,
             ue,
@@ -72,7 +74,7 @@ class UEViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        ue = serializer.save()
+        ue = self.save_academic(serializer)
         record_workflow_event(
             self.request,
             ue,
@@ -127,11 +129,12 @@ class UEViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class ECUEViewSet(viewsets.ModelViewSet):
+class ECUEViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour ECUE."""
 
     permission_classes = [IsScolariteOrReadOnly]
     serializer_class = ECUESerializer
+    academic_period_paths = ("ue.maquette.annee_universitaire", "ue.semestre.annee_universitaire", "ue.semestre")
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["ue", "ue__maquette", "ue__semestre"]
     search_fields = ["code", "nom", "description"]
@@ -141,7 +144,7 @@ class ECUEViewSet(viewsets.ModelViewSet):
         return ECUE.objects.select_related("ue")
 
     def perform_create(self, serializer):
-        ecue = serializer.save()
+        ecue = self.save_academic(serializer)
         record_workflow_event(
             self.request,
             ecue,
@@ -153,7 +156,7 @@ class ECUEViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        ecue = serializer.save()
+        ecue = self.save_academic(serializer)
         record_workflow_event(
             self.request,
             ecue,
@@ -195,11 +198,12 @@ class ECUEViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class PrerequisViewSet(viewsets.ModelViewSet):
+class PrerequisViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour prérequis."""
 
     permission_classes = [IsScolariteOrReadOnly]
     serializer_class = PrerequisSerializer
+    academic_period_paths = ("ue_cible.maquette.annee_universitaire", "ue_cible.semestre")
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["ue_cible", "ue_prereq", "type"]
 
@@ -207,7 +211,7 @@ class PrerequisViewSet(viewsets.ModelViewSet):
         return Prerequis.objects.select_related("ue_cible", "ue_prereq")
 
     def perform_create(self, serializer):
-        prerequis = serializer.save()
+        prerequis = self.save_academic(serializer)
         record_workflow_event(
             self.request,
             prerequis,
@@ -219,7 +223,7 @@ class PrerequisViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        prerequis = serializer.save()
+        prerequis = self.save_academic(serializer)
         record_workflow_event(
             self.request,
             prerequis,

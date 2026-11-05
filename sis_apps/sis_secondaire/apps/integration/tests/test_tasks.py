@@ -138,7 +138,10 @@ class PublishOutboxEventsTaskTestCase(TenantTestCase):
     def test_course_create_event_is_replayed(self, mock_get_client):
         """Un événement course.create rejoué avec succès crée le mapping de cours."""
         mock_client = MagicMock()
-        mock_client.create_course.return_value = {"id": "course-v1:SIS+MATH001+2024"}
+        mock_client.create_course.side_effect = lambda **data: {
+            "id": f"course-v1:{data['org']}+{data['number']}+{data['run']}",
+            "display_name": data["display_name"],
+        }
         mock_get_client.return_value = mock_client
 
         annee = AnneeScolaire.objects.create(
@@ -147,15 +150,11 @@ class PublishOutboxEventsTaskTestCase(TenantTestCase):
             date_debut="2023-09-01",
             date_fin="2024-06-30",
         )
-        niveau = Niveau.objects.create(
-            etablissement=self.tenant, code="tale", libelle="Terminale"
-        )
+        niveau = Niveau.objects.create(etablissement=self.tenant, code="tale", libelle="Terminale")
         classe = Classe.objects.create(
             etablissement=self.tenant, annee_scolaire=annee, niveau=niveau, nom="Terminale S"
         )
-        matiere = Matiere.objects.create(
-            etablissement=self.tenant, code="MATH", nom="Mathématiques"
-        )
+        matiere = Matiere.objects.create(etablissement=self.tenant, code="MATH", nom="Mathématiques")
         event = OutboxEvent.objects.create(
             event_type="course.create",
             aggregate_type="matiere",
@@ -178,7 +177,7 @@ class PublishOutboxEventsTaskTestCase(TenantTestCase):
     def test_enrollment_create_event_is_replayed(self, mock_get_client):
         """Un événement enrollment.create rejoué avec succès inscrit l'élève."""
         mock_client = MagicMock()
-        mock_client.enroll_user.return_value = {"id": 999}
+        mock_client.set_course_access.return_value = {"id": 999}
         mock_get_client.return_value = mock_client
 
         annee = AnneeScolaire.objects.create(
@@ -187,15 +186,11 @@ class PublishOutboxEventsTaskTestCase(TenantTestCase):
             date_debut="2023-09-01",
             date_fin="2024-06-30",
         )
-        niveau = Niveau.objects.create(
-            etablissement=self.tenant, code="tale", libelle="Terminale"
-        )
+        niveau = Niveau.objects.create(etablissement=self.tenant, code="tale", libelle="Terminale")
         classe = Classe.objects.create(
             etablissement=self.tenant, annee_scolaire=annee, niveau=niveau, nom="Terminale S"
         )
-        matiere = Matiere.objects.create(
-            etablissement=self.tenant, code="MATH", nom="Mathématiques"
-        )
+        matiere = Matiere.objects.create(etablissement=self.tenant, code="MATH", nom="Mathématiques")
         course_mapping = EdxCourseMapping.objects.create(
             matiere=matiere,
             classe=classe,
@@ -219,7 +214,7 @@ class PublishOutboxEventsTaskTestCase(TenantTestCase):
             payload={
                 "error": "LMS timeout",
                 "course_mapping_id": course_mapping.id,
-                "mode": "honor",
+                "mode": "audit",
             },
             statut="pending",
         )
@@ -228,6 +223,7 @@ class PublishOutboxEventsTaskTestCase(TenantTestCase):
 
         event.refresh_from_db()
         assert event.statut == "done"
-        mock_client.enroll_user.assert_called_once_with(
-            course_mapping.course_id, "sis-s-outbox-eleve", mode="honor"
+        mock_client.set_course_access.assert_called_once_with(
+            course_mapping.course_id, "sis-s-outbox-eleve",
+            kind="enrollment", active=True, requested_at=event.created_at,
         )

@@ -277,7 +277,7 @@ REST_FRAMEWORK = {
         "sis_common.authentication.EdxJWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.TokenAuthentication",
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "sis_common.local_authentication.TenantJWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -303,6 +303,8 @@ REST_FRAMEWORK = {
 # volontairement courts ; le rafraîchissement pivote et blackliste
 # systématiquement l'ancien jeton pour limiter la fenêtre de rejeu.
 SIMPLE_JWT = {
+    "TOKEN_REFRESH_SERIALIZER": "sis_common.local_authentication.TenantTokenRefreshSerializer",
+    "TOKEN_BLACKLIST_SERIALIZER": "sis_common.local_authentication.TenantTokenBlacklistSerializer",
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,

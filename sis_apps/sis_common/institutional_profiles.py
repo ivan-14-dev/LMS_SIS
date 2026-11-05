@@ -163,6 +163,15 @@ def validate_learning_offering(value):
             raise ValidationError("Le nombre de crédits visés doit être strictement positif.")
 
 
+def validate_bound_offering(offering):
+    validate_learning_offering(offering)
+    if offering["assessment"]["mode"] == "numeric":
+        scale = offering["assessment"]
+        values = [Decimal(str(scale[key])) for key in ("minimum", "maximum", "pass_mark")]
+        if any(value < 0 or value > Decimal("999.99") or value % Decimal("0.01") for value in values):
+            raise ValidationError("La saisie actuelle accepte des barèmes de 0 à 999,99 avec au plus deux décimales.")
+
+
 def validate_learning_offerings(value):
     if not isinstance(value, list):
         raise ValidationError("learning_offerings doit être une liste.")

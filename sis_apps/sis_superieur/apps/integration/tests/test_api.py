@@ -316,3 +316,4 @@ class HealthCheckTestCase(TenantAPITestCase):
 
         assert response.status_code == 200
         assert response.data["connected"] is True
+        assert response.data["webhook_status"] == "unverified"

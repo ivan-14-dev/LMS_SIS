@@ -64,9 +64,7 @@ class PortailParentViewSet(viewsets.ViewSet):
 
         enfants_data = []
         for enfant in enfants:
-            absences = Presence.objects.filter(
-                eleve=enfant, statut__in=("absent", "absent_justifie")
-            ).count()
+            absences = Presence.objects.filter(eleve=enfant, statut__in=("absent", "absent_justifie")).count()
             retards = Presence.objects.filter(eleve=enfant, statut="retard").count()
             bulletin = latest_bulletins.get(enfant.id)
             enfants_data.append(
@@ -76,13 +74,11 @@ class PortailParentViewSet(viewsets.ViewSet):
                     "nom": enfant.user.get_full_name(),
                     "classe": enfant.classe_actuelle.nom if enfant.classe_actuelle else None,
                     "niveau": (
-                        enfant.classe_actuelle.niveau.nom
+                        enfant.classe_actuelle.niveau.libelle
                         if enfant.classe_actuelle and enfant.classe_actuelle.niveau
                         else None
                     ),
-                    "moyenne": _decimal_to_float(
-                        bulletin.moyenne_generale if bulletin else None
-                    ),
+                    "moyenne": _decimal_to_float(bulletin.moyenne_generale if bulletin else None),
                     "rang": bulletin.rang if bulletin else None,
                     "absences": absences,
                     "retards": retards,
@@ -105,11 +101,7 @@ class PortailParentViewSet(viewsets.ViewSet):
                         "eleve": facture.eleve.user.get_full_name(),
                         "montant": _decimal_to_float(facture.montant),
                         "reste_a_payer": _decimal_to_float(facture.montant_restant),
-                        "echeance": (
-                            facture.date_echeance.isoformat()
-                            if facture.date_echeance
-                            else None
-                        ),
+                        "echeance": (facture.date_echeance.isoformat() if facture.date_echeance else None),
                         "statut": facture.statut,
                     }
                     for facture in factures
@@ -137,14 +129,12 @@ class PortailParentViewSet(viewsets.ViewSet):
                 "nom": enfant.user.get_full_name(),
                 "classe": enfant.classe_actuelle.nom if enfant.classe_actuelle else None,
                 "niveau": (
-                    enfant.classe_actuelle.niveau.nom
+                    enfant.classe_actuelle.niveau.libelle
                     if enfant.classe_actuelle and enfant.classe_actuelle.niveau
                     else None
                 ),
                 "statut": enfant.statut,
-                "moyenne": _decimal_to_float(
-                    latest_bulletin.moyenne_generale if latest_bulletin else None
-                ),
+                "moyenne": _decimal_to_float(latest_bulletin.moyenne_generale if latest_bulletin else None),
                 "rang": latest_bulletin.rang if latest_bulletin else None,
             }
         )
@@ -156,9 +146,7 @@ class PortailParentViewSet(viewsets.ViewSet):
         if error:
             return error
 
-        notes = Note.objects.filter(eleve=enfant).select_related(
-            "evaluation__matiere", "evaluation__periode"
-        )
+        notes = Note.objects.filter(eleve=enfant).select_related("evaluation__matiere", "evaluation__periode")
 
         return Response(
             [
@@ -183,9 +171,7 @@ class PortailParentViewSet(viewsets.ViewSet):
             return error
 
         presences = (
-            Presence.objects.filter(
-                eleve=enfant, statut__in=("absent", "absent_justifie", "retard")
-            )
+            Presence.objects.filter(eleve=enfant, statut__in=("absent", "absent_justifie", "retard"))
             .select_related("appel__creneau", "justificatif")
             .order_by("-appel__date", "-appel__creneau__heure_debut")[:30]
         )

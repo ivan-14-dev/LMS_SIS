@@ -64,9 +64,7 @@ class OffresStageViewSet(viewsets.ModelViewSet):
     def candidatures(self, request, pk=None):
         """Liste les candidatures pour l'offre."""
         offre = self.get_object()
-        candidatures = offre.candidatures.select_related("etudiant__user").order_by(
-            "-date_soumission"
-        )
+        candidatures = offre.candidatures.select_related("etudiant__user").order_by("-date_soumission")
         serializer = CandidatureStageSerializer(candidatures, many=True)
         return Response(serializer.data)
 
@@ -105,9 +103,7 @@ class CandidaturesStageViewSet(viewsets.ModelViewSet):
     ordering = ["-date_soumission"]
 
     def get_queryset(self):
-        qs = CandidatureStage.objects.select_related(
-            "etudiant__user", "offre__entreprise"
-        )
+        qs = CandidatureStage.objects.select_related("etudiant__user", "offre__entreprise")
         user = self.request.user
         # Un étudiant ne voit que ses propres candidatures
         if hasattr(user, "etudiant_profile"):
@@ -154,14 +150,10 @@ class ConventionsStageViewSet(viewsets.ModelViewSet):
     filterset_fields = ["etudiant", "entreprise", "statut"]
 
     def get_queryset(self):
-        qs = ConventionStage.objects.select_related(
-            "etudiant__user", "entreprise", "offre"
-        )
+        qs = ConventionStage.objects.select_related("etudiant__user", "entreprise", "offre")
         user = self.request.user
-        # Un étudiant ne voit que ses propres conventions
-        if hasattr(user, "etudiant_profile"):
-            if not user.is_staff:
-                qs = qs.filter(etudiant__user=user)
+        if user.role in ("etudiant", "doctorant") and not user.is_superuser:
+            qs = qs.filter(etudiant__user=user)
         return qs
 
     def get_serializer_class(self):

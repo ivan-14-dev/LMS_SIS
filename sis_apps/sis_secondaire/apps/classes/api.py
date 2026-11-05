@@ -8,6 +8,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from sis_common.academic_lifecycle import AcademicLifecycleMixin
 from sis_common.authorization import request_has_business_access
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
@@ -50,10 +51,11 @@ class IsVieScolariteOrReadOnly(IsAuthenticated):
         )
 
 
-class ClassesViewSet(viewsets.ModelViewSet):
+class ClassesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour classes."""
 
     permission_classes = [IsVieScolariteOrReadOnly]
+    academic_period_paths = ("annee_scolaire",)
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ["niveau", "annee_scolaire", "prof_principal"]
     search_fields = ["nom"]
@@ -65,6 +67,9 @@ class ClassesViewSet(viewsets.ModelViewSet):
         # Filtrer par établissement du tenant
         if hasattr(self.request, "tenant"):
             qs = qs.filter(etablissement=self.request.tenant)
+        user = self.request.user
+        if user.role == "eleve" and not user.is_superuser:
+            qs = qs.filter(eleves_actuels__user=user)
         return qs
 
     def get_serializer_class(self):
@@ -73,7 +78,7 @@ class ClassesViewSet(viewsets.ModelViewSet):
         return ClasseDetailSerializer
 
     def perform_create(self, serializer):
-        classe = serializer.save()
+        classe = self.save_academic(serializer)
         record_workflow_event(
             self.request,
             classe,
@@ -85,7 +90,7 @@ class ClassesViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        classe = serializer.save()
+        classe = self.save_academic(serializer)
         record_workflow_event(
             self.request,
             classe,
@@ -157,11 +162,12 @@ class ClassesViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class GroupesViewSet(viewsets.ModelViewSet):
+class GroupesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour groupes."""
 
     permission_classes = [IsVieScolariteOrReadOnly]
     serializer_class = GroupeSerializer
+    academic_period_paths = ("annee_scolaire",)
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ["type", "annee_scolaire"]
     search_fields = ["nom"]
@@ -173,7 +179,7 @@ class GroupesViewSet(viewsets.ModelViewSet):
         return qs
 
 
-class MatieresViewSet(viewsets.ModelViewSet):
+class MatieresViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour matières."""
 
     permission_classes = [IsVieScolariteOrReadOnly]
@@ -195,11 +201,12 @@ class MatieresViewSet(viewsets.ModelViewSet):
         return MatiereDetailSerializer
 
 
-class ProgrammesViewSet(viewsets.ModelViewSet):
+class ProgrammesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour programmes de matières."""
 
     permission_classes = [IsVieScolariteOrReadOnly]
     serializer_class = ProgrammeMatiereSerializer
+    academic_period_paths = ("classe.annee_scolaire",)
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["classe", "matiere", "obligatoire"]
 

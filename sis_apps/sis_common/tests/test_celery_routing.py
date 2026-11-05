@@ -7,6 +7,14 @@ une file dédiée (pas de file par défaut implicite pour les workloads critique
 et que la planification Celery Beat est bien chargée.
 """
 
+import subprocess
+import sys
+from datetime import timedelta
+from unittest.mock import patch
+
+from celery import Celery
+from celery.beat import ScheduleEntry, Scheduler
+from celery.schedules import crontab
 from django.conf import settings
 from django.test import SimpleTestCase
 
@@ -36,13 +44,38 @@ EXPECTED_SYNC_PENDING_TASK_QUEUE = "outbox"
 EXPECTED_BEAT_SCHEDULE_ENTRIES = {
     "publish-outbox-every-minute",
     "reconcile-lms-daily",
-    "sync-pending-eleves-daily",
     "evaluation-submission-reminders-hourly",
     "exam-submission-reminders-hourly",
 }
 
 
 class CeleryRoutingConfigurationTests(SimpleTestCase):
+    def test_http_bootstrap_binds_shared_tasks_to_the_variant_broker(self):
+        for entrypoint in ("wsgi", "asgi"):
+            with self.subTest(entrypoint=entrypoint):
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-c",
+                        f"""
+import config.{entrypoint}
+from django.conf import settings
+from apps.integration.tasks import publish_tenant_outbox_events
+
+app = publish_tenant_outbox_events.app
+assert app.main == "sis_" + settings.SIS_VARIANT
+assert app.conf.broker_url == settings.CELERY_BROKER_URL
+assert app.conf.result_backend == settings.CELERY_RESULT_BACKEND
+assert publish_tenant_outbox_events._get_exec_options()["queue"] == "outbox"
+""",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=False,
+                )
+                assert result.returncode == 0, result.stderr
+
     def test_all_known_queues_are_declared(self):
         declared_names = {queue.name for queue in settings.CELERY_TASK_QUEUES}
         assert EXPECTED_QUEUES <= declared_names
@@ -67,3 +100,32 @@ class CeleryRoutingConfigurationTests(SimpleTestCase):
 
     def test_celery_beat_schedule_is_loaded(self):
         assert EXPECTED_BEAT_SCHEDULE_ENTRIES <= set(settings.CELERY_BEAT_SCHEDULE.keys())
+
+    def test_default_beat_drops_legacy_nightly_user_provisioning(self):
+        with Celery("beat-regression", broker="memory://", set_as_current=False) as app:
+            app.conf.beat_schedule = settings.CELERY_BEAT_SCHEDULE
+            learner = "eleves" if settings.SIS_VARIANT == "secondaire" else "etudiants"
+            bulk_task = f"apps.integration.tasks.sync_all_pending_{learner}"
+            legacy = ScheduleEntry(
+                name="sync-pending-eleves-daily",
+                task=bulk_task,
+                schedule=crontab(hour=3, minute=0),
+                app=app,
+            )
+            scheduler = Scheduler(app=app, schedule={legacy.name: legacy})
+            for entry in scheduler.schedule.values():
+                entry.last_run_at = app.now() - timedelta(days=2)
+
+            with patch.object(scheduler, "apply_entry") as dispatch:
+                for _ in range(len(scheduler.schedule)):
+                    scheduler.tick()
+
+            dispatched = {call.args[0].task for call in dispatch.call_args_list}
+            assert not any(task.startswith("apps.integration.tasks.sync_all_pending_") for task in dispatched)
+            assert {
+                "apps.integration.tasks.publish_outbox_events",
+                "apps.integration.tasks.reconcile_lms",
+                "apps.notes.tasks.emit_submission_window_reminders",
+                "apps.examens.tasks.emit_submission_window_reminders",
+            } <= dispatched
+            assert legacy.name not in scheduler.schedule

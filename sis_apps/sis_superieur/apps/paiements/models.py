@@ -128,6 +128,13 @@ class PaiementFrais(models.Model):
 
     class Meta:
         ordering = ["-date_paiement"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["reference_externe"],
+                condition=models.Q(mode="carte", statut__in=["valide", "rembourse"]) & ~models.Q(reference_externe=""),
+                name="superieur_card_reference_once",
+            ),
+        ]
 
     def __str__(self):
         return f"Paiement {self.numero} - {self.montant}€"

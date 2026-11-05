@@ -22,6 +22,26 @@ urlpatterns = [
         api.InscriptionsViewSet.as_view({"post": "valider"}),
         name="inscriptions-valider",
     ),
+    path(
+        "inscriptions/<int:pk>/reinscrire/",
+        api.InscriptionsViewSet.as_view({"post": "reinscrire"}),
+        name="inscriptions-reinscrire",
+    ),
+    path(
+        "inscriptions/<int:pk>/refuser/",
+        api.InscriptionsViewSet.as_view({"post": "refuser"}),
+        name="inscriptions-refuser",
+    ),
+    path(
+        "inscriptions/<int:pk>/annuler/",
+        api.InscriptionsViewSet.as_view({"post": "annuler"}),
+        name="inscriptions-annuler",
+    ),
+    path(
+        "inscriptions/<int:pk>/historique/",
+        api.InscriptionsViewSet.as_view({"get": "historique"}),
+        name="inscriptions-historique",
+    ),
     path("importer/", api.ElevesViewSet.as_view({"post": "importer"}), name="importer"),
     path(
         "modele-import/",

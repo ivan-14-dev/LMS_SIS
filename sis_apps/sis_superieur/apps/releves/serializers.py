@@ -9,12 +9,8 @@ from .models import Attestation, ReleveNotes, Transcript
 class ReleveNotesListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les relevés."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
     semestre_nom = serializers.CharField(source="semestre.__str__", read_only=True)
 
     class Meta:
@@ -41,16 +37,10 @@ class ReleveNotesListSerializer(serializers.ModelSerializer):
 class ReleveNotesDetailSerializer(serializers.ModelSerializer):
     """Serializer complet pour un relevé."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
     semestre_nom = serializers.CharField(source="semestre.__str__", read_only=True)
-    signe_par_nom = serializers.CharField(
-        source="signe_par.get_full_name", read_only=True
-    )
+    signe_par_nom = serializers.CharField(source="signe_par.get_full_name", read_only=True)
     nb_matieres_individualisees = serializers.SerializerMethodField()
     matieres_individuelles = serializers.SerializerMethodField()
 
@@ -118,12 +108,8 @@ class ReleveNotesDetailSerializer(serializers.ModelSerializer):
 class TranscriptListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les transcripts."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
     nb_annees = serializers.SerializerMethodField()
 
     class Meta:
@@ -134,6 +120,7 @@ class TranscriptListSerializer(serializers.ModelSerializer):
             "etudiant_matricule",
             "etudiant_nom",
             "nb_annees",
+            "signe_par",
             "credits_total",
             "credits_valides",
             "moyenne_ponderee",
@@ -150,15 +137,9 @@ class TranscriptListSerializer(serializers.ModelSerializer):
 class TranscriptDetailSerializer(serializers.ModelSerializer):
     """Serializer complet pour un transcript."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
-    signe_par_nom = serializers.CharField(
-        source="signe_par.get_full_name", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
+    signe_par_nom = serializers.CharField(source="signe_par.get_full_name", read_only=True)
     annees_list = serializers.SerializerMethodField()
 
     class Meta:
@@ -191,16 +172,10 @@ class TranscriptDetailSerializer(serializers.ModelSerializer):
 class AttestationSerializer(serializers.ModelSerializer):
     """Serializer pour les attestations."""
 
-    etudiant_matricule = serializers.CharField(
-        source="etudiant.matricule", read_only=True
-    )
-    etudiant_nom = serializers.CharField(
-        source="etudiant.user.get_full_name", read_only=True
-    )
+    etudiant_matricule = serializers.CharField(source="etudiant.matricule", read_only=True)
+    etudiant_nom = serializers.CharField(source="etudiant.user.get_full_name", read_only=True)
     type_display = serializers.CharField(source="get_type_display", read_only=True)
-    signe_par_nom = serializers.CharField(
-        source="signe_par.get_full_name", read_only=True
-    )
+    signe_par_nom = serializers.CharField(source="signe_par.get_full_name", read_only=True)
 
     class Meta:
         model = Attestation

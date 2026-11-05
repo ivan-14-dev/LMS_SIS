@@ -8,6 +8,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from sis_common.academic_lifecycle import AcademicLifecycleMixin
 from sis_common.authorization import has_business_permission_or_role
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
@@ -45,18 +46,26 @@ class IsScolariteOrReadOnly(IsAuthenticated):
         )
 
 
-class FormationsViewSet(viewsets.ModelViewSet):
+class FormationsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour formations."""
 
     permission_classes = [IsScolariteOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["type", "niveau", "departement", "regime", "actif"]
+    filterset_fields = ["id", "type", "niveau", "departement", "regime", "actif"]
     search_fields = ["code", "nom", "description"]
     ordering_fields = ["code", "nom", "type", "created_at"]
     ordering = ["code"]
 
     def get_queryset(self):
-        return Formation.objects.select_related("departement", "ecole_doctorale", "responsable")
+        queryset = Formation.objects.select_related("departement", "ecole_doctorale", "responsable")
+        user = self.request.user
+        if user.role in ("etudiant", "doctorant") and not user.is_superuser:
+            from apps.etudiants.models import InscriptionAdministrative
+
+            queryset = queryset.filter(
+                pk__in=InscriptionAdministrative.objects.filter(etudiant__user=user).values("formation_id")
+            )
+        return queryset
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -141,7 +150,7 @@ class FormationsViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class ParcoursViewSet(viewsets.ModelViewSet):
+class ParcoursViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour parcours."""
 
     permission_classes = [IsScolariteOrReadOnly]
@@ -197,11 +206,12 @@ class ParcoursViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class MaquettesViewSet(viewsets.ModelViewSet):
+class MaquettesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour maquettes de formation."""
 
     permission_classes = [IsScolariteOrReadOnly]
     serializer_class = MaquetteFormationSerializer
+    academic_period_paths = ("annee_universitaire",)
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["formation", "annee_universitaire", "statut"]
 
@@ -209,7 +219,7 @@ class MaquettesViewSet(viewsets.ModelViewSet):
         return MaquetteFormation.objects.select_related("formation", "annee_universitaire")
 
     def perform_create(self, serializer):
-        maquette = serializer.save()
+        maquette = self.save_academic(serializer)
         record_workflow_event(
             self.request,
             maquette,
@@ -221,7 +231,7 @@ class MaquettesViewSet(viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer):
-        maquette = serializer.save()
+        maquette = self.save_academic(serializer)
         record_workflow_event(
             self.request,
             maquette,
