@@ -1,4 +1,4 @@
-"""Dependency-free HTTP load checks for SIS exam and grade integration endpoints."""
+"""Dependency-free, isolation-guarded HTTP load checks and SIS user sessions."""
 
 import argparse
 import hashlib
@@ -12,7 +12,13 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.parse import urlsplit
+from urllib.request import Request
+
+try:
+    from .safety import ConfigurationError, api_path, check_isolation, opener, read_seed
+except ImportError:
+    from safety import ConfigurationError, api_path, check_isolation, opener, read_seed
 
 
 def grade_request(url, index, timeout):
@@ -59,7 +65,7 @@ def execute(request_factory, url, index, timeout):
     started = time.perf_counter()
     try:
         request, request_timeout = request_factory(url, index, timeout)
-        with urlopen(request, timeout=request_timeout) as response:
+        with opener().open(request, timeout=request_timeout) as response:
             response.read()
             success = 200 <= response.status < 300
             status = response.status
@@ -76,17 +82,38 @@ def percentile(values, quantile):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "sessions":
+        try:
+            from .sessions import main as sessions_main
+        except ImportError:
+            from sessions import main as sessions_main
+        return sessions_main(sys.argv[2:])
     parser = argparse.ArgumentParser()
     parser.add_argument("scenario", choices=("exam-list", "grade-webhook"))
     parser.add_argument("--url", required=True)
+    parser.add_argument("--acknowledge-isolated-target", required=True)
+    parser.add_argument("--seed", required=True, help="0600 JSON with isolated synthetic environment binding")
     parser.add_argument("--requests", type=int, default=1000)
     parser.add_argument("--concurrency", type=int, default=20)
     parser.add_argument("--timeout", type=float, default=10)
     parser.add_argument("--max-p95-ms", type=float, default=1000)
     parser.add_argument("--min-success-rate", type=float, default=0.99)
     args = parser.parse_args()
-    if args.requests < 1 or args.concurrency < 1:
-        parser.error("--requests and --concurrency must be positive")
+    if not (1 <= args.requests <= 100000 and 1 <= args.concurrency <= 500 and 0.1 <= args.timeout <= 30):
+        parser.error("Use 1–100000 requests, 1–500 concurrency and a 0.1–30 second timeout")
+    try:
+        parsed = urlsplit(args.url)
+        check_isolation(
+            f"{parsed.scheme}://{parsed.netloc}", args.acknowledge_isolated_target, read_seed(args.seed)
+        )
+        api_path(parsed.path + (f"?{parsed.query}" if parsed.query else ""))
+        if parsed.fragment:
+            raise ConfigurationError("Endpoint URL must not have a fragment.")
+        required = "SIS_LOAD_WEBHOOK_SECRET" if args.scenario == "grade-webhook" else "SIS_LOAD_BEARER_TOKEN"
+        if not os.environ.get(required):
+            raise ConfigurationError(f"{required} with a synthetic credential is required.")
+    except ConfigurationError as exc:
+        parser.exit(2, f"Refused: {exc}\n")
 
     factory = grade_request if args.scenario == "grade-webhook" else read_request
     started = time.perf_counter()
@@ -102,6 +129,8 @@ def main():
     successes = sum(result[0] for result in results)
     report = {
         "scenario": args.scenario,
+        "kind": "legacy-endpoint-http-requests",
+        "independent_authenticated_users": False,
         "requests": args.requests,
         "success_rate": round(successes / args.requests, 4),
         "requests_per_second": round(args.requests / duration, 2),

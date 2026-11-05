@@ -1,0 +1,86 @@
+{
+  "environment": {
+    "id": "replace-with-disposable-fixture-id",
+    "origin": "https://isolated-sis.example.invalid",
+    "isolated": false,
+    "synthetic": true
+  },
+  "scenarios": {
+    "grade-feedback": {
+      "roles": ["enseignant", "direction"],
+      "steps": [
+        {
+          "name": "read-owned-grade",
+          "path": "/api/v1/notes/notes/{{note_id}}/",
+          "equals": {"id": "{{note_id}}"}
+        },
+        {
+          "name": "update-feedback",
+          "method": "PATCH",
+          "path": "/api/v1/notes/notes/{{note_id}}/",
+          "json": {"appreciation": "synthetic-{{run_id}}-{{iteration}}"},
+          "verify": {
+            "path": "/api/v1/notes/notes/{{note_id}}/",
+            "equals": {
+              "id": "{{note_id}}",
+              "appreciation": "synthetic-{{run_id}}-{{iteration}}"
+            }
+          }
+        }
+      ]
+    },
+    "learner-complaint": {
+      "roles": ["eleve", "etudiant"],
+      "steps": [
+        {
+          "name": "read-own-complaint",
+          "path": "/api/v1/core/reclamations/{{complaint_id}}/",
+          "equals": {"id": "{{complaint_id}}"},
+          "capture": {"version": "version"}
+        },
+        {
+          "name": "append-complaint-message",
+          "method": "POST",
+          "path": "/api/v1/core/reclamations/{{complaint_id}}/message/",
+          "json": {
+            "version": "{{version}}",
+            "message": "synthetic-{{run_id}}-{{iteration}}"
+          },
+          "capture": {"version": "version"},
+          "verify": {
+            "path": "/api/v1/core/reclamations/{{complaint_id}}/",
+            "equals": {
+              "id": "{{complaint_id}}",
+              "version": "{{version}}",
+              "historique.-1.message": "synthetic-{{run_id}}-{{iteration}}"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "accounts": [
+    {
+      "synthetic": true,
+      "username": "load-teacher-0001",
+      "password": "",
+      "user_id": 1,
+      "tenant_id": 1,
+      "role": "enseignant",
+      "scenario": "grade-feedback",
+      "variables": {"note_id": 1},
+      "owned_resources": ["/api/v1/notes/notes/{{note_id}}/"]
+    },
+    {
+      "synthetic": true,
+      "username": "load-learner-0001",
+      "password": "",
+      "user_id": 2,
+      "tenant_id": 1,
+      "role": "eleve",
+      "scenario": "learner-complaint",
+      "variables": {"complaint_id": "00000000-0000-0000-0000-000000000001"},
+      "owned_resources": ["/api/v1/core/reclamations/{{complaint_id}}/"]
+    }
+  ]
+}
