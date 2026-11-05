@@ -11,6 +11,24 @@ Une fonctionnalité n'est considérée comme terminée que si son API, ses
 permissions, son interface, ses tests et son exploitation en production sont
 validés.
 
+## Compléments institutionnels encore ouverts — 5 novembre 2026
+
+Le [registre des tâches et critères de validation](RESTE_A_FAIRE_ET_VALIDATION.md)
+rapproche les 34 tâches déjà ouvertes, les 94 exigences initiales, le cahier
+IAM/transferts et le nouveau cahier SIS/LMS/ERP. Les points déjà suivis dans
+les lots F02–F31 ne sont pas recréés. Cinq tâches distinctes restent à ajouter :
+
+- [ ] Administration des rôles et permissions par établissement : création,
+  modification, attribution et retrait protégés, sans privilège implicite.
+- [ ] Deux portails authentifiés Staff et Étudiant/Élève : seuls menus,
+  actions, données et cours autorisés, même sur URL directe ou API.
+- [ ] Gamification LMS facultative fondée sur les activités réelles.
+- [ ] Courriers et circuits documentaires ERP avec rétention et approbation.
+- [ ] Immobilisations ERP, amortissements et rapprochement comptable.
+
+Les critères de sortie et cas de refus propres à chacun figurent dans le
+registre lié. Aucun de ces points n'est déclaré livré.
+
 ## P0 — Rendre la plateforme fiable et déployable
 
 ### Contrats et parcours critiques
