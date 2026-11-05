@@ -1,6 +1,6 @@
 import React from 'react';
-import { Stack } from '@mui/material';
 import ResourceManager from '../../components/common/ResourceManager';
+import ResourceWorkspace from '../../components/common/ResourceWorkspace';
 
 const regimes = [
   { value: 'standard', label: 'Standard' },
@@ -10,7 +10,7 @@ const regimes = [
 ];
 
 const CantinePage = () => (
-  <Stack spacing={4}>
+  <ResourceWorkspace title="Cantine">
     <ResourceManager
       variant="secondaire"
       resource="cantine/menus"
@@ -106,7 +106,7 @@ const CantinePage = () => (
         { name: 'heure_pointage', label: 'Pointage', type: 'time' },
       ]}
     />
-  </Stack>
+  </ResourceWorkspace>
 );
 
 export default CantinePage;

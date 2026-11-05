@@ -1,192 +1,97 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { NavLink, useLocation } from 'react-router-dom';
-import { Icon } from '@openedx/paragon';
+import { Link, useLocation } from 'react-router-dom';
 import {
-  School, People, Assignment, Grade, CalendarMonth, Money,
-  Book, Flight, Science, Description, Group, Gavel,
-  Business, Person, AccountBalance, Settings,
-  ChildCare, Class, Assessment, EventNote, Restaurant,
-  DirectionsBus, LocalHospital, Hotel, SportsEsports,
-  Groups, Face,
-} from '@openedx/paragon/icons';
-import { getEnabledVariants } from '../../services/resources';
+  List, ListItemButton, SvgIcon, Tooltip,
+} from '@mui/material';
+import { SchoolOutlined, LockOutlined } from '@mui/icons-material';
+import { matchesNavigation } from './navigation';
 
-const menuSuperieur = [
-  {
-    title: 'Gestion Académique',
-    items: [
-      { path: '/superieur/etudiants', label: 'Étudiants', icon: People },
-      { path: '/superieur/formations', label: 'Formations', icon: School },
-      { path: '/superieur/inscriptions', label: 'Inscriptions', icon: Assignment },
-      { path: '/superieur/notes', label: 'Notes', icon: Grade },
-      { path: '/superieur/examens', label: 'Examens', icon: Description },
-      { path: '/superieur/jurys', label: 'Jurys', icon: Gavel },
-      { path: '/superieur/releves', label: 'Relevés', icon: Description },
-      { path: '/superieur/diplomes', label: 'Diplômes', icon: School },
-      { path: '/superieur/workflows', label: 'Workflows', icon: EventNote },
-    ],
-  },
-  {
-    title: 'Vie Étudiante',
-    items: [
-      { path: '/superieur/bourses', label: 'Bourses', icon: Money },
-      { path: '/superieur/emploi-du-temps', label: 'Emploi du temps', icon: CalendarMonth },
-      { path: '/superieur/stages', label: 'Stages', icon: Business },
-      { path: '/superieur/memoires', label: 'Mémoires', icon: Book },
-      { path: '/superieur/mobilite', label: 'Mobilité', icon: Flight },
-      { path: '/superieur/bibliotheque', label: 'Bibliothèque', icon: Book },
-    ],
-  },
-  {
-    title: 'Personnel',
-    items: [
-      { path: '/superieur/enseignants', label: 'Enseignants', icon: Person },
-      { path: '/superieur/recherche', label: 'Recherche', icon: Science },
-    ],
-  },
-  {
-    title: 'Finances',
-    items: [
-      { path: '/superieur/paiements', label: 'Paiements', icon: Money },
-    ],
-  },
-  {
-    title: 'Portails',
-    items: [
-      { path: '/superieur/portail-apprenant', label: 'Portail Apprenant/Famille', icon: Face },
-      { path: '/superieur/portail-staff', label: 'Portail Staff/Admin', icon: Group },
-    ],
-  },
-];
-
-const menuSecondaire = [
-  {
-    title: 'Gestion Académique',
-    items: [
-      { path: '/secondaire/eleves', label: 'Élèves', icon: ChildCare },
-      { path: '/secondaire/classes', label: 'Classes', icon: Class },
-      { path: '/secondaire/evaluations', label: 'Évaluations', icon: Assessment },
-      { path: '/secondaire/bulletins', label: 'Bulletins', icon: Description },
-      { path: '/secondaire/conseil-classe', label: 'Conseil de classe', icon: Groups },
-      { path: '/secondaire/workflows', label: 'Workflows', icon: EventNote },
-    ],
-  },
-  {
-    title: 'Vie Scolaire',
-    items: [
-      { path: '/secondaire/presences', label: 'Présences', icon: EventNote },
-      { path: '/secondaire/discipline', label: 'Discipline', icon: Gavel },
-      { path: '/secondaire/emploi-du-temps', label: 'Emploi du temps', icon: CalendarMonth },
-    ],
-  },
-  {
-    title: 'Services',
-    items: [
-      { path: '/secondaire/cantine', label: 'Cantine', icon: Restaurant },
-      { path: '/secondaire/transport', label: 'Transport', icon: DirectionsBus },
-      { path: '/secondaire/infirmerie', label: 'Infirmerie', icon: LocalHospital },
-      { path: '/secondaire/internat', label: 'Internat', icon: Hotel },
-      { path: '/secondaire/clubs', label: 'Clubs', icon: SportsEsports },
-    ],
-  },
-  {
-    title: 'Portails',
-    items: [
-      { path: '/secondaire/portail-apprenant', label: 'Portail Apprenant/Famille', icon: Face },
-      { path: '/secondaire/portail-staff', label: 'Portail Staff/Admin', icon: Group },
-    ],
-  },
-];
-
-const menuAdmin = [
-  {
-    title: 'Administration',
-    items: [
-      { path: '/admin/etablissement', label: 'Établissement', icon: AccountBalance },
-      { path: '/admin/annees-academiques', label: 'Années académiques', icon: CalendarMonth },
-      { path: '/admin/integration-lms', label: 'Intégration LMS', icon: Science },
-      { path: '/admin/utilisateurs', label: 'Utilisateurs', icon: People },
-      { path: '/admin/structure', label: 'Structure', icon: Settings },
-    ],
-  },
-];
-
-const Sidebar = ({ type }) => {
-  const location = useLocation();
-
-  const getMenu = () => {
-    switch (type) {
-      case 'superieur':
-        return menuSuperieur;
-      case 'secondaire':
-        return menuSecondaire;
-      case 'admin':
-        return menuAdmin;
-      default:
-        return [];
-    }
-  };
-
-  const getTitle = () => {
-    switch (type) {
-      case 'superieur':
-        return 'SIS Supérieur';
-      case 'secondaire':
-        return 'SIS Secondaire';
-      case 'admin':
-        return 'Administration';
-      default:
-        return 'SIS';
-    }
-  };
-
-  const menu = getMenu();
-
+export const WorkspaceBrand = ({ branding }) => {
+  const [failedLogo, setFailedLogo] = useState('');
   return (
-    <aside className="sis-sidebar">
-      <div className="sis-sidebar__header">
-        <h4>{getTitle()}</h4>
+    <>
+      <div className="sis-sidebar__brand">
+        {branding?.logo && failedLogo !== branding.logo
+          ? <img className="sis-sidebar__logo" src={branding.logo} alt={`Logo ${branding.name}`} onError={() => setFailedLogo(branding.logo)} />
+          : <span className="sis-sidebar__monogram" aria-hidden="true">S</span>}
+        <span className="sis-sidebar__label"><strong>LMS SIS</strong><small>Votre espace éducatif</small></span>
       </div>
-      <nav className="sis-sidebar__nav">
-        {getEnabledVariants().map(variant => (
-          <NavLink className="sis-sidebar__item" key={variant} to={`/${variant}`}>
-            SIS {variant}
-          </NavLink>
-        ))}
-        <NavLink className="sis-sidebar__item" to={`/admin/etablissement${location.search}`}>
-          Administration
-        </NavLink>
-        {type !== 'admin' && (
-          <NavLink className="sis-sidebar__item" to={`/${type}/compte`}>Mon compte</NavLink>
-        )}
-        {type === 'admin' && getEnabledVariants().map(variant => (
-          <NavLink className="sis-sidebar__item" key={`admin-${variant}`} to={`${location.pathname}?sis=${variant}`}>
-            Administrer : {variant}
-          </NavLink>
-        ))}
-        {menu.map((section) => (
-          <div key={section.title} className="sis-sidebar__section">
-            <div className="sis-sidebar__section-title">{section.title}</div>
-            {section.items.map((item) => (
-              <NavLink
-                key={item.path}
-                to={`${item.path}${type === 'admin' ? location.search : ''}`}
-                className={({ isActive }) => `sis-sidebar__item ${isActive ? 'sis-sidebar__item--active' : ''}`}
-              >
-                <Icon src={item.icon} className="icon" />
-                {item.label}
-              </NavLink>
+      {failedLogo && failedLogo === branding?.logo && <p className="sis-sidebar__empty" role="status">Logo indisponible.</p>}
+    </>
+  );
+};
+WorkspaceBrand.propTypes = { branding: PropTypes.shape({ name: PropTypes.string, logo: PropTypes.string }) };
+WorkspaceBrand.defaultProps = { branding: undefined };
+
+const Sidebar = ({
+  sections, collapsed, onNavigate, branding, showBrand, institution, workspaceLabel,
+}) => {
+  const location = useLocation();
+  return (
+    <div className={`sis-sidebar${collapsed ? ' sis-sidebar--collapsed' : ''}`}>
+      {showBrand && <WorkspaceBrand branding={branding} />}
+      {institution && (
+        <div className="sis-sidebar__workspace">
+          <span className="sis-sidebar__workspace-icon"><SchoolOutlined /></span>
+          <span className="sis-sidebar__label">
+            <strong>{institution}</strong>
+            <small><LockOutlined />{workspaceLabel}</small>
+          </span>
+        </div>
+      )}
+      <nav aria-label="Navigation principale" className="sis-sidebar__nav">
+        {sections.map(section => (
+          <List component="div" disablePadding key={section.title} className="sis-sidebar__section">
+            <div className="sis-sidebar__section-title sis-sidebar__label">{section.title}</div>
+            {section.items.map(item => (
+              <Tooltip key={item.path} title={collapsed ? item.label : ''} placement="right">
+                <ListItemButton
+                  component={Link}
+                  to={item.path}
+                  aria-label={item.label}
+                  aria-current={matchesNavigation(item, location.pathname) ? 'page' : undefined}
+                  onClick={onNavigate}
+                  className="sis-sidebar__item"
+                  sx={{ m: 0 }}
+                >
+                  <SvgIcon component={item.icon} className="sis-sidebar__icon" aria-hidden="true" />
+                  <span className="sis-sidebar__label">{item.label}</span>
+                  {item.items?.length > 1 && <span className="sis-sidebar__badge sis-sidebar__label">{item.items.length}</span>}
+                </ListItemButton>
+              </Tooltip>
             ))}
-          </div>
+          </List>
         ))}
       </nav>
-    </aside>
+    </div>
   );
 };
 
 Sidebar.propTypes = {
-  type: PropTypes.oneOf(['superieur', 'secondaire', 'admin']).isRequired,
+  sections: PropTypes.arrayOf(PropTypes.shape({
+    title: PropTypes.string.isRequired,
+    items: PropTypes.arrayOf(PropTypes.shape({
+      path: PropTypes.string.isRequired,
+      label: PropTypes.string.isRequired,
+      icon: PropTypes.elementType.isRequired,
+      end: PropTypes.bool,
+    })).isRequired,
+  })).isRequired,
+  collapsed: PropTypes.bool,
+  onNavigate: PropTypes.func,
+  branding: PropTypes.shape({ name: PropTypes.string, logo: PropTypes.string }),
+  showBrand: PropTypes.bool,
+  institution: PropTypes.string,
+  workspaceLabel: PropTypes.string,
+};
+Sidebar.defaultProps = {
+  collapsed: false,
+  onNavigate: undefined,
+  branding: undefined,
+  showBrand: true,
+  institution: '',
+  workspaceLabel: '',
 };
 
 export default Sidebar;

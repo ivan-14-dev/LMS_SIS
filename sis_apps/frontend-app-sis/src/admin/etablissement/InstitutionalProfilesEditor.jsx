@@ -103,7 +103,7 @@ const OfferingEditor = ({
   };
   const parseDecision = value => (value === '' ? null : value === 'yes');
   return (
-    <Box component="section" aria-label={offer.label || offer.code} sx={{ border: 1, borderColor: 'divider', p: 2 }}>
+    <Box component="section" className="sis-panel" aria-label={offer.label || offer.code}>
       <Stack spacing={2}>
         <Typography component="h2" variant="h6">{offer.label || offer.code}</Typography>
         <Typography variant="body2">
@@ -148,7 +148,7 @@ const OfferingEditor = ({
         {assessment.mode === 'competency' && (
           <Stack spacing={2}>
             {criteria.map(item => (
-              <Stack direction="row" spacing={1} key={item.code}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} key={item.code}>
                 <TextField
                   label={`Compétence ${item.code}`}
                   value={item.label}
@@ -163,6 +163,7 @@ const OfferingEditor = ({
                 <Button
                   type="button"
                   aria-label={`Retirer ${item.label}`}
+                  sx={{ flexShrink: 0 }}
                   onClick={() => updateAssessment({
                     criteria: criteria.filter(current => current.code !== item.code),
                   })}

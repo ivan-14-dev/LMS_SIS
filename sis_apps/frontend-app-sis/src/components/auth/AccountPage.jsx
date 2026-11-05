@@ -34,7 +34,7 @@ const AccountPage = ({ variant }) => {
     },
   });
   return (
-    <Box sx={{ maxWidth: 640 }}>
+    <Box className="sis-panel" sx={{ maxWidth: 640 }}>
       <Typography variant="h4" component="h1">Sécurité du compte</Typography>
       <Alert severity="info" sx={{ my: 2 }}>
         Le MFA configuré ici protège les connexions SIS locales.

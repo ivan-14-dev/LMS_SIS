@@ -101,7 +101,7 @@ const GradeEntryDialog = ({
           {query.data?.learners.map((learner) => {
             const row = changes[learner.id] || initial(learner.id);
             return (
-              <Box component="fieldset" key={learner.id} disabled={busy} sx={{ my: 2, borderColor: 'divider' }}>
+              <Box component="fieldset" className="sis-fieldset" key={learner.id} disabled={busy} sx={{ my: 2 }}>
                 <legend>{learner.nom} — {learner.matricule}</legend>
                 <Stack spacing={2} sx={{ py: 1 }}>
                   {mode === 'numeric' && (

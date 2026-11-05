@@ -1,17 +1,23 @@
 import React, { useMemo, useState } from 'react';
-import { Row, Col, Card, Form } from '@openedx/paragon';
+import PropTypes from 'prop-types';
+import { useQuery } from '@tanstack/react-query';
 import {
-  Box, Card as MuiCard, CardContent, Chip, LinearProgress, Stack, Typography,
+  Row, Col, Card, Form,
+} from '@openedx/paragon';
+import {
+  Alert, Box, Card as MuiCard, CardContent, Chip, LinearProgress, MenuItem, Stack, TextField, Typography,
 } from '@mui/material';
 import {
-  PageHeader, SISDataTable, StatCard, WorkflowNotificationsPanel,
+  PageHeader, SectionNavigator, SISDataTable, StatCard, StatusBadge, WorkflowNotificationsPanel,
 } from '../components/common';
 import {
   useWorkflowEvents,
   useWorkflowNotifications,
   useWorkflowNotificationSummary,
   useWorkflowNotificationTrends,
+  fetchApi,
 } from '../services/api';
+import { apiErrorMessage, resourceUrl } from '../services/resources';
 
 const channelLabels = {
   in_app: 'Centre',
@@ -38,12 +44,26 @@ const statusColor = {
   pending: 'primary',
 };
 
+const DeliveryStatuses = ({ row }) => (
+  <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+    {(row.original.delivery_status_summary || []).map(value => {
+      const [channel, status] = value.split(':');
+      return <StatusBadge key={value} value={status} label={`${channelLabels[channel] || channel} : ${statusLabels[status] || status}`} />;
+    })}
+  </Stack>
+);
+DeliveryStatuses.propTypes = {
+  row: PropTypes.shape({
+    original: PropTypes.shape({ delivery_status_summary: PropTypes.arrayOf(PropTypes.string) }).isRequired,
+  }).isRequired,
+};
+
 const SummaryBarCard = ({
   title, items, total, formatLabel,
 }) => (
   <MuiCard sx={{ height: '100%' }}>
     <CardContent>
-      <Typography variant="h6" gutterBottom>{title}</Typography>
+      <Typography variant="h6" component="h2" gutterBottom>{title}</Typography>
       {items.length === 0 ? (
         <Typography variant="body2" color="text.secondary">Aucune donnée disponible.</Typography>
       ) : (
@@ -52,7 +72,10 @@ const SummaryBarCard = ({
             const ratio = total > 0 ? (value / total) * 100 : 0;
             return (
               <Box key={key}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mb: 0.75 }}>
+                <Box sx={{
+                  display: 'flex', justifyContent: 'space-between', gap: 2, mb: 0.75,
+                }}
+                >
                   <Typography variant="body2">{formatLabel(key)}</Typography>
                   <Typography variant="body2" color="text.secondary">{value}</Typography>
                 </Box>
@@ -71,11 +94,11 @@ const SummaryChipCard = ({
 }) => (
   <MuiCard sx={{ height: '100%' }}>
     <CardContent>
-      <Typography variant="h6" gutterBottom>{title}</Typography>
+      <Typography variant="h6" component="h2" gutterBottom>{title}</Typography>
       {items.length === 0 ? (
         <Typography variant="body2" color="text.secondary">Aucune donnée disponible.</Typography>
       ) : (
-        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
           {items.map(({ key, value }) => (
             <Chip key={key} label={`${formatLabel(key)} • ${value}`} size="small" color={chipColor ? chipColor(key) : 'default'} />
           ))}
@@ -90,7 +113,7 @@ const TrendBarsCard = ({
 }) => (
   <MuiCard sx={{ height: '100%' }}>
     <CardContent>
-      <Typography variant="h6" gutterBottom>{title}</Typography>
+      <Typography variant="h6" component="h2" gutterBottom>{title}</Typography>
       {rows.length === 0 ? (
         <Typography variant="body2" color="text.secondary">Aucune tendance disponible.</Typography>
       ) : (
@@ -100,7 +123,10 @@ const TrendBarsCard = ({
             const ratio = total > 0 ? (value / total) * 100 : 0;
             return (
               <Box key={row.period}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mb: 0.75 }}>
+                <Box sx={{
+                  display: 'flex', justifyContent: 'space-between', gap: 2, mb: 0.75,
+                }}
+                >
                   <Typography variant="body2">{row.period}</Typography>
                   <Typography variant="body2" color="text.secondary">{value}</Typography>
                 </Box>
@@ -114,10 +140,31 @@ const TrendBarsCard = ({
   </MuiCard>
 );
 
+const summaryProps = {
+  title: PropTypes.string.isRequired,
+  items: PropTypes.arrayOf(PropTypes.shape({
+    key: PropTypes.string.isRequired,
+    value: PropTypes.number.isRequired,
+  })).isRequired,
+  formatLabel: PropTypes.func.isRequired,
+};
+SummaryBarCard.propTypes = { ...summaryProps, total: PropTypes.number.isRequired };
+SummaryChipCard.propTypes = { ...summaryProps, chipColor: PropTypes.func };
+SummaryChipCard.defaultProps = { chipColor: null };
+TrendBarsCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  rows: PropTypes.arrayOf(PropTypes.shape({ period: PropTypes.string.isRequired })).isRequired,
+  total: PropTypes.number.isRequired,
+  formatValue: PropTypes.func.isRequired,
+};
+
 const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
   const [action, setAction] = useState('');
   const [appLabel, setAppLabel] = useState('');
   const [model, setModel] = useState('');
+  const [actor, setActor] = useState('');
+  const [dateStart, setDateStart] = useState('');
+  const [dateEnd, setDateEnd] = useState('');
   const [notificationCategory, setNotificationCategory] = useState('');
   const [deliveryChannel, setDeliveryChannel] = useState('');
   const [deliveryStatus, setDeliveryStatus] = useState('');
@@ -126,35 +173,46 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
     ...(action ? { action } : {}),
     ...(appLabel ? { app_label: appLabel } : {}),
     ...(model ? { model } : {}),
-  }), [action, appLabel, model]);
-  const { data: events = [], isLoading } = useWorkflowEvents(apiType, params);
+    ...(actor ? { actor } : {}),
+    ...(dateStart ? { date_debut: dateStart } : {}),
+    ...(dateEnd ? { date_fin: dateEnd } : {}),
+  }), [action, appLabel, model, actor, dateStart, dateEnd]);
+  const { data: events = [], isLoading, error: eventsError } = useWorkflowEvents(apiType, params);
+  const actors = useQuery({
+    queryKey: ['workflow-actors', apiType],
+    queryFn: () => fetchApi(`${resourceUrl(apiType, 'core/workflow-events')}acteurs/`),
+  });
   const notificationParams = useMemo(() => ({
     ...(notificationCategory ? { category: notificationCategory } : {}),
     ...(deliveryChannel ? { delivery_channel: deliveryChannel } : {}),
     ...(deliveryStatus ? { delivery_status: deliveryStatus } : {}),
   }), [notificationCategory, deliveryChannel, deliveryStatus]);
-  const { data: notifications = [], isLoading: notificationsLoading } = useWorkflowNotifications(apiType, false, notificationParams);
+  const {
+    data: notifications = [], isLoading: notificationsLoading,
+  } = useWorkflowNotifications(apiType, false, notificationParams);
   const { data: notificationSummary = {} } = useWorkflowNotificationSummary(apiType, notificationParams);
   const { data: notificationTrends = {} } = useWorkflowNotificationTrends(apiType, notificationParams);
 
   const actionOptions = useMemo(
-    () => [...new Set(events.map((event) => event.action).filter(Boolean))].sort(),
-    [events],
+    () => [...new Set([action, ...events.map((event) => event.action)].filter(Boolean))].sort(),
+    [events, action],
   );
   const moduleOptions = useMemo(
-    () => [...new Set(events.map((event) => event.app_label).filter(Boolean))].sort(),
-    [events],
+    () => [...new Set([appLabel, ...events.map((event) => event.app_label)].filter(Boolean))].sort(),
+    [events, appLabel],
   );
   const modelOptions = useMemo(
-    () => [...new Set(events.map((event) => event.model).filter(Boolean))].sort(),
-    [events],
+    () => [...new Set([model, ...events.map((event) => event.model)].filter(Boolean))].sort(),
+    [events, model],
   );
   const notificationCategoryOptions = useMemo(
     () => [...new Set(notifications.map((notification) => notification.category).filter(Boolean))].sort(),
     [notifications],
   );
   const deliveryChannelOptions = useMemo(
-    () => [...new Set(notifications.flatMap((notification) => notification.delivery_channels || []).filter(Boolean))].sort(),
+    () => [...new Set(notifications.flatMap(
+      notification => notification.delivery_channels || [],
+    ).filter(Boolean))].sort(),
     [notifications],
   );
   const deliveryStatusOptions = useMemo(
@@ -179,7 +237,11 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
     { Header: 'Titre', accessor: 'title' },
     { Header: 'Catégorie', accessor: 'category' },
     { Header: 'Canaux', accessor: 'delivery_channels_label' },
-    { Header: 'Statuts', accessor: 'delivery_status_summary_label' },
+    {
+      Header: 'Statuts',
+      accessor: 'delivery_status_summary_label',
+      Cell: DeliveryStatuses,
+    },
     { Header: 'Erreurs', accessor: 'delivery_last_errors_label' },
     { Header: 'Date', accessor: 'created_at' },
   ];
@@ -242,6 +304,44 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
     () => Math.max(0, ...trendRows.map((row) => row.failed || 0)),
     [trendRows],
   );
+  const notificationFilters = (
+    <Card className="mb-4">
+      <Card.Header title={<h2 className="sis-card-title">Filtres des livraisons</h2>} />
+      <Card.Body>
+        <Row>
+          <Col md={4}>
+            <Form.Group>
+              <Form.Label>Catégorie notification</Form.Label>
+              <Form.Control as="select" value={notificationCategory} onChange={(e) => setNotificationCategory(e.target.value)}>
+                <option value="">Toutes</option>
+                {notificationCategoryOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+              </Form.Control>
+            </Form.Group>
+          </Col>
+          <Col md={4}>
+            <Form.Group>
+              <Form.Label>Canal livraison</Form.Label>
+              <Form.Control as="select" value={deliveryChannel} onChange={(e) => setDeliveryChannel(e.target.value)}>
+                <option value="">Tous</option>
+                {deliveryChannelOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+              </Form.Control>
+            </Form.Group>
+          </Col>
+          <Col md={4}>
+            <Form.Group>
+              <Form.Label>Statut livraison</Form.Label>
+              <Form.Control as="select" value={deliveryStatus} onChange={(e) => setDeliveryStatus(e.target.value)}>
+                <option value="">Tous</option>
+                {deliveryStatusOptions.map((option) => (
+                  <option key={option} value={option}>{statusLabels[option] || option}</option>
+                ))}
+              </Form.Control>
+            </Form.Group>
+          </Col>
+        </Row>
+      </Card.Body>
+    </Card>
+  );
 
   return (
     <div>
@@ -249,210 +349,224 @@ const WorkflowCenterPage = ({ apiType = 'superieur', title, subtitle }) => {
         title={title}
         subtitle={subtitle}
       />
-      <WorkflowNotificationsPanel apiType={apiType} title="Notifications workflow récentes" onlyUnread={false} />
-      <Card className="mb-4">
-        <Card.Header><Card.Title className="mb-0">Filtres</Card.Title></Card.Header>
-        <Card.Body>
-          <Row>
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Action</Form.Label>
-                <Form.Control as="select" value={action} onChange={(e) => setAction(e.target.value)}>
-                  <option value="">Toutes</option>
-                  {actionOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </Form.Control>
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Module</Form.Label>
-                <Form.Control as="select" value={appLabel} onChange={(e) => setAppLabel(e.target.value)}>
-                  <option value="">Tous</option>
-                  {moduleOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </Form.Control>
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Modèle</Form.Label>
-                <Form.Control as="select" value={model} onChange={(e) => setModel(e.target.value)}>
-                  <option value="">Tous</option>
-                  {modelOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </Form.Control>
-              </Form.Group>
-            </Col>
-          </Row>
-          <Row className="mt-3">
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Catégorie notification</Form.Label>
-                <Form.Control as="select" value={notificationCategory} onChange={(e) => setNotificationCategory(e.target.value)}>
-                  <option value="">Toutes</option>
-                  {notificationCategoryOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </Form.Control>
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Canal livraison</Form.Label>
-                <Form.Control as="select" value={deliveryChannel} onChange={(e) => setDeliveryChannel(e.target.value)}>
-                  <option value="">Tous</option>
-                  {deliveryChannelOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </Form.Control>
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Statut livraison</Form.Label>
-                <Form.Control as="select" value={deliveryStatus} onChange={(e) => setDeliveryStatus(e.target.value)}>
-                  <option value="">Tous</option>
-                  {deliveryStatusOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </Form.Control>
-              </Form.Group>
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
-      <Row className="mb-4">
-        <Col md={4}>
-          <StatCard title="Événements" value={events.length} variant="primary" />
-        </Col>
-        <Col md={4}>
-          <StatCard title="Publications/signatures" value={events.filter((event) => ['publication', 'signature'].includes(event.action)).length} variant="success" />
-        </Col>
-        <Col md={4}>
-          <StatCard title="Créations/mises à jour" value={events.filter((event) => ['creation', 'mise_a_jour'].includes(event.action)).length} variant="info" />
-        </Col>
-      </Row>
-      <Row className="mb-4">
-        <Col md={4}>
-          <StatCard title="Notifications livrées" value={sentCount} variant="success" />
-        </Col>
-        <Col md={4}>
-          <StatCard title="Notifications en reprise" value={retryingCount} variant="warning" />
-        </Col>
-        <Col md={4}>
-          <StatCard title="Notifications en échec" value={failedCount} variant="danger" />
-        </Col>
-      </Row>
-      <Row className="mb-4">
-        <Col md={6}>
-          <StatCard title="Notifications suivies" value={notificationTotal} variant="info" />
-        </Col>
-        <Col md={6}>
-          <Card>
-            <Card.Body>
-              <strong>Répartition par canal</strong>
-              <div className="small text-muted mt-2">
-                {channelSummaryText || 'Aucune livraison enregistrée.'}
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-      <Row className="mb-4">
-        <Col lg={6} className="mb-3">
-          <SummaryBarCard
-            title="Répartition par statut"
-            items={statusSummaryItems}
-            total={Object.values(notificationSummary.by_status || {}).reduce((sum, value) => sum + value, 0)}
-            formatLabel={(key) => statusLabels[key] || key}
-          />
-        </Col>
-        <Col lg={6} className="mb-3">
-          <SummaryBarCard
-            title="Répartition par canal"
-            items={channelSummaryItems}
-            total={Object.values(notificationSummary.by_channel || {}).reduce((sum, value) => sum + value, 0)}
-            formatLabel={(key) => channelLabels[key] || key}
-          />
-        </Col>
-      </Row>
-      <Row className="mb-4">
-        <Col lg={6} className="mb-3">
-          <SummaryChipCard
-            title="Catégories de notifications"
-            items={categorySummaryItems}
-            formatLabel={(key) => key}
-          />
-        </Col>
-        <Col lg={6} className="mb-3">
-          <SummaryChipCard
-            title="Détail canal / statut"
-            items={channelStatusSummaryItems}
-            formatLabel={(key) => {
-              const [channel, status] = key.split(':');
-              return `${channelLabels[channel] || channel} / ${statusLabels[status] || status}`;
-            }}
-            chipColor={(key) => {
-              const [, status] = key.split(':');
-              return statusColor[status] || 'default';
-            }}
-          />
-        </Col>
-      </Row>
-      <MuiCard sx={{ mb: 4 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center', mb: 3, flexWrap: 'wrap' }}>
-            <Typography variant="h6">Tendances temporelles des livraisons</Typography>
-            <Form.Group className="mb-0">
-              <Form.Label>Granularité</Form.Label>
-              <Form.Control as="select" value={trendGranularity} onChange={(e) => setTrendGranularity(e.target.value)}>
-                <option value="day">Jour</option>
-                <option value="week">Semaine</option>
-                <option value="month">Mois</option>
-              </Form.Control>
-            </Form.Group>
-          </Box>
-          <Row>
-            <Col lg={4} className="mb-3">
-              <TrendBarsCard
-                title="Notifications suivies"
-                rows={trendRows}
-                total={trendTotalMax}
-                formatValue={(row) => row.total_notifications || 0}
-              />
-            </Col>
-            <Col lg={4} className="mb-3">
-              <TrendBarsCard
-                title="Livraisons réussies"
-                rows={trendRows}
-                total={trendSentMax}
-                formatValue={(row) => row.sent || 0}
-              />
-            </Col>
-            <Col lg={4} className="mb-3">
-              <TrendBarsCard
-                title="Livraisons en échec"
-                rows={trendRows}
-                total={trendFailedMax}
-                formatValue={(row) => row.failed || 0}
-              />
-            </Col>
-          </Row>
-        </CardContent>
-      </MuiCard>
-      <SISDataTable
-        title="Historique global des workflows"
-        data={events}
-        columns={columns}
-        loading={isLoading}
-        searchable
-        exportable
+      <SectionNavigator
+        label="Rubriques du centre workflow"
+        sections={[
+          { id: 'notifications', label: 'Notifications récentes', content: <WorkflowNotificationsPanel apiType={apiType} title="Notifications workflow récentes" onlyUnread={false} /> },
+          {
+            id: 'historique',
+            label: 'Historique des workflows',
+            content: (
+              <>
+                <Card className="mb-4">
+                  <Card.Header title={<h2 className="sis-card-title">Filtres</h2>} />
+                  <Card.Body>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 3 }}>
+                      <TextField select label="Personne" value={actor} onChange={event => setActor(event.target.value)} sx={{ minWidth: 220 }}>
+                        <MenuItem value="">Toutes</MenuItem>
+                        {(actors.data || []).map(person => (
+                          <MenuItem key={person.id} value={person.id}>{person.nom}</MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField label="Du" type="date" value={dateStart} onChange={event => setDateStart(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+                      <TextField label="Au (inclus)" type="date" value={dateEnd} onChange={event => setDateEnd(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+                    </Stack>
+                    {(eventsError || actors.error) && <Alert severity="error" sx={{ mb: 2 }}>{apiErrorMessage(eventsError || actors.error)}</Alert>}
+                    <Row>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label>Action</Form.Label>
+                          <Form.Control as="select" value={action} onChange={(e) => setAction(e.target.value)}>
+                            <option value="">Toutes</option>
+                            {actionOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                          </Form.Control>
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label>Module</Form.Label>
+                          <Form.Control as="select" value={appLabel} onChange={(e) => setAppLabel(e.target.value)}>
+                            <option value="">Tous</option>
+                            {moduleOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                          </Form.Control>
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group>
+                          <Form.Label>Modèle</Form.Label>
+                          <Form.Control as="select" value={model} onChange={(e) => setModel(e.target.value)}>
+                            <option value="">Tous</option>
+                            {modelOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                          </Form.Control>
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  </Card.Body>
+                </Card>
+                <Row className="mb-4">
+                  <Col md={4}>
+                    <StatCard title="Événements" value={events.length} variant="primary" />
+                  </Col>
+                  <Col md={4}>
+                    <StatCard title="Publications/signatures" value={events.filter((event) => ['publication', 'signature'].includes(event.action)).length} variant="success" />
+                  </Col>
+                  <Col md={4}>
+                    <StatCard title="Créations/mises à jour" value={events.filter((event) => ['creation', 'mise_a_jour'].includes(event.action)).length} variant="info" />
+                  </Col>
+                </Row>
+                <SISDataTable title="Historique global des workflows" data={events} columns={columns} loading={isLoading} searchable exportable />
+              </>
+            ),
+          },
+          {
+            id: 'livraisons',
+            label: 'Livraisons de notifications',
+            content: (
+              <>
+                {notificationFilters}
+                <SISDataTable
+                  title="Rapport des livraisons de notifications"
+                  data={notificationRows}
+                  columns={notificationColumns}
+                  loading={notificationsLoading}
+                  searchable
+                  exportable
+                  emptyMessage="Aucune notification ne correspond aux filtres."
+                />
+              </>
+            ),
+          },
+          {
+            id: 'statistiques',
+            label: 'Statistiques des livraisons',
+            content: (
+              <>
+                {notificationFilters}
+                <Row className="mb-4">
+                  <Col md={4}>
+                    <StatCard title="Notifications livrées" value={sentCount} variant="success" />
+                  </Col>
+                  <Col md={4}>
+                    <StatCard title="Notifications en reprise" value={retryingCount} variant="warning" />
+                  </Col>
+                  <Col md={4}>
+                    <StatCard title="Notifications en échec" value={failedCount} variant="danger" />
+                  </Col>
+                </Row>
+                <Row className="mb-4">
+                  <Col md={6}>
+                    <StatCard title="Notifications suivies" value={notificationTotal} variant="info" />
+                  </Col>
+                  <Col md={6}>
+                    <Card>
+                      <Card.Body>
+                        <strong>Répartition par canal</strong>
+                        <div className="small text-muted mt-2">
+                          {channelSummaryText || 'Aucune livraison enregistrée.'}
+                        </div>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                </Row>
+                <Row className="mb-4">
+                  <Col lg={6} className="mb-3">
+                    <SummaryBarCard
+                      title="Répartition par statut"
+                      items={statusSummaryItems}
+                      total={Object.values(notificationSummary.by_status || {}).reduce((sum, value) => sum + value, 0)}
+                      formatLabel={(key) => statusLabels[key] || key}
+                    />
+                  </Col>
+                  <Col lg={6} className="mb-3">
+                    <SummaryBarCard
+                      title="Répartition par canal"
+                      items={channelSummaryItems}
+                      total={Object.values(notificationSummary.by_channel || {}).reduce((sum, value) => sum + value, 0)}
+                      formatLabel={(key) => channelLabels[key] || key}
+                    />
+                  </Col>
+                </Row>
+                <Row className="mb-4">
+                  <Col lg={6} className="mb-3">
+                    <SummaryChipCard
+                      title="Catégories de notifications"
+                      items={categorySummaryItems}
+                      formatLabel={(key) => key}
+                    />
+                  </Col>
+                  <Col lg={6} className="mb-3">
+                    <SummaryChipCard
+                      title="Détail canal / statut"
+                      items={channelStatusSummaryItems}
+                      formatLabel={(key) => {
+                        const [channel, status] = key.split(':');
+                        return `${channelLabels[channel] || channel} / ${statusLabels[status] || status}`;
+                      }}
+                      chipColor={(key) => {
+                        const [, status] = key.split(':');
+                        return statusColor[status] || 'default';
+                      }}
+                    />
+                  </Col>
+                </Row>
+                <MuiCard sx={{ mb: 4 }}>
+                  <CardContent>
+                    <Box sx={{
+                      display: 'flex', justifyContent: 'space-between', gap: 2, alignItems: 'center', mb: 3, flexWrap: 'wrap',
+                    }}
+                    >
+                      <Typography variant="h6">Tendances temporelles des livraisons</Typography>
+                      <Form.Group className="mb-0">
+                        <Form.Label>Granularité</Form.Label>
+                        <Form.Control as="select" value={trendGranularity} onChange={(e) => setTrendGranularity(e.target.value)}>
+                          <option value="day">Jour</option>
+                          <option value="week">Semaine</option>
+                          <option value="month">Mois</option>
+                        </Form.Control>
+                      </Form.Group>
+                    </Box>
+                    <Row>
+                      <Col lg={4} className="mb-3">
+                        <TrendBarsCard
+                          title="Notifications suivies"
+                          rows={trendRows}
+                          total={trendTotalMax}
+                          formatValue={(row) => row.total_notifications || 0}
+                        />
+                      </Col>
+                      <Col lg={4} className="mb-3">
+                        <TrendBarsCard
+                          title="Livraisons réussies"
+                          rows={trendRows}
+                          total={trendSentMax}
+                          formatValue={(row) => row.sent || 0}
+                        />
+                      </Col>
+                      <Col lg={4} className="mb-3">
+                        <TrendBarsCard
+                          title="Livraisons en échec"
+                          rows={trendRows}
+                          total={trendFailedMax}
+                          formatValue={(row) => row.failed || 0}
+                        />
+                      </Col>
+                    </Row>
+                  </CardContent>
+                </MuiCard>
+              </>
+            ),
+          },
+        ]}
       />
-      <div className="mt-4">
-        <SISDataTable
-          title="Rapport des livraisons de notifications"
-          data={notificationRows}
-          columns={notificationColumns}
-          loading={notificationsLoading}
-          searchable
-          exportable
-          emptyMessage="Aucune notification ne correspond aux filtres."
-        />
-      </div>
     </div>
   );
 };
+
+WorkflowCenterPage.propTypes = {
+  apiType: PropTypes.oneOf(['secondaire', 'superieur']),
+  title: PropTypes.string.isRequired,
+  subtitle: PropTypes.string,
+};
+WorkflowCenterPage.defaultProps = { apiType: 'superieur', subtitle: '' };
 
 export default WorkflowCenterPage;

@@ -1,49 +1,58 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Alert, Button, Card, Col, Row, Spinner,
-} from '@openedx/paragon';
+  Alert, Box, CircularProgress, Grid,
+} from '@mui/material';
 import {
   EventNote, Grade, Money, Person,
-} from '@openedx/paragon/icons';
+} from '@mui/icons-material';
 import {
   PageHeader, SISDataTable, StatCard,
 } from '../../components/common';
 import { useCapabilities } from '../../components/auth/PermissionGuard';
+import { canEnterPortal } from '../../components/layout/navigation';
 import { fetchApi, getSecondaireApiUrl } from '../../services/api';
+import { apiErrorMessage } from '../../services/resources';
+import RecordsTabs from '../../components/common/RecordsTabs';
 
 const PortailApprenantFamille = () => {
-  const navigate = useNavigate();
-  const { data: capabilities, isLoading: loadingCapabilities, isError: capabilitiesError } = useCapabilities('secondaire');
-  const role = capabilities?.role || '';
-  const isEleve = role === 'eleve';
-  const isParent = role === 'parent';
+  const {
+    data: capabilities, isLoading: loadingCapabilities, isFetching: checkingCapabilities, isError: capabilitiesError,
+  } = useCapabilities('secondaire', { refetchOnMount: false });
+  const isEleve = canEnterPortal(capabilities, 'learner');
+  const isParent = !isEleve && canEnterPortal(capabilities, 'parent');
 
-  const { data: eleveDashboard, isLoading: loadingEleve } = useQuery({
+  const { data: eleveDashboard, isLoading: loadingEleve, error: eleveError } = useQuery({
     queryKey: ['secondaire-portail-apprenant-eleve-dashboard'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/apprenant/tableau_bord/`),
-    enabled: isEleve,
+    enabled: isEleve && !checkingCapabilities && !capabilitiesError,
   });
 
-  const { data: bulletins = [] } = useQuery({
+  const { data: bulletins = [], error: bulletinsError, isLoading: loadingBulletins } = useQuery({
     queryKey: ['secondaire-portail-apprenant-eleve-bulletins'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/apprenant/bulletins/`),
-    enabled: isEleve,
+    enabled: isEleve && !checkingCapabilities && !capabilitiesError,
   });
 
-  const { data: parentDashboard, isLoading: loadingParent } = useQuery({
+  const { data: parentDashboard, isLoading: loadingParent, error: parentError } = useQuery({
     queryKey: ['secondaire-portail-apprenant-parent-dashboard'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/apprenant/tableau_bord/`),
-    enabled: isParent,
+    enabled: isParent && !checkingCapabilities && !capabilitiesError,
   });
 
-  if (loadingCapabilities || (isEleve && loadingEleve) || (isParent && loadingParent)) {
-    return <Spinner animation="border" screenReaderText="Chargement du portail" />;
+  if (loadingCapabilities || checkingCapabilities
+      || (isEleve && (loadingEleve || loadingBulletins)) || (isParent && loadingParent)) {
+    return <CircularProgress aria-label="Chargement du portail" />;
   }
 
-  if (capabilitiesError || (!isEleve && !isParent)) {
-    return <Alert variant="danger">Ce portail est réservé aux élèves, étudiants et parents autorisés.</Alert>;
+  if (capabilitiesError || !capabilities) {
+    return <Alert severity="error">Impossible de vérifier vos permissions. Rechargez la page pour réessayer.</Alert>;
+  }
+  if (!isEleve && !isParent) {
+    return <Alert severity="error">Ce portail est réservé aux élèves et parents affiliés et autorisés.</Alert>;
+  }
+  if (eleveError || bulletinsError || parentError) {
+    return <Alert severity="error">Impossible de charger votre dossier. {apiErrorMessage(eleveError || bulletinsError || parentError)}</Alert>;
   }
 
   if (isEleve) {
@@ -66,38 +75,33 @@ const PortailApprenantFamille = () => {
     ];
 
     return (
-      <div>
+      <Box>
         <PageHeader
-          title="Portail apprenant / famille"
+          title="Mon espace élève"
           subtitle={eleveDashboard?.eleve ? `${eleveDashboard.eleve.nom} · ${eleveDashboard?.classe?.nom || 'Sans classe'}` : 'Espace élève'}
-          actions={[
-            { label: 'Évaluations', variant: 'primary', onClick: () => navigate('/secondaire/evaluations') },
-            { label: 'Bulletins', variant: 'secondary', onClick: () => navigate('/secondaire/bulletins') },
+        />
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+            <StatCard title="Moyenne" value={stats.moyenne ?? '—'} icon={<Grade />} variant="primary" />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+            <StatCard title="Rang" value={stats.rang ?? '—'} icon={<Person />} variant="success" />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+            <StatCard title="Absences" value={stats.absences ?? 0} icon={<EventNote />} variant="warning" />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+            <StatCard title="Retards" value={stats.retards ?? 0} icon={<EventNote />} variant="info" />
+          </Grid>
+        </Grid>
+        <RecordsTabs
+          label="Mon dossier scolaire"
+          panels={[
+            { label: 'Notes récentes', content: <SISDataTable title="Notes récentes" showTitle={false} data={notes} columns={notesColumns} searchable={false} exportable={false} /> },
+            { label: 'Bulletins publiés', content: <SISDataTable title="Bulletins publiés" showTitle={false} data={bulletins} columns={bulletinColumns} searchable={false} exportable={false} /> },
           ]}
         />
-        <Row className="mb-4">
-          <Col md={3}>
-            <StatCard title="Moyenne" value={stats.moyenne ?? '—'} icon={<Grade />} variant="primary" />
-          </Col>
-          <Col md={3}>
-            <StatCard title="Rang" value={stats.rang ?? '—'} icon={<Person />} variant="success" />
-          </Col>
-          <Col md={3}>
-            <StatCard title="Absences" value={stats.absences ?? 0} icon={<EventNote />} variant="warning" />
-          </Col>
-          <Col md={3}>
-            <StatCard title="Retards" value={stats.retards ?? 0} icon={<EventNote />} variant="info" />
-          </Col>
-        </Row>
-        <Row>
-          <Col md={7}>
-            <SISDataTable title="Notes récentes" data={notes} columns={notesColumns} searchable={false} exportable={false} />
-          </Col>
-          <Col md={5}>
-            <SISDataTable title="Bulletins publiés" data={bulletins} columns={bulletinColumns} searchable={false} exportable={false} />
-          </Col>
-        </Row>
-      </div>
+      </Box>
     );
   }
 
@@ -122,39 +126,30 @@ const PortailApprenantFamille = () => {
   ];
 
   return (
-    <div>
+    <Box>
       <PageHeader
-        title="Portail apprenant / famille"
+        title="Mon espace famille"
         subtitle="Vue parent avec données limitées aux enfants autorisés"
       />
-      <Row className="mb-4">
-        <Col md={4}>
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <StatCard title="Enfants suivis" value={enfants.length} icon={<Person />} variant="primary" />
-        </Col>
-        <Col md={4}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
           <StatCard title="Factures impayées" value={factures.length} icon={<Money />} variant="warning" />
-        </Col>
-        <Col md={4}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
           <StatCard title="Absences cumulées" value={enfants.reduce((total, enfant) => total + (enfant.absences || 0), 0)} icon={<EventNote />} variant="info" />
-        </Col>
-      </Row>
-      <Row>
-        <Col md={8}>
-          <SISDataTable title="Enfants autorisés" data={enfants} columns={enfantsColumns} searchable={false} exportable={false} />
-        </Col>
-        <Col md={4}>
-          <Card>
-            <Card.Header><Card.Title>Factures en attente</Card.Title></Card.Header>
-            <Card.Body>
-              <SISDataTable title="" data={factures} columns={facturesColumns} searchable={false} exportable={false} />
-              <div className="d-grid gap-2 mt-3">
-                <Button variant="outline-primary" onClick={() => navigate('/secondaire/bulletins')}>Voir les bulletins</Button>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </div>
+        </Grid>
+      </Grid>
+      <RecordsTabs
+        label="Dossiers de ma famille"
+        panels={[
+          { label: 'Enfants autorisés', content: <SISDataTable title="Enfants autorisés" showTitle={false} data={enfants} columns={enfantsColumns} searchable={false} exportable={false} /> },
+          { label: 'Factures en attente', content: <SISDataTable title="Factures en attente" showTitle={false} data={factures} columns={facturesColumns} searchable={false} exportable={false} /> },
+        ]}
+      />
+    </Box>
   );
 };
 

@@ -1,9 +1,9 @@
 import React from 'react';
-import { Stack } from '@mui/material';
 import ResourceManager from '../../components/common/ResourceManager';
+import ResourceWorkspace from '../../components/common/ResourceWorkspace';
 
 const ClubsPage = () => (
-  <Stack spacing={4}>
+  <ResourceWorkspace title="Clubs et activités">
     <ResourceManager
       variant="secondaire"
       resource="clubs"
@@ -102,7 +102,7 @@ const ClubsPage = () => (
         },
       ]}
     />
-  </Stack>
+  </ResourceWorkspace>
 );
 
 export default ClubsPage;

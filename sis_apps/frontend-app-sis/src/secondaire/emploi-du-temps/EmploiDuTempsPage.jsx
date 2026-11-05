@@ -1,9 +1,9 @@
 import React from 'react';
-import { Stack } from '@mui/material';
 import ResourceManager from '../../components/common/ResourceManager';
+import ResourceWorkspace from '../../components/common/ResourceWorkspace';
 
 const EmploiDuTempsPage = () => (
-  <Stack spacing={4}>
+  <ResourceWorkspace title="Emploi du temps">
     <ResourceManager
       variant="secondaire"
       resource="edt/creneaux"
@@ -88,7 +88,7 @@ const EmploiDuTempsPage = () => (
         },
       ]}
     />
-  </Stack>
+  </ResourceWorkspace>
 );
 
 export default EmploiDuTempsPage;

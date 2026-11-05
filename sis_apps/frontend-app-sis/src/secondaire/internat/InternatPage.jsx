@@ -1,10 +1,13 @@
 import React from 'react';
-import { Alert, Stack } from '@mui/material';
+import { Alert } from '@mui/material';
 import ResourceManager from '../../components/common/ResourceManager';
+import ResourceWorkspace from '../../components/common/ResourceWorkspace';
 
 const InternatPage = () => (
-  <Stack spacing={4}>
-    <Alert severity="info">Les capacités et les chevauchements de séjour doivent être contrôlés par le gestionnaire.</Alert>
+  <ResourceWorkspace
+    title="Internat"
+    notice={<Alert severity="info">Les capacités et les chevauchements de séjour doivent être contrôlés par le gestionnaire.</Alert>}
+  >
     <ResourceManager
       variant="secondaire"
       resource="internat/batiments"
@@ -82,7 +85,7 @@ const InternatPage = () => (
         { name: 'motif_fin', label: 'Motif de fin', multiline: true },
       ]}
     />
-  </Stack>
+  </ResourceWorkspace>
 );
 
 export default InternatPage;

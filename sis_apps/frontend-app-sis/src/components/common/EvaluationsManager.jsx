@@ -21,7 +21,7 @@ const historyButton = (select, cell) => (
 );
 const choices = pairs => pairs.map(([value, label]) => ({ value, label }));
 
-const EvaluationsManager = ({ variant }) => {
+const EvaluationsManager = ({ variant, showHeading = true }) => {
   const secondary = variant === 'secondaire';
   const [selected, setSelected] = useState(null);
   const [history, setHistory] = useState(null);
@@ -124,7 +124,7 @@ const EvaluationsManager = ({ variant }) => {
         Son barème chiffré est alors défini automatiquement et reste figé.
       </Alert>
       {notice && <Alert severity="success">{notice}</Alert>}
-      <ResourceManager variant={variant} resource="notes/evaluations" title="Évaluations" columns={columns} fields={fields} />
+      <ResourceManager variant={variant} resource="notes/evaluations" title="Évaluations" columns={columns} fields={fields} showHeading={showHeading} />
       {selected && (
         <GradeEntryDialog
           key={selected.id}
@@ -147,6 +147,7 @@ const EvaluationsManager = ({ variant }) => {
 
 EvaluationsManager.propTypes = {
   variant: PropTypes.oneOf(['secondaire', 'superieur']).isRequired,
+  showHeading: PropTypes.bool,
 };
 
 export default EvaluationsManager;

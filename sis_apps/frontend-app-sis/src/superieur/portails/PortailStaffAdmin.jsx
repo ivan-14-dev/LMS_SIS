@@ -1,102 +1,131 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Alert, Button, Card, Col, Row, Spinner,
-} from '@openedx/paragon';
+  Alert, Box, Button, Card, CardContent, CardHeader, CircularProgress, Grid, Stack, Typography,
+} from '@mui/material';
 import {
   Assignment, Grade, People, School,
-} from '@openedx/paragon/icons';
+} from '@mui/icons-material';
 import {
-  PageHeader, SISDataTable, StatCard, WorkflowNotificationsPanel,
+  PageHeader, SectionNavigator, SISDataTable, StatCard, WorkflowNotificationsPanel,
 } from '../../components/common';
 import { useCapabilities } from '../../components/auth/PermissionGuard';
+import { canEnterPortal, hasCapability } from '../../components/layout/navigation';
 import { fetchApi, getSuperieurApiUrl } from '../../services/api';
 
-const teacherRoles = ['enseignant', 'chercheur'];
-const registrarRoles = ['scolarite', 'directeur_etudes', 'chef_departement', 'comptable'];
-const leadershipRoles = ['doyen', 'vice_doyen', 'president', 'vice_president'];
-
-const StaffAdminFallback = ({ role, groups = [] }) => {
+const StaffAdminFallback = ({ role, groups = [], capabilities }) => {
   const navigate = useNavigate();
   return (
     <Card>
-      <Card.Header><Card.Title>Accès staff / admin</Card.Title></Card.Header>
-      <Card.Body>
-        <p className="mb-3">
+      <CardHeader title={<Typography component="h2" variant="h3" className="sis-card-title">Accès staff / admin</Typography>} />
+      <CardContent>
+        <Typography sx={{ mb: 2 }}>
           Rôle détecté : <strong>{role || 'admin'}</strong>
-        </p>
-        <p className="small text-muted mb-3">Groupes résolus : {groups.join(', ') || 'aucun'}</p>
-        <div className="d-grid gap-2">
-          <Button variant="primary" onClick={() => navigate('/superieur/workflows')}>Centre workflow</Button>
-          <Button variant="outline-primary" onClick={() => navigate('/superieur/inscriptions')}>Inscriptions</Button>
-          <Button variant="outline-primary" onClick={() => navigate('/superieur/notes')}>Notes</Button>
-          <Button variant="outline-primary" onClick={() => navigate('/admin/etablissement')}>Administration</Button>
-        </div>
-      </Card.Body>
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Groupes résolus : {groups.join(', ') || 'aucun'}</Typography>
+        <Stack spacing={1}>
+          <Button variant="contained" onClick={() => navigate('/superieur/workflows')}>Centre workflow</Button>
+          {hasCapability(capabilities, 'etudiants.view_inscriptionadministrative') && <Button variant="outlined" onClick={() => navigate('/superieur/inscriptions')}>Inscriptions</Button>}
+          {hasCapability(capabilities, 'notes.view_note') && <Button variant="outlined" onClick={() => navigate('/superieur/notes')}>Notes</Button>}
+          {hasCapability(capabilities, 'etablissement.change_universite') && <Button variant="outlined" onClick={() => navigate('/admin/etablissement?sis=superieur')}>Administration</Button>}
+        </Stack>
+      </CardContent>
     </Card>
   );
 };
+StaffAdminFallback.propTypes = {
+  role: PropTypes.string,
+  groups: PropTypes.arrayOf(PropTypes.string),
+  capabilities: PropTypes.shape({ permissions: PropTypes.arrayOf(PropTypes.string) }),
+};
+StaffAdminFallback.defaultProps = { role: '', groups: [], capabilities: null };
 
 const PortailStaffAdmin = () => {
   const navigate = useNavigate();
-  const { data: capabilities, isLoading: loadingCapabilities, isError: capabilitiesError } = useCapabilities('superieur');
+  const {
+    data: capabilities, isLoading: loadingCapabilities, isFetching: checkingCapabilities, isError: capabilitiesError,
+  } = useCapabilities('superieur', { refetchOnMount: false });
   const role = capabilities?.role || '';
   const groups = capabilities?.groups || [];
-  const permissions = capabilities?.permissions || [];
-  const isLearner = ['etudiant', 'doctorant'].includes(role);
-  const viewMode = teacherRoles.includes(role)
-    ? 'teacher'
-    : leadershipRoles.includes(role)
-      ? 'leadership'
-      : (registrarRoles.includes(role) || permissions.includes('*') || groups.includes('academic_admin_superieur'))
-        ? 'registrar'
-        : 'generic';
+  const isStaff = canEnterPortal(capabilities, 'staff');
+  const canViewNotes = hasCapability(capabilities, 'notes.view_note');
+  const canViewStudents = hasCapability(capabilities, 'etudiants.view_etudiant');
+  const canViewFormations = hasCapability(capabilities, 'formations.view_formation');
+  const canViewInscriptions = hasCapability(capabilities, 'etudiants.view_inscriptionadministrative');
+  const enabled = isStaff && !checkingCapabilities && !capabilitiesError;
+  let viewMode = 'generic';
+  if (['enseignant', 'chercheur'].includes(role) && canViewNotes) {
+    viewMode = 'teacher';
+  } else if (['doyen', 'vice_doyen', 'president', 'vice_president'].includes(role) && canViewFormations) {
+    viewMode = 'leadership';
+  } else if (canViewStudents) {
+    viewMode = 'registrar';
+  } else if (canViewFormations) {
+    viewMode = 'leadership';
+  }
+  const secondaryActions = [];
+  if (viewMode === 'teacher' && canViewNotes) {
+    secondaryActions.push({ label: 'Saisir des notes', variant: 'secondary', onClick: () => navigate('/superieur/notes') });
+  } else if (canViewInscriptions) {
+    secondaryActions.push({ label: 'Inscriptions', variant: 'secondary', onClick: () => navigate('/superieur/inscriptions') });
+  }
 
   const { data: teacherDashboard, isLoading: loadingTeacher, isError: teacherError } = useQuery({
     queryKey: ['superieur-portail-staff-teacher-dashboard'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/tableau_bord/`),
-    enabled: viewMode === 'teacher',
+    enabled: enabled && viewMode === 'teacher',
   });
-  const { data: notesASaisir = [] } = useQuery({
+  const { data: notesASaisir = [], isLoading: loadingNotes, isError: notesError } = useQuery({
     queryKey: ['superieur-portail-staff-teacher-notes'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/notes_a_saisir/`),
-    enabled: viewMode === 'teacher',
+    enabled: enabled && viewMode === 'teacher' && canViewNotes,
   });
 
   const { data: registrarDashboard, isLoading: loadingRegistrar, isError: registrarError } = useQuery({
     queryKey: ['superieur-portail-staff-registrar-dashboard'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/tableau_bord/`),
-    enabled: viewMode === 'registrar',
+    enabled: enabled && viewMode === 'registrar',
   });
-  const { data: registrarAlerts = [] } = useQuery({
+  const { data: registrarAlerts = [], isLoading: loadingAlerts, isError: alertsError } = useQuery({
     queryKey: ['superieur-portail-staff-registrar-alerts'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/alertes/`),
-    enabled: viewMode === 'registrar',
+    enabled: enabled && viewMode === 'registrar' && canViewStudents,
   });
 
   const { data: leadershipDashboard, isLoading: loadingLeadership, isError: leadershipError } = useQuery({
     queryKey: ['superieur-portail-staff-leadership-dashboard'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/tableau_bord/`),
-    enabled: viewMode === 'leadership',
+    enabled: enabled && viewMode === 'leadership',
   });
-  const { data: formationStats = [] } = useQuery({
+  const { data: formationStats = [], isLoading: loadingFormations, isError: formationsError } = useQuery({
     queryKey: ['superieur-portail-staff-leadership-formations'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/statistiques_formations/`),
-    enabled: viewMode === 'leadership',
+    enabled: enabled && viewMode === 'leadership' && canViewFormations,
   });
 
   if (
     loadingCapabilities
+    || checkingCapabilities
     || loadingTeacher
     || loadingRegistrar
     || loadingLeadership
+    || loadingNotes
+    || loadingAlerts
+    || loadingFormations
   ) {
-    return <Spinner animation="border" screenReaderText="Chargement du portail staff" />;
+    return <CircularProgress aria-label="Chargement du portail staff" />;
   }
 
-  if (capabilitiesError || isLearner) {
-    return <Alert variant="danger">Ce portail est réservé au staff et aux administrateurs autorisés.</Alert>;
+  if (capabilitiesError || !capabilities) {
+    return <Alert severity="error">Impossible de vérifier vos permissions. Rechargez la page pour réessayer.</Alert>;
+  }
+  if (!isStaff) {
+    return <Alert severity="error">Ce portail est réservé au staff affilié et autorisé.</Alert>;
+  }
+  if (teacherError || registrarError || leadershipError || notesError || alertsError || formationsError) {
+    return <Alert severity="error">Impossible de charger votre activité. Rechargez la page pour réessayer.</Alert>;
   }
 
   const teacherColumns = [
@@ -122,105 +151,128 @@ const PortailStaffAdmin = () => {
 
   const renderContent = () => {
     if (viewMode === 'teacher') {
-      if (teacherError || !teacherDashboard) {
-        return <StaffAdminFallback role={role} groups={groups} />;
+      if (!teacherDashboard) {
+        return <StaffAdminFallback role={role} groups={groups} capabilities={capabilities} />;
       }
       return (
         <>
-          <Row className="mb-4">
-            <Col md={4}>
+          <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <StatCard title="Cours" value={teacherDashboard?.statistiques?.nb_cours ?? 0} icon={<School />} variant="primary" />
-            </Col>
-            <Col md={4}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
               <StatCard title="Heures" value={teacherDashboard?.statistiques?.heures_total ?? 0} icon={<Assignment />} variant="success" />
-            </Col>
-            <Col md={4}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
               <StatCard title="Notes à saisir" value={notesASaisir.length} icon={<Grade />} variant="warning" />
-            </Col>
-          </Row>
-          <SISDataTable title="Notes à saisir" data={notesASaisir} columns={teacherColumns} searchable={false} exportable />
+            </Grid>
+          </Grid>
+          <SISDataTable
+            title="Notes à saisir"
+            data={notesASaisir}
+            columns={teacherColumns}
+            searchable={false}
+            exportable={hasCapability(capabilities, 'portail.export_staff')}
+          />
         </>
       );
     }
     if (viewMode === 'leadership') {
-      if (leadershipError || !leadershipDashboard) {
-        return <StaffAdminFallback role={role} groups={groups} />;
+      if (!leadershipDashboard) {
+        return <StaffAdminFallback role={role} groups={groups} capabilities={capabilities} />;
       }
       return (
         <>
-          <Row className="mb-4">
-            <Col md={3}>
+          <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <StatCard title="Formations" value={leadershipDashboard?.statistiques?.nb_formations ?? 0} icon={<School />} variant="primary" />
-            </Col>
-            <Col md={3}>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <StatCard title="Départements" value={leadershipDashboard?.statistiques?.nb_departements ?? 0} icon={<Assignment />} variant="success" />
-            </Col>
-            <Col md={3}>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <StatCard title="Étudiants" value={leadershipDashboard?.statistiques?.nb_etudiants ?? 0} icon={<People />} variant="info" />
-            </Col>
-            <Col md={3}>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <StatCard title="Enseignants" value={leadershipDashboard?.statistiques?.nb_enseignants ?? 0} icon={<School />} variant="warning" />
-            </Col>
-          </Row>
-          <SISDataTable title="Statistiques des formations" data={formationStats} columns={formationColumns} searchable exportable />
+            </Grid>
+          </Grid>
+          <SISDataTable
+            title="Statistiques des formations"
+            data={formationStats}
+            columns={formationColumns}
+            searchable
+            exportable={hasCapability(capabilities, 'portail.export_staff')}
+          />
         </>
       );
     }
     if (viewMode === 'registrar') {
-      if (registrarError || !registrarDashboard) {
-        return <StaffAdminFallback role={role} groups={groups} />;
+      if (!registrarDashboard) {
+        return <StaffAdminFallback role={role} groups={groups} capabilities={capabilities} />;
       }
       const stats = registrarDashboard?.statistiques || {};
       return (
         <>
-          <Row className="mb-4">
-            <Col md={3}>
+          <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <StatCard title="Étudiants actifs" value={stats.total_etudiants ?? 0} icon={<People />} variant="primary" />
-            </Col>
-            <Col md={3}>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <StatCard title="Inscriptions année" value={stats.inscriptions_annee ?? 0} icon={<Assignment />} variant="success" />
-            </Col>
-            <Col md={3}>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <StatCard title="Factures impayées" value={stats.factures_impayees ?? 0} icon={<Grade />} variant="warning" />
-            </Col>
-            <Col md={3}>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
               <StatCard title="Montant impayé" value={stats.montant_impaye ?? 0} icon={<Grade />} variant="info" />
-            </Col>
-          </Row>
-          <Row>
-            <Col md={8}>
-              <SISDataTable title="Inscriptions récentes" data={registrarDashboard?.inscriptions_recentes || []} columns={inscriptionColumns} searchable={false} exportable />
-            </Col>
-            <Col md={4}>
+            </Grid>
+          </Grid>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, lg: 8 }}>
+              <SISDataTable
+                title="Inscriptions récentes"
+                data={registrarDashboard?.inscriptions_recentes || []}
+                columns={inscriptionColumns}
+                searchable={false}
+                exportable={hasCapability(capabilities, 'portail.export_staff')}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, lg: 4 }}>
               <Card>
-                <Card.Header><Card.Title>Alertes</Card.Title></Card.Header>
-                <Card.Body>
-                  {registrarAlerts.length ? registrarAlerts.map((alert, index) => (
-                    <Alert key={index} variant={alert.niveau === 'warning' ? 'warning' : 'info'}>{alert.message}</Alert>
-                  )) : <p className="text-muted mb-0">Aucune alerte.</p>}
-                </Card.Body>
+                <CardHeader title={<Typography component="h2" variant="h3" className="sis-card-title">Alertes</Typography>} />
+                <CardContent>
+                  {registrarAlerts.length ? registrarAlerts.map(alert => (
+                    <Alert key={`${alert.niveau}-${alert.message}`} severity={alert.niveau === 'warning' ? 'warning' : 'info'} sx={{ mb: 1 }}>{alert.message}</Alert>
+                  )) : <Typography color="text.secondary">Aucune alerte.</Typography>}
+                </CardContent>
               </Card>
-            </Col>
-          </Row>
+            </Grid>
+          </Grid>
         </>
       );
     }
-    return <StaffAdminFallback role={role} groups={groups} />;
+    return <StaffAdminFallback role={role} groups={groups} capabilities={capabilities} />;
   };
 
   return (
-    <div>
+    <Box>
       <PageHeader
-        title="Portail staff / admin"
+        title={viewMode === 'teacher' ? 'Mon activité pédagogique' : 'Mon espace administratif'}
         subtitle={`Données affichées selon les permissions de ${role || 'staff'}`}
         actions={[
           { label: 'Workflows', variant: 'primary', onClick: () => navigate('/superieur/workflows') },
-          { label: 'Inscriptions', variant: 'secondary', onClick: () => navigate('/superieur/inscriptions') },
+          ...secondaryActions,
         ]}
       />
-      <WorkflowNotificationsPanel apiType="superieur" title="Notifications workflow staff / admin" />
-      {renderContent()}
-    </div>
+      <SectionNavigator
+        label="Rubriques de mon activité"
+        sections={[
+          { id: 'activite', label: 'Mon activité', content: renderContent() },
+          { id: 'notifications', label: 'Notifications', content: <WorkflowNotificationsPanel apiType="superieur" title="Notifications workflow staff / admin" /> },
+        ]}
+      />
+    </Box>
   );
 };
 

@@ -1,15 +1,18 @@
 import React from 'react';
 import {
-  fireEvent, render, screen, waitFor,
+  fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { fetchApi, patchApi, postApi } from '../../services/api';
 import ResourceManager from './ResourceManager';
+import ResourceWorkspace from './ResourceWorkspace';
 import { fetchAllResourcePages } from '../../services/resources';
 
 jest.mock('../../services/resources', () => ({
   ...jest.requireActual('../../services/resources'),
   fetchAllResourcePages: jest.fn(),
+  exportRecords: jest.fn(),
 }));
 
 jest.mock('@edx/frontend-platform', () => ({
@@ -22,7 +25,7 @@ jest.mock('../../services/api', () => ({
   postApi: jest.fn(),
 }));
 
-const show = (fields = []) => render(
+const show = (fields = [], props = {}) => render(
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <ResourceManager
       variant="secondaire"
@@ -30,12 +33,48 @@ const show = (fields = []) => render(
       title="Classes"
       columns={[{ Header: 'Nom', accessor: 'nom' }]}
       fields={fields}
+      {...props}
     />
   </QueryClientProvider>,
 );
 
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+it('keeps one page heading and loads only the selected service without losing its actions', async () => {
+  fetchApi.mockResolvedValue({ count: 0, results: [] });
+  postApi.mockResolvedValue({ id: 1 });
+  render(
+    <MemoryRouter>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ResourceWorkspace title="Vie scolaire">
+          <ResourceManager variant="secondaire" resource="clubs" title="Clubs" columns={[{ Header: 'Nom', accessor: 'nom' }]} />
+          <ResourceManager
+            variant="secondaire"
+            resource="cantine/menus"
+            title="Menus"
+            columns={[{ Header: 'Plat', accessor: 'plat' }]}
+            fields={[{ name: 'plat', label: 'Plat', required: true }]}
+          />
+        </ResourceWorkspace>
+      </QueryClientProvider>
+    </MemoryRouter>,
+  );
+  expect(fetchApi).not.toHaveBeenCalled();
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('link', { name: 'Clubs', exact: true }));
+  await waitFor(() => expect(fetchApi).toHaveBeenCalledTimes(1));
+  expect(screen.queryByRole('region', { name: 'Menus', exact: true })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('link', { name: 'Toutes les rubriques' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Menus', exact: true }));
+  await waitFor(() => expect(fetchApi).toHaveBeenCalledTimes(2));
+  fireEvent.click(within(screen.getByRole('region', { name: 'Menus', exact: true })).getByRole('button', { name: 'Ajouter' }));
+  fireEvent.change(screen.getByLabelText(/^Plat/), { target: { value: 'Riz' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+  await waitFor(() => expect(postApi).toHaveBeenCalledWith('https://secondary.example/api/v1/cantine/menus/', { plat: 'Riz' }));
+  expect(screen.queryByRole('region', { name: 'Clubs', exact: true })).not.toBeInTheDocument();
 });
 
 it('requests server pages and server search rather than filtering only page one', async () => {
@@ -61,11 +100,40 @@ it('posts real form values and reports backend validation errors', async () => {
   fetchApi.mockResolvedValue({ count: 0, results: [] });
   postApi.mockRejectedValue({ response: { data: { nom: ['Ce nom existe déjà.'] } } });
   show([{ name: 'nom', label: 'Nom', required: true }]);
+  expect(screen.getAllByRole('heading', { name: 'Classes', exact: true })).toHaveLength(1);
+  const toolbar = screen.getByRole('button', { name: 'Ajouter' }).closest('.sis-data-table');
+  expect(within(toolbar).getByRole('button', { name: 'Exporter tous les résultats' })).toBeVisible();
+  expect(within(toolbar).getByRole('textbox', { name: 'Rechercher' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
   fireEvent.change(screen.getByLabelText(/Nom/), { target: { value: '6e A' } });
   fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
   await waitFor(() => expect(postApi).toHaveBeenCalledWith('https://secondary.example/api/v1/classes/classes/', { nom: '6e A' }));
   expect(await screen.findAllByText(/Ce nom existe déjà/)).not.toHaveLength(0);
+});
+
+it('does not submit its enclosing settings form when a dialog is saved', async () => {
+  fetchApi.mockResolvedValue({ count: 0, results: [] });
+  postApi.mockResolvedValue({ id: 1 });
+  const outerSubmit = jest.fn();
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <form onSubmit={outerSubmit}>
+        <ResourceManager
+          variant="secondaire"
+          resource="etablissement/unites"
+          title="Unités"
+          columns={[{ Header: 'Nom', accessor: 'nom' }]}
+          fields={[{ name: 'nom', label: 'Nom', required: true }]}
+        />
+      </form>
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+  fireEvent.change(screen.getByLabelText(/Nom/), { target: { value: 'Campus' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+  await screen.findByText('Enregistrement effectué.');
+  expect(postApi).toHaveBeenCalledTimes(1);
+  expect(outerSubmit).not.toHaveBeenCalled();
 });
 
 it('loads details before editing and clears an optional number with null', async () => {
@@ -129,6 +197,26 @@ it('sends an offering reference as a code rather than coercing it to a number', 
   await waitFor(() => expect(postApi).toHaveBeenCalledWith('https://secondary.example/api/v1/classes/classes/', { offre_code: 'vocational-1' }));
 });
 
+it('preserves UUID references and acknowledges a successful creation only after the server responds', async () => {
+  const id = '1025238e-6cab-4b6b-8694-f1a270ca988a';
+  const saved = jest.fn();
+  fetchApi.mockResolvedValue({ count: 0, results: [] });
+  fetchAllResourcePages.mockResolvedValue([{ id, label: 'Signature approuvée' }]);
+  postApi.mockResolvedValue({ id: 21 });
+  show([{
+    name: 'signature', label: 'Signature', resource: 'core/signatures', valueType: 'string', labelField: 'label',
+  }], { onSaved: saved });
+  fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+  const select = await screen.findByRole('combobox', { name: 'Signature' });
+  await waitFor(() => expect(select).not.toHaveAttribute('aria-disabled', 'true'));
+  fireEvent.mouseDown(select);
+  fireEvent.click(await screen.findByRole('option', { name: 'Signature approuvée' }));
+  expect(saved).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+  await waitFor(() => expect(postApi).toHaveBeenCalledWith('https://secondary.example/api/v1/classes/classes/', { signature: id }));
+  await waitFor(() => expect(saved).toHaveBeenCalledWith({ id: 21 }));
+});
+
 it('keeps a historical offering selectable after catalogue removal and clears it with an empty code', async () => {
   fetchApi.mockImplementation(async request => (request.endsWith('/1/')
     ? { id: 1, nom: 'Classe', offre_code: 'retired-1' }
@@ -150,4 +238,61 @@ it('keeps a historical offering selectable after catalogue removal and clears it
   fireEvent.click(screen.getByRole('option', { name: '—', exact: true }));
   fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
   await waitFor(() => expect(patchApi).toHaveBeenCalledWith('https://secondary.example/api/v1/classes/classes/1/', { offre_code: '' }));
+});
+
+it('keeps collection filters for loading and export and binds new records to their parent', async () => {
+  fetchApi.mockResolvedValue({ count: 0, results: [] });
+  fetchAllResourcePages.mockResolvedValue([]);
+  postApi.mockResolvedValue({ id: 2 });
+  show([{ name: 'nom', label: 'Nom', required: true }], {
+    filters: { formation: 12 }, fixedValues: { formation: 12 },
+  });
+  await waitFor(() => expect(fetchApi).toHaveBeenCalled());
+  expect(new URL(fetchApi.mock.calls[0][0]).searchParams.get('formation')).toBe('12');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Exporter tous les résultats' })).toBeEnabled());
+  fireEvent.click(screen.getByRole('button', { name: 'Exporter tous les résultats' }));
+  await waitFor(() => expect(fetchAllResourcePages).toHaveBeenCalledWith('https://secondary.example/api/v1/classes/classes/', { formation: 12 }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+  fireEvent.change(await screen.findByLabelText(/Nom/), { target: { value: 'Parcours' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+  await waitFor(() => expect(postApi).toHaveBeenCalledWith('https://secondary.example/api/v1/classes/classes/', { nom: 'Parcours', formation: 12 }));
+});
+
+it('submits a motivated action without PATCHing the record and retains errors', async () => {
+  fetchApi.mockResolvedValue({ count: 1, results: [{ id: 5, nom: 'Dossier', statut: 'validee' }] });
+  postApi.mockRejectedValue({ response: { data: { detail: 'Des acquis doivent être conservés.' } } });
+  show([], {
+    actions: [{
+      label: 'Transférer',
+      endpoint: 'transferer',
+      statuses: ['validee'],
+      fields: [{ name: 'motif', label: 'Motif', required: true }],
+    }],
+  });
+  fireEvent.click(await screen.findByRole('button', { name: 'Transférer' }));
+  fireEvent.change(await screen.findByLabelText(/Motif/), { target: { value: 'Réorientation' } });
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transférer' }));
+  await waitFor(() => expect(postApi).toHaveBeenCalledWith('https://secondary.example/api/v1/classes/classes/5/transferer/', { motif: 'Réorientation' }));
+  expect(patchApi).not.toHaveBeenCalled();
+  expect(await within(screen.getByRole('dialog')).findByText(/Des acquis/)).toBeVisible();
+});
+
+it('normalizes nested references and preserves multiple class IDs during edition', async () => {
+  fetchApi.mockImplementation(async request => (request.endsWith('/1/')
+    ? {
+      id: 1, nom: 'Épreuve', classes: [{ id: 3 }, { id: 4 }], salle: { id: 3 },
+    }
+    : { count: 1, results: [{ id: 1, nom: 'Épreuve' }] }));
+  fetchAllResourcePages.mockResolvedValue([{ id: 3, nom: 'A' }, { id: 4, nom: 'B' }]);
+  patchApi.mockResolvedValue({ id: 1 });
+  show([
+    {
+      name: 'classes', label: 'Classes', resource: 'classes/classes', multiple: true,
+    },
+    { name: 'salle', label: 'Salle', resource: 'salles' },
+  ]);
+  fireEvent.click(await screen.findByRole('button', { name: 'Modifier' }));
+  await screen.findByRole('dialog');
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+  await waitFor(() => expect(patchApi).toHaveBeenCalledWith('https://secondary.example/api/v1/classes/classes/1/', { classes: [3, 4], salle: 3 }));
 });

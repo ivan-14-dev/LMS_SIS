@@ -696,17 +696,43 @@ export const useIntegrationHealth = () => useQuery({
   staleTime: 30 * 1000,
 });
 
-export const useIntegrationStats = () => useQuery({
-  queryKey: ['integration', 'stats', getIntegrationApiUrl()],
-  queryFn: () => fetchApi(`${getIntegrationApiUrl()}/sync/status/`),
-  staleTime: 30 * 1000,
-});
+export const useIntegrationStats = () => {
+  const integrationUrl = getIntegrationApiUrl();
+  return useQuery({
+    queryKey: ['integration', 'stats', integrationUrl],
+    queryFn: () => fetchApi(`${integrationUrl}/sync/status/`),
+    staleTime: 30 * 1000,
+  });
+};
 
-export const useIntegrationUserMappings = (page = 1) => useQuery({
-  queryKey: ['integration', 'user-mappings', page, getIntegrationApiUrl()],
-  queryFn: () => fetchApi(`${getIntegrationApiUrl()}/mappings/users/?page=${page}`),
-  select: normalizePageResponse,
-});
+const useIntegrationUsersPage = (page, candidates, enabled) => {
+  const integrationUrl = getIntegrationApiUrl();
+  const queryClient = useQueryClient();
+  const resource = candidates ? 'user-candidates' : 'user-mappings';
+  const path = candidates ? 'mappings/users/candidates' : 'mappings/users';
+  const query = useQuery({
+    queryKey: ['integration', resource, page, integrationUrl],
+    queryFn: ({ signal }) => fetchApi(`${integrationUrl}/${path}/?page=${page}`, { signal }),
+    select: normalizePageResponse,
+    enabled,
+  });
+  return {
+    ...query,
+    invalidatePages: () => queryClient.invalidateQueries({
+      queryKey: ['integration'],
+      predicate: candidate => ['user-mappings', 'user-candidates'].includes(candidate.queryKey[1])
+        && candidate.queryKey[3] === integrationUrl,
+    }),
+  };
+};
+
+export const useIntegrationUserMappings = (page = 1, enabled = true) => (
+  useIntegrationUsersPage(page, false, enabled)
+);
+
+export const useIntegrationUserCandidates = (page = 1, enabled = false) => (
+  useIntegrationUsersPage(page, true, enabled)
+);
 
 export const useIntegrationCourseMappings = (page = 1) => useQuery({
   queryKey: ['integration', 'course-mappings', page, getIntegrationApiUrl()],
@@ -714,11 +740,54 @@ export const useIntegrationCourseMappings = (page = 1) => useQuery({
   select: normalizePageResponse,
 });
 
-export const useIntegrationOutboxEvents = (page = 1) => useQuery({
-  queryKey: ['integration', 'outbox', page, getIntegrationApiUrl()],
-  queryFn: () => fetchApi(`${getIntegrationApiUrl()}/outbox/?page=${page}`),
-  select: normalizePageResponse,
-});
+export const useIntegrationOutboxEvents = (page = 1, failuresOnly = false) => {
+  const integrationUrl = getIntegrationApiUrl();
+  return useQuery({
+    queryKey: ['integration', 'outbox', page, integrationUrl, failuresOnly],
+    queryFn: ({ signal }) => fetchApi(
+      `${integrationUrl}/outbox/?page=${page}${failuresOnly ? '&statut=failed&statut=dead' : ''}`,
+      { signal },
+    ),
+    select: normalizePageResponse,
+  });
+};
+
+export const requestIntegrationOutboxProcessing = async (integrationUrl) => {
+  if (isMockMode()) {
+    throw new Error('Le traitement réel est indisponible en mode démonstration.');
+  }
+  const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
+  const response = await client.post(`${integrationUrl}/outbox/process/`, {});
+  if (response.status !== 202 || response.data?.status !== 'queued'
+    || typeof response.data?.task_id !== 'string' || !response.data.task_id) {
+    throw new Error('Le serveur n’a pas confirmé la mise en file du traitement.');
+  }
+  return response.data;
+};
+
+export const requestIntegrationUserSynchronization = async (
+  integrationUrl,
+  userSis,
+  expectedUsername,
+  expectedNativeId = null,
+) => {
+  if (isMockMode()) {
+    throw new Error('La synchronisation réelle est indisponible en mode démonstration.');
+  }
+  if (!Number.isSafeInteger(userSis) || userSis <= 0
+    || typeof expectedUsername !== 'string' || !expectedUsername.trim()) {
+    throw new Error('L’identité SIS–LMS à synchroniser est invalide.');
+  }
+  const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
+  const response = await client.post(`${integrationUrl}/sync/user/${userSis}/`, {});
+  if (response?.status !== 200 || response.data?.status !== 'ok'
+    || response.data?.username_edx !== expectedUsername
+    || !Number.isSafeInteger(response.data?.user_id_edx) || response.data.user_id_edx <= 0
+    || (expectedNativeId > 0 && response.data.user_id_edx !== expectedNativeId)) {
+    throw new Error('Le serveur n’a pas confirmé l’identité LMS et son identifiant natif.');
+  }
+  return response.data;
+};
 
 // Utilisateurs
 export const utilisateurHooks = createResourceHooks('utilisateurs/comptes', 'admin');

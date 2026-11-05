@@ -115,7 +115,7 @@ const EleveDetailPage = () => {
       <Row className="mb-4">
         <Col md={4}>
           <Card>
-            <Card.Header><Card.Title>Informations personnelles</Card.Title></Card.Header>
+            <Card.Header title={<h2 className="sis-card-title">Informations personnelles</h2>} />
             <Card.Body>
               <dl>
                 <dt>Matricule</dt><dd>{eleve.matricule}</dd>
@@ -125,7 +125,7 @@ const EleveDetailPage = () => {
                 <dt>Classe</dt><dd>{eleve.classe_nom || 'Non affecté'}</dd>
                 <dt>Statut</dt>
                 <dd>
-                  <Badge variant={eleve.statut === 'actif' ? 'success' : 'danger'}>
+                  <Badge variant={['inscrit', 'diplome'].includes(eleve.statut) ? 'success' : 'light'}>
                     {eleve.statut_display}
                   </Badge>
                 </dd>

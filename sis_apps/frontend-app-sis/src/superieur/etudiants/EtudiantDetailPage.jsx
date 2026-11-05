@@ -191,7 +191,11 @@ const EtudiantDetailPage = () => {
       />
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={4}>
+        <Grid size={{
+          xs: 12,
+          md: 4,
+        }}
+        >
           <Card>
             <CardContent sx={{ textAlign: 'center', pt: 4 }}>
               <Avatar
@@ -230,7 +234,11 @@ const EtudiantDetailPage = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={8}>
+        <Grid size={{
+          xs: 12,
+          md: 8,
+        }}
+        >
           <Card>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
               <Tabs value={tabValue} onChange={(_event, value) => setTabValue(value)}>

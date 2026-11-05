@@ -36,25 +36,32 @@ const LocalSessionGate = ({ variant, children }) => {
   if (status.isLoading) { return <Typography>Vérification de la session…</Typography>; }
   if (status.data?.authenticated) { return children; }
   return (
-    <Box
-      component="form"
-      sx={{ maxWidth: 460, mx: 'auto', my: 5 }}
-      onSubmit={(event) => {
-        event.preventDefault();
-        login.mutate();
-      }}
-    >
-      <Typography variant="h4" component="h1">Connexion SIS</Typography>
-      <Typography sx={{ my: 2 }}>Compte local — distinct du compte Open edX.</Typography>
-      {(login.error || status.error) && <Alert severity="error">{apiErrorMessage(login.error || status.error)}</Alert>}
-      <Stack spacing={2} sx={{ my: 2 }}>
-        <TextField label="Identifiant" autoComplete="username" required value={credentials.username} onChange={event => setCredentials({ ...credentials, username: event.target.value })} />
-        <TextField label="Mot de passe" autoComplete="current-password" type="password" required value={credentials.password} onChange={event => setCredentials({ ...credentials, password: event.target.value })} />
-        <TextField label="Code MFA (si activé)" autoComplete="one-time-code" value={credentials.code} onChange={event => setCredentials({ ...credentials, code: event.target.value })} />
-        <Button variant="contained" type="submit" disabled={login.isPending}>Se connecter</Button>
-        <Button href={`/forgot-password/?sis=${recoveryVariant}`}>Mot de passe oublié</Button>
-      </Stack>
-    </Box>
+    <div className="sis-auth-layout">
+      <section className="sis-auth-intro" aria-label="Votre espace éducatif">
+        <strong>LMS SIS</strong>
+        <h2>Votre établissement, un seul espace.</h2>
+        <p>Retrouvez votre dossier, vos résultats, vos documents et les démarches accessibles à votre profil.</p>
+      </section>
+      <Box
+        component="form"
+        className="sis-panel sis-auth-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          login.mutate();
+        }}
+      >
+        <Typography variant="h4" component="h1">Connexion SIS</Typography>
+        <Typography sx={{ my: 2 }}>Compte local — distinct du compte Open edX.</Typography>
+        {(login.error || status.error) && <Alert severity="error">{apiErrorMessage(login.error || status.error)}</Alert>}
+        <Stack spacing={2} sx={{ my: 2 }}>
+          <TextField label="Identifiant" autoComplete="username" required value={credentials.username} onChange={event => setCredentials({ ...credentials, username: event.target.value })} />
+          <TextField label="Mot de passe" autoComplete="current-password" type="password" required value={credentials.password} onChange={event => setCredentials({ ...credentials, password: event.target.value })} />
+          <TextField label="Code MFA (si activé)" autoComplete="one-time-code" value={credentials.code} onChange={event => setCredentials({ ...credentials, code: event.target.value })} />
+          <Button variant="contained" type="submit" disabled={login.isPending}>Se connecter</Button>
+          <Button href={`/forgot-password/?sis=${recoveryVariant}`}>Mot de passe oublié</Button>
+        </Stack>
+      </Box>
+    </div>
   );
 };
 

@@ -1,9 +1,9 @@
 import React from 'react';
-import { Stack } from '@mui/material';
 import ResourceManager from '../../components/common/ResourceManager';
+import ResourceWorkspace from '../../components/common/ResourceWorkspace';
 
 const DisciplinePage = () => (
-  <Stack spacing={4}>
+  <ResourceWorkspace title="Discipline">
     <ResourceManager
       variant="secondaire"
       resource="discipline/incidents"
@@ -108,7 +108,7 @@ const DisciplinePage = () => (
         { name: 'date_notification', label: 'Date de notification', type: 'datetime-local' },
       ]}
     />
-  </Stack>
+  </ResourceWorkspace>
 );
 
 export default DisciplinePage;

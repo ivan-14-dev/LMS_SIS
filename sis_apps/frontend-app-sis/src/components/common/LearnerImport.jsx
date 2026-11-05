@@ -47,7 +47,7 @@ const LearnerImport = ({ variant, resource }) => {
         CSV UTF-8 ou XLSX, 1 000 lignes et 5 Mo maximum.
         Les dossiers identiques sont ignorés ; aucun dossier existant n’est écrasé.
       </Typography>
-      <Stack direction="row" spacing={2} sx={{ my: 2 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} useFlexGap sx={{ my: 2, flexWrap: 'wrap' }}>
         <Button onClick={download}>Télécharger le modèle</Button>
         <Button component="label">
           Choisir un fichier

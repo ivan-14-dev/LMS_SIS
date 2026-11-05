@@ -26,6 +26,7 @@ import {
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { exportRecords } from '../../services/resources';
+import StatusBadge from './StatusBadge';
 
 const SISDataTable = ({
   title,
@@ -41,6 +42,8 @@ const SISDataTable = ({
   emptyMessage,
   onRefresh,
   serverPagination,
+  showTitle,
+  toolbarActions,
 }) => {
   const [searchValue, setSearchValue] = useState('');
   const [page, setPage] = useState(0);
@@ -77,28 +80,36 @@ const SISDataTable = ({
   };
 
   const renderCellValue = (row, column) => {
+    const val = row[column.accessor];
+    if (['statut', 'statut_display', 'status', 'status_display', 'etat', 'etat_display'].includes(column.accessor)
+      || (['Statut', 'État'].includes(column.Header) && typeof val === 'boolean')) {
+      let value = row[column.accessor.replace(/_display$/, '')] ?? val;
+      if (typeof val === 'boolean') { value = val ? 'actif' : 'inactif'; }
+      return <StatusBadge value={value} label={column.accessor.endsWith('_display') ? val : undefined} />;
+    }
     if (column.Cell) {
       return column.Cell({ value: row[column.accessor], row: { original: row } });
     }
-    const val = row[column.accessor];
     return val !== undefined && val !== null ? val : '-';
   };
 
   return (
-    <Card>
+    <Card className="sis-data-table">
+      {((title && showTitle) || searchable || exportable || onRefresh || onAdd || toolbarActions) && (
       <CardContent sx={{ borderBottom: 1, borderColor: 'divider', py: 2 }}>
         <Box sx={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2,
         }}
         >
-          <Typography variant="h6" fontWeight={600}>{title}</Typography>
+          {title && showTitle && <Typography variant="h6" component="h2" fontWeight={600}>{title}</Typography>}
           <Box sx={{
-            display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap',
+            display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' }, minWidth: 0,
           }}
           >
             {searchable && (
               <TextField
                 placeholder="Rechercher..."
+                label="Rechercher"
                 value={serverPagination ? serverPagination.search : searchValue}
                 onChange={(e) => {
                   if (serverPagination) {
@@ -109,13 +120,15 @@ const SISDataTable = ({
                   }
                 }}
                 size="small"
-                sx={{ minWidth: 220 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon color="action" fontSize="small" />
-                    </InputAdornment>
-                  ),
+                sx={{ width: { xs: '100%', sm: 220 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon color="action" fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  },
                 }}
               />
             )}
@@ -126,15 +139,19 @@ const SISDataTable = ({
             )}
             {onRefresh && (
               <Tooltip title="Actualiser">
-                <IconButton onClick={onRefresh} size="small"><RefreshIcon /></IconButton>
+                <IconButton aria-label="Actualiser" onClick={onRefresh}><RefreshIcon /></IconButton>
               </Tooltip>
             )}
             {onAdd && (
               <Button variant="contained" startIcon={<AddIcon />} onClick={onAdd}>{addButtonLabel}</Button>
             )}
           </Box>
+          {toolbarActions && (
+            <Box className="sis-table-actions" sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>{toolbarActions}</Box>
+          )}
         </Box>
       </CardContent>
+      )}
 
       {loading ? (
         <Box sx={{ p: 4, textAlign: 'center' }}>
@@ -143,12 +160,12 @@ const SISDataTable = ({
         </Box>
       ) : (
         <>
-          <TableContainer>
-            <Table>
+          <TableContainer tabIndex={0} role="region" aria-label={`Tableau : ${title || 'données'}`}>
+            <Table aria-label={title || 'Données'}>
               <TableHead>
                 <TableRow>
                   {columns.map((column) => (
-                    <TableCell key={column.accessor} sx={{ fontWeight: 600, bgcolor: 'grey.50', whiteSpace: 'nowrap' }}>
+                    <TableCell key={column.accessor} sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {column.Header}
                     </TableCell>
                   ))}
@@ -170,6 +187,13 @@ const SISDataTable = ({
                         hover
                         sx={{ cursor: onRowClick ? 'pointer' : 'default' }}
                         onClick={() => onRowClick && onRowClick({ original: row })}
+                        tabIndex={onRowClick ? 0 : undefined}
+                        onKeyDown={(event) => {
+                          if (onRowClick && event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) {
+                            event.preventDefault();
+                            onRowClick({ original: row });
+                          }
+                        }}
                       >
                         {columns.map((column) => (
                           <TableCell key={column.accessor}>{renderCellValue(row, column)}</TableCell>
@@ -201,6 +225,8 @@ const SISDataTable = ({
 
 SISDataTable.propTypes = {
   title: PropTypes.string.isRequired,
+  showTitle: PropTypes.bool,
+  toolbarActions: PropTypes.node,
   data: PropTypes.oneOfType([PropTypes.array, PropTypes.object]),
   columns: PropTypes.arrayOf(PropTypes.shape({
     Header: PropTypes.string.isRequired,
@@ -228,6 +254,8 @@ SISDataTable.propTypes = {
 };
 
 SISDataTable.defaultProps = {
+  showTitle: true,
+  toolbarActions: null,
   data: [],
   loading: false,
   onRowClick: null,

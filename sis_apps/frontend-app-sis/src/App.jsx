@@ -6,8 +6,6 @@ import {
 import { Helmet } from 'react-helmet';
 import { getConfig } from '@edx/frontend-platform';
 
-import Header from '@edx/frontend-component-header/dist/Header';
-import Footer from '@edx/frontend-component-footer';
 import { getEnabledVariants } from './services/resources';
 
 // Layout
@@ -15,7 +13,6 @@ import SISLayout from './components/layout/SISLayout';
 import PermissionGuard from './components/auth/PermissionGuard';
 import AccountPage from './components/auth/AccountPage';
 import PasswordRecoveryPage from './components/auth/PasswordRecoveryPage';
-import { usesLocalSession } from './services/localSession';
 
 // Dashboards
 import DashboardSuperieur from './superieur/Dashboard';
@@ -29,6 +26,7 @@ import FormationDetailPage from './superieur/formations/FormationDetailPage';
 import InscriptionsPage from './superieur/inscriptions/InscriptionsPage';
 import NotesPage from './superieur/notes/NotesPage';
 import ExamensPage from './superieur/examens/ExamensPage';
+import ExamManagement from './components/common/ExamManagement';
 import BoursesPage from './superieur/bourses/BoursesPage';
 import EmploiDuTempsPage from './superieur/emploi-du-temps/EmploiDuTempsPage';
 import EnseignantsPage from './superieur/enseignants/EnseignantsPage';
@@ -42,6 +40,11 @@ import MobilitePage from './superieur/mobilite/MobilitePage';
 import JurysPage from './superieur/jurys/JurysPage';
 import RelevesPage from './superieur/releves/RelevesPage';
 import WorkflowCenterPage from './workflow/WorkflowCenterPage';
+import ComplaintsPage from './workflow/ComplaintsPage';
+import DocumentsPage from './documents/DocumentsPage';
+import AccessDelegationsPage from './workflow/AccessDelegationsPage';
+import SignaturesPage from './documents/SignaturesPage';
+import ArchivedDocuments from './documents/ArchivedDocuments';
 
 // Portails Supérieur
 import PortailApprenantFamilleSuperieur from './superieur/portails/PortailApprenantFamille';
@@ -79,17 +82,21 @@ const App = () => (
     <Helmet>
       <title>SIS - Système d’Information Scolaire</title>
     </Helmet>
-    <div className="d-flex flex-column min-vh-100">
-      {!usesLocalSession() && <Header />}
-      <main className="flex-grow-1">
+    <div className="sis-app d-flex flex-column min-vh-100">
+      <div className="flex-grow-1">
         <Routes>
-          <Route path="/forgot-password" element={<PasswordRecoveryPage />} />
-          <Route path="/reset-password/:uid/:token" element={<PasswordRecoveryPage />} />
+          <Route path="/forgot-password" element={<main><PasswordRecoveryPage /></main>} />
+          <Route path="/reset-password/:uid/:token" element={<main><PasswordRecoveryPage /></main>} />
           {/* Redirection par défaut */}
           <Route path="/" element={<Navigate to={`/${getEnabledVariants()[0]}`} replace />} />
 
           {/* ============ SIS SUPÉRIEUR ============ */}
           <Route path="/superieur" element={<SISLayout type="superieur" />}>
+            <Route path="signatures" element={<SignaturesPage variant="superieur" />} />
+            <Route path="archives" element={<ArchivedDocuments variant="superieur" />} />
+            <Route path="missions" element={<AccessDelegationsPage variant="superieur" />} />
+            <Route path="documents" element={<DocumentsPage variant="superieur" />} />
+            <Route path="reclamations" element={<ComplaintsPage variant="superieur" />} />
             <Route path="compte" element={<AccountPage variant="superieur" />} />
             <Route index element={<DashboardSuperieur />} />
 
@@ -105,7 +112,6 @@ const App = () => (
                 <PermissionGuard
                   type="superieur"
                   permission="notes.view_note"
-                  allowedRoles={['enseignant', 'chercheur', 'scolarite', 'directeur_etudes']}
                 >
                   <NotesPage />
                 </PermissionGuard>
@@ -136,7 +142,6 @@ const App = () => (
                 <PermissionGuard
                   type="superieur"
                   permission="paiements.view_paiementfrais"
-                  allowedRoles={['etudiant', 'comptable', 'scolarite', 'doyen']}
                 >
                   <PaiementsPage />
                 </PermissionGuard>
@@ -144,8 +149,8 @@ const App = () => (
             />
 
             {/* Portails */}
-            <Route path="portail-apprenant" element={<PortailApprenantFamilleSuperieur />} />
-            <Route path="portail-staff" element={<PortailStaffAdminSuperieur />} />
+            <Route path="portail-apprenant" element={<PermissionGuard type="superieur" portal="learner"><PortailApprenantFamilleSuperieur /></PermissionGuard>} />
+            <Route path="portail-staff" element={<PermissionGuard type="superieur" portal="staff"><PortailStaffAdminSuperieur /></PermissionGuard>} />
             <Route path="portail-etudiant" element={<Navigate to="/superieur/portail-apprenant" replace />} />
             <Route path="portail-enseignant" element={<Navigate to="/superieur/portail-staff" replace />} />
             <Route path="portail-scolarite" element={<Navigate to="/superieur/portail-staff" replace />} />
@@ -154,6 +159,11 @@ const App = () => (
 
           {/* ============ SIS SECONDAIRE ============ */}
           <Route path="/secondaire" element={<SISLayout type="secondaire" />}>
+            <Route path="signatures" element={<SignaturesPage variant="secondaire" />} />
+            <Route path="archives" element={<ArchivedDocuments variant="secondaire" />} />
+            <Route path="missions" element={<AccessDelegationsPage variant="secondaire" />} />
+            <Route path="documents" element={<DocumentsPage variant="secondaire" />} />
+            <Route path="reclamations" element={<ComplaintsPage variant="secondaire" />} />
             <Route path="compte" element={<AccountPage variant="secondaire" />} />
             <Route index element={<DashboardSecondaire />} />
 
@@ -167,13 +177,13 @@ const App = () => (
                 <PermissionGuard
                   type="secondaire"
                   permission="notes.view_evaluation"
-                  allowedRoles={['enseignant', 'vie_scolaire', 'direction']}
                 >
                   <EvaluationsPage />
                 </PermissionGuard>
               )}
             />
             <Route path="bulletins" element={<BulletinsPage />} />
+            <Route path="examens" element={<ExamManagement variant="secondaire" />} />
             <Route path="workflows" element={<WorkflowCenterPage apiType="secondaire" title="Centre workflow secondaire" subtitle="Notifications et historique global des workflows du secondaire" />} />
             <Route path="conseil-classe" element={<ConseilClassePage />} />
 
@@ -190,8 +200,8 @@ const App = () => (
             <Route path="clubs" element={<ClubsPage />} />
 
             {/* Portails */}
-            <Route path="portail-apprenant" element={<PortailApprenantFamilleSecondaire />} />
-            <Route path="portail-staff" element={<PortailStaffAdminSecondaire />} />
+            <Route path="portail-apprenant" element={<PermissionGuard type="secondaire" portal={['learner', 'parent']}><PortailApprenantFamilleSecondaire /></PermissionGuard>} />
+            <Route path="portail-staff" element={<PermissionGuard type="secondaire" portal="staff"><PortailStaffAdminSecondaire /></PermissionGuard>} />
             <Route path="portail-eleve" element={<Navigate to="/secondaire/portail-apprenant" replace />} />
             <Route path="portail-parent" element={<Navigate to="/secondaire/portail-apprenant" replace />} />
             <Route path="portail-enseignant" element={<Navigate to="/secondaire/portail-staff" replace />} />
@@ -206,8 +216,7 @@ const App = () => (
             <Route path="integration-lms" element={<IntegrationLMSPage />} />
           </Route>
         </Routes>
-      </main>
-      <Footer />
+      </div>
     </div>
   </BrowserRouter>
 );

@@ -7,15 +7,17 @@ import {
 import { AppProvider } from '@edx/frontend-platform/react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
 
 import App from './App';
-import sisTheme from './theme/muiTheme';
+import AppearanceProvider from './theme/AppearanceProvider';
 import { isMockMode } from './services/mockApi';
 import { isRecoveryPage, usesLocalSession } from './services/localSession';
 
 import './index.scss';
+import '@fontsource/inter/latin-400.css';
+import '@fontsource/inter/latin-500.css';
+import '@fontsource/inter/latin-600.css';
+import '@fontsource/inter/latin-700.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,8 +38,7 @@ const renderApplication = (content) => {
 subscribe(APP_READY, () => {
   renderApplication(
     <AppProvider wrapWithRouter={false}>
-      <ThemeProvider theme={sisTheme}>
-        <CssBaseline />
+      <AppearanceProvider>
         {isMockMode() && (
           <div role="status">
             Mode démonstration : données fictives, les modifications ne sont pas enregistrées.
@@ -46,7 +47,7 @@ subscribe(APP_READY, () => {
         <QueryClientProvider client={queryClient}>
           <App />
         </QueryClientProvider>
-      </ThemeProvider>
+      </AppearanceProvider>
     </AppProvider>,
   );
 });

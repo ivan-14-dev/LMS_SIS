@@ -1,73 +1,92 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Alert, Button, Card, Col, Row, Spinner,
-} from '@openedx/paragon';
+  Alert, Box, Button, Card, CardContent, CardHeader, CircularProgress, Grid, Stack, Typography,
+} from '@mui/material';
 import {
-  Class, EventNote, Grade, Person,
-} from '@openedx/paragon/icons';
+  Class, Grade, Person,
+} from '@mui/icons-material';
 import {
-  PageHeader, SISDataTable, StatCard, WorkflowNotificationsPanel,
+  PageHeader, SectionNavigator, SISDataTable, StatCard, WorkflowNotificationsPanel,
 } from '../../components/common';
 import { useCapabilities } from '../../components/auth/PermissionGuard';
+import { canEnterPortal, hasCapability } from '../../components/layout/navigation';
 import { fetchApi, getSecondaireApiUrl } from '../../services/api';
 
-const StaffAdminFallback = ({ role, groups = [] }) => {
+const StaffAdminFallback = ({ role, groups = [], capabilities }) => {
   const navigate = useNavigate();
   return (
     <Card>
-      <Card.Header><Card.Title>Accès staff / admin</Card.Title></Card.Header>
-      <Card.Body>
-        <p className="mb-3">
+      <CardHeader title={<Typography component="h2" variant="h3" className="sis-card-title">Accès staff / admin</Typography>} />
+      <CardContent>
+        <Typography sx={{ mb: 2 }}>
           Rôle détecté : <strong>{role || 'non défini'}</strong>
-        </p>
-        <p className="text-muted">
+        </Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>
           Les données détaillées ne sont affichées que pour les profils disposant d&apos;un périmètre métier compatible.
-        </p>
-        <p className="small text-muted mb-3">Groupes résolus : {groups.join(', ') || 'aucun'}</p>
-        <div className="d-grid gap-2">
-          <Button variant="primary" onClick={() => navigate('/secondaire/workflows')}>Centre workflow</Button>
-          <Button variant="outline-primary" onClick={() => navigate('/secondaire/classes')}>Classes</Button>
-          <Button variant="outline-primary" onClick={() => navigate('/secondaire/evaluations')}>Évaluations</Button>
-          <Button variant="outline-primary" onClick={() => navigate('/admin/etablissement')}>Administration</Button>
-        </div>
-      </Card.Body>
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Groupes résolus : {groups.join(', ') || 'aucun'}</Typography>
+        <Stack spacing={1}>
+          <Button variant="contained" onClick={() => navigate('/secondaire/workflows')}>Centre workflow</Button>
+          {hasCapability(capabilities, 'classes.view_classe') && <Button variant="outlined" onClick={() => navigate('/secondaire/classes')}>Classes</Button>}
+          {hasCapability(capabilities, 'notes.view_evaluation') && <Button variant="outlined" onClick={() => navigate('/secondaire/evaluations')}>Évaluations</Button>}
+          {hasCapability(capabilities, 'etablissement.change_etablissement') && <Button variant="outlined" onClick={() => navigate('/admin/etablissement?sis=secondaire')}>Administration</Button>}
+        </Stack>
+      </CardContent>
     </Card>
   );
 };
+StaffAdminFallback.propTypes = {
+  role: PropTypes.string,
+  groups: PropTypes.arrayOf(PropTypes.string),
+  capabilities: PropTypes.shape({ permissions: PropTypes.arrayOf(PropTypes.string) }),
+};
+StaffAdminFallback.defaultProps = { role: '', groups: [], capabilities: null };
 
 const PortailStaffAdmin = () => {
   const navigate = useNavigate();
-  const { data: capabilities, isLoading: loadingCapabilities, isError: capabilitiesError } = useCapabilities('secondaire');
+  const {
+    data: capabilities, isLoading: loadingCapabilities, isFetching: checkingCapabilities, isError: capabilitiesError,
+  } = useCapabilities('secondaire', { refetchOnMount: false });
   const role = capabilities?.role || '';
-  const isLearner = ['eleve', 'parent'].includes(role);
-  const isStaffPortalCandidate = !isLearner && Boolean(role || capabilities?.permissions?.length || capabilities?.groups?.length);
+  const isStaffPortalCandidate = canEnterPortal(capabilities, 'staff');
+  const canViewClasses = hasCapability(capabilities, 'classes.view_classe');
+  const canViewAbsences = hasCapability(capabilities, 'presences.view_presence');
+  const canViewEvaluations = hasCapability(capabilities, 'notes.view_evaluation');
+  const enabled = isStaffPortalCandidate && !checkingCapabilities && !capabilitiesError;
 
   const { data: dashboard, isLoading: loadingDashboard, isError: dashboardError } = useQuery({
     queryKey: ['secondaire-portail-staff-dashboard'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/staff/tableau_bord/`),
-    enabled: isStaffPortalCandidate,
+    enabled,
   });
 
-  const { data: classes = [] } = useQuery({
+  const { data: classes = [], isLoading: loadingClasses, isError: classesError } = useQuery({
     queryKey: ['secondaire-portail-staff-classes'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/staff/mes_classes/`),
-    enabled: isStaffPortalCandidate,
+    enabled: enabled && canViewClasses,
   });
 
-  const { data: absences = [] } = useQuery({
+  const { data: absences = [], isLoading: loadingAbsences, isError: absencesError } = useQuery({
     queryKey: ['secondaire-portail-staff-absences'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/staff/absences_a_saisir/`),
-    enabled: isStaffPortalCandidate,
+    enabled: enabled && canViewAbsences,
   });
 
-  if (loadingCapabilities || loadingDashboard) {
-    return <Spinner animation="border" screenReaderText="Chargement du portail staff" />;
+  if (loadingCapabilities || checkingCapabilities || loadingDashboard || loadingClasses || loadingAbsences) {
+    return <CircularProgress aria-label="Chargement du portail staff" />;
   }
 
-  if (capabilitiesError || isLearner) {
-    return <Alert variant="danger">Ce portail est réservé au staff et aux administrateurs autorisés.</Alert>;
+  if (capabilitiesError || !capabilities) {
+    return <Alert severity="error">Impossible de vérifier vos permissions. Rechargez la page pour réessayer.</Alert>;
+  }
+  if (!isStaffPortalCandidate) {
+    return <Alert severity="error">Ce portail est réservé au staff affilié et autorisé.</Alert>;
+  }
+  if (dashboardError || classesError || absencesError) {
+    return <Alert severity="error">Impossible de charger votre activité pédagogique. Rechargez la page pour réessayer.</Alert>;
   }
 
   const stats = dashboard?.statistiques || {};
@@ -85,47 +104,69 @@ const PortailStaffAdmin = () => {
   ];
 
   return (
-    <div>
+    <Box>
       <PageHeader
-        title="Portail staff / admin"
+        title="Mon activité pédagogique"
         subtitle={dashboard?.enseignant?.nom || `Rôle ${role || 'staff'}`}
         actions={[
           { label: 'Workflows', variant: 'primary', onClick: () => navigate('/secondaire/workflows') },
-          { label: 'Présences', variant: 'secondary', onClick: () => navigate('/secondaire/presences') },
+          ...(canViewAbsences ? [{ label: 'Présences', variant: 'secondary', onClick: () => navigate('/secondaire/presences') }] : []),
         ]}
       />
-      <WorkflowNotificationsPanel apiType="secondaire" title="Notifications workflow staff / admin" />
-      {dashboardError || !dashboard ? (
-        <StaffAdminFallback role={role} groups={capabilities?.groups} />
+      {!dashboard ? (
+        <StaffAdminFallback role={role} groups={capabilities?.groups} capabilities={capabilities} />
       ) : (
-        <>
-          <Row className="mb-4">
-            <Col md={4}>
-              <StatCard title="Affectations" value={stats.nb_affectations ?? 0} icon={<Person />} variant="primary" />
-            </Col>
-            <Col md={4}>
-              <StatCard title="Classes" value={stats.nb_classes ?? 0} icon={<Class />} variant="success" />
-            </Col>
-            <Col md={4}>
-              <StatCard title="Élèves suivis" value={stats.nb_eleves_total ?? 0} icon={<Grade />} variant="info" />
-            </Col>
-          </Row>
-          <Row>
-            <Col md={8}>
-              <SISDataTable title="Classes accessibles" data={classes} columns={classColumns} searchable={false} exportable />
-            </Col>
-            <Col md={4}>
-              <SISDataTable title="Absences à saisir" data={absences} columns={absencesColumns} searchable={false} exportable={false} />
-              <div className="d-grid gap-2 mt-3">
-                <Button variant="outline-primary" onClick={() => navigate('/secondaire/evaluations')}>Saisir des notes</Button>
-                <Button variant="outline-primary" onClick={() => navigate('/secondaire/classes')}>Voir les classes</Button>
-                <Button variant="outline-primary" onClick={() => navigate('/admin/etablissement')}>Paramétrage établissement</Button>
-              </div>
-            </Col>
-          </Row>
-        </>
+        <SectionNavigator
+          label="Rubriques de mon activité pédagogique"
+          sections={[
+            {
+              id: 'synthese',
+              label: 'Synthèse de mon activité',
+              content: (
+                <Grid container spacing={3} sx={{ mb: 3 }}>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <StatCard title="Affectations" value={stats.nb_affectations ?? 0} icon={<Person />} variant="primary" />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <StatCard title="Classes" value={stats.nb_classes ?? 0} icon={<Class />} variant="success" />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <StatCard title="Élèves suivis" value={stats.nb_eleves_total ?? 0} icon={<Grade />} variant="info" />
+                  </Grid>
+                </Grid>
+              ),
+            },
+            ...(canViewClasses ? [{
+              id: 'classes',
+              label: 'Classes accessibles',
+              content: (
+                <SISDataTable
+                  title="Classes accessibles"
+                  data={classes}
+                  columns={classColumns}
+                  searchable={false}
+                  exportable={hasCapability(capabilities, 'portail.export_staff')}
+                />
+              ),
+            }] : []),
+            ...(canViewAbsences ? [{
+              id: 'absences',
+              label: 'Absences à saisir',
+              content: (
+                <>
+                  <SISDataTable title="Absences à saisir" data={absences} columns={absencesColumns} searchable={false} exportable={false} />
+                  <Stack spacing={1} sx={{ mt: 2 }}>
+                    {canViewEvaluations && <Button variant="outlined" onClick={() => navigate('/secondaire/evaluations')}>Saisir des notes</Button>}
+                    {canViewClasses && <Button variant="outlined" onClick={() => navigate('/secondaire/classes')}>Voir les classes</Button>}
+                  </Stack>
+                </>
+              ),
+            }] : []),
+            { id: 'notifications', label: 'Notifications', content: <WorkflowNotificationsPanel apiType="secondaire" title="Notifications workflow staff / admin" /> },
+          ]}
+        />
       )}
-    </div>
+    </Box>
   );
 };
 

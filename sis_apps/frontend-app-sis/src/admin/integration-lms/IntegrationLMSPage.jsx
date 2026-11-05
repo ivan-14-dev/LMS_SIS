@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
+import { useOutletContext } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -28,6 +29,10 @@ import {
   ListItem,
   ListItemText,
   Switch,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Sync as SyncIcon,
@@ -38,19 +43,24 @@ import {
   Assignment as AssignmentIcon,
   Settings as SettingsIcon,
   Refresh as RefreshIcon,
-  Link as LinkIcon,
-  LinkOff as LinkOffIcon,
   PlayArrow as PlayArrowIcon,
   Schedule as ScheduleIcon,
   CloudDone as CloudDoneIcon,
   CloudOff as CloudOffIcon,
+  Publish as PublishIcon,
+  InfoOutlined as InfoIcon,
 } from '@mui/icons-material';
-import { PageHeader } from '../../components/common';
+import { PageHeader, StatusBadge } from '../../components/common';
+import CoursePublicationDialog from './CoursePublicationDialog';
+import UserSynchronizationDialog from './UserSynchronizationDialog';
 import {
+  getIntegrationApiUrl,
+  requestIntegrationOutboxProcessing,
   useIntegrationCourseMappings,
   useIntegrationHealth,
   useIntegrationOutboxEvents,
   useIntegrationStats,
+  useIntegrationUserCandidates,
   useIntegrationUserMappings,
 } from '../../services/api';
 
@@ -108,7 +118,7 @@ const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
     <Card sx={{ mb: 3 }}>
       <CardContent>
         <Box sx={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 2,
         }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -147,11 +157,19 @@ const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
         <Divider sx={{ my: 2 }} />
 
         <Grid container spacing={3}>
-          <Grid item xs={12} md={3}>
+          <Grid size={{
+            xs: 12,
+            md: 3,
+          }}
+          >
             <Typography variant="body2" color="textSecondary">Version LMS</Typography>
             <Typography variant="body1" fontWeight={500}>{status?.version || '-'}</Typography>
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid size={{
+            xs: 12,
+            md: 3,
+          }}
+          >
             <Typography variant="body2" color="textSecondary">OAuth</Typography>
             <Chip
               size="small"
@@ -159,15 +177,23 @@ const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
               color={status?.oauth_status === 'valid' ? 'success' : 'warning'}
             />
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid size={{
+            xs: 12,
+            md: 3,
+          }}
+          >
             <Typography variant="body2" color="textSecondary">Webhooks</Typography>
             <Chip
               size="small"
-              label={status?.webhook_status || 'N/A'}
+              label={status?.webhook_status === 'unverified' ? 'Non vérifié' : status?.webhook_status || 'N/A'}
               color={status?.webhook_status === 'active' ? 'success' : 'warning'}
             />
           </Grid>
-          <Grid item xs={12} md={3}>
+          <Grid size={{
+            xs: 12,
+            md: 3,
+          }}
+          >
             <Typography variant="body2" color="textSecondary">Dernière vérification</Typography>
             <Typography variant="body1">
               {status?.last_check ? new Date(status.last_check).toLocaleString('fr-FR') : '-'}
@@ -208,21 +234,30 @@ const OutboxStatusCard = ({ outbox = {} }) => {
           />
         </Box>
         <Grid container spacing={2}>
-          <Grid item xs={4}>
+          <Grid size={{
+            xs: 4,
+          }}
+          >
             <Box sx={{ textAlign: 'center' }}>
               <Chip label={outbox?.pending || 0} color="warning" size="small" />
               <Typography variant="caption" display="block">En attente</Typography>
             </Box>
           </Grid>
-          <Grid item xs={4}>
+          <Grid size={{
+            xs: 4,
+          }}
+          >
             <Box sx={{ textAlign: 'center' }}>
               <Chip label={outbox?.processing || 0} color="info" size="small" />
               <Typography variant="caption" display="block">En cours</Typography>
             </Box>
           </Grid>
-          <Grid item xs={4}>
+          <Grid size={{
+            xs: 4,
+          }}
+          >
             <Box sx={{ textAlign: 'center' }}>
-              <Chip label={outbox?.failed || 0} color="error" size="small" />
+              <Chip label={(outbox?.failed || 0) + (outbox?.dead || 0)} color="error" size="small" />
               <Typography variant="caption" display="block">Échecs</Typography>
             </Box>
           </Grid>
@@ -237,6 +272,7 @@ OutboxStatusCard.propTypes = {
     pending: PropTypes.number,
     processing: PropTypes.number,
     failed: PropTypes.number,
+    dead: PropTypes.number,
   }),
 };
 
@@ -244,61 +280,70 @@ OutboxStatusCard.defaultProps = {
   outbox: {},
 };
 
-const UserMappingsTab = ({ mappings }) => (
-  <TableContainer component={Paper} sx={{ mt: 2 }}>
-    <Table>
-      <TableHead>
-        <TableRow>
-          <TableCell>Utilisateur SIS</TableCell>
-          <TableCell>Username EdX</TableCell>
-          <TableCell>ID EdX</TableCell>
-          <TableCell>Dernière sync</TableCell>
-          <TableCell>Statut</TableCell>
-          <TableCell align="right">Actions</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {mappings.map((mapping) => (
-          <TableRow key={mapping.id}>
-            <TableCell>
-              {mapping.user_sis_name || mapping.user_sis_username || mapping.user_sis}
-            </TableCell>
-            <TableCell>
-              <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                {mapping.username_edx}
-              </Typography>
-            </TableCell>
-            <TableCell>{mapping.user_id_edx || '-'}</TableCell>
-            <TableCell>
-              {mapping.date_sync ? new Date(mapping.date_sync).toLocaleString('fr-FR') : 'Jamais'}
-            </TableCell>
-            <TableCell>
-              <Chip
-                icon={mapping.actif ? <LinkIcon /> : <LinkOffIcon />}
-                label={mapping.actif ? 'Actif' : 'Inactif'}
-                color={mapping.actif ? 'success' : 'default'}
-                size="small"
-              />
-            </TableCell>
-            <TableCell align="right">
-              <Tooltip title="Synchroniser">
-                <span>
-                  <IconButton size="small" color="primary" disabled>
-                    <SyncIcon />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </TableCell>
+const UserMappingsTab = ({
+  mappings, candidates, canSynchronize, onSynchronize,
+}) => {
+  const actionLabel = candidates ? 'Associer cette identité LMS' : 'Synchroniser l’identité LMS';
+  return (
+    <TableContainer component={Paper} sx={{ mt: 2 }}>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Utilisateur SIS</TableCell>
+            <TableCell>Username EdX</TableCell>
+            <TableCell>ID EdX</TableCell>
+            <TableCell>Dernière sync</TableCell>
+            <TableCell>Statut</TableCell>
+            <TableCell align="right">Actions</TableCell>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  </TableContainer>
-);
+        </TableHead>
+        <TableBody>
+          {mappings.map((mapping) => (
+            <TableRow key={mapping.user_sis}>
+              <TableCell>
+                {mapping.user_sis_name || mapping.user_sis_username || mapping.user_sis}
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                  {mapping.username_edx}
+                </Typography>
+              </TableCell>
+              <TableCell>{mapping.user_id_edx || '-'}</TableCell>
+              <TableCell>
+                {mapping.date_sync ? new Date(mapping.date_sync).toLocaleString('fr-FR') : 'Jamais'}
+              </TableCell>
+              <TableCell>
+                <StatusBadge value={mapping.actif ? 'actif' : 'inactif'} />
+              </TableCell>
+              <TableCell align="right">
+                <Tooltip title={mapping.actif ? actionLabel : 'Association LMS désactivée'}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      aria-label={`${candidates ? 'Associer' : 'Synchroniser'} l’identité LMS de ${mapping.user_sis_name || mapping.user_sis_username || mapping.user_sis} (${mapping.username_edx})`}
+                      disabled={!canSynchronize || !mapping.actif}
+                      onClick={() => onSynchronize(mapping)}
+                    >
+                      <SyncIcon />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+};
 
 UserMappingsTab.propTypes = {
+  candidates: PropTypes.bool.isRequired,
+  canSynchronize: PropTypes.bool.isRequired,
+  onSynchronize: PropTypes.func.isRequired,
   mappings: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.number.isRequired,
+    id: PropTypes.number,
     user_sis: PropTypes.number,
     user_sis_name: PropTypes.string,
     user_sis_username: PropTypes.string,
@@ -309,7 +354,7 @@ UserMappingsTab.propTypes = {
   })).isRequired,
 };
 
-const CourseMappingsTab = ({ mappings }) => (
+const CourseMappingsTab = ({ mappings, canPublish, onPublish }) => (
   <TableContainer component={Paper} sx={{ mt: 2 }}>
     <Table>
       <TableHead>
@@ -334,11 +379,7 @@ const CourseMappingsTab = ({ mappings }) => (
             </TableCell>
             <TableCell>{mapping.course_name}</TableCell>
             <TableCell>
-              <Chip
-                label={mapping.actif ? 'Actif' : 'Inactif'}
-                color={mapping.actif ? 'success' : 'default'}
-                size="small"
-              />
+              <StatusBadge value={mapping.actif ? 'actif' : 'inactif'} />
             </TableCell>
             <TableCell align="right">
               <Tooltip title="Ouvrir dans LMS">
@@ -355,6 +396,21 @@ const CourseMappingsTab = ({ mappings }) => (
                   </IconButton>
                 </span>
               </Tooltip>
+              {canPublish && (
+                <Tooltip title={mapping.actif ? 'Examiner et publier le cours' : 'Association de cours désactivée'}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      aria-label={`Examiner et publier ${mapping.course_name}`}
+                      disabled={!mapping.actif}
+                      onClick={() => onPublish(mapping)}
+                    >
+                      <PublishIcon />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              )}
             </TableCell>
           </TableRow>
         ))}
@@ -364,6 +420,8 @@ const CourseMappingsTab = ({ mappings }) => (
 );
 
 CourseMappingsTab.propTypes = {
+  canPublish: PropTypes.bool.isRequired,
+  onPublish: PropTypes.func.isRequired,
   mappings: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.number.isRequired,
     ecue: PropTypes.number,
@@ -376,77 +434,64 @@ CourseMappingsTab.propTypes = {
   })).isRequired,
 };
 
-const OutboxEventsTab = ({ events }) => {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending': return 'warning';
-      case 'processing': return 'info';
-      case 'done': return 'success';
-      case 'failed': return 'error';
-      case 'dead': return 'default';
-      default: return 'default';
-    }
-  };
-
-  return (
-    <TableContainer component={Paper} sx={{ mt: 2 }}>
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Type</TableCell>
-            <TableCell>Aggregate</TableCell>
-            <TableCell>ID</TableCell>
-            <TableCell>Statut</TableCell>
-            <TableCell>Tentatives</TableCell>
-            <TableCell>Créé</TableCell>
-            <TableCell>Erreur</TableCell>
-            <TableCell align="right">Actions</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {events.map((event) => (
-            <TableRow key={event.id}>
-              <TableCell>
-                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                  {event.event_type}
-                </Typography>
-              </TableCell>
-              <TableCell>{event.aggregate_type}</TableCell>
-              <TableCell>{event.aggregate_id}</TableCell>
-              <TableCell>
-                <Chip
-                  label={event.statut}
-                  color={getStatusColor(event.statut)}
+const OutboxEventsTab = ({ events, onDetails }) => (
+  <TableContainer component={Paper} sx={{ mt: 2 }}>
+    <Table>
+      <TableHead>
+        <TableRow>
+          <TableCell>Type</TableCell>
+          <TableCell>Aggregate</TableCell>
+          <TableCell>ID</TableCell>
+          <TableCell>Statut</TableCell>
+          <TableCell>Tentatives</TableCell>
+          <TableCell>Créé</TableCell>
+          <TableCell>Erreur</TableCell>
+          <TableCell align="right">Actions</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {events.map((event) => (
+          <TableRow key={event.id}>
+            <TableCell>
+              <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                {event.event_type}
+              </Typography>
+            </TableCell>
+            <TableCell>{event.aggregate_type}</TableCell>
+            <TableCell>{event.aggregate_id}</TableCell>
+            <TableCell>
+              <StatusBadge value={event.statut} />
+            </TableCell>
+            <TableCell>{event.nb_tentatives}</TableCell>
+            <TableCell>
+              {new Date(event.created_at).toLocaleString('fr-FR')}
+            </TableCell>
+            <TableCell>
+              <Typography variant="body2" color="error" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {event.erreur || '-'}
+              </Typography>
+            </TableCell>
+            <TableCell align="right">
+              <Tooltip title="Voir les détails">
+                <IconButton
                   size="small"
-                />
-              </TableCell>
-              <TableCell>{event.nb_tentatives}</TableCell>
-              <TableCell>
-                {new Date(event.created_at).toLocaleString('fr-FR')}
-              </TableCell>
-              <TableCell>
-                <Typography variant="body2" color="error" sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {event.erreur || '-'}
-                </Typography>
-              </TableCell>
-              <TableCell align="right">
-                <Tooltip title="Relancer">
-                  <span>
-                    <IconButton size="small" color="primary" disabled>
-                      <PlayArrowIcon />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
-};
+                  color="primary"
+                  aria-label={`Voir les détails de l’événement ${event.id}`}
+                  onClick={() => onDetails(event)}
+                >
+                  <InfoIcon />
+                </IconButton>
+              </Tooltip>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  </TableContainer>
+);
 
 OutboxEventsTab.propTypes = {
+  onDetails: PropTypes.func.isRequired,
   events: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.number.isRequired,
     event_type: PropTypes.string.isRequired,
@@ -463,7 +508,7 @@ const PageNavigation = ({
   count, hasNext, hasPrevious, page, onPageChange,
 }) => (
   <Box sx={{
-    alignItems: 'center', display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2,
+    alignItems: 'center', display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2, flexWrap: 'wrap',
   }}
   >
     <Typography variant="body2" color="textSecondary">
@@ -499,34 +544,136 @@ PageNavigation.propTypes = {
 };
 
 const IntegrationLMSPage = () => {
+  const { profile } = useOutletContext() || {};
+  const canPublish = profile?.is_staff === true;
+  const integrationUrl = getIntegrationApiUrl();
+  const [publication, setPublication] = useState(null);
   const [tabValue, setTabValue] = useState(0);
-  const [userPage, setUserPage] = useState(1);
+  const [userPagination, setUserPagination] = useState({ integrationUrl, page: 1 });
+  const userPage = userPagination.integrationUrl === integrationUrl ? userPagination.page : 1;
+  const [candidatePagination, setCandidatePagination] = useState({ integrationUrl, page: 1 });
+  const candidatePage = candidatePagination.integrationUrl === integrationUrl ? candidatePagination.page : 1;
+  const [userView, setUserView] = useState(null);
+  const candidates = canPublish && userView === integrationUrl;
+  const [userPageNotice, setUserPageNotice] = useState(null);
+  const [userSynchronization, setUserSynchronization] = useState(null);
   const [coursePage, setCoursePage] = useState(1);
   const [outboxPage, setOutboxPage] = useState(1);
+  const [failuresOnly, setFailuresOnly] = useState(false);
+  const [outboxDetails, setOutboxDetails] = useState(null);
+  const [outboxAction, setOutboxAction] = useState(null);
+  const outboxRequest = useRef(false);
+  useEffect(() => {
+    setUserPagination({ integrationUrl, page: 1 });
+    setCandidatePagination({ integrationUrl, page: 1 });
+    setUserView(null);
+    setUserPageNotice(null);
+    setUserSynchronization(null);
+  }, [integrationUrl]);
   const healthQuery = useIntegrationHealth();
   const statsQuery = useIntegrationStats();
-  const usersQuery = useIntegrationUserMappings(userPage);
+  const usersQuery = useIntegrationUserMappings(userPage, tabValue === 0 && !candidates);
+  const candidatesQuery = useIntegrationUserCandidates(candidatePage, canPublish && tabValue === 0 && candidates);
   const coursesQuery = useIntegrationCourseMappings(coursePage);
-  const outboxQuery = useIntegrationOutboxEvents(outboxPage);
+  const outboxQuery = useIntegrationOutboxEvents(outboxPage, failuresOnly);
 
   const integrationStatus = healthQuery.data || {};
   const syncStats = statsQuery.data || {};
   const userMappings = usersQuery.data?.results || [];
+  const userCandidates = canPublish ? candidatesQuery.data?.results || [] : [];
+  const userListQuery = candidates ? candidatesQuery : usersQuery;
+  const userListPage = candidates ? candidatePage : userPage;
+  const userList = candidates ? userCandidates : userMappings;
   const courseMappings = coursesQuery.data?.results || [];
   const outboxEvents = outboxQuery.data?.results || [];
-  const queries = [healthQuery, statsQuery, usersQuery, coursesQuery, outboxQuery];
+  const queries = [healthQuery, statsQuery, coursesQuery, outboxQuery];
+  if (tabValue === 0) { queries.push(userListQuery); }
   const isLoading = queries.some(query => query.isLoading);
   const isRefreshing = queries.some(query => query.isFetching);
   const hasError = queries.some(query => query.isError);
 
-  const refresh = () => Promise.all(queries.map(query => query.refetch()));
+  const refresh = () => Promise.all([
+    ...queries.filter(query => query !== userListQuery).map(query => query.refetch()),
+    usersQuery.invalidatePages(),
+  ]);
+  const currentOutboxAction = outboxAction?.integrationUrl === integrationUrl ? outboxAction : null;
+  const currentOutboxDetails = outboxDetails?.integrationUrl === integrationUrl ? outboxDetails.event : null;
+  const selectedUserMapping = userSynchronization?.integrationUrl === integrationUrl
+    ? userSynchronization.mapping : null;
+  const currentUserMapping = userMappings.find(mapping => (
+    mapping.user_sis === selectedUserMapping?.user_sis
+    || (selectedUserMapping?.id != null && mapping.id === selectedUserMapping.id)
+  )) || userCandidates.find(mapping => mapping.user_sis === selectedUserMapping?.user_sis);
+  // Updating date_sync can move the selected identity to another API page.
+  const canSynchronizeUser = canPublish && !userListQuery.isError && Boolean(selectedUserMapping?.actif)
+    && (!currentUserMapping || (currentUserMapping.actif
+      && currentUserMapping.user_sis === selectedUserMapping.user_sis
+      && currentUserMapping.username_edx === selectedUserMapping.username_edx));
+  const refreshUserMappings = async (requestUrl) => {
+    if (getIntegrationApiUrl() === requestUrl) {
+      await Promise.allSettled([usersQuery.invalidatePages(), statsQuery.refetch()]);
+    }
+  };
+  const changeUserPage = (page) => {
+    setUserPageNotice(null);
+    if (candidates) { setCandidatePagination({ integrationUrl, page }); } else {
+      setUserPagination({ integrationUrl, page });
+    }
+  };
+  const userListErrorStatus = userListQuery.error?.response?.status;
+  const userListErrorDetail = userListQuery.error?.response?.data?.detail
+    || userListQuery.error?.response?.data?.error || userListQuery.error?.message;
+  useEffect(() => {
+    if (tabValue !== 0 || userListPage <= 1 || userListQuery.isFetching) { return; }
+    const missingPage = userListQuery.isError && userListErrorStatus === 404;
+    const emptyPage = !userListQuery.isError && userListQuery.data?.results?.length === 0;
+    if (!missingPage && !emptyPage) { return; }
+    setUserPageNotice({
+      integrationUrl,
+      candidates,
+      message: `La page ${userListPage} n’existe plus${missingPage ? ' (404)' : ''}. Retour à la première page.`,
+    });
+    if (candidates) { setCandidatePagination({ integrationUrl, page: 1 }); } else {
+      setUserPagination({ integrationUrl, page: 1 });
+    }
+  }, [
+    candidates, integrationUrl, tabValue, userListPage, userListErrorStatus,
+    userListQuery.isError, userListQuery.isFetching, userListQuery.data,
+  ]);
+
+  const processOutbox = async () => {
+    if (!canPublish || outboxRequest.current) { return; }
+    outboxRequest.current = true;
+    setOutboxAction({ integrationUrl, pending: true });
+    try {
+      const result = await requestIntegrationOutboxProcessing(integrationUrl);
+      setOutboxAction({
+        integrationUrl,
+        message: `Traitement demandé pour cet établissement (tâche ${result.task_id}). `
+          + 'La mise en file est confirmée, pas la synchronisation. Actualisez pour suivre les événements.',
+      });
+    } catch (error) {
+      const detail = error.response?.data?.error || error.response?.data?.detail;
+      setOutboxAction({
+        integrationUrl,
+        error: true,
+        message: typeof detail === 'string' ? detail
+          : error.message || 'La mise en file n’est pas confirmée. Vérifiez vos droits et réessayez plus tard.',
+      });
+    } finally {
+      outboxRequest.current = false;
+      if (getIntegrationApiUrl() === integrationUrl) {
+        await Promise.allSettled([outboxQuery.refetch(), statsQuery.refetch()]);
+      }
+    }
+  };
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box>
       <PageHeader
         title="Intégration LMS"
         subtitle="Synchronisation avec Open edX Learning Management System"
@@ -556,16 +703,26 @@ const IntegrationLMSPage = () => {
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{
+          xs: 12,
+          sm: 6,
+          md: 3,
+        }}
+        >
           <StatCard
             title="Utilisateurs mappés"
             value={syncStats.users_mapped?.toLocaleString()}
             icon={<PersonIcon />}
             color="primary"
-            subtitle="Synchronisés avec LMS"
+            subtitle="Associations SIS ↔ LMS"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{
+          xs: 12,
+          sm: 6,
+          md: 3,
+        }}
+        >
           <StatCard
             title="Cours mappés"
             value={syncStats.courses_mapped}
@@ -574,7 +731,12 @@ const IntegrationLMSPage = () => {
             subtitle="ECUE → Cours LMS"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{
+          xs: 12,
+          sm: 6,
+          md: 3,
+        }}
+        >
           <StatCard
             title="Inscriptions actives"
             value={syncStats.enrollments_active?.toLocaleString()}
@@ -583,7 +745,12 @@ const IntegrationLMSPage = () => {
             subtitle="Étudiants inscrits aux cours"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{
+          xs: 12,
+          sm: 6,
+          md: 3,
+        }}
+        >
           <OutboxStatusCard outbox={syncStats.outbox} />
         </Grid>
       </Grid>
@@ -602,28 +769,73 @@ const IntegrationLMSPage = () => {
           {tabValue === 0 && (
             <>
               <Box sx={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2,
               }}
               >
-                <Typography variant="h6">Mappings Utilisateurs SIS ↔ LMS</Typography>
-                <Button variant="outlined" startIcon={<SyncIcon />} size="small" disabled>
-                  Synchroniser tous
-                </Button>
+                <Typography variant="h6">
+                  {candidates ? 'Utilisateurs SIS à associer au LMS' : 'Mappings Utilisateurs SIS ↔ LMS'}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {canPublish && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => {
+                        setUserView(candidates ? null : integrationUrl);
+                        setUserPageNotice(null);
+                      }}
+                    >
+                      {candidates ? 'Voir les associations' : 'Associer un utilisateur'}
+                    </Button>
+                  )}
+                  <Button variant="outlined" startIcon={<SyncIcon />} size="small" disabled>
+                    Synchroniser tous
+                  </Button>
+                </Box>
               </Box>
-              <UserMappingsTab mappings={userMappings} />
+              {candidates && (
+                <Typography variant="body2" color="textSecondary">
+                  Utilisateurs SIS actifs sans aucune association LMS, même désactivée.
+                  Choisissez une identité pour examiner et confirmer sa première association, sans attribution d’accès.
+                </Typography>
+              )}
+              {userPageNotice?.integrationUrl === integrationUrl && userPageNotice.candidates === candidates && (
+                <Alert severity="warning" sx={{ mt: 2 }}>{userPageNotice.message}</Alert>
+              )}
+              {userListQuery.isError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  Impossible de charger {candidates ? 'les utilisateurs à associer' : 'les associations LMS'}.
+                  {userListErrorStatus && ` HTTP ${userListErrorStatus}.`}
+                  {userListErrorStatus === 403 && ' Accès refusé : droits administrateur requis.'}
+                  {typeof userListErrorDetail === 'string' && ` ${userListErrorDetail}`}
+                  {' '}Actualisez pour réessayer.
+                </Alert>
+              )}
+              {!userListQuery.isError && !userListQuery.isFetching && userListQuery.data?.count === 0 && (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  {candidates ? 'Aucun utilisateur actif sans association LMS.' : 'Aucune association LMS enregistrée.'}
+                </Alert>
+              )}
+              <UserMappingsTab
+                mappings={userListQuery.isError ? [] : userList}
+                candidates={candidates}
+                canSynchronize={canPublish && !userListQuery.isError && !userListQuery.isFetching}
+                onSynchronize={mapping => setUserSynchronization({ mapping, integrationUrl })}
+              />
               <PageNavigation
-                count={usersQuery.data?.count || 0}
-                hasNext={Boolean(usersQuery.data?.next)}
-                hasPrevious={Boolean(usersQuery.data?.previous)}
-                page={userPage}
-                onPageChange={setUserPage}
+                count={userListQuery.data?.count || 0}
+                hasNext={Boolean(userListQuery.data?.next) && !userListQuery.isFetching && !userListQuery.isError}
+                hasPrevious={Boolean(userListQuery.data?.previous)
+                  && !userListQuery.isFetching && !userListQuery.isError}
+                page={userListPage}
+                onPageChange={changeUserPage}
               />
             </>
           )}
           {tabValue === 1 && (
             <>
               <Box sx={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2,
               }}
               >
                 <Typography variant="h6">Mappings Cours ECUE ↔ LMS</Typography>
@@ -631,7 +843,11 @@ const IntegrationLMSPage = () => {
                   Créer cours manquants
                 </Button>
               </Box>
-              <CourseMappingsTab mappings={courseMappings} />
+              <CourseMappingsTab
+                mappings={courseMappings}
+                canPublish={canPublish}
+                onPublish={mapping => setPublication({ mapping, integrationUrl })}
+              />
               <PageNavigation
                 count={coursesQuery.data?.count || 0}
                 hasNext={Boolean(coursesQuery.data?.next)}
@@ -644,20 +860,48 @@ const IntegrationLMSPage = () => {
           {tabValue === 2 && (
             <>
               <Box sx={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2,
               }}
               >
-                <Typography variant="h6">Événements en attente de synchronisation</Typography>
+                <Typography variant="h6">{failuresOnly ? 'Événements en échec' : 'Événements de synchronisation'}</Typography>
                 <Box>
-                  <Button variant="outlined" startIcon={<PlayArrowIcon />} size="small" sx={{ mr: 1 }} disabled>
-                    Traiter tous
-                  </Button>
-                  <Button variant="outlined" color="error" size="small" disabled>
-                    Purger échecs
+                  {canPublish && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<PlayArrowIcon />}
+                      size="small"
+                      sx={{ mr: 1 }}
+                      disabled={Boolean(outboxAction?.pending)}
+                      onClick={processOutbox}
+                    >
+                      {currentOutboxAction?.pending ? 'Demande en cours…' : 'Demander le traitement'}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    aria-pressed={failuresOnly}
+                    onClick={() => { setFailuresOnly(!failuresOnly); setOutboxPage(1); }}
+                  >
+                    {failuresOnly ? 'Voir tous les événements' : 'Voir les échecs'}
                   </Button>
                 </Box>
               </Box>
-              <OutboxEventsTab events={outboxEvents} />
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Seuls les événements admissibles de cet établissement sont traités, par lots de 100 au plus.
+                Les délais de reprise sont conservés. Les échecs définitifs ne sont ni relancés ni supprimés.
+                {failuresOnly && ' Filtre : échecs et échecs définitifs. Les reprises différées restent visibles dans tous les événements.'}
+              </Typography>
+              {currentOutboxAction?.message && (
+                <Alert severity={currentOutboxAction.error ? 'error' : 'info'} sx={{ mb: 2 }}>
+                  {currentOutboxAction.message}
+                </Alert>
+              )}
+              <OutboxEventsTab
+                events={outboxEvents}
+                onDetails={event => setOutboxDetails({ event, integrationUrl })}
+              />
               <PageNavigation
                 count={outboxQuery.data?.count || 0}
                 hasNext={Boolean(outboxQuery.data?.next)}
@@ -676,7 +920,11 @@ const IntegrationLMSPage = () => {
               </Alert>
 
               <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{
+                  xs: 12,
+                  md: 6,
+                }}
+                >
                   <Card variant="outlined">
                     <CardContent>
                       <Typography variant="subtitle1" fontWeight={600} gutterBottom>
@@ -699,7 +947,11 @@ const IntegrationLMSPage = () => {
                     </CardContent>
                   </Card>
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{
+                  xs: 12,
+                  md: 6,
+                }}
+                >
                   <Card variant="outlined">
                     <CardContent>
                       <Typography variant="subtitle1" fontWeight={600} gutterBottom>
@@ -707,20 +959,20 @@ const IntegrationLMSPage = () => {
                       </Typography>
                       <List dense>
                         <ListItem>
-                          <ListItemText primary="Sync utilisateurs à la création" />
-                          <Switch checked disabled />
+                          <ListItemText primary="Sync utilisateurs à la création" secondary="Activation non vérifiée" />
+                          <Switch checked={false} disabled />
                         </ListItem>
                         <ListItem>
-                          <ListItemText primary="Sync inscriptions automatique" />
-                          <Switch checked disabled />
+                          <ListItemText primary="Sync inscriptions automatique" secondary="Activation non vérifiée" />
+                          <Switch checked={false} disabled />
                         </ListItem>
                         <ListItem>
-                          <ListItemText primary="Import notes depuis LMS" />
-                          <Switch checked disabled />
+                          <ListItemText primary="Import notes depuis LMS" secondary="Activation non vérifiée" />
+                          <Switch checked={false} disabled />
                         </ListItem>
                         <ListItem>
-                          <ListItemText primary="Webhooks actifs" />
-                          <Switch checked disabled />
+                          <ListItemText primary="Webhooks" secondary="Activation non vérifiée" />
+                          <Switch checked={false} disabled />
                         </ListItem>
                       </List>
                     </CardContent>
@@ -732,6 +984,42 @@ const IntegrationLMSPage = () => {
         </CardContent>
       </Card>
 
+      <Dialog open={Boolean(currentOutboxDetails)} onClose={() => setOutboxDetails(null)} fullWidth maxWidth="sm">
+        <DialogTitle>Détails de l’événement {currentOutboxDetails?.id}</DialogTitle>
+        <DialogContent>
+          <Typography>Type : {currentOutboxDetails?.event_type}</Typography>
+          <Typography>Statut : {currentOutboxDetails?.statut_display || currentOutboxDetails?.statut}</Typography>
+          <Typography>Tentatives : {currentOutboxDetails?.nb_tentatives}</Typography>
+          <Typography>
+            Dernière tentative : {currentOutboxDetails?.derniere_tentative
+            ? new Date(currentOutboxDetails.derniere_tentative).toLocaleString('fr-FR') : 'Jamais'}
+          </Typography>
+          <Typography sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', mt: 2 }}>
+            {currentOutboxDetails?.erreur || 'Aucune erreur enregistrée.'}
+          </Typography>
+          <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
+            Lecture seule. Aucune décision d’accès, version ou preuve d’échec n’est modifiée ici.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOutboxDetails(null)}>Fermer</Button>
+        </DialogActions>
+      </Dialog>
+
+      <UserSynchronizationDialog
+        mapping={selectedUserMapping}
+        integrationUrl={integrationUrl}
+        canSynchronize={canSynchronizeUser}
+        onClose={() => setUserSynchronization(null)}
+        onComplete={refreshUserMappings}
+      />
+
+      <CoursePublicationDialog
+        mapping={publication?.integrationUrl === integrationUrl
+          ? courseMappings.find(mapping => mapping.id === publication.mapping.id) || publication.mapping : null}
+        canPublish={canPublish}
+        onClose={() => setPublication(null)}
+      />
     </Box>
   );
 };

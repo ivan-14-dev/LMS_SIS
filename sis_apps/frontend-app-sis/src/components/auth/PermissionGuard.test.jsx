@@ -25,7 +25,7 @@ describe('PermissionGuard', () => {
     expect(screen.getByText('Notes')).toBeInTheDocument();
   });
 
-  it('keeps legacy roles as a compatibility fallback', () => {
+  it('does not use a legacy role to bypass a revoked permission', () => {
     useQuery.mockReturnValue({
       data: { permissions: [], role: 'enseignant' },
       isLoading: false,
@@ -42,7 +42,8 @@ describe('PermissionGuard', () => {
       </PermissionGuard>,
     );
 
-    expect(screen.getByText('Évaluations')).toBeInTheDocument();
+    expect(screen.queryByText('Évaluations')).not.toBeInTheDocument();
+    expect(screen.getByText(/permission/)).toBeInTheDocument();
   });
 
   it('supports additional group checks', () => {
@@ -129,5 +130,64 @@ describe('PermissionGuard', () => {
 
     expect(screen.queryByText('Notes')).not.toBeInTheDocument();
     expect(screen.getByText(/permission/)).toBeInTheDocument();
+  });
+
+  it.each(['secondaire', 'superieur'])('requires an active affiliation and effective grant for %s staff links', (type) => {
+    const data = {
+      role: 'enseignant', permissions: ['portail.view_staff'], affiliations: [{ kind: 'staff', active: true }],
+    };
+    useQuery.mockReturnValue({ data, isLoading: false, isError: false });
+    const { rerender } = render(
+      <PermissionGuard type={type} portal="staff"><div>Activité staff</div></PermissionGuard>,
+    );
+    expect(screen.getByText('Activité staff')).toBeInTheDocument();
+    useQuery.mockReturnValue({ data: { ...data, permissions: [] }, isLoading: false, isError: false });
+    rerender(<PermissionGuard type={type} portal="staff"><div>Activité staff</div></PermissionGuard>);
+    expect(screen.queryByText('Activité staff')).not.toBeInTheDocument();
+    useQuery.mockReturnValue({
+      data: { ...data, affiliations: [{ kind: 'staff', active: false }] }, isLoading: false, isError: false,
+    });
+    rerender(<PermissionGuard type={type} portal="staff"><div>Activité staff</div></PermissionGuard>);
+    expect(screen.queryByText('Activité staff')).not.toBeInTheDocument();
+  });
+
+  it('does not display cached portal content while rechecking capabilities or after an error', () => {
+    const data = {
+      permissions: ['portail.view_learner'], affiliations: [{ kind: 'learner', active: true }],
+    };
+    useQuery.mockReturnValue({ data, isLoading: false, isFetching: true });
+    const { rerender } = render(
+      <PermissionGuard type="superieur" portal="learner"><div>Dossier</div></PermissionGuard>,
+    );
+    expect(screen.queryByText('Dossier')).not.toBeInTheDocument();
+    useQuery.mockReturnValue({ data, isLoading: false, isError: true });
+    rerender(<PermissionGuard type="superieur" portal="learner"><div>Dossier</div></PermissionGuard>);
+    expect(screen.queryByText('Dossier')).not.toBeInTheDocument();
+    expect(screen.getByText(/Impossible de vérifier/)).toBeInTheDocument();
+  });
+
+  it('keeps parent access distinct from learner access', () => {
+    useQuery.mockReturnValue({
+      data: { portals: { parent: true }, affiliations: [{ kind: 'parent', active: true }] },
+      isLoading: false,
+    });
+    render(
+      <PermissionGuard type="secondaire" portal={['learner', 'parent']}><div>Famille</div></PermissionGuard>,
+    );
+    expect(screen.getByText('Famille')).toBeInTheDocument();
+  });
+
+  it('honors an explicit portal revocation even when the user has wildcard permissions', () => {
+    useQuery.mockReturnValue({
+      data: {
+        permissions: ['*'], portals: { staff: false }, affiliations: [{ kind: 'staff', active: true }],
+      },
+      isLoading: false,
+    });
+    render(
+      <PermissionGuard type="secondaire" portal="staff"><div>Administration</div></PermissionGuard>,
+    );
+    expect(screen.queryByText('Administration')).not.toBeInTheDocument();
+    expect(screen.getByText(/affiliation actuelle/)).toBeInTheDocument();
   });
 });

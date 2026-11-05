@@ -8,14 +8,18 @@ import {
   getSecondaireApiUrl,
   getSuperieurApiUrl,
 } from '../../services/api';
+import { canEnterPortal, hasCapability } from '../layout/navigation';
 
-export const useCapabilities = (type) => useQuery({
+export const useCapabilities = (type, options = {}) => useQuery({
   queryKey: ['capabilities', type],
   queryFn: () => {
     const baseUrl = type === 'secondaire' ? getSecondaireApiUrl() : getSuperieurApiUrl();
     return fetchApi(`${baseUrl}/utilisateurs/comptes/capabilities/`);
   },
-  staleTime: 60_000,
+  staleTime: 0,
+  refetchOnMount: 'always',
+  refetchOnWindowFocus: true,
+  ...options,
 });
 
 const getNestedValue = (object, path) => path.split('.').reduce(
@@ -42,24 +46,29 @@ const hasRequiredAttributes = (attributes, requiredAttributes = {}) => Object.en
 const PermissionGuard = ({
   type,
   permission,
-  allowedRoles = [],
   allowedGroups = [],
   requiredAttributes = {},
+  portal,
   children,
 }) => {
-  const { data, isLoading, isError } = useCapabilities(type);
+  const {
+    data, isLoading, isFetching, isError,
+  } = useCapabilities(type);
 
-  if (isLoading) {
+  if (isLoading || isFetching) {
     return <Spinner animation="border" screenReaderText="Chargement des permissions" />;
   }
-  const permissions = data?.permissions || [];
+  if (isError || !data) {
+    return <Alert variant="danger">Impossible de vérifier vos permissions. Rechargez la page pour réessayer.</Alert>;
+  }
+  if (portal && !(Array.isArray(portal) ? portal : [portal]).some(kind => canEnterPortal(data, kind))) {
+    return <Alert variant="danger">Vous n’avez pas accès à ce portail pour votre affiliation actuelle.</Alert>;
+  }
   const groups = data?.groups || [];
-  const hasBasePermission = permissions.includes('*')
-    || permissions.includes(permission)
-    || allowedRoles.includes(data?.role);
+  const hasBasePermission = portal || hasCapability(data, permission);
   const hasRequiredGroup = !allowedGroups.length || allowedGroups.some((group) => groups.includes(group));
   const hasRequiredAttributeSet = hasRequiredAttributes(data?.attributes || {}, requiredAttributes);
-  if (isError || !hasBasePermission || !hasRequiredGroup || !hasRequiredAttributeSet) {
+  if (!hasBasePermission || !hasRequiredGroup || !hasRequiredAttributeSet) {
     return <Alert variant="danger">Vous n’avez pas la permission d’accéder à ce module.</Alert>;
   }
   return children;
@@ -67,10 +76,15 @@ const PermissionGuard = ({
 
 PermissionGuard.propTypes = {
   type: PropTypes.oneOf(['secondaire', 'superieur']).isRequired,
-  permission: PropTypes.string.isRequired,
-  allowedRoles: PropTypes.arrayOf(PropTypes.string),
+  permission: PropTypes.string,
+  portal: PropTypes.oneOfType([
+    PropTypes.oneOf(['learner', 'parent', 'staff']),
+    PropTypes.arrayOf(PropTypes.oneOf(['learner', 'parent', 'staff'])),
+  ]),
   allowedGroups: PropTypes.arrayOf(PropTypes.string),
-  requiredAttributes: PropTypes.object,
+  requiredAttributes: PropTypes.objectOf(PropTypes.oneOfType([
+    PropTypes.string, PropTypes.number, PropTypes.bool, PropTypes.arrayOf(PropTypes.string),
+  ])),
   children: PropTypes.node.isRequired,
 };
 

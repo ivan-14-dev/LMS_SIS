@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Box } from '@mui/material';
 import ResourceManager from '../../components/common/ResourceManager';
+import ResourceWorkspace from '../../components/common/ResourceWorkspace';
 import { getEnabledVariants } from '../../services/resources';
 
 const AnneesAcademiquesPage = () => {
@@ -13,7 +13,7 @@ const AnneesAcademiquesPage = () => {
   const periods = `etablissement/${secondary ? 'periodes' : 'semestres'}`;
   const yearField = secondary ? 'annee_scolaire' : 'annee_universitaire';
   return (
-    <Box key={variant}>
+    <ResourceWorkspace key={variant} title={secondary ? 'Années scolaires et périodes' : 'Années universitaires et semestres'}>
       <ResourceManager
         variant={variant}
         resource={years}
@@ -40,44 +40,44 @@ const AnneesAcademiquesPage = () => {
           { label: 'Clôturer', endpoint: 'cloturer' },
         ]}
       />
-      <Box sx={{ mt: 4 }}>
-        <ResourceManager
-          variant={variant}
-          resource={periods}
-          title={secondary ? 'Périodes' : 'Semestres'}
-          searchable={false}
-          columns={[
-            { Header: 'Année', accessor: 'annee_libelle' },
-            { Header: 'Numéro', accessor: 'numero' },
-            { Header: 'Type', accessor: 'type_display' },
-            { Header: 'Début', accessor: 'date_debut' },
-            { Header: 'Fin', accessor: 'date_fin' },
-          ]}
-          fields={[
-            {
-              name: yearField, label: 'Année', resource: years, labelField: 'libelle', required: true,
-            },
-            {
-              name: 'numero', label: 'Numéro', type: 'number', required: true,
-            },
-            {
-              name: 'type',
-              label: 'Type',
-              required: true,
-              choices: (secondary ? ['trimestre', 'semestre', 'quadrimestre', 'sequence'] : ['impair', 'pair', 'unique'])
-                .map(value => ({ value, label: value })),
-            },
-            {
-              name: 'date_debut', label: 'Date de début', type: 'date', required: true,
-            },
-            {
-              name: 'date_fin', label: 'Date de fin', type: 'date', required: true,
-            },
-          ]}
-          actions={[{ label: 'Clôturer', endpoint: 'cloturer' }]}
-        />
-      </Box>
-    </Box>
+      <ResourceManager
+        variant={variant}
+        resource={periods}
+        title={secondary ? 'Périodes' : 'Semestres'}
+        searchable={false}
+        columns={[
+          { Header: 'Année', accessor: 'annee_libelle' },
+          { Header: 'Numéro', accessor: 'numero' },
+          { Header: 'Type', accessor: 'type_display' },
+          { Header: 'Début', accessor: 'date_debut' },
+          { Header: 'Fin', accessor: 'date_fin' },
+        ]}
+        fields={[
+          {
+            name: yearField, label: 'Année', resource: years, labelField: 'libelle', required: true,
+          },
+          {
+            name: 'numero', label: 'Numéro', type: 'number', required: true,
+          },
+          {
+            name: 'type',
+            label: 'Type',
+            required: true,
+            resource: `${periods}/types`,
+            valueField: 'code',
+            labelField: 'label',
+            valueType: 'string',
+          },
+          {
+            name: 'date_debut', label: 'Date de début', type: 'date', required: true,
+          },
+          {
+            name: 'date_fin', label: 'Date de fin', type: 'date', required: true,
+          },
+        ]}
+        actions={[{ label: 'Clôturer', endpoint: 'cloturer' }]}
+      />
+    </ResourceWorkspace>
   );
 };
 

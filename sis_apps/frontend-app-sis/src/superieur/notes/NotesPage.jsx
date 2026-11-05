@@ -1,7 +1,8 @@
 import React from 'react';
 import EvaluationsManager from '../../components/common/EvaluationsManager';
 import ResourceManager from '../../components/common/ResourceManager';
-import WorkflowNotificationsPanel from '../../components/common/WorkflowNotificationsPanel';
+import PageHeader from '../../components/common/PageHeader';
+import RecordsTabs from '../../components/common/RecordsTabs';
 
 const columns = [
   { Header: 'Étudiant', accessor: 'etudiant_nom' },
@@ -15,14 +16,25 @@ const columns = [
 
 const NotesPage = () => (
   <div>
-    <WorkflowNotificationsPanel apiType="superieur" />
-    <EvaluationsManager variant="superieur" />
-    <ResourceManager
-      variant="superieur"
-      resource="notes/notes"
-      title="Notes enregistrées"
-      columns={columns}
-      searchable={false}
+    <PageHeader title="Évaluations et notes" />
+    <RecordsTabs
+      label="Gestion des résultats"
+      panels={[
+        { label: 'Évaluations', content: <EvaluationsManager variant="superieur" showHeading={false} /> },
+        {
+          label: 'Notes enregistrées',
+          content: (
+            <ResourceManager
+              variant="superieur"
+              resource="notes/notes"
+              title="Notes enregistrées"
+              showHeading={false}
+              columns={columns}
+              searchable={false}
+            />
+          ),
+        },
+      ]}
     />
   </div>
 );

@@ -24,6 +24,7 @@ const PasswordRecoveryPage = () => {
   return (
     <Box
       component="form"
+      className="sis-panel sis-auth-form"
       sx={{ maxWidth: 460, mx: 'auto', my: 5 }}
       onSubmit={(event) => {
         event.preventDefault();

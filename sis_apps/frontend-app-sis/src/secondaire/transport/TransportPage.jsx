@@ -1,9 +1,9 @@
 import React from 'react';
-import { Stack } from '@mui/material';
 import ResourceManager from '../../components/common/ResourceManager';
+import ResourceWorkspace from '../../components/common/ResourceWorkspace';
 
 const TransportPage = () => (
-  <Stack spacing={4}>
+  <ResourceWorkspace title="Transport scolaire">
     <ResourceManager
       variant="secondaire"
       resource="transport/lignes-transport"
@@ -122,7 +122,7 @@ const TransportPage = () => (
         },
       ]}
     />
-  </Stack>
+  </ResourceWorkspace>
 );
 
 export default TransportPage;

@@ -27,6 +27,8 @@ import {
 } from './academicConfigurationForm';
 import { apiErrorMessage } from '../../services/resources';
 import InstitutionalProfilesEditor from './InstitutionalProfilesEditor';
+import ModulesEditor from './ModulesEditor';
+import HierarchyEditor from './HierarchyEditor';
 
 const EMPTY_FORM = {
   fonctionnalites: {},
@@ -42,6 +44,7 @@ const EtablissementPage = () => {
   );
   const [academicJson, setAcademicJson] = useState('{}');
   const [academicError, setAcademicError] = useState('');
+  const [activeTab, setActiveTab] = useState('general');
   const endpoint = getCurrentEstablishmentUrl();
 
   const {
@@ -74,6 +77,7 @@ const EtablissementPage = () => {
     onSuccess: (data) => {
       setFormData(data);
       queryClient.setQueryData(['etablissement-current', endpoint], data);
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
   });
 
@@ -169,6 +173,7 @@ const EtablissementPage = () => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    if (activeTab === 'hierarchy') { return; }
     let parsedAcademicConfiguration;
     try {
       parsedAcademicConfiguration = normalizeAcademicConfiguration(JSON.parse(academicJson));
@@ -247,7 +252,10 @@ const EtablissementPage = () => {
       )}
 
       <Form onSubmit={handleSubmit}>
-        <Tabs defaultActiveKey="general">
+        <Tabs activeKey={activeTab} onSelect={setActiveTab}>
+          <Tab eventKey="hierarchy" title="Organisation et règles">
+            {activeTab === 'hierarchy' && <HierarchyEditor endpoint={endpoint} variant="admin" />}
+          </Tab>
           <Tab eventKey="profiles" title="Profils et offres">
             {academicError ? <Alert variant="danger">{academicError}</Alert> : (
               <InstitutionalProfilesEditor
@@ -423,13 +431,17 @@ const EtablissementPage = () => {
                 </Row>
                 <p className="text-muted mb-0">
                   Le logo est géré dans l’administration Django afin de conserver un téléversement sécurisé.
+                  La couleur principale personnalise le monogramme de l’établissement ; la charte edX
+                  des boutons, formulaires et tableaux reste commune à tous les espaces.
                 </p>
               </Card.Body>
             </Card>
           </Tab>
 
           <Tab eventKey="features" title="Modules">
+            {activeTab === 'features' && <ModulesEditor endpoint={endpoint} />}
             <Card className="mt-3">
+              <Card.Header title={<h2 className="sis-card-title">Options pédagogiques historiques</h2>} />
               <Card.Body>
                 {(formData.feature_options || []).map((feature) => (
                   <Form.Check
@@ -455,23 +467,26 @@ const EtablissementPage = () => {
             <Row className="mt-3">
               <Col xl={6} className="mb-3">
                 <Card>
-                  <Card.Header className="d-flex justify-content-between align-items-center">
-                    <span>Dimensions dynamiques</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={() => addAcademicItem('dimensions', {
-                        code: '',
-                        label: '',
-                        axis: configurationSchema.dimension_axes?.[0]?.code || 'organizational',
-                        scope: configurationSchema.dimension_scopes?.[0]?.code || 'tenant',
-                        applicable_to: [],
-                      })}
-                    >
-                      Ajouter
-                    </Button>
-                  </Card.Header>
+                  <Card.Header
+                    className="d-flex justify-content-between align-items-center"
+                    title={<h2 className="sis-card-title">Dimensions dynamiques</h2>}
+                    actions={(
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => addAcademicItem('dimensions', {
+                          code: '',
+                          label: '',
+                          axis: configurationSchema.dimension_axes?.[0]?.code || 'organizational',
+                          scope: configurationSchema.dimension_scopes?.[0]?.code || 'tenant',
+                          applicable_to: [],
+                        })}
+                      >
+                        Ajouter
+                      </Button>
+                    )}
+                  />
                   <Card.Body>
                     {(academicConfiguration.dimensions || []).map((dimension, index) => (
                       <Card key={dimension.code || dimension.label || JSON.stringify(dimension)} className="mb-3">
@@ -547,22 +562,25 @@ const EtablissementPage = () => {
 
               <Col xl={6} className="mb-3">
                 <Card>
-                  <Card.Header className="d-flex justify-content-between align-items-center">
-                    <span>Groupes de permissions</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={() => addAcademicItem('permission_groups', {
-                        code: '',
-                        label: '',
-                        permissions: [],
-                        attributes: {},
-                      })}
-                    >
-                      Ajouter
-                    </Button>
-                  </Card.Header>
+                  <Card.Header
+                    className="d-flex justify-content-between align-items-center"
+                    title={<h2 className="sis-card-title">Groupes de permissions</h2>}
+                    actions={(
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => addAcademicItem('permission_groups', {
+                          code: '',
+                          label: '',
+                          permissions: [],
+                          attributes: {},
+                        })}
+                      >
+                        Ajouter
+                      </Button>
+                    )}
+                  />
                   <Card.Body>
                     {(academicConfiguration.permission_groups || []).map((group, index) => (
                       <Card key={group.code || group.label || JSON.stringify(group)} className="mb-3">
@@ -617,7 +635,7 @@ const EtablissementPage = () => {
             <Row>
               <Col xl={6} className="mb-3">
                 <Card>
-                  <Card.Header>Fenêtres globales de soumission</Card.Header>
+                  <Card.Header title={<h2 className="sis-card-title">Fenêtres globales de soumission</h2>} />
                   <Card.Body>
                     {(configurationSchema.submission_window_types || []).map((windowType) => {
                       const settings = (academicConfiguration.submission_windows || {})[windowType.code] || {};
@@ -835,24 +853,27 @@ const EtablissementPage = () => {
 
               <Col xl={6} className="mb-3">
                 <Card>
-                  <Card.Header className="d-flex justify-content-between align-items-center">
-                    <span>Politiques de validation</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={() => addAcademicItem('validation_policies', {
-                        code: '',
-                        label: '',
-                        scope: configurationSchema.validation_scopes?.[0]?.code || 'tenant',
-                        targets: {},
-                        thresholds: {},
-                        publication: {},
-                      })}
-                    >
-                      Ajouter
-                    </Button>
-                  </Card.Header>
+                  <Card.Header
+                    className="d-flex justify-content-between align-items-center"
+                    title={<h2 className="sis-card-title">Politiques de validation</h2>}
+                    actions={(
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => addAcademicItem('validation_policies', {
+                          code: '',
+                          label: '',
+                          scope: configurationSchema.validation_scopes?.[0]?.code || 'tenant',
+                          targets: {},
+                          thresholds: {},
+                          publication: {},
+                        })}
+                      >
+                        Ajouter
+                      </Button>
+)}
+                  />
                   <Card.Body>
                     {(academicConfiguration.validation_policies || []).map((policy, index) => (
                       <Card key={policy.code || policy.label || JSON.stringify(policy)} className="mb-3">
@@ -929,25 +950,28 @@ const EtablissementPage = () => {
 
               <Col xl={6} className="mb-3">
                 <Card>
-                  <Card.Header className="d-flex justify-content-between align-items-center">
-                    <span>Workflows financiers</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={() => addAcademicItem('financial_workflows', {
-                        code: '',
-                        label: '',
-                        scope: configurationSchema.financial_workflow_scopes?.[0]?.code || 'tenant',
-                        required_permissions: [],
-                        targets: {},
-                        steps: [],
-                        transitions: [],
-                      })}
-                    >
-                      Ajouter
-                    </Button>
-                  </Card.Header>
+                  <Card.Header
+                    className="d-flex justify-content-between align-items-center"
+                    title={<h2 className="sis-card-title">Workflows financiers</h2>}
+                    actions={(
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => addAcademicItem('financial_workflows', {
+                          code: '',
+                          label: '',
+                          scope: configurationSchema.financial_workflow_scopes?.[0]?.code || 'tenant',
+                          required_permissions: [],
+                          targets: {},
+                          steps: [],
+                          transitions: [],
+                        })}
+                      >
+                        Ajouter
+                      </Button>
+)}
+                  />
                   <Card.Body>
                     {(academicConfiguration.financial_workflows || []).map((workflow, index) => (
                       <Card key={workflow.code || workflow.label || JSON.stringify(workflow)} className="mb-3">
@@ -1034,26 +1058,29 @@ const EtablissementPage = () => {
             <Row>
               <Col xl={6} className="mb-3">
                 <Card>
-                  <Card.Header className="d-flex justify-content-between align-items-center">
-                    <span>Rapports dynamiques</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={() => addAcademicItem('reports', {
-                        code: '',
-                        label: '',
-                        dataset: configurationSchema.report_datasets?.[0]?.code || '',
-                        fields: [],
-                        formats: ['csv'],
-                        allowed_filters: [],
-                        required_permissions: [],
-                        default_group_by: '',
-                      })}
-                    >
-                      Ajouter
-                    </Button>
-                  </Card.Header>
+                  <Card.Header
+                    className="d-flex justify-content-between align-items-center"
+                    title={<h2 className="sis-card-title">Rapports dynamiques</h2>}
+                    actions={(
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => addAcademicItem('reports', {
+                          code: '',
+                          label: '',
+                          dataset: configurationSchema.report_datasets?.[0]?.code || '',
+                          fields: [],
+                          formats: ['csv'],
+                          allowed_filters: [],
+                          required_permissions: [],
+                          default_group_by: '',
+                        })}
+                      >
+                        Ajouter
+                      </Button>
+)}
+                  />
                   <Card.Body>
                     {(academicConfiguration.reports || []).map((report, index) => {
                       const datasetDefinition = getReportDatasetDefinition(report.dataset);
@@ -1149,24 +1176,27 @@ const EtablissementPage = () => {
                 </Card>
 
                 <Card className="mt-3">
-                  <Card.Header className="d-flex justify-content-between align-items-center">
-                    <span>Modèles d’import Excel</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={() => addAcademicItem('import_templates', {
-                        code: '',
-                        label: '',
-                        type: configurationSchema.import_template_types?.[0]?.code || '',
-                        allowed_extensions: ['xlsx', 'xls'],
-                        columns: [],
-                        strict_columns: true,
-                      })}
-                    >
-                      Ajouter
-                    </Button>
-                  </Card.Header>
+                  <Card.Header
+                    className="d-flex justify-content-between align-items-center"
+                    title={<h2 className="sis-card-title">Modèles d’import Excel</h2>}
+                    actions={(
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => addAcademicItem('import_templates', {
+                          code: '',
+                          label: '',
+                          type: configurationSchema.import_template_types?.[0]?.code || '',
+                          allowed_extensions: ['xlsx', 'xls'],
+                          columns: [],
+                          strict_columns: true,
+                        })}
+                      >
+                        Ajouter
+                      </Button>
+)}
+                  />
                   <Card.Body>
                     {(academicConfiguration.import_templates || []).map((template, index) => (
                       <Card key={template.code || template.label || JSON.stringify(template)} className="mb-3">
@@ -1234,30 +1264,33 @@ const EtablissementPage = () => {
                 </Card>
 
                 <Card className="mt-3">
-                  <Card.Header className="d-flex justify-content-between align-items-center">
-                    <span>Workflow résultats d’examen</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline-primary"
-                      onClick={() => addAcademicItem('exam_result_workflows', {
-                        code: '',
-                        label: '',
-                        scope: configurationSchema.exam_result_workflow_scopes?.[0]?.code || 'tenant',
-                        variants: ['secondaire'],
-                        verification_group_codes: [],
-                        validation_group_codes: [],
-                        publication_group_codes: [],
-                        allowed_export_formats: ['csv', 'xlsx', 'pdf'],
-                        import_template_codes: [],
-                        correction_window_days: 0,
-                        allow_retake_after_closure: true,
-                        allow_student_submission: false,
-                      })}
-                    >
-                      Ajouter
-                    </Button>
-                  </Card.Header>
+                  <Card.Header
+                    className="d-flex justify-content-between align-items-center"
+                    title={<h2 className="sis-card-title">Workflow résultats d’examen</h2>}
+                    actions={(
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => addAcademicItem('exam_result_workflows', {
+                          code: '',
+                          label: '',
+                          scope: configurationSchema.exam_result_workflow_scopes?.[0]?.code || 'tenant',
+                          variants: ['secondaire'],
+                          verification_group_codes: [],
+                          validation_group_codes: [],
+                          publication_group_codes: [],
+                          allowed_export_formats: ['csv', 'xlsx', 'pdf'],
+                          import_template_codes: [],
+                          correction_window_days: 0,
+                          allow_retake_after_closure: true,
+                          allow_student_submission: false,
+                        })}
+                      >
+                        Ajouter
+                      </Button>
+)}
+                  />
                   <Card.Body>
                     {(academicConfiguration.exam_result_workflows || []).map((workflow, index) => (
                       <Card key={workflow.code || workflow.label || JSON.stringify(workflow)} className="mb-3">
@@ -1373,7 +1406,7 @@ const EtablissementPage = () => {
 
               <Col xl={6} className="mb-3">
                 <Card>
-                  <Card.Header>Mode avancé JSON</Card.Header>
+                  <Card.Header title={<h2 className="sis-card-title">Mode avancé JSON</h2>} />
                   <Card.Body>
                     <Form.Group>
                       <Form.Label>Configuration académique complète</Form.Label>
@@ -1441,6 +1474,7 @@ const EtablissementPage = () => {
           </Tab>
         </Tabs>
 
+        {activeTab !== 'hierarchy' && (
         <Button
           className="mt-3"
           type="submit"
@@ -1450,6 +1484,7 @@ const EtablissementPage = () => {
         >
           {updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer la configuration'}
         </Button>
+        )}
       </Form>
     </div>
   );

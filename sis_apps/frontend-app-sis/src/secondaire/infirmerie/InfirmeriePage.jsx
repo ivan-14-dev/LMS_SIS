@@ -1,12 +1,17 @@
 import React from 'react';
-import { Alert, Stack } from '@mui/material';
+import { Alert } from '@mui/material';
 import ResourceManager from '../../components/common/ResourceManager';
+import ResourceWorkspace from '../../components/common/ResourceWorkspace';
 
 const InfirmeriePage = () => (
-  <Stack spacing={4}>
-    <Alert severity="info">
-      Accès réservé aux personnes habilitées. Les dossiers médicaux structurés restent gérés dans l’administration.
-    </Alert>
+  <ResourceWorkspace
+    title="Infirmerie"
+    notice={(
+      <Alert severity="info">
+        Accès réservé aux personnes habilitées. Les dossiers médicaux structurés restent gérés dans l’administration.
+      </Alert>
+    )}
+  >
     <ResourceManager
       variant="secondaire"
       resource="infirmerie/visites-infirmerie"
@@ -82,7 +87,7 @@ const InfirmeriePage = () => (
         { name: 'numero_lot', label: 'Lot' },
       ]}
     />
-  </Stack>
+  </ResourceWorkspace>
 );
 
 export default InfirmeriePage;

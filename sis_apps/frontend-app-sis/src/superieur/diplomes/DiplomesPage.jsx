@@ -1,8 +1,22 @@
 import React, { useState } from 'react';
-import { Badge, Button } from '@openedx/paragon';
+import { Button } from '@openedx/paragon';
 import { Download } from '@openedx/paragon/icons';
-import { PageHeader, SISDataTable, WorkflowHistoryPanel, WorkflowNotificationsPanel } from '../../components/common';
+import {
+  PageHeader, SISDataTable, StatusBadge, WorkflowHistoryPanel, WorkflowNotificationsPanel,
+} from '../../components/common';
 import { getSuperieurApiUrl, useDiplomes } from '../../services/api';
+
+const diplomaStatus = cell => <StatusBadge value={cell.value ? 'signe' : 'prepare'} />;
+const diplomaActions = (id, onDownload, onHistory) => (
+  <>
+    <Button size="sm" variant="outline-secondary" iconBefore={Download} onClick={() => onDownload(id)}>
+      PDF officiel
+    </Button>
+    <Button size="sm" variant="outline-info" className="ms-1" onClick={() => onHistory(id)}>
+      Historique
+    </Button>
+  </>
+);
 
 const DiplomesPage = () => {
   const { data: diplomes = [], isLoading } = useDiplomes();
@@ -20,21 +34,12 @@ const DiplomesPage = () => {
     {
       Header: 'Statut',
       accessor: 'date_signature',
-      Cell: ({ value }) => <Badge variant={value ? 'success' : 'warning'}>{value ? 'Signé' : 'Préparé'}</Badge>,
+      Cell: diplomaStatus,
     },
     {
       Header: 'Actions',
       accessor: 'id',
-      Cell: ({ value }) => (
-        <>
-          <Button size="sm" variant="outline-secondary" iconBefore={Download} onClick={() => downloadPdf(value)}>
-            PDF officiel
-          </Button>
-          <Button size="sm" variant="outline-info" className="ms-1" onClick={() => setSelectedDiplomeId(value)}>
-            Historique
-          </Button>
-        </>
-      ),
+      Cell: cell => diplomaActions(cell.value, downloadPdf, setSelectedDiplomeId),
     },
   ];
 

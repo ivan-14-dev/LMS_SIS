@@ -1,12 +1,6 @@
 import React from 'react';
 import EvaluationsManager from '../../components/common/EvaluationsManager';
-import WorkflowNotificationsPanel from '../../components/common/WorkflowNotificationsPanel';
 
-const EvaluationsPage = () => (
-  <div>
-    <WorkflowNotificationsPanel apiType="secondaire" />
-    <EvaluationsManager variant="secondaire" />
-  </div>
-);
+const EvaluationsPage = () => <EvaluationsManager variant="secondaire" />;
 
 export default EvaluationsPage;

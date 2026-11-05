@@ -19,12 +19,40 @@ export const resourceUrl = (variant, resource) => {
 
 export const apiErrorMessage = (error) => {
   const body = error?.response?.data;
+  if (body instanceof Blob) {
+    return `Le serveur a refusé le téléchargement (HTTP ${error.response.status}).`;
+  }
   if (body && typeof body === 'object') {
     return Object.entries(body).map(([field, messages]) => (
       `${field}: ${typeof messages === 'string' ? messages : JSON.stringify(messages)}`
     )).join(' — ');
   }
   return error?.message || 'La requête a échoué.';
+};
+
+const downloadBlob = (blob, filename) => {
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = filename;
+    anchor.click();
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+};
+
+export const downloadPdf = async (url, filename) => {
+  const blob = await fetchApi(url, { responseType: 'blob' });
+  if (!(blob instanceof Blob) || !/^application\/pdf(?:;|$)/i.test(blob.type)) {
+    throw new Error('Le serveur n’a pas renvoyé un document PDF valide.');
+  }
+  downloadBlob(blob, filename);
+};
+
+export const downloadJson = async (url, filename) => {
+  const data = await fetchApi(url);
+  downloadBlob(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), filename);
 };
 
 export const fetchResourcePage = async (url, params = {}, options = {}) => {
