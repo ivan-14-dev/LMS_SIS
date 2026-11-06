@@ -87,8 +87,10 @@ class EnseignantsViewSet(viewsets.ModelViewSet):
     def affectations(self, request, pk=None):
         """Liste les affectations d'enseignement."""
         enseignant = self.get_object()
-        affectations = enseignant.affectations.select_related("ue", "ecue", "annee_universitaire").order_by(
-            "-annee_universitaire__date_debut"
+        affectations = (
+            enseignant.affectations.filter(annee_universitaire__universite=request.tenant)
+            .select_related("ue", "ecue", "annee_universitaire")
+            .order_by("-annee_universitaire__date_debut")
         )
         serializer = AffectationEnseignementSerializer(affectations, many=True)
         return Response(serializer.data)
@@ -98,7 +100,7 @@ class EnseignantsViewSet(viewsets.ModelViewSet):
         """Calcule le total des heures d'enseignement."""
         enseignant = self.get_object()
         annee_id = request.query_params.get("annee")
-        qs = enseignant.affectations.all()
+        qs = enseignant.affectations.filter(annee_universitaire__universite=request.tenant)
         if annee_id:
             qs = qs.filter(annee_universitaire_id=annee_id)
         total = qs.aggregate(total=Sum("heures"))["total"] or 0
@@ -128,7 +130,9 @@ class AffectationsViewSet(viewsets.ModelViewSet):
     ordering = ["-annee_universitaire__date_debut"]
 
     def get_queryset(self):
-        qs = AffectationEnseignement.objects.select_related("enseignant__user", "ue", "ecue", "annee_universitaire")
+        qs = AffectationEnseignement.objects.select_related(
+            "enseignant__user", "ue", "ecue", "annee_universitaire"
+        ).filter(annee_universitaire__universite=self.request.tenant)
         user = self.request.user
         if not user.is_staff and getattr(user, "role", "") not in ("scolarite", "directeur_etudes", "doyen"):
             qs = qs.filter(enseignant__user=user)

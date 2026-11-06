@@ -103,6 +103,12 @@ class AffectationEnseignementSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
+    def validate_annee_universitaire(self, value):
+        request = self.context.get("request")
+        if request is not None and value.universite_id != request.tenant.pk:
+            raise serializers.ValidationError("Année universitaire hors de cet établissement.")
+        return value
+
     def get_type_display(self, obj):
         return dict(obj._meta.get_field("type_enseignement").choices).get(
             obj.type_enseignement, ""
