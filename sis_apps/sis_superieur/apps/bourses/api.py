@@ -232,7 +232,7 @@ class AttributionBourseViewSet(viewsets.ModelViewSet):
     search_fields = ["numero_attribution", "demande__etudiant__nom"]
 
     def get_permissions(self):
-        if self.action in {"create", "update", "partial_update", "destroy"}:
+        if self.action in {"create", "update", "partial_update", "destroy", "suspendre", "reactiver"}:
             return [CanAwardBourse()]
         return super().get_permissions()
 

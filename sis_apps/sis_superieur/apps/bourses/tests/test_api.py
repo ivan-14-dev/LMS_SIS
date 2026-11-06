@@ -213,6 +213,48 @@ class AttributionEligibilityAPITestCase(TenantAPITestCase):
         award.refresh_from_db()
         assert str(award.montant_total) == "1500.00"
 
+    def test_only_award_manager_can_suspend_or_reactivate(self):
+        award = AttributionBourse.objects.create(
+            demande=self.accepted,
+            numero_attribution="ATT-SUSPENSION",
+            date_debut="2025-09-01",
+            date_fin="2026-06-30",
+            montant_mensuel="150.00",
+            montant_total="1500.00",
+        )
+        url = f"/api/v1/bourses/attributions-bourses/{award.pk}/"
+        self.client.force_authenticate(user=self.student_user)
+        refused_suspend = self.client.post(
+            f"{url}suspendre/", {"motif": "Révision"}, format="json", secure=True,
+        )
+        assert refused_suspend.status_code == 403, refused_suspend.data
+        award.refresh_from_db()
+        assert award.statut == "active"
+
+        self.client.force_authenticate(user=self.manager)
+        suspended = self.client.post(
+            f"{url}suspendre/", {"motif": "Révision"}, format="json", secure=True,
+        )
+        assert suspended.status_code == 200, suspended.data
+        award.refresh_from_db()
+        assert award.statut == "suspendue"
+
+        self.client.force_authenticate(user=self.student_user)
+        refused_reactivate = self.client.post(
+            f"{url}reactiver/", format="json", secure=True,
+        )
+        assert refused_reactivate.status_code == 403, refused_reactivate.data
+        award.refresh_from_db()
+        assert award.statut == "suspendue"
+
+        self.client.force_authenticate(user=self.manager)
+        reactivated = self.client.post(
+            f"{url}reactiver/", format="json", secure=True,
+        )
+        assert reactivated.status_code == 200, reactivated.data
+        award.refresh_from_db()
+        assert award.statut == "active"
+
     def test_unassigned_legacy_role_cannot_award(self):
         unassigned = Utilisateur.objects.create_user(
             "unassigned-social", role="service_social"
