@@ -1,5 +1,6 @@
 """Serializers for internat (SIS Secondaire)."""
 
+from apps.eleves.models import Eleve
 from django.db.models import Q
 from rest_framework import serializers
 
@@ -101,6 +102,7 @@ class ChambreDetailSerializer(serializers.ModelSerializer):
 class OccupantChambreSerializer(DateRangeSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les occupants."""
 
+    eleve = serializers.PrimaryKeyRelatedField(queryset=Eleve.objects.none())
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
     eleve_nom = serializers.CharField(source="eleve.user.get_full_name", read_only=True)
     eleve_classe = serializers.CharField(source="eleve.classe_actuelle.nom", read_only=True)
@@ -124,6 +126,12 @@ class OccupantChambreSerializer(DateRangeSerializerMixin, serializers.ModelSeria
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        tenant = getattr(self.context.get("request"), "tenant", None)
+        if tenant and tenant.pk:
+            self.fields["eleve"].queryset = Eleve.objects.filter(etablissement_id=tenant.pk)
 
 
 class EtudeSurveilleeSerializer(serializers.ModelSerializer):

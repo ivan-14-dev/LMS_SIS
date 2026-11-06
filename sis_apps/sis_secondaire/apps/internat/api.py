@@ -1,5 +1,6 @@
 """API views for internat (ViewSets DRF) - SIS Secondaire."""
 
+from apps.eleves.models import Eleve
 from django.db import transaction
 from django.db.models import Count, F, Q
 from django.utils import timezone
@@ -190,7 +191,9 @@ class OccupantsChambresViewSet(viewsets.ModelViewSet):
     ordering = ["-date_debut"]
 
     def get_queryset(self):
-        queryset = OccupantChambre.objects.select_related(
+        queryset = OccupantChambre.objects.filter(
+            eleve__etablissement_id=self.request.tenant.pk
+        ).select_related(
             "chambre__batiment", "eleve__user", "eleve__classe_actuelle"
         )
         if self.action in ("update", "partial_update"):
@@ -209,9 +212,18 @@ class OccupantsChambresViewSet(viewsets.ModelViewSet):
         attrs = serializer.validated_data
         existing = serializer.instance
         room = attrs.get("chambre", existing.chambre if existing else None)
+        pupil = attrs.get("eleve", existing.eleve if existing else None)
         start = attrs.get("date_debut", existing.date_debut if existing else None)
         end = attrs.get("date_fin", existing.date_fin if existing else None)
         room = Chambre.objects.select_for_update().get(pk=room.pk)
+        Eleve.objects.select_for_update().get(pk=pupil.pk)
+        other_stays = OccupantChambre.objects.filter(eleve=pupil).exclude(
+            pk=existing.pk if existing else None
+        ).filter(Q(date_fin__isnull=True) | Q(date_fin__gte=start))
+        if end is not None:
+            other_stays = other_stays.filter(date_debut__lte=end)
+        if other_stays.exists():
+            raise ValidationError({"eleve": "Cet élève occupe déjà une chambre pendant cette période."})
         if _peak_room_occupation(room, start, end, exclude=existing.pk if existing else None) > room.capacite:
             raise ValidationError({"chambre": "La chambre est complète pendant cette période."})
 

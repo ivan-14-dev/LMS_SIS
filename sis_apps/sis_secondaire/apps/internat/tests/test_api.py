@@ -124,6 +124,49 @@ class RoomOccupationCapacityTestCase(TenantAPITestCase):
         assert extra.status_code == 400, extra.data
         assert "chambre" in extra.data
 
+    def test_pupil_cannot_occupy_two_rooms_on_overlapping_dates_or_reactivation(self):
+        first = self.client.post(
+            self.url, self.payload(self.pupils[0], end="2026-09-10"), format="json"
+        )
+        assert first.status_code == 201, first.data
+        first_url = f"{self.url}{first.data['id']}/"
+
+        overlap = self.client.post(
+            self.url,
+            self.payload(
+                self.pupils[0], room=self.other_room, start="2026-09-10", end="2026-09-12"
+            ),
+            format="json",
+        )
+        assert overlap.status_code == 400, overlap.data
+        assert "eleve" in overlap.data
+
+        later = self.client.post(
+            self.url,
+            self.payload(
+                self.pupils[0], room=self.other_room, start="2026-09-11", end="2026-09-12"
+            ),
+            format="json",
+        )
+        assert later.status_code == 201, later.data
+        later_url = f"{self.url}{later.data['id']}/"
+
+        overlap = self.client.patch(later_url, {"date_debut": "2026-09-10"}, format="json")
+        assert overlap.status_code == 400, overlap.data
+        assert "eleve" in overlap.data
+        assert self.client.get(later_url).data["date_debut"] == "2026-09-11"
+
+        reopened = self.client.patch(first_url, {"date_fin": None}, format="json")
+        assert reopened.status_code == 400, reopened.data
+        assert "eleve" in reopened.data
+        assert self.client.get(first_url).data["date_fin"] == "2026-09-10"
+
+        unchanged = self.client.patch(first_url, {"motif_fin": "Fin du séjour"}, format="json")
+        assert unchanged.status_code == 200, unchanged.data
+        assert self.client.delete(later_url).status_code == 204
+        reopened = self.client.patch(first_url, {"date_fin": None}, format="json")
+        assert reopened.status_code == 200, reopened.data
+
     def test_room_capacity_cannot_be_reduced_below_existing_occupation(self):
         room = Chambre.objects.create(batiment=self.room.batiment, numero="103", capacite=2)
         today = timezone.localdate()
@@ -156,7 +199,7 @@ class RoomOccupationCapacityTestCase(TenantAPITestCase):
         room.refresh_from_db()
         assert room.capacite == 1
 
-    def test_create_and_update_reject_foreign_tenant_pupil(self):
+    def test_foreign_tenant_occupancy_is_hidden_and_pupil_cannot_be_assigned(self):
         foreign = type(self.tenant)(schema_name="foreign_internat")
         self.setup_tenant(foreign)
         foreign.auto_create_schema = False
@@ -174,12 +217,36 @@ class RoomOccupationCapacityTestCase(TenantAPITestCase):
             sexe="F",
             date_inscription="2026-09-01",
         )
-        rejected = self.client.post(self.url, self.payload(pupil), format="json")
+        foreign_stay = OccupantChambre.objects.create(
+            chambre=self.other_room, eleve=pupil, date_debut="2026-09-01", date_fin="2026-09-10"
+        )
+        rejected = self.client.post(
+            self.url, self.payload(pupil, start="2026-09-11"), format="json"
+        )
         assert rejected.status_code == 400, rejected.data
         assert "eleve" in rejected.data
 
-        valid = self.client.post(self.url, self.payload(self.pupils[0]), format="json")
+        valid = self.client.post(
+            self.url, self.payload(self.pupils[0], start="2026-09-11"), format="json"
+        )
         assert valid.status_code == 201, valid.data
+        listed = self.client.get(self.url)
+        assert listed.status_code == 200, listed.data
+        results = (
+            listed.data.get("results", listed.data)
+            if isinstance(listed.data, dict)
+            else listed.data
+        )
+        assert [stay["id"] for stay in results] == [valid.data["id"]]
+        foreign_url = f"{self.url}{foreign_stay.pk}/"
+        assert self.client.get(foreign_url).status_code == 404
+        assert (
+            self.client.patch(foreign_url, {"date_fin": "2026-09-09"}, format="json").status_code
+            == 404
+        )
+        foreign_stay.refresh_from_db()
+        assert str(foreign_stay.date_fin) == "2026-09-10"
+
         detail_url = f"{self.url}{valid.data['id']}/"
         rejected = self.client.patch(detail_url, {"eleve": pupil.pk}, format="json")
         assert rejected.status_code == 400, rejected.data
