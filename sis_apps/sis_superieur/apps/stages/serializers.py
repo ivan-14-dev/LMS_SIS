@@ -130,6 +130,10 @@ class CandidatureStageSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "date_soumission", "created_at"]
 
     def validate(self, attrs):
+        if self.instance is None and attrs["offre"].statut != "ouverte":
+            raise serializers.ValidationError(
+                {"offre": "Cette offre n'accepte plus de candidatures."}
+            )
         request = self.context.get("request")
         if request and is_stage_applicant(request.user) and not can_manage_stage_applications(request.user):
             decision_fields = {"statut", "date_reponse", "motif_refus"} & self.initial_data.keys()

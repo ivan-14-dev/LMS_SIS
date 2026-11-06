@@ -128,6 +128,56 @@ class CandidatureAuthorizationTestCase(TenantAPITestCase):
         assert response.status_code == 400, response.data
         assert CandidatureStage.objects.count() == 2
 
+    def test_closing_offer_prevents_new_applications_but_open_offer_accepts_them(self):
+        applicants = []
+        for index in range(2):
+            user = Utilisateur.objects.create_user(
+                f"stage-lifecycle-{index}", role="etudiant", etablissement=self.tenant
+            )
+            applicants.append(
+                Etudiant.objects.create(
+                    universite=self.tenant,
+                    user=user,
+                    matricule=f"STAGE-LIFECYCLE-{index}",
+                    date_naissance=date(2004, 1, 1),
+                    lieu_naissance="Paris",
+                    sexe="F",
+                )
+            )
+
+        def apply(applicant, filename):
+            self.client.force_authenticate(applicant.user)
+            return self.client.post(
+                self.base,
+                {
+                    "etudiant": applicant.pk,
+                    "offre": self.offre.pk,
+                    "lettre_motivation": "Motivation",
+                    "cv": SimpleUploadedFile(filename, b"CV", content_type="application/pdf"),
+                },
+                secure=True,
+            )
+
+        response = apply(applicants[0], "open-offer-cv.pdf")
+        assert response.status_code == 201, response.data
+        assert CandidatureStage.objects.filter(etudiant=applicants[0], offre=self.offre).exists()
+
+        manager = Utilisateur.objects.create_user(
+            "stage-lifecycle-manager", role="scolarite", etablissement=self.tenant
+        )
+        self.client.force_authenticate(manager)
+        response = self.client.post(
+            f"/api/v1/stages/offres-stage/{self.offre.pk}/fermer/", {}, format="json", secure=True
+        )
+        assert response.status_code == 200, response.data
+        self.offre.refresh_from_db()
+        assert self.offre.statut == "fermee"
+
+        response = apply(applicants[1], "closed-offer-cv.pdf")
+        assert response.status_code == 400, response.data
+        assert "offre" in response.data
+        assert not CandidatureStage.objects.filter(etudiant=applicants[1], offre=self.offre).exists()
+
     def test_scolarite_and_staff_can_read_and_decide_applications(self):
         managers = (
             Utilisateur.objects.create_user(
