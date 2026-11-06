@@ -10,7 +10,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from sis_common.authorization import request_has_business_access
+from sis_common.authorization import is_current_tenant_user, request_has_business_access
 
 from .models import Arret, InscriptionTransport, LigneTransport, TrajetScolaire, Vehicule
 from .serializers import (
@@ -27,7 +27,7 @@ class IsIntendanceOrReadOnly(IsAuthenticated):
     """Permission: intendance pour écriture."""
 
     def has_permission(self, request, view):
-        if not super().has_permission(request, view):
+        if not super().has_permission(request, view) or not is_current_tenant_user(request):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True

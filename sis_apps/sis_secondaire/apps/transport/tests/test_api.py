@@ -11,6 +11,7 @@ from apps.utilisateurs.models import Utilisateur
 from django.db import IntegrityError, transaction
 from django.test import SimpleTestCase
 from django.urls import resolve
+from django_tenants.utils import schema_context
 
 
 class TransportAPITestCase(SimpleTestCase):
@@ -127,6 +128,23 @@ class TransportTripTestCase(TenantAPITestCase):
         denied = self.client.post(self.url, self.payload(), format="json")
         assert denied.status_code == 403
         assert TrajetScolaire.objects.count() == 0
+
+    def test_foreign_account_cannot_read_or_manage_local_trips(self):
+        created = self.client.post(self.url, self.payload(), format="json")
+        assert created.status_code == 201, created.data
+        foreign = type(self.tenant)(schema_name="foreign_trip_account")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        visitor = Utilisateur.objects.create_superuser(
+            "trip-foreign-account", role="super_admin", etablissement=foreign
+        )
+        self.client.force_authenticate(visitor)
+        assert self.client.get(self.url).status_code == 403
+        assert self.client.get(f"{self.url}{created.data['id']}/").status_code == 403
+        assert self.client.post(self.url, self.payload(), format="json").status_code == 403
+        assert TrajetScolaire.objects.count() == 1
 
 
 class TransportCapacityTestCase(TenantAPITestCase):
