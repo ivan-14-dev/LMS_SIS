@@ -339,6 +339,7 @@ class JustificatifsViewSet(viewsets.ModelViewSet):
             or not classe.annee_scolaire.date_debut <= appel.date <= classe.annee_scolaire.date_fin
             or creneau.jour != appel.date.isoweekday()
             or (creneau.date_specifique is not None and creneau.date_specifique != appel.date)
+            or eleve.date_inscription > appel.date
             or (
                 eleve.classe_actuelle_id != classe.pk
                 and not eleve.inscriptions.filter(

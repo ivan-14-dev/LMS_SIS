@@ -216,6 +216,30 @@ class JustificatifWorkflowTestCase(TenantAPITestCase):
         assert justificatif.date_validation is None
         assert self.presence.statut == "absent"
 
+    def test_acceptance_requires_pupil_enrollment_by_absence_date(self):
+        justificatif = Justificatif.objects.create(presence=self.presence, motif="Maladie")
+        accept_url = f"{self.url}{justificatif.pk}/accepter/"
+        eleve = self.presence.eleve
+        eleve.date_inscription = "2026-09-08"
+        eleve.save(update_fields=["date_inscription"])
+
+        response = self.client.post(accept_url)
+        assert response.status_code == 400, response.data
+        justificatif.refresh_from_db()
+        self.presence.refresh_from_db()
+        assert justificatif.statut == "en_attente"
+        assert justificatif.date_validation is None
+        assert self.presence.statut == "absent"
+
+        eleve.date_inscription = "2026-09-07"
+        eleve.save(update_fields=["date_inscription"])
+        response = self.client.post(accept_url)
+        assert response.status_code == 200, response.data
+        justificatif.refresh_from_db()
+        self.presence.refresh_from_db()
+        assert justificatif.statut == "accepte"
+        assert self.presence.statut == "absent_justifie"
+
     def test_acceptance_keeps_a_previous_class_record_after_a_pupil_moves(self):
         eleve = self.presence.eleve
         previous_class = self.presence.appel.creneau.classe
