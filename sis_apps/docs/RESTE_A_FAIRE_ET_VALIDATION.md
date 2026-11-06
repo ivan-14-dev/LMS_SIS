@@ -307,6 +307,56 @@ documents, factures et activités, la variante secondaire et le parcours
 navigateur restent ouverts. Aucune nouvelle charge à 500 ni restauration
 de cette image n'a été exécutée.
 
+**Treizième vague du 6 novembre 2026 :** les incréments ont été vérifiés,
+committés et poussés séparément : refus des comptes d'un autre établissement
+sur les routes élèves scolaires (`d03385c`) ; refus d'une restauration vers
+un volume non vide, y compris un répertoire vide ou un lien (`d5cb33e`) ;
+garde de permission sur la route frontend discipline (`88e1299`) ; agent
+d'archivage du courrier distinct du créateur et de l'approbateur (`b72afde`) ;
+rattrapage après clôture réservé à une épreuve de session de rattrapage
+(`68a3af3`) ; conservation des décisions définitives de mémoire (`456041f`) ;
+bornage des dossiers et visites d'infirmerie aux élèves locaux (`b390b41`) ;
+publication des bulletins uniquement par l'action prévue, sur les deux
+routes API (`23405ca`) ; tests de lecture et d'écriture des entreprises sur
+deux schémas distincts (`b1ce5b1`) ; indisponibilités de salles par journées
+entières, contrôlées dans les deux sens avec les créneaux actifs (`1e97222`) ;
+trajets datés avec interdiction PostgreSQL de chevauchement d'un même véhicule
+(`60e8312`). Le contrat d'import tient compte du refus 403 des comptes
+étrangers (`1e69013`). La revue supplémentaire a borné les métadonnées des
+calendriers par classe et enseignant (`2556f6a`) et les routes de transport
+aux comptes du tenant (`9814f3a`). Les tests ciblés couvrent les nouvelles
+routes, les refus et les cas autorisés sur PostgreSQL jetable ; les
+migrations des salles et des trajets sont cohérentes avec les modèles
+(`makemigrations --check --dry-run`).
+
+La production frontend se construit, son lint ne relève aucune erreur et
+les 15 tests ciblés de route/permissions passent. La suite intégrée
+universitaire passe **716 tests** sur l'image `1e69013` ; les deux derniers
+commits ne modifient que le secondaire. L'image finale
+`lms-sis:local-20261106-9814f3a` passe `manage.py check` et le contrôle
+des migrations dans les deux variantes ; la suite secondaire finale passe
+**693 tests**. Ces suites ont été exécutées en série sur PostgreSQL et
+Redis jetables, sans installer l'image sur les services partagés.
+
+Restent notamment à valider avant clôture : installer et migrer les deux
+tenants sur une copie de données réelles, vérifier sur deux hôtes que ni
+les métadonnées ni les écritures scolaires ne franchissent le tenant, puis
+restaurer une sauvegarde institutionnelle dans des volumes vierges et
+comparer comptes, inscriptions, rôles, pièces et journaux avant/après.
+Pour le transport, créer un conducteur à identité pérenne et vérifier le
+refus des affectations concurrentes d'un même conducteur ainsi que la
+compatibilité des anciennes lignes non datées ; le modèle actuel ne
+garantit que la non-superposition des **véhicules datés**. Pour les
+entreprises, établir une propriété tenant explicite des lignes historiques
+et tester leur migration sans perte ; la preuve actuelle est une isolation
+de schéma. Les réservations de salle ne décrivent que des journées entières,
+pas une maintenance horaire ni les exceptions calendaires hebdomadaires.
+Les fournisseurs réels, la recette navigateur et Open edX, les parcours
+institutionnels exhaustifs et une campagne à 500 autorisée et verte
+restent nécessaires. **La matrice demeure à 1/94 exigence vérifiée**
+(71 partielles, 20 absentes, 2 non vérifiées) : ces tests de code ne sont
+pas une réception de bout en bout.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
