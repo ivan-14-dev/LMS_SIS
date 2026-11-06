@@ -1,8 +1,10 @@
 """Safe allow-listed multi-format exports for tenant-configured reports."""
 
 import csv
+from collections.abc import Mapping
 from io import BytesIO, StringIO
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.html import escape
@@ -52,6 +54,9 @@ def _selected_format(report, supplied_format):
 
 
 def _filtered_rows(queryset, report, field_map, filter_map, supplied_filters):
+    """Validate export filters before narrowing the caller's scoped queryset."""
+    if not isinstance(supplied_filters, Mapping):
+        raise ValidationError({"filters": "Les filtres doivent être un objet."})
     fields = report.get("fields", [])
     unknown_fields = set(fields) - set(field_map)
     if unknown_fields:
@@ -65,7 +70,10 @@ def _filtered_rows(queryset, report, field_map, filter_map, supplied_filters):
         if name not in filter_map:
             raise ValidationError({"filters": f"Filtre inconnu: {name}."})
         orm_filters[filter_map[name]] = value
-    queryset = queryset.filter(**orm_filters)
+    try:
+        queryset = queryset.filter(**orm_filters)
+    except (TypeError, ValueError, DjangoValidationError) as exc:
+        raise ValidationError({"filters": "Une valeur de filtre est invalide."}) from exc
     headers = [field_map[field][0] for field in fields]
     orm_fields = [field_map[field][1] for field in fields]
     rows = list(queryset.values_list(*orm_fields).distinct())

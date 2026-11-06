@@ -1,7 +1,9 @@
 import csv
 from io import BytesIO, StringIO
+from unittest.mock import Mock
 
 import pytest
+from django.db.models import DateField, IntegerField
 from django.test import SimpleTestCase
 from rest_framework.exceptions import ValidationError
 
@@ -188,25 +190,79 @@ class ReportingTests(SimpleTestCase):
             "label": "Notes secondaire",
             "dataset": "notes",
             "fields": ["matricule", "note"],
-            "allowed_filters": ["classe"],
+            "allowed_filters": ["classe", "periode"],
             "formats": ["csv", "xlsx", "pdf"],
         }
+        queryset = FakeQuerySet()
 
         response = export_queryset(
             request,
-            FakeQuerySet(),
+            queryset,
             report,
             {"matricule": ("Matricule", "eleve__matricule"), "note": ("Note", "valeur")},
-            {"classe": "evaluation__classe_id"},
-            {"classe": 9},
+            {"classe": "evaluation__classe_id", "periode": "evaluation__periode_id"},
+            {"classe": 9, "periode": 2},
         )
 
         assert response.status_code == 200
+        assert queryset.filters == [{"evaluation__classe_id": 9, "evaluation__periode_id": 2}]
         content = response.content.decode()
         assert "Établissement,Lycée Horizon" in content
         assert "Rapport,Notes secondaire" in content
+        assert "Periode,2" in content
+        assert "Dataset,notes" in content
         assert "Matricule,Note" in content
         assert "MAT-001,14.5" in content
+
+    def test_export_queryset_rejects_non_object_filters_before_querying(self):
+        request = type("Request", (), {"data": {"format": "csv"}})()
+        report = {"fields": ["note"], "allowed_filters": ["periode"]}
+        for filters in (None, "", "periode", [], ["periode"], [{"periode": 2}], 2, True):
+            with self.subTest(filters=filters):
+                queryset = Mock()
+                with pytest.raises(ValidationError) as raised:
+                    export_queryset(
+                        request,
+                        queryset,
+                        report,
+                        {"note": ("Note", "valeur")},
+                        {"periode": "evaluation__periode_id"},
+                        filters,
+                    )
+
+                assert "filters" in raised.value.detail
+                assert raised.value.status_code == 400
+                queryset.filter.assert_not_called()
+                queryset.values_list.assert_not_called()
+
+    def test_export_queryset_rejects_invalid_orm_filter_values(self):
+        request = type("Request", (), {"data": {"format": "csv"}})()
+        report = {"fields": ["note"], "allowed_filters": ["periode", "date"]}
+        cases = (
+            ("periode", "not-an-id", IntegerField()),
+            ("periode", [2], IntegerField()),
+            ("periode", {"id": 2}, IntegerField()),
+            ("date", "not-a-date", DateField()),
+        )
+        for name, value, field in cases:
+            with self.subTest(filter=name, value=value):
+                queryset = Mock()
+                queryset.filter.side_effect = lambda field=field, name=name, **kwargs: field.get_prep_value(
+                    kwargs[name]
+                )
+                with pytest.raises(ValidationError) as raised:
+                    export_queryset(
+                        request,
+                        queryset,
+                        report,
+                        {"note": ("Note", "valeur")},
+                        {name: name},
+                        {name: value},
+                    )
+
+                assert "filters" in raised.value.detail
+                assert raised.value.status_code == 400
+                queryset.values_list.assert_not_called()
 
     def test_export_queryset_rejects_unauthorized_format(self):
         request = type(
