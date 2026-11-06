@@ -149,6 +149,29 @@ class EmpruntRenouveleAPITestCase(TenantAPITestCase):
         self.emprunt.refresh_from_db()
         assert self.emprunt.statut == "en_cours"
 
+    def test_foreign_staff_cannot_read_local_loans(self):
+        foreign = type(self.tenant)(schema_name="bibliotheque_loan_foreign")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        outsider = Utilisateur.objects.create_user(
+            "foreign-loan-staff", is_staff=True, etablissement=foreign
+        )
+        self.client.force_authenticate(outsider)
+        base = "/api/v1/bibliotheque/emprunts/"
+        assert self.client.get(base).status_code == 403
+        assert self.client.get(self.emprunt_url).status_code == 403
+        assert self.client.get(f"{base}en_retard/").status_code == 403
+
+        self.client.force_authenticate(self.emprunteur)
+        assert self.client.get(self.emprunt_url).status_code == 200
+        assert self.client.post(f"{self.emprunt_url}renouveler/").status_code == 403
+        self.client.force_authenticate(self.bibliothecaire)
+        assert self.client.post(f"{self.emprunt_url}renouveler/").status_code == 200
+        self.emprunt.refresh_from_db()
+        assert self.emprunt.statut == "renouvele"
+
 
 class ReservationLivreAPITestCase(TenantAPITestCase):
     base = "/api/v1/bibliotheque/"

@@ -171,6 +171,7 @@ class EmpruntsViewSet(viewsets.ModelViewSet):
     ordering = ["-date_emprunt"]
 
     def get_queryset(self):
+        _local_user(self.request)
         qs = Emprunt.objects.filter(
             emprunteur__etablissement_id=self.request.tenant.pk
         ).select_related("exemplaire__livre", "emprunteur")
