@@ -131,6 +131,23 @@ le correctif Open edX demeure non qualifié, et les fournisseurs, parcours
 institutionnels et 500 connexions restent à valider. **Matrice : 1/94
 vérifiée**, sans promotion supplémentaire.
 
+**Septième vague du 6 novembre 2026 :** huit incréments testés, lintés et
+poussés séparément protègent les bulletins publiés et les dates
+d'évaluation sur les deux routes secondaires, imposent les actions de
+tenue et validation des conseils de classe, maintiennent les maquettes
+universitaires dans leur établissement et hors des années closes,
+interdisent les prérequis UE réflexifs, réservent les inscriptions au
+rattrapage aux sessions correspondantes et conservent l'entreprise des
+contacts de convention. L'examen du portail enseignant n'a identifié
+aucune correction sûre dans son périmètre ; l'examen du jury a été refusé
+avant toute intervention et reste non qualifié. L'image publiée
+`lms-sis:local-20261106-46b1fb8` passe `manage.py check` dans les deux SIS
+et leurs suites complètes sur PostgreSQL/Redis jetables (**632 tests
+secondaire, 635 supérieur**). Le frontend inchangé n'a pas été retesté ;
+aucun service partagé n'a été remplacé. Open edX, les prestataires réels,
+la restauration et la campagne à 500 restent ouverts. **Matrice : 1/94
+vérifiée.**
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
