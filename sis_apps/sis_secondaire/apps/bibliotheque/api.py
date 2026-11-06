@@ -44,6 +44,11 @@ class IsBibliothecaireOrReadOnly(IsAuthenticated):
         return _can_manage_library(request)
 
 
+class IsTenantBibliothecaireOrReadOnly(IsBibliothecaireOrReadOnly):
+    def has_permission(self, request, view):
+        return is_current_tenant_user(request) and super().has_permission(request, view)
+
+
 class CanReserve(IsAuthenticated):
     def has_permission(self, request, view):
         return (
@@ -107,14 +112,19 @@ class ExemplairesViewSet(viewsets.ModelViewSet):
 class EmpruntsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour emprunts."""
 
-    permission_classes = [IsBibliothecaireOrReadOnly]
+    permission_classes = [IsTenantBibliothecaireOrReadOnly]
     serializer_class = EmpruntSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["exemplaire", "emprunteur", "statut"]
     ordering = ["-date_emprunt"]
 
     def get_queryset(self):
-        return Emprunt.objects.select_related("exemplaire__livre", "emprunteur")
+        queryset = Emprunt.objects.filter(
+            emprunteur__etablissement_id=self.request.tenant.pk
+        ).select_related("exemplaire__livre", "emprunteur")
+        if not _can_manage_library(self.request):
+            queryset = queryset.filter(emprunteur=self.request.user)
+        return queryset
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):

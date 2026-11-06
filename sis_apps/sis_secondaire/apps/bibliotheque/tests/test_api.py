@@ -5,6 +5,7 @@ from datetime import timedelta
 from django.test import SimpleTestCase
 from django.urls import resolve
 from django.utils import timezone
+from django_tenants.utils import schema_context
 
 from apps.bibliotheque.models import Emprunt, Exemplaire, Livre, Reservation
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
@@ -40,6 +41,135 @@ class ExemplaireAvailabilityAPITestCase(TenantAPITestCase):
                 )
                 assert response.status_code == 200, response.data
                 assert response.data["disponible"] is False
+
+
+class EmpruntTenantAPITestCase(TenantAPITestCase):
+    def setUp(self):
+        self.librarian = Utilisateur.objects.create_user(
+            "library-loan-staff", role="bibliothecaire", etablissement=self.tenant
+        )
+        self.reader = Utilisateur.objects.create_user(
+            "library-loan-reader", role="eleve", etablissement=self.tenant
+        )
+        self.book = Livre.objects.create(titre="Emprunts", auteurs="Test")
+        self.copy = Exemplaire.objects.create(livre=self.book, code_barre="LOAN-1")
+        self.url = "/api/v1/bibliotheque/emprunts/"
+        self.today = timezone.localdate()
+
+    def loan_payload(self, borrower):
+        return {
+            "exemplaire": self.copy.pk,
+            "emprunteur": borrower.pk,
+            "date_emprunt": self.today.isoformat(),
+            "date_retour_prevue": (self.today + timedelta(days=14)).isoformat(),
+        }
+
+    def test_borrower_sees_own_loans_only_while_librarian_sees_all_local_loans(self):
+        other_reader = Utilisateur.objects.create_user(
+            "library-other-reader", role="eleve", etablissement=self.tenant
+        )
+        other_copy = Exemplaire.objects.create(livre=self.book, code_barre="LOAN-2")
+        own_loan = Emprunt.objects.create(
+            exemplaire=self.copy, emprunteur=self.reader,
+            date_emprunt=self.today - timedelta(days=10),
+            date_retour_prevue=self.today - timedelta(days=5),
+        )
+        other_loan = Emprunt.objects.create(
+            exemplaire=other_copy, emprunteur=other_reader,
+            date_emprunt=self.today - timedelta(days=11),
+            date_retour_prevue=self.today - timedelta(days=5),
+        )
+        self.client.force_authenticate(self.reader)
+
+        listed = self.client.get(self.url)
+        assert listed.status_code == 200, listed.data
+        assert [item["id"] for item in listed.data.get("results", listed.data)] == [own_loan.pk]
+        assert self.client.get(f"{self.url}{own_loan.pk}/").status_code == 200
+        assert self.client.get(f"{self.url}{other_loan.pk}/").status_code == 404
+        overdue = self.client.get(f"{self.url}en_retard/")
+        assert overdue.status_code == 200, overdue.data
+        assert [item["id"] for item in overdue.data] == [own_loan.pk]
+        assert self.client.post(f"{self.url}{other_loan.pk}/retourner/").status_code == 403
+        assert self.client.post(f"{self.url}{other_loan.pk}/renouveler/").status_code == 403
+        other_loan.refresh_from_db()
+        assert other_loan.statut == "en_cours"
+
+        self.client.force_authenticate(self.librarian)
+        listed = self.client.get(self.url)
+        assert listed.status_code == 200, listed.data
+        assert {item["id"] for item in listed.data.get("results", listed.data)} == {
+            own_loan.pk, other_loan.pk,
+        }
+        assert self.client.get(f"{self.url}{other_loan.pk}/").status_code == 200
+        overdue = self.client.get(f"{self.url}en_retard/")
+        assert overdue.status_code == 200, overdue.data
+        assert {item["id"] for item in overdue.data} == {own_loan.pk, other_loan.pk}
+
+    def test_foreign_identity_cannot_read_or_return_local_loan(self):
+        loan = Emprunt.objects.create(
+            exemplaire=self.copy, emprunteur=self.reader,
+            date_emprunt=self.today, date_retour_prevue=self.today + timedelta(days=14),
+        )
+        foreign = Utilisateur.objects.create_user(
+            "library-loan-outsider", role="bibliothecaire", etablissement=self.tenant
+        )
+        foreign.etablissement_id = self.tenant.pk + 100
+        self.client.force_authenticate(foreign)
+
+        assert self.client.get(self.url).status_code == 403
+        assert self.client.get(f"{self.url}{loan.pk}/").status_code == 403
+        assert self.client.post(f"{self.url}{loan.pk}/retourner/").status_code == 403
+        loan.refresh_from_db()
+        assert loan.statut == "en_cours"
+
+        self.client.force_authenticate(self.librarian)
+        assert self.client.get(f"{self.url}{loan.pk}/").status_code == 200
+        assert self.client.post(f"{self.url}{loan.pk}/retourner/").status_code == 200
+        loan.refresh_from_db()
+        assert loan.statut == "rendu"
+
+    def test_foreign_borrower_is_hidden_and_cannot_be_assigned_to_a_loan(self):
+        foreign_tenant = type(self.tenant)(schema_name="library_other")
+        self.setup_tenant(foreign_tenant)
+        foreign_tenant.auto_create_schema = False
+        with schema_context("public"):
+            foreign_tenant.save()
+        foreign_reader = Utilisateur.objects.create_user(
+            "library-foreign-borrower", role="eleve", etablissement=foreign_tenant
+        )
+        foreign_copy = Exemplaire.objects.create(livre=self.book, code_barre="LOAN-FOREIGN")
+        foreign_loan = Emprunt.objects.create(
+            exemplaire=foreign_copy, emprunteur=foreign_reader,
+            date_emprunt=self.today - timedelta(days=30),
+            date_retour_prevue=self.today - timedelta(days=1),
+        )
+        self.client.force_authenticate(self.librarian)
+
+        denied = self.client.post(self.url, self.loan_payload(foreign_reader), format="json")
+        assert denied.status_code == 400, denied.data
+        assert "emprunteur" in denied.data
+        assert Emprunt.objects.count() == 1
+
+        created = self.client.post(self.url, self.loan_payload(self.reader), format="json")
+        assert created.status_code == 201, created.data
+        loan_url = f"{self.url}{created.data['id']}/"
+        listed = self.client.get(self.url)
+        assert listed.status_code == 200, listed.data
+        results = listed.data.get("results", listed.data)
+        assert [item["id"] for item in results] == [created.data["id"]]
+        assert self.client.get(f"{self.url}{foreign_loan.pk}/").status_code == 404
+        assert self.client.get(f"{self.url}en_retard/").data == []
+        assert self.client.post(f"{self.url}{foreign_loan.pk}/retourner/").status_code == 404
+        assert self.client.post(f"{self.url}{foreign_loan.pk}/renouveler/").status_code == 404
+        assert self.client.patch(
+            loan_url, {"emprunteur": foreign_reader.pk}, format="json"
+        ).status_code == 400
+        foreign_loan.refresh_from_db()
+        assert foreign_loan.statut == "en_cours"
+        assert self.client.post(f"{loan_url}retourner/").status_code == 200
+        local_loan = Emprunt.objects.get(pk=created.data["id"])
+        assert local_loan.emprunteur_id == self.reader.pk
+        assert local_loan.statut == "rendu"
 
 
 class ReservationAPITestCase(TenantAPITestCase):

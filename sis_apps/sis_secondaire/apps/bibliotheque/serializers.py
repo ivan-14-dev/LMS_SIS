@@ -129,6 +129,12 @@ class EmpruntSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
+    def validate_emprunteur(self, value):
+        tenant = getattr(self.context.get("request"), "tenant", None)
+        if tenant is None or value.etablissement_id != tenant.pk:
+            raise serializers.ValidationError("L'emprunteur doit appartenir à l'établissement.")
+        return value
+
     def get_jours_retard(self, obj):
         if obj.statut != "en_cours":
             return 0
