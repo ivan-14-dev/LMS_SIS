@@ -179,6 +179,39 @@ persistent ni une preuve des parcours complets, du vrai LMS, des paiements
 externes, d'une restauration ou de la charge à 500 ; la matrice reste à
 **1/94 vérifiée**.
 
+**Neuvième vague du 6 novembre 2026 :** huit fonctionnalités bornées ont
+été testées et poussées : dépôt initial d'admission par un apprenant déjà
+authentifié (pas de candidature anonyme), modèle et aperçu CSV/XLSX versionnés
+pour l'import Students, prévisions budgétaires secondaires (pas de livre de
+dépenses), registre d'équipements scolaires, consentement alumni privé lié à
+un diplôme signé et non révoqué, recherche universitaire limitée par
+établissement et permissions, vérification publique d'un PDF signé sur
+présentation du fichier (seul un booléen est retourné), et avis hors connexion
+désactivé par défaut sans cache d'API ni données personnelles. Le dépôt des
+notes LMS en brouillon demeure bloqué : les deux récepteurs publient des
+notes directement et un état de validation humaine manque. La création
+élémentaire de groupes universitaires était déjà montée ; l'exigence IAM
+institutionnelle complète reste ouverte. Le correctif Open edX présent
+localement demeure **non testé et non publié**.
+
+Les incréments ont fait l'objet de tests ciblés et de contrôles lint ; les
+migrations sont cohérentes (`makemigrations --check --dry-run`) et l'image
+`lms-sis:local-20261106-d1ec6bf` passe les suites backend complètes sur
+PostgreSQL/Redis isolés (**652 secondaire et 663 supérieur**). La régression
+frontend passe (**349 tests, 32 suites**) avec un délai Jest de 20 secondes
+pour le banc partagé ; le cas LMS lent dispose désormais de ce délai dans
+son fichier de test et repasse sans option supplémentaire. Le lint frontend
+termine avec 0 erreur et 8 avertissements antérieurs ; le build de production
+passe. Sur cette image, la migration des schémas publics et d'un tenant
+synthétique par variante a réussi sur deux bases jetables, puis les serveurs
+ont répondu 200 à `/health/` et `/ready/`, avec PostgreSQL et Redis prêts.
+Ce n'est pas un remplacement des services partagés ni un parcours complet.
+Les fournisseurs externes, la recette navigateur de tous les champs et
+boutons, la restauration, les brouillons LMS et une campagne **500
+connexions verte** restent à démontrer. Le dernier essai à 500 avait
+500 timeouts et 262 écritures indéterminées : **1/94 exigence vérifiée**,
+sans promotion.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
