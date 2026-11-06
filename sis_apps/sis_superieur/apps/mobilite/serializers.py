@@ -144,7 +144,14 @@ class CandidatureMobiliteDetailSerializer(serializers.ModelSerializer):
             "motif_refus",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "statut",
+            "date_soumission",
+            "decision_par",
+            "motif_refus",
+        ]
 
 
 class AccordEtudesSerializer(serializers.ModelSerializer):

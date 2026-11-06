@@ -112,6 +112,8 @@ class CandidaturesMobiliteViewSet(viewsets.ModelViewSet):
         decision = request.data.get("decision")  # acceptee, refusee
         if decision not in ("acceptee", "refusee", "preselectionne"):
             return Response({"error": "Décision invalide."}, status=400)
+        if candidature.statut not in ("soumise", "preselectionne"):
+            return Response({"error": "La candidature doit être soumise avant décision."}, status=400)
 
         candidature.statut = decision
         candidature.decision_par = request.user
