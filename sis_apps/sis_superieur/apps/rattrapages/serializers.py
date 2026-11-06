@@ -40,3 +40,8 @@ class InscriptionRattrapageSerializer(serializers.ModelSerializer):
             "date_echeance_inscription",
         ]
         read_only_fields = ["id", "date_inscription"]
+
+    def validate_session_rattrapage(self, session):
+        if session.type != "rattrapage":
+            raise serializers.ValidationError("La session doit être un rattrapage.")
+        return session
