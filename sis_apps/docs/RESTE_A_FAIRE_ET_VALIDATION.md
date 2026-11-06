@@ -244,6 +244,43 @@ non testé et non publié. Aucun service partagé n'a été remplacé, les
 fournisseurs réels, la validation humaine des notes et la campagne à 500
 connexions restent ouverts : **1/94 exigence vérifiée**, sans promotion.
 
+**Onzième vague du 6 novembre 2026 :** neuf incréments ont été testés,
+committés et poussés séparément : relevés universitaires signés non
+modifiables ; sanctions scolaires refusées après résolution de l'incident ;
+factures scolaires non annulables après paiement confirmé ; stages scolaires
+lisibles uniquement par l'élève ou son superviseur affecté ; comptes étrangers
+refusés sur les routes entreprises universitaires ; solde universitaire
+calculé sur les paiements validés et visible par l'étudiant propriétaire ou
+la finance locale ; revalidation des créneaux universitaires concurrents sous
+verrous de formation, salle et enseignant ; justificatifs d'absence acceptés
+seulement pour un cours et une inscription historique validée du tenant ;
+rattrapages conditionnés à une inscription administrative et pédagogique
+validées, ou à une affectation individuelle, dans la formation, le semestre
+et l'université de la session. Les salles n'ont **pas** été modifiées :
+aucun état daté de maintenance ou d'indisponibilité ne permet de refuser
+une réservation sans inventer une règle. Le statut historique d'une
+inscription scolaire n'est pas conservé : une annulation ultérieure peut
+empêcher la validation d'une absence autrefois admissible. Les entreprises
+universitaires sans propriétaire tenant obligatoire restent non isolées
+au niveau des enregistrements.
+
+L'image `lms-sis:local-20261106-8ecda9d` passe les suites complètes sur
+PostgreSQL/Redis jetables (**680 tests secondaire et 705 supérieur**),
+`manage.py check` et `makemigrations --check --dry-run` dans les deux
+variantes. Les migrations des schémas publics et de deux tenants synthétiques
+ont réussi sur deux bases isolées ; chaque serveur répond 200 à `/health/`
+et `/ready/` avec base et cache prêts. Une première exécution secondaire
+échouait sur deux sous-processus WSGI/ASGI privés des identifiants Open edX
+synthétiques ; sa relance configurée a passé. Une première exécution
+universitaire a signalé 22 erreurs de clé Fernet non reproduites par les
+tests ciblés et une relance complète verte : la cause de cette variabilité
+n'est pas établie, et **100 % de fiabilité n'est pas démontrée**. Le frontend
+inchangé conserve ses dernières preuves (349 tests, lint et build verts).
+Ni ces contrôles ni les démarrages jetables ne prouvent une restauration,
+les parcours complets navigateur/Open edX/prestataires, une recette
+institutionnelle ou la tenue à 500 connexions ; le dernier essai autorisé
+à 500 demeure rouge. **Matrice : 1/94 exigence vérifiée**, sans promotion.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
