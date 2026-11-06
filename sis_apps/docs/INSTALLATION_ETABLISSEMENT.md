@@ -639,6 +639,14 @@ L'initialisation applique les migrations versionnées, crée le schéma et le
 domaine, crée l'administrateur et collecte les fichiers statiques. Elle peut être
 relancée : elle ne réinitialise pas un mot de passe existant et refuse de
 réattribuer un domaine ou une identité déjà associés à un autre établissement.
+Avant les migrations, `init` interroge en lecture seule les tables de paiement
+des schémas déjà présents dans la base de cette variante. Il refuse de continuer
+si des paiements par carte `valide` ou `rembourse` partagent une référence externe
+non vide : l'index unique de la migration `paiements.0004_card_reference_unique`
+échouerait. Le diagnostic indique les schémas et identifiants de paiements,
+jamais les références de transaction. Ne supprimez ni ne réécrivez ces paiements
+automatiquement : rapprochez-les avec la comptabilité et le prestataire avant
+de relancer l'installation.
 
 En mode `dual`, exécutez `init` une fois pour **chaque** variante avant `start`,
 avec des domaines et fichiers JSON distincts. En mode `superieur`, utilisez cette
@@ -1519,11 +1527,26 @@ dossier privé et supprimez-le après diagnostic.
 1. Relever le commit utilisé, les identifiants d'images et les options de
    configuration. Lire les changements et refaire la recette sur une copie isolée.
 2. Prendre un snapshot chiffré complet, vérifier sa restauration et arrêter
-   les applications pendant la mise à jour. Conserver les anciennes images.
-3. Installer la révision approuvée, conserver `.env` et ses clés, puis relancer
+   les applications pendant la mise à jour, en gardant les bases accessibles
+   au précontrôle (`sisctl stop` arrêterait aussi les bases). Conserver les
+   anciennes images.
+3. Avec la révision approuvée et **avant toute migration**, exécuter
+   `python3 scripts/sisctl.py preflight` lorsque les bases de la distribution
+   Compose sont accessibles. Cette vérification en lecture seule couvre toutes
+   les variantes activées et leurs schémas de paiement déjà créés, sans démarrer
+   de conteneur. Un échec de connexion est bloquant ; les doublons de références
+   de carte validées/remboursées doivent être rapprochés manuellement sur la
+   copie isolée, sans effacer de paiements. Refaire le contrôle après correction.
+4. Installer la révision approuvée, conserver `.env` et ses clés, puis relancer
    `init` pour chaque variante avec le même fichier établissement : les migrations
    partagées et locataires sont appliquées, sans remplacer les mots de passe.
-4. Lancer `start`, puis `check`, contrôler les parcours et reprendre le service.
+   `init` refait le précontrôle après la mise en route de la base, avant les migrations.
+5. Lancer `start`, puis `check`, contrôler les parcours et reprendre le service.
+
+Ce précontrôle est ciblé sur `paiements.0004` : il ne prouve ni l'absence
+d'autres conflits de migration ni la compatibilité des données existantes avec
+toutes les nouvelles règles. Validez la mise à jour sur une restauration isolée ;
+empêchez de nouvelles écritures entre le contrôle et la migration.
 
 Après une migration incompatible, **ne redémarrez pas simplement l'ancien code
 sur la nouvelle base**. Restaurer le snapshot complet dans un projet isolé avec

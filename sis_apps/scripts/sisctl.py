@@ -61,6 +61,76 @@ def compose(configuration, *arguments, **kwargs):
     return subprocess.run([*command, *arguments], check=True, env=environment, **kwargs)
 
 
+def preflight_card_references(configuration):
+    """Check existing tenant payment tables before adding the card reference indexes."""
+    conflicts = []
+    for variant in variants(configuration):
+        table = "paiements_paiement" if variant == "secondaire" else "paiements_paiementfrais"
+        database = configuration.get(f"DB_NAME_{variant.upper()}", f"sis_{variant}")
+        user = configuration.get("DB_USER", "sis")
+        service = f"postgres-{variant}"
+
+        def query(sql):
+            try:
+                result = compose(
+                    configuration,
+                    "exec", "-T", service,
+                    "psql", "-X", "-w", "-A", "-t", "-v", "ON_ERROR_STOP=1",
+                    "-U", user, "-d", database, "-c", sql,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as exc:
+                raise ValueError(
+                    f"Cannot inspect {variant} payments; verify that its database is running and accessible. "
+                    "No migration was attempted."
+                ) from exc
+            return result.stdout.strip()
+
+        schemas = query(
+            "SELECT n.nspname FROM pg_catalog.pg_namespace n "
+            "JOIN pg_catalog.pg_class c ON c.relnamespace = n.oid "
+            f"WHERE c.relname = '{table}' AND c.relkind IN ('r', 'p') "
+            "AND n.nspname <> 'public' AND left(n.nspname, 3) <> 'pg_' "
+            "AND n.nspname <> 'information_schema' ORDER BY n.nspname"
+        ).splitlines()
+        variant_conflicts = []
+        for schema in schemas:
+            quoted_schema = '"' + schema.replace('"', '""') + '"'
+            result = query(
+                "WITH duplicates AS ("
+                " SELECT array_agg(id ORDER BY id) AS ids, min(id) AS first_id"
+                f" FROM {quoted_schema}.\"{table}\""
+                " WHERE mode = 'carte' AND statut IN ('valide', 'rembourse')"
+                " AND reference_externe <> ''"
+                " GROUP BY reference_externe HAVING count(*) > 1"
+                ") SELECT json_build_object("
+                " 'count', count(*),"
+                " 'samples', coalesce((SELECT json_agg(ids) FROM"
+                " (SELECT ids FROM duplicates ORDER BY first_id LIMIT 5) samples), '[]'::json)"
+                ") FROM duplicates"
+            )
+            try:
+                report = json.loads(result)
+                count, samples = report["count"], report["samples"]
+                if not isinstance(count, int) or not isinstance(samples, list):
+                    raise ValueError("Invalid database response.")
+            except (ValueError, KeyError, TypeError) as exc:
+                raise ValueError(f"Invalid payment preflight response for {variant}/{schema}.") from exc
+            if count:
+                variant_conflicts.append(
+                    f"{variant}/{schema}: {count} duplicate reference(s); payment IDs (up to 5 groups): {samples}"
+                )
+        conflicts.extend(variant_conflicts)
+        if not variant_conflicts:
+            print(f"Card reference preflight passed for {variant} ({len(schemas)} existing payment schema(s)).")
+    if conflicts:
+        raise ValueError(
+            "Card reference migration blocked: " + "; ".join(conflicts)
+            + ". Reconcile the payments manually on a restored copy before retrying; no records were changed."
+        )
+
+
 def configure(options):
     destination = options.env_file
     if destination.exists():
@@ -139,6 +209,7 @@ def initialize(configuration, options):
     compose(configuration, "config", "--quiet")
     compose(configuration, "build", f"api-{options.variant}")
     compose(configuration, "up", "-d", "--wait", f"postgres-{options.variant}", "redis")
+    preflight_card_references({**configuration, "SIS_MODE": options.variant})
     password = getpass.getpass("Initial SIS administrator password (existing passwords are preserved): ")
     compose(
         configuration,
@@ -194,6 +265,7 @@ def main():
     initial.add_argument("--institution", required=True, type=Path)
     for name in ("start", "stop", "status", "check"):
         commands.add_parser(name)
+    commands.add_parser("preflight", help="Read-only card reference check on existing Compose databases.")
     options = parser.parse_args()
     try:
         if options.command == "configure":
@@ -223,6 +295,9 @@ def main():
                     "check",
                     "--deploy",
                 )
+        elif options.command == "preflight":
+            compose(configuration, "config", "--quiet")
+            preflight_card_references(configuration)
     except (OSError, ValueError, subprocess.CalledProcessError) as exc:
         print(f"SIS operation failed: {exc}", file=sys.stderr)
         sys.exit(1)
