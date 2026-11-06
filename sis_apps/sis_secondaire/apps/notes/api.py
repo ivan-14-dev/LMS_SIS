@@ -716,12 +716,33 @@ class BulletinsViewSet(viewsets.ModelViewSet):
     filterset_fields = ["eleve", "classe", "periode", "publie"]
     ordering = ["-periode__date_fin"]
 
+    @staticmethod
+    def _ensure_action_publication(data):
+        if data.get("publie"):
+            raise serializers.ValidationError(
+                {"publie": "Utilisez l'action publier pour publier un bulletin."}
+            )
+
+    def perform_create(self, serializer):
+        self._ensure_action_publication(serializer.validated_data)
+        serializer.save()
+
     @transaction.atomic
     def perform_update(self, serializer):
+        self._ensure_action_publication(serializer.validated_data)
         bulletin = Bulletin.objects.select_for_update().get(pk=serializer.instance.pk)
         if bulletin.publie:
             raise serializers.ValidationError({"publie": "Un bulletin publié ne peut plus être modifié."})
         serializer.save()
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        bulletin = Bulletin.objects.select_for_update().get(pk=instance.pk)
+        if bulletin.publie:
+            raise serializers.ValidationError(
+                {"publie": "Un bulletin publié ne peut plus être supprimé."}
+            )
+        bulletin.delete()
 
     def get_queryset(self):
         qs = (

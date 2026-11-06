@@ -207,7 +207,7 @@ class NotesAPITestCase(SimpleTestCase):
 
 
 class PublishedBulletinHTTPTestCase(TenantAPITestCase):
-    def test_published_outcome_cannot_be_edited_via_either_bulletin_route(self):
+    def test_bulletin_publication_and_replay_are_guarded_on_both_routes(self):
         direction = Utilisateur.objects.create_user(
             "notes-direction", role="direction", etablissement=self.tenant
         )
@@ -246,16 +246,50 @@ class PublishedBulletinHTTPTestCase(TenantAPITestCase):
         )
         self.client.force_authenticate(direction)
         notes_url = f"/api/v1/notes/bulletins/{bulletin.pk}/"
+        bulletin_url = f"/api/v1/bulletins/{bulletin.pk}/"
+        other_period = Periode.objects.create(
+            annee_scolaire=year,
+            type="trimestre",
+            numero=2,
+            date_debut=date(2027, 1, 1),
+            date_fin=date(2027, 6, 30),
+        )
+        new_bulletin = {
+            "eleve": pupil.pk,
+            "classe": classroom.pk,
+            "periode": other_period.pk,
+            "publie": True,
+            "decision": "redoublement",
+        }
+        for base in ("/api/v1/notes/bulletins/", "/api/v1/bulletins/"):
+            response = self.client.post(base, new_bulletin, format="json", secure=True)
+            assert response.status_code == 400, response.data
+        assert not Bulletin.objects.filter(eleve=pupil, periode=other_period).exists()
+
+        for url in (notes_url, bulletin_url):
+            response = self.client.patch(url, {"publie": True, "decision": "redoublement"}, format="json", secure=True)
+            assert response.status_code == 400, response.data
+            bulletin.refresh_from_db()
+            assert bulletin.publie is False
+            assert bulletin.decision == "en attente"
 
         draft_response = self.client.patch(notes_url, {"decision": "passage"}, format="json", secure=True)
         assert draft_response.status_code == 200, draft_response.data
-        bulletin.publie = True
-        bulletin.date_publication = timezone.now()
-        bulletin.save(update_fields=["publie", "date_publication"])
+        publication = self.client.post(f"{notes_url}publier/", format="json", secure=True)
+        assert publication.status_code == 200, publication.data
+        bulletin.refresh_from_db()
+        assert bulletin.date_publication is not None
 
-        for url in (notes_url, f"/api/v1/bulletins/{bulletin.pk}/"):
+        for url in (notes_url, bulletin_url):
             response = self.client.patch(url, {"decision": "redoublement"}, format="json", secure=True)
+            assert response.status_code == 400, response.data
+            response = self.client.delete(url, secure=True)
             assert response.status_code == 400, response.data
             bulletin.refresh_from_db()
             assert bulletin.decision == "passage"
             assert bulletin.publie is True
+
+        new_bulletin["publie"] = False
+        draft = self.client.post("/api/v1/notes/bulletins/", new_bulletin, format="json", secure=True)
+        assert draft.status_code == 201, draft.data
+        assert self.client.delete(f"/api/v1/notes/bulletins/{draft.data['id']}/", secure=True).status_code == 204

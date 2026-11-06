@@ -282,3 +282,60 @@ class AppreciationPublicationHTTPTestCase(TenantAPITestCase):
         )
         assert response.status_code == 400, response.data
         assert AppreciationMatiere.objects.get(pk=draft_id).periode_id == self.periods[1].pk
+
+    def test_direct_publication_cannot_bypass_publier(self):
+        direction = Utilisateur.objects.create_user(
+            "bulletin-direction", role="direction", etablissement=self.tenant
+        )
+        self.client.force_authenticate(user=direction)
+        draft = Bulletin.objects.get(eleve=self.own, periode=self.periods[1])
+        url = f"/api/v1/bulletins/{draft.pk}/"
+
+        response = self.client.patch(url, {"publie": True, "decision": "passage"}, format="json", secure=True)
+        assert response.status_code == 400, response.data
+        draft.refresh_from_db()
+        assert draft.publie is False
+        assert draft.decision == ""
+
+        response = self.client.post(
+            "/api/v1/bulletins/",
+            {
+                "eleve": self.other.eleve_id,
+                "classe": self.classe.pk,
+                "periode": self.periods[1].pk,
+                "publie": True,
+                "decision": "passage",
+            },
+            format="json", secure=True,
+        )
+        assert response.status_code == 400, response.data
+        assert not Bulletin.objects.filter(eleve_id=self.other.eleve_id, periode=self.periods[1]).exists()
+
+        response = self.client.patch(url, {"decision": "passage"}, format="json", secure=True)
+        assert response.status_code == 200, response.data
+        response = self.client.post(f"{url}publier/", format="json", secure=True)
+        assert response.status_code == 200, response.data
+        draft.refresh_from_db()
+        assert draft.publie is True
+        assert draft.date_publication is not None
+        assert draft.decision == "passage"
+
+    def test_published_bulletin_cannot_be_deleted_and_recreated(self):
+        direction = Utilisateur.objects.create_user(
+            "bulletin-deletion-direction", role="direction", etablissement=self.tenant
+        )
+        self.client.force_authenticate(user=direction)
+        published = Bulletin.objects.get(eleve=self.own, periode=self.periods[0])
+
+        response = self.client.delete(f"/api/v1/bulletins/{published.pk}/", secure=True)
+        assert response.status_code == 400, response.data
+        published.refresh_from_db()
+        assert published.publie is True
+        self.client.force_authenticate(user=self.student)
+        assert self.client.get(f"/api/v1/bulletins/appreciations/{self.visible.pk}/").status_code == 200
+
+        self.client.force_authenticate(user=direction)
+        draft = Bulletin.objects.get(eleve=self.own, periode=self.periods[1])
+        response = self.client.delete(f"/api/v1/bulletins/{draft.pk}/", secure=True)
+        assert response.status_code == 204, response.data
+        assert not Bulletin.objects.filter(pk=draft.pk).exists()
