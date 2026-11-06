@@ -35,6 +35,8 @@ class SyncService:
                 user_sis = type(user_sis).objects.select_for_update().get(pk=user_sis.pk)
                 if not user_sis.is_active:
                     raise ValueError("Un compte SIS désactivé ne peut pas être provisionné.")
+                if user_sis.etablissement_id not in (None, lms_schema_tenant_id()):
+                    raise ValueError("Le compte doit appartenir à l'établissement courant.")
                 mapping, created = EdxUserMapping.objects.select_for_update().get_or_create(
                     user_sis=user_sis,
                     defaults={"username_edx": lms_username(user_sis)},

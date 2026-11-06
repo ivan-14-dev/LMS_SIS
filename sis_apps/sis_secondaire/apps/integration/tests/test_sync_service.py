@@ -9,7 +9,7 @@ from apps.etablissement.models import AnneeScolaire, Niveau
 from apps.integration.edx_client import EdxClient
 from apps.integration.models import EdxAccessIntent, EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
 from apps.integration.sync_service import SyncService
-from apps.integration.tasks import _reconcile_lms_for_current_schema, _retry_course_create
+from apps.integration.tasks import _reconcile_lms_for_current_schema, _retry_course_create, _retry_user_sync
 from apps.integration.tests.tenant_test_case import TenantTestCase
 from apps.utilisateurs.models import Utilisateur
 from django.utils import timezone
@@ -120,6 +120,53 @@ class SyncServiceUserTestCase(TenantTestCase):
             service.sync_user_to_lms(self.user)
 
         assert not OutboxEvent.objects.filter(event_type="user.sync", aggregate_id=str(self.user.id)).exists()
+
+    @patch("apps.integration.sync_service.get_edx_client")
+    def test_user_replay_does_not_update_mapping_after_reassignment(self, mock_get_client):
+        foreign = type(self.tenant)(schema_name="user_replay_foreign")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        self.user.etablissement = self.tenant
+        self.user.save(update_fields=["etablissement"])
+        mapping = EdxUserMapping.objects.create(
+            user_sis=self.user, username_edx=f"sis-s-{self.user.pk}", user_id_edx=11111
+        )
+        event = OutboxEvent.objects.create(
+            event_type="user.sync",
+            aggregate_type="user",
+            aggregate_id=str(self.user.pk),
+            payload={"role": "teacher"},
+        )
+        Utilisateur.objects.filter(pk=self.user.pk).update(etablissement=foreign, email="foreign@example.test")
+
+        with pytest.raises(ValueError, match="établissement"):
+            _retry_user_sync(SyncService(enqueue_failures=False), event)
+
+        mock_get_client.return_value.update_user.assert_not_called()
+        mock_get_client.return_value.create_user.assert_not_called()
+        mapping.refresh_from_db()
+        assert mapping.date_sync is None
+        assert OutboxEvent.objects.count() == 1
+
+    @patch("apps.integration.sync_service.get_edx_client")
+    def test_sync_user_rechecks_tenant_before_creating_mapping(self, mock_get_client):
+        mock_get_client.return_value.create_user.return_value = {"id": 22222}
+        foreign = type(self.tenant)(schema_name="user_create_foreign")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        self.user.etablissement = self.tenant
+        self.user.save(update_fields=["etablissement"])
+        Utilisateur.objects.filter(pk=self.user.pk).update(etablissement=foreign)
+
+        with pytest.raises(ValueError, match="établissement"):
+            SyncService(enqueue_failures=False).sync_user_to_lms(self.user)
+
+        mock_get_client.return_value.create_user.assert_not_called()
+        assert not EdxUserMapping.objects.filter(user_sis=self.user).exists()
 
 
 class SyncServiceCourseTestCase(TenantTestCase):
