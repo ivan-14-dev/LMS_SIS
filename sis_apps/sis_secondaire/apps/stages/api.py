@@ -110,16 +110,19 @@ class ConventionsStageViewSet(viewsets.ModelViewSet):
             "signee_etablissement": "complete",
         }
 
-        if convention.statut in progression:
-            convention.statut = progression[convention.statut]
-            if convention.statut == "complete":
-                convention.date_signature_complete = timezone.now()
-            convention.save()
-            return Response(
-                {"detail": f"Convention {convention.statut}.", "id": convention.id}
-            )
+        if convention.statut not in progression:
+            return Response({"error": "Impossible de signer."}, status=400)
 
-        return Response({"error": "Impossible de signer."}, status=400)
+        statut = progression[convention.statut]
+        changes = {"statut": statut}
+        if statut == "complete":
+            changes["date_signature_complete"] = timezone.now()
+        if not visible_conventions(request).filter(
+            pk=convention.pk, statut=convention.statut
+        ).update(**changes):
+            return Response({"error": "Impossible de signer."}, status=400)
+
+        return Response({"detail": f"Convention {statut}.", "id": convention.id})
 
     @action(detail=True, methods=["get"])
     def suivis(self, request, pk=None):

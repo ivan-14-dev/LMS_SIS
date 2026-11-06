@@ -1,7 +1,10 @@
 """API tests for stages."""
 
+from unittest.mock import patch
+
 from apps.eleves.models import Eleve
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
+from apps.stages.api import ConventionsStageViewSet
 from apps.stages.models import ConventionStage, Entreprise, EvaluationStage, SuiviStage
 from apps.utilisateurs.models import Utilisateur
 from django.test import SimpleTestCase
@@ -108,6 +111,27 @@ class ConventionStatusTestCase(TenantAPITestCase):
         assert cancelled.status_code == 200, cancelled.data
         assert ConventionStage.objects.get().statut == "annulee"
         assert self.client.post(f"{detail_url}signer/", {}, format="json").status_code == 400
+
+    def test_signing_cannot_restore_a_convention_cancelled_after_lookup(self):
+        detail_url = self.create_convention()
+        signed = self.client.post(f"{detail_url}signer/", {}, format="json")
+        assert signed.status_code == 200, signed.data
+        assert ConventionStage.objects.get().statut == "signee_etudiant"
+
+        original_get_object = ConventionsStageViewSet.get_object
+
+        def cancel_after_lookup(viewset):
+            convention = original_get_object(viewset)
+            ConventionStage.objects.filter(pk=convention.pk).update(statut="annulee")
+            return convention
+
+        with patch.object(ConventionsStageViewSet, "get_object", cancel_after_lookup):
+            response = self.client.post(f"{detail_url}signer/", {}, format="json")
+
+        assert response.status_code == 400, response.data
+        convention = ConventionStage.objects.get()
+        assert convention.statut == "annulee"
+        assert convention.date_signature_complete is None
 
     def test_student_and_assigned_supervisor_access_is_revoked_on_reassignment(self):
         supervisor = Utilisateur.objects.create_user(
