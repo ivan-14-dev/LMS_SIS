@@ -244,6 +244,14 @@ class FacturesViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Facture.objects.select_related("eleve__user", "type_frais").prefetch_related("paiements")
         user = self.request.user
+        if self.action == "annuler":
+            tenant = getattr(self.request, "tenant", None)
+            if not getattr(tenant, "pk", None) or getattr(user, "etablissement_id", None) != tenant.pk:
+                return queryset.none()
+            queryset = queryset.filter(
+                eleve__etablissement_id=tenant.pk,
+                type_frais__annee_scolaire__etablissement_id=tenant.pk,
+            )
         if self.action == "solde_confirme":
             tenant = getattr(self.request, "tenant", None)
             if not getattr(tenant, "pk", None) or getattr(user, "etablissement_id", None) != tenant.pk:
@@ -296,11 +304,17 @@ class FacturesViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def annuler(self, request, pk=None):
         """Annule une facture."""
-        facture = self.get_object()
-        if facture.statut == "payee":
-            return Response({"error": "Facture déjà payée."}, status=400)
-        facture.statut = "annulee"
-        facture.save(update_fields=["statut"])
+        with transaction.atomic():
+            facture = self.get_object()
+            facture = self.get_queryset().select_for_update().get(pk=facture.pk)
+            if facture.statut == "payee":
+                return Response({"error": "Facture déjà payée."}, status=400)
+            if facture.statut == "annulee" or Paiement.objects.filter(
+                facture=facture, statut="valide"
+            ).exists():
+                return Response({"error": "Facture déjà annulée ou comportant un paiement confirmé."}, status=409)
+            facture.statut = "annulee"
+            facture.save(update_fields=["statut"])
         record_workflow_event(
             request,
             facture,

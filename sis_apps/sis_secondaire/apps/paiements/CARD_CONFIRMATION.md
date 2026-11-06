@@ -9,6 +9,11 @@ de validation manuel existant.
 La validation d'un paiement encore en attente, quel que soit son mode, refuse
 une facture annulée, même si le paiement avait été créé avant son annulation.
 Cette protection locale ne qualifie ni Stripe réel ni un parcours pilote.
+L'action `POST /api/v1/paiements/factures/{id}/annuler/`, réservée au
+gestionnaire de l'établissement de l'élève et du type de frais, refuse aussi
+une facture ayant encore un paiement `valide`, même si son total encaissé
+enregistré est périmé. Une facture déjà annulée ne produit pas une deuxième
+annulation. Les paiements en attente ne sont pas assimilés à des encaissements.
 
 La référence externe doit être l'identifiant `pi_…` d'un PaymentIntent créé
 côté serveur sur ce compte Stripe. Son paiement confirmé doit être en euros,

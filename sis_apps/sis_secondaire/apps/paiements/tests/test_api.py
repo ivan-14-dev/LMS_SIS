@@ -5,13 +5,18 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from apps.eleves.models import Eleve
+from apps.etablissement.models import AnneeScolaire
+from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.paiements.api import FacturesViewSet, IsFinanceManager, PaiementsViewSet
-from apps.paiements.models import Facture, Paiement
+from apps.paiements.models import Facture, Paiement, TypeFrais
 from apps.paiements.serializers import PaiementCreateSerializer
 from apps.paiements.services import PaymentConfirmationRejected, PaymentProviderUnavailable, confirm_card_payment
+from apps.utilisateurs.models import Utilisateur
 from django.conf import settings
 from django.test import SimpleTestCase
 from django.urls import resolve
+from django_tenants.utils import schema_context
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory, force_authenticate
 
@@ -155,6 +160,89 @@ class ConfirmedInvoiceBalanceTests(SimpleTestCase):
             manager.role = "enseignant"
             queryset.reset_mock()
             self.assertIs(view.get_queryset(), queryset.none.return_value)
+
+
+class InvoiceCancellationTests(TenantAPITestCase):
+    def setUp(self):
+        manager = Utilisateur.objects.create_user(
+            "invoice-cancellation-manager", role="comptable", etablissement=self.tenant
+        )
+        self.client.force_authenticate(manager)
+        student = Utilisateur.objects.create_user(
+            "invoice-cancellation-student", role="eleve", etablissement=self.tenant
+        )
+        self.eleve = Eleve.objects.create(
+            etablissement=self.tenant, user=student, matricule="REFUND-1",
+            date_naissance="2010-01-01", lieu_naissance="Paris", sexe="F",
+            date_inscription="2026-09-01",
+        )
+        year = AnneeScolaire.objects.create(
+            etablissement=self.tenant, libelle="2026-2027",
+            date_debut="2026-09-01", date_fin="2027-08-31",
+        )
+        self.fee = TypeFrais.objects.create(
+            annee_scolaire=year, code="TUITION", libelle="Scolarité", montant="100.00",
+        )
+        self.facture = Facture.objects.create(
+            eleve=self.eleve, type_frais=self.fee, numero="FAC-REFUND-1",
+            date_emission="2026-09-01", date_echeance="2026-10-01", montant="100.00",
+        )
+        self.url = f"/api/v1/paiements/factures/{self.facture.pk}/annuler/"
+
+    def test_unpaid_invoice_can_be_cancelled_once_and_replay_does_not_repeat_event(self):
+        Paiement.objects.create(
+            facture=self.facture, numero="PAY-PENDING-1", date_paiement="2026-09-02",
+            montant="25.00", mode="especes", statut="en_attente",
+        )
+        with patch("apps.paiements.api.record_workflow_event") as event:
+            response = self.client.post(self.url)
+            assert response.status_code == 200, response.data
+            assert self.client.post(self.url).status_code == 409
+            event.assert_called_once()
+        self.facture.refresh_from_db()
+        assert self.facture.statut == "annulee"
+        assert self.facture.montant_paye == Decimal("0.00")
+
+    def test_confirmed_payment_blocks_cancellation_even_when_cached_total_is_stale(self):
+        Paiement.objects.create(
+            facture=self.facture, numero="PAY-CONFIRMED-1", date_paiement="2026-09-02",
+            montant="25.00", mode="especes", statut="valide",
+        )
+        self.facture.statut = "partielle"
+        self.facture.save(update_fields=["statut"])
+        with patch("apps.paiements.api.record_workflow_event") as event:
+            response = self.client.post(self.url)
+            assert response.status_code == 409, response.data
+            event.assert_not_called()
+        self.facture.refresh_from_db()
+        assert self.facture.statut == "partielle"
+        assert self.facture.montant_paye == Decimal("0.00")
+
+    def test_cancellation_cannot_target_another_school_in_the_same_schema(self):
+        foreign = type(self.tenant)(schema_name="foreign_invoice_cancel")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        foreign_year = AnneeScolaire.objects.create(
+            etablissement=foreign, libelle="2026-2027",
+            date_debut="2026-09-01", date_fin="2027-08-31",
+        )
+        foreign_fee = TypeFrais.objects.create(
+            annee_scolaire=foreign_year, code="FOREIGN", libelle="Autre", montant="100.00",
+        )
+        with patch("apps.paiements.api.record_workflow_event") as event:
+            for pupil_school, fee in ((foreign, self.fee), (self.tenant, foreign_fee)):
+                with self.subTest(pupil_school=pupil_school.pk, fee=fee.pk):
+                    self.eleve.etablissement = pupil_school
+                    self.eleve.save(update_fields=["etablissement"])
+                    self.facture.type_frais = fee
+                    self.facture.save(update_fields=["type_frais"])
+                    response = self.client.post(self.url)
+                    assert response.status_code == 404, response.data
+            event.assert_not_called()
+        self.facture.refresh_from_db()
+        assert self.facture.statut == "emise"
 
 
 class CardConfirmationTests(SimpleTestCase):
