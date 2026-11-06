@@ -337,6 +337,10 @@ class AffectationMatiereIndividuelleSerializer(serializers.ModelSerializer):
         if programme_source:
             if matiere and programme_source.matiere_id != matiere.id:
                 raise serializers.ValidationError({"matiere": "La matière doit correspondre au programme source."})
+            if annee_scolaire and programme_source.classe.annee_scolaire_id != annee_scolaire.pk:
+                raise serializers.ValidationError(
+                    {"annee_scolaire": "L'année doit être celle de la classe du programme source."}
+                )
             attrs.setdefault("matiere", programme_source.matiere)
             attrs.setdefault("annee_scolaire", programme_source.classe.annee_scolaire)
             attrs.setdefault("coefficient", programme_source.coefficient)

@@ -2,8 +2,8 @@
 
 from unittest.mock import patch
 
-from apps.classes.models import Classe
-from apps.eleves.models import Eleve, Inscription
+from apps.classes.models import Classe, Matiere, ProgrammeMatiere
+from apps.eleves.models import AffectationMatiereIndividuelle, Eleve, Inscription
 from apps.etablissement.models import AnneeScolaire, Niveau
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.utilisateurs.models import Utilisateur
@@ -144,3 +144,30 @@ class EnrollmentCapacityTestCase(TenantAPITestCase):
         enrollment.refresh_from_db()
         assert pupil.classe_actuelle_id == self.target.pk
         assert enrollment.classe_id == self.target.pk
+
+    def test_individual_subject_source_cannot_belong_to_another_school_year(self):
+        pupil, _ = self.enroll("optional-subject", self.source)
+        previous_year = AnneeScolaire.objects.create(
+            etablissement=self.tenant,
+            libelle=str(self.today.year - 1),
+            date_debut=self.today.replace(year=self.today.year - 1, month=1, day=1),
+            date_fin=self.today.replace(year=self.today.year - 1, month=12, day=31),
+        )
+        subject = Matiere.objects.create(etablissement=self.tenant, code="OPT", nom="Option")
+        programme = ProgrammeMatiere.objects.create(classe=self.target, matiere=subject)
+        url = f"/api/v1/eleves/{pupil.pk}/matieres-individuelles/"
+        payload = {
+            "annee_scolaire": previous_year.pk,
+            "matiere": subject.pk,
+            "programme_source": programme.pk,
+        }
+
+        response = self.client.post(url, payload, format="json", secure=True)
+        assert response.status_code == 400, response.data
+        assert "annee_scolaire" in response.data
+        assert not AffectationMatiereIndividuelle.objects.filter(eleve=pupil).exists()
+
+        payload["annee_scolaire"] = self.year.pk
+        response = self.client.post(url, payload, format="json", secure=True)
+        assert response.status_code == 201, response.data
+        assert response.data["annee_scolaire"] == self.year.pk
