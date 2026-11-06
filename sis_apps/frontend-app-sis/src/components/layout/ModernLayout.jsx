@@ -21,7 +21,6 @@ import {
   Collapse,
   useTheme,
   useMediaQuery,
-  Chip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -154,12 +153,18 @@ const adminNav = [
   },
 ];
 
+const navConfigByModule = {
+  superieur: superieurNav,
+  secondaire: secondaireNav,
+  admin: adminNav,
+};
+
 const ModernLayout = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -169,15 +174,13 @@ const ModernLayout = () => {
 
   // Determine which module we're in
   const getModule = () => {
-    if (location.pathname.startsWith('/secondaire')) return 'secondaire';
-    if (location.pathname.startsWith('/admin')) return 'admin';
+    if (location.pathname.startsWith('/secondaire')) { return 'secondaire'; }
+    if (location.pathname.startsWith('/admin')) { return 'admin'; }
     return 'superieur';
   };
-  
+
   const currentModule = getModule();
-  const navConfig = currentModule === 'secondaire' ? secondaireNav 
-    : currentModule === 'admin' ? adminNav 
-    : superieurNav;
+  const navConfig = navConfigByModule[currentModule];
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -198,7 +201,7 @@ const ModernLayout = () => {
     }));
   };
 
-  const isActivePath = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
+  const isActivePath = (path) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   const moduleColors = {
     superieur: theme.palette.primary.main,
@@ -213,22 +216,26 @@ const ModernLayout = () => {
   };
 
   const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box sx={{
+      height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+    }}
+    >
       {/* Logo Section */}
-      <Box sx={{ 
-        p: collapsed ? 1.5 : 2, 
-        display: 'flex', 
-        alignItems: 'center', 
+      <Box sx={{
+        p: collapsed ? 1.5 : 2,
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: collapsed ? 'center' : 'flex-start',
         gap: 1.5,
         borderBottom: '1px solid',
         borderColor: 'divider',
         minHeight: 64,
-      }}>
-        <Avatar 
-          sx={{ 
-            width: 40, 
-            height: 40, 
+      }}
+      >
+        <Avatar
+          sx={{
+            width: 40,
+            height: 40,
             bgcolor: moduleColors[currentModule],
             fontSize: '1rem',
             fontWeight: 700,
@@ -251,12 +258,12 @@ const ModernLayout = () => {
       {/* Collapse Toggle */}
       {!isMobile && (
         <Box sx={{ p: 1, display: 'flex', justifyContent: collapsed ? 'center' : 'flex-end' }}>
-          <IconButton 
-            size="small" 
+          <IconButton
+            size="small"
             onClick={() => setCollapsed(!collapsed)}
-            sx={{ 
+            sx={{
               bgcolor: 'action.hover',
-              '&:hover': { bgcolor: 'action.selected' }
+              '&:hover': { bgcolor: 'action.selected' },
             }}
           >
             {collapsed ? <MenuIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
@@ -265,25 +272,26 @@ const ModernLayout = () => {
       )}
 
       {/* Module Switcher */}
-      <Box sx={{ 
-        px: collapsed ? 1 : 2, 
-        py: 1, 
-        display: 'flex', 
+      <Box sx={{
+        px: collapsed ? 1 : 2,
+        py: 1,
+        display: 'flex',
         flexDirection: collapsed ? 'column' : 'row',
         gap: 0.5,
         borderBottom: '1px solid',
         borderColor: 'divider',
-      }}>
+      }}
+      >
         {['superieur', 'secondaire', 'admin'].map((mod) => (
           <Tooltip key={mod} title={moduleLabels[mod]} placement="right">
             <IconButton
               size="small"
               onClick={() => navigate(`/${mod}`)}
               sx={{
-                bgcolor: currentModule === mod ? moduleColors[mod] + '20' : 'transparent',
+                bgcolor: currentModule === mod ? `${moduleColors[mod]}20` : 'transparent',
                 color: currentModule === mod ? moduleColors[mod] : 'text.secondary',
                 borderRadius: 1,
-                '&:hover': { bgcolor: moduleColors[mod] + '15' },
+                '&:hover': { bgcolor: `${moduleColors[mod]}15` },
               }}
             >
               {mod === 'superieur' && <SchoolIcon fontSize="small" />}
@@ -297,26 +305,26 @@ const ModernLayout = () => {
       {/* Dashboard Link */}
       <List sx={{ px: 1, py: 0.5 }} dense>
         <ListItem disablePadding>
-          <Tooltip title={collapsed ? "Tableau de bord" : ""} placement="right">
+          <Tooltip title={collapsed ? 'Tableau de bord' : ''} placement="right">
             <ListItemButton
               onClick={() => navigate(`/${currentModule}`)}
               selected={location.pathname === `/${currentModule}`}
-              sx={{ 
-                borderRadius: 1, 
+              sx={{
+                borderRadius: 1,
                 py: 1,
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 minHeight: 44,
               }}
             >
               <ListItemIcon sx={{ minWidth: collapsed ? 0 : 36, justifyContent: 'center' }}>
-                <DashboardIcon 
+                <DashboardIcon
                   fontSize="small"
-                  color={location.pathname === `/${currentModule}` ? 'primary' : 'inherit'} 
+                  color={location.pathname === `/${currentModule}` ? 'primary' : 'inherit'}
                 />
               </ListItemIcon>
               {!collapsed && (
-                <ListItemText 
-                  primary="Tableau de bord" 
+                <ListItemText
+                  primary="Tableau de bord"
                   primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: 500 }}
                 />
               )}
@@ -328,7 +336,10 @@ const ModernLayout = () => {
       <Divider />
 
       {/* Navigation Sections */}
-      <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden', px: 1, py: 0.5 }}>
+      <Box sx={{
+        flexGrow: 1, overflowY: 'auto', overflowX: 'hidden', px: 1, py: 0.5,
+      }}
+      >
         {navConfig.map((section) => (
           <Box key={section.title} sx={{ mb: 0.5 }}>
             {!collapsed && (
@@ -337,10 +348,10 @@ const ModernLayout = () => {
                 sx={{ borderRadius: 1, py: 0.5, minHeight: 32 }}
                 dense
               >
-                <ListItemText 
-                  primary={section.title} 
-                  primaryTypographyProps={{ 
-                    variant: 'caption', 
+                <ListItemText
+                  primary={section.title}
+                  primaryTypographyProps={{
+                    variant: 'caption',
                     color: 'text.secondary',
                     fontWeight: 600,
                     textTransform: 'uppercase',
@@ -354,32 +365,33 @@ const ModernLayout = () => {
               <List component="div" disablePadding dense>
                 {section.items.map((item) => (
                   <ListItem key={item.path} disablePadding>
-                    <Tooltip title={collapsed ? item.text : ""} placement="right">
+                    <Tooltip title={collapsed ? item.text : ''} placement="right">
                       <ListItemButton
                         onClick={() => {
                           navigate(item.path);
-                          if (isMobile) setMobileOpen(false);
+                          if (isMobile) { setMobileOpen(false); }
                         }}
                         selected={isActivePath(item.path)}
-                        sx={{ 
-                          borderRadius: 1, 
+                        sx={{
+                          borderRadius: 1,
                           py: 0.75,
                           minHeight: 40,
                           justifyContent: collapsed ? 'center' : 'flex-start',
                           px: collapsed ? 1 : 2,
                         }}
                       >
-                        <ListItemIcon sx={{ 
-                          minWidth: collapsed ? 0 : 32, 
+                        <ListItemIcon sx={{
+                          minWidth: collapsed ? 0 : 32,
                           color: isActivePath(item.path) ? 'primary.main' : 'text.secondary',
                           justifyContent: 'center',
-                        }}>
+                        }}
+                        >
                           {React.cloneElement(item.icon, { fontSize: 'small' })}
                         </ListItemIcon>
                         {!collapsed && (
-                          <ListItemText 
-                            primary={item.text} 
-                            primaryTypographyProps={{ 
+                          <ListItemText
+                            primary={item.text}
+                            primaryTypographyProps={{
                               fontSize: '0.8125rem',
                               fontWeight: isActivePath(item.path) ? 600 : 400,
                             }}
@@ -396,16 +408,21 @@ const ModernLayout = () => {
       </Box>
 
       {/* User Section */}
-      <Box sx={{ 
-        p: collapsed ? 1 : 1.5, 
-        borderTop: '1px solid', 
+      <Box sx={{
+        p: collapsed ? 1 : 1.5,
+        borderTop: '1px solid',
         borderColor: 'divider',
         display: 'flex',
         alignItems: 'center',
         justifyContent: collapsed ? 'center' : 'flex-start',
         gap: 1.5,
-      }}>
-        <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.875rem' }}>U</Avatar>
+      }}
+      >
+        <Avatar sx={{
+          width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.875rem',
+        }}
+        >U
+        </Avatar>
         {!collapsed && (
           <>
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
@@ -450,9 +467,9 @@ const ModernLayout = () => {
           >
             <MenuIcon />
           </IconButton>
-          
+
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            Système d'Information Scolaire
+            Système d&apos;Information Scolaire
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -463,7 +480,7 @@ const ModernLayout = () => {
                 </Badge>
               </IconButton>
             </Tooltip>
-            
+
             <Tooltip title="Paramètres">
               <IconButton color="inherit">
                 <SettingsIcon />
@@ -504,8 +521,8 @@ const ModernLayout = () => {
       {/* Drawer */}
       <Box
         component="nav"
-        sx={{ 
-          width: { md: currentDrawerWidth }, 
+        sx={{
+          width: { md: currentDrawerWidth },
           flexShrink: { md: 0 },
           transition: theme.transitions.create('width', {
             easing: theme.transitions.easing.sharp,
@@ -526,14 +543,14 @@ const ModernLayout = () => {
         >
           {drawer}
         </Drawer>
-        
+
         {/* Desktop drawer */}
         <Drawer
           variant="permanent"
           sx={{
             display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
               width: currentDrawerWidth,
               transition: theme.transitions.create('width', {
                 easing: theme.transitions.easing.sharp,
