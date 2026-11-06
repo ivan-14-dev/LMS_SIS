@@ -136,6 +136,13 @@ class ProjetRechercheDetailSerializer(serializers.ModelSerializer):
     def get_membres_list(self, obj):
         return [{"id": m.id, "nom": m.user.get_full_name()} for m in obj.membres.all()]
 
+    def validate_statut(self, statut):
+        if statut == "termine" and (
+            self.instance is None or self.instance.statut not in ("en_cours", "termine")
+        ):
+            raise serializers.ValidationError("Le projet doit être en cours.")
+        return statut
+
 
 class ProductionScientifiqueSerializer(serializers.ModelSerializer):
     """Serializer pour les productions scientifiques."""

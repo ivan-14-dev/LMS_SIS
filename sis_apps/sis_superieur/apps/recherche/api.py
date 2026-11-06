@@ -133,6 +133,8 @@ class ProjetsRechercheViewSet(viewsets.ModelViewSet):
     def terminer(self, request, pk=None):
         """Termine le projet."""
         projet = self.get_object()
+        if projet.statut != "en_cours":
+            return Response({"error": "Le projet doit être en cours."}, status=400)
         projet.statut = "termine"
         projet.save(update_fields=["statut"])
         return Response({"detail": "Projet terminé.", "id": projet.id})
