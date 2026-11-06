@@ -1,8 +1,16 @@
 """API tests for core."""
 
+import uuid
+
+from apps.etablissement.models import Universite
+from apps.formations.models import Formation, Parcours
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
+from apps.structure.models import Departement, Faculte
+from apps.utilisateurs.models import Utilisateur
+from django.contrib.auth.models import Permission
 from django.test import SimpleTestCase
 from django.urls import resolve
+from django_tenants.utils import schema_context
 
 
 class MetricsEndpointTestCase(TenantAPITestCase):
@@ -23,6 +31,9 @@ class MetricsEndpointTestCase(TenantAPITestCase):
 
 
 class CoreAPITestCase(SimpleTestCase):
+    def test_academic_search_route_is_registered(self):
+        assert resolve("/api/v1/core/recherche-academique/").url_name == "recherche-academique"
+
     def test_workflow_event_routes_are_registered(self):
         list_match = resolve("/api/v1/core/workflow-events/")
         summary_match = resolve("/api/v1/core/workflow-events/bilan/")
@@ -44,3 +55,111 @@ class CoreAPITestCase(SimpleTestCase):
         assert trends_match.url_name == "notifications-tendances-livraison"
         assert read_match.url_name == "notifications-marquer-lue"
         assert read_all_match.url_name == "notifications-tout-marquer-lu"
+
+
+class AcademicSearchAPITests(TenantAPITestCase):
+    url = "/api/v1/core/recherche-academique/"
+
+    def setUp(self):
+        self.user = Utilisateur.objects.create_user("academic_search", etablissement=self.tenant, role="scolarite")
+        self.user.user_permissions.add(
+            Permission.objects.get(content_type__app_label="formations", codename="view_formation"),
+            Permission.objects.get(content_type__app_label="formations", codename="view_parcours"),
+        )
+        self.client.force_authenticate(self.user)
+        other = Universite(
+            schema_name=f"other_search_{uuid.uuid4().hex[:12]}",
+            nom="Autre université", type="universite_publique",
+            adresse="1 rue des Tests", code_postal="75000", ville="Paris",
+            telephone="0100000000", email="other@example.test",
+        )
+        other.auto_create_schema = False
+        with schema_context("public"):
+            other.save()
+        self.other = other
+        own_faculty = Faculte.objects.create(universite=self.tenant, nom="Sciences", code="SCI")
+        foreign_faculty = Faculte.objects.create(universite=other, nom="Sciences externe", code="EXT")
+        self.own_department = Departement.objects.create(faculte=own_faculty, nom="Physique", code="PHY")
+        foreign_department = Departement.objects.create(faculte=foreign_faculty, nom="Physique", code="PHY")
+        self.own = Formation.objects.create(
+            code="PHY-OWN", nom="Physique appliquée", type="licence", departement=self.own_department,
+        )
+        self.foreign = Formation.objects.create(
+            code="PHY-OTHER", nom="Physique externe", type="licence", departement=foreign_department,
+        )
+        self.own_track = Parcours.objects.create(formation=self.own, code="PHY-TRACK", nom="Physique nucléaire")
+        self.foreign_track = Parcours.objects.create(
+            formation=self.foreign, code="PHY-OTHER", nom="Physique étrangère",
+        )
+
+    def test_results_are_limited_to_own_tenant_and_explicit_columns(self):
+        for resource, expected in (("formations", self.own), ("parcours", self.own_track)):
+            response = self.client.get(self.url, {"ressource": resource, "q": "physique"})
+
+            assert response.status_code == 200, response.data
+            assert response.data["count"] == 1
+            assert response.data["results"] == [
+                {"id": expected.pk, "code": expected.code, "nom": expected.nom}
+            ]
+
+    def test_permission_is_checked_for_each_model(self):
+        no_permission = Utilisateur.objects.create_user("no_search_access", etablissement=self.tenant)
+        self.client.force_authenticate(no_permission)
+        assert self.client.get(self.url, {"ressource": "formations", "q": "physique"}).status_code == 403
+        self.client.force_authenticate(self.user)
+        self.user.user_permissions.remove(
+            Permission.objects.get(content_type__app_label="formations", codename="view_parcours")
+        )
+        # Clear Django's per-instance permission cache after the grant changes.
+        self.user = Utilisateur.objects.get(pk=self.user.pk)
+        self.client.force_authenticate(self.user)
+        assert self.client.get(self.url, {"ressource": "formations", "q": "physique"}).status_code == 200
+        assert self.client.get(self.url, {"ressource": "parcours", "q": "physique"}).status_code == 403
+
+    def test_foreign_tenant_user_cannot_search_even_with_model_permission(self):
+        foreign_user = Utilisateur.objects.create_user(
+            "foreign_search_access", etablissement=self.other, is_superuser=True,
+        )
+        self.client.force_authenticate(foreign_user)
+        assert self.client.get(self.url, {"ressource": "formations", "q": "physique"}).status_code == 403
+
+    def test_scoped_permission_limits_results(self):
+        orphan = Formation.objects.create(code="PHY-ORPHAN", nom="Physique libre", type="licence")
+        self.user.attributs_acces = {
+            "permission_scopes": {"formations.view_formation": {"departements": [self.own_department.pk]}}
+        }
+        self.user.save(update_fields=["attributs_acces"])
+        response = self.client.get(self.url, {"ressource": "formations", "q": "physique"})
+
+        assert response.status_code == 200, response.data
+        assert [row["id"] for row in response.data["results"]] == [self.own.pk]
+        assert orphan.pk not in [row["id"] for row in response.data["results"]]
+
+    def test_invalid_queries_and_unauthenticated_access(self):
+        for params in (
+            {"ressource": "formations"},
+            {"ressource": "formations", "q": " "},
+            {"ressource": "formations", "q": "a"},
+            {"ressource": "formations", "q": "x" * 101},
+            {"ressource": "formations", "q": "physique\n"},
+            {"ressource": "unknown", "q": "physique"},
+            {"q": "physique"},
+        ):
+            assert self.client.get(self.url, params).status_code == 400
+        self.client.force_authenticate(user=None)
+        assert self.client.get(self.url, {"ressource": "formations", "q": "physique"}).status_code in (401, 403)
+
+    def test_results_are_paginated_and_page_size_is_capped(self):
+        Formation.objects.bulk_create([
+            Formation(code=f"PH-{index:02}", nom="Physique", type="licence", departement=self.own_department)
+            for index in range(50)
+        ])
+        first = self.client.get(self.url, {"ressource": "formations", "q": "physique", "page_size": "999"})
+        second = self.client.get(
+            self.url, {"ressource": "formations", "q": "physique", "page_size": "999", "page": "2"}
+        )
+
+        assert first.status_code == second.status_code == 200
+        assert first.data["count"] == second.data["count"] == 51
+        assert len(first.data["results"]) == 50
+        assert len(second.data["results"]) == 1

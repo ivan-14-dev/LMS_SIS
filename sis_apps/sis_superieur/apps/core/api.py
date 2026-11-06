@@ -2,16 +2,20 @@
 
 from apps.core.models import WorkflowEvent, WorkflowNotification
 from apps.core.serializers import WorkflowNotificationSerializer
-from django.db.models import Count
-from rest_framework import mixins, permissions, response, status, viewsets
+from apps.formations.models import Formation, Parcours
+from django.db.models import Count, Q
+from rest_framework import generics, mixins, permissions, response, serializers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from sis_common.authorization import has_business_permission_or_role
+from sis_common.authorization import filter_queryset_by_scopes, has_business_permission_or_role
+from sis_common.delegations import ActiveTenantAccess
 from sis_common.notification_channels import (
     notification_matches_delivery_filters,
     summarize_notification_deliveries,
     summarize_notification_delivery_trends,
 )
+from sis_common.pagination import SISPagination
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.workflow_filters import EVENT_FILTERS, PRIVATE_WORKFLOW_MODELS, filter_events, validated_event_filters
 
@@ -34,6 +38,74 @@ EVENT_REPORT_GROUPS = {
     "app_label": "app_label",
     "model": "model",
 }
+
+
+class AcademicSearchResultSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    code = serializers.CharField()
+    nom = serializers.CharField()
+
+
+class AcademicSearchPagination(SISPagination):
+    page_size = 20
+    max_page_size = 50
+
+
+class AcademicSearchView(generics.ListAPIView):
+    """Recherche GET ?ressource=formations|parcours&q=terme.
+
+    Chaque requête porte sur un seul modèle, et ne renvoie que id, code et nom.
+    Pagination : 20 résultats par défaut, au plus 50 via page_size.
+    Les formations sans rattachement sont propres au schéma du tenant courant.
+    """
+
+    permission_classes = [ActiveTenantAccess]
+    serializer_class = AcademicSearchResultSerializer
+    pagination_class = AcademicSearchPagination
+    filter_backends = []
+
+    def get_queryset(self):
+        resource = self.request.query_params.get("ressource")
+        if resource not in ("formations", "parcours"):
+            raise ValidationError({"ressource": "Choisissez formations ou parcours."})
+        raw_term = self.request.query_params.get("q", "")
+        term = raw_term.strip()
+        if (
+            not 2 <= len(term) <= 100
+            or len(raw_term) > 100
+            or any(ord(char) < 32 or ord(char) == 127 for char in raw_term)
+        ):
+            raise ValidationError({"q": "Saisissez entre 2 et 100 caractères, sans caractères de contrôle."})
+
+        model = Formation if resource == "formations" else Parcours
+        permission = f"formations.view_{model._meta.model_name}"
+        if not self.request.user.has_perm(permission):
+            raise PermissionDenied("La consultation de cette ressource exige sa permission de lecture.")
+
+        prefix = "" if model is Formation else "formation__"
+        tenant_id = self.request.tenant.pk
+        queryset = model.objects.filter(
+            Q(**{f"{prefix}departement__isnull": True})
+            | Q(**{f"{prefix}departement__faculte__universite_id": tenant_id}),
+            Q(**{f"{prefix}ecole_doctorale__isnull": True})
+            | Q(**{f"{prefix}ecole_doctorale__universite_id": tenant_id}),
+        )
+        scope_fields = (
+            {"formations": "pk", "departements": "departement_id"}
+            if model is Formation
+            else {"parcours": "pk", "formations": "formation_id", "departements": "formation__departement_id"}
+        )
+        queryset = filter_queryset_by_scopes(queryset, self.request.user, permission, scope_fields)
+        if self.request.user.role in ("etudiant", "doctorant") and not self.request.user.is_superuser:
+            from apps.etudiants.models import InscriptionAdministrative
+
+            enrolled = InscriptionAdministrative.objects.filter(etudiant__user=self.request.user).values(
+                "formation_id"
+            )
+            queryset = queryset.filter(**{f"{prefix}pk__in": enrolled})
+        return queryset.filter(Q(code__icontains=term) | Q(nom__icontains=term)).order_by("pk").values(
+            "id", "code", "nom"
+        )
 
 
 class IsWorkflowAuditor(permissions.IsAuthenticated):

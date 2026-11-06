@@ -1,6 +1,7 @@
 """API URLs for core."""
 
-from apps.core.api import WorkflowEventViewSet, WorkflowNotificationViewSet
+from apps.core.api import AcademicSearchView, WorkflowEventViewSet, WorkflowNotificationViewSet
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from sis_common.complaints import ComplaintViewSet
@@ -21,4 +22,7 @@ router.register("mandats-signature", SignatureMandateViewSet, basename="mandats-
 router.register("documents-signes", SignedDocumentViewSet, basename="documents-signes")
 router.register("correspondances", CorrespondanceViewSet, basename="correspondances")
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("recherche-academique/", AcademicSearchView.as_view(), name="recherche-academique"),
+    *router.urls,
+]
