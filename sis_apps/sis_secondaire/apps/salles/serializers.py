@@ -79,6 +79,7 @@ class EquipementSerializer(TenantBoundSerializerMixin, serializers.ModelSerializ
             "etablissement",
             "identifiant",
             "nom",
+            "actif",
             "salle",
             "salle_nom",
             "created_at",
@@ -104,6 +105,17 @@ class EquipementSerializer(TenantBoundSerializerMixin, serializers.ModelSerializ
                     "Cet identifiant est déjà utilisé dans cet établissement."
                 )
         return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        actif = attrs.get("actif", getattr(self.instance, "actif", True))
+        if not actif:
+            if attrs.get("salle") is not None:
+                raise serializers.ValidationError(
+                    {"salle": "Réactivez l'équipement avant de l'affecter à une salle."}
+                )
+            attrs["salle"] = None
+        return attrs
 
 
 class IndisponibiliteSalleSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):

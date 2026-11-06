@@ -11,6 +11,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from sis_common.authorization import is_current_tenant_user
+from sis_common.workflow_tracking import record_workflow_event
 
 from .models import Equipement, IndisponibiliteSalle, Salle
 from .serializers import (
@@ -83,12 +84,12 @@ class SallesViewSet(viewsets.ModelViewSet):
 
 
 class EquipementsViewSet(viewsets.ModelViewSet):
-    """Inventaire minimal et affectation des équipements aux salles."""
+    """Registre des équipements, affectations et désactivation réversible."""
 
     serializer_class = EquipementSerializer
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["salle"]
+    filterset_fields = ["salle", "actif"]
     search_fields = ["identifiant", "nom"]
     ordering_fields = ["identifiant", "nom"]
     ordering = ["identifiant"]
@@ -97,7 +98,55 @@ class EquipementsViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, "tenant", None)
         if tenant is None:
             return Equipement.objects.none()
-        return Equipement.objects.filter(etablissement=tenant).select_related("salle")
+        queryset = Equipement.objects.filter(etablissement=tenant).select_related("salle")
+        if self.action in ("update", "partial_update"):
+            queryset = queryset.select_for_update(of=("self",))
+        return queryset
+
+    @staticmethod
+    def _assignment_state(equipement):
+        salle = equipement.salle
+        return {
+            "actif": equipement.actif,
+            "salle_id": equipement.salle_id,
+            "salle_code": salle.code if salle else None,
+            "salle_nom": salle.nom if salle else None,
+        }
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        equipement = serializer.save()
+        record_workflow_event(
+            self.request,
+            equipement,
+            "creation",
+            "Équipement enregistré",
+            metadata={"avant": None, "apres": self._assignment_state(equipement)},
+        )
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        avant = self._assignment_state(serializer.instance)
+        equipement = serializer.save()
+        apres = self._assignment_state(equipement)
+        if avant == apres:
+            return
+        if avant["actif"] != apres["actif"]:
+            action_name = "reactivation" if apres["actif"] else "desactivation"
+            title = "Équipement réactivé" if apres["actif"] else "Équipement désactivé"
+        else:
+            action_name = "affectation"
+            title = "Affectation de l'équipement modifiée"
+        record_workflow_event(
+            self.request,
+            equipement,
+            action_name,
+            title,
+            metadata={"avant": avant, "apres": apres},
+        )
 
 
 class IndisponibilitesSalleViewSet(viewsets.ModelViewSet):

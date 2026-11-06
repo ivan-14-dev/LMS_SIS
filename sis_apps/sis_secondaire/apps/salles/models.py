@@ -50,13 +50,14 @@ class Salle(models.Model):
 
 
 class Equipement(models.Model):
-    """Équipement inventorié, éventuellement affecté à une salle."""
+    """Équipement inventorié ; seuls les équipements actifs peuvent être affectés."""
 
     etablissement = models.ForeignKey(
         Etablissement, on_delete=models.CASCADE, related_name="equipements_salles"
     )
     identifiant = models.CharField(max_length=50)
     nom = models.CharField(max_length=100)
+    actif = models.BooleanField(default=True)
     salle = models.ForeignKey(
         Salle, on_delete=models.SET_NULL, null=True, blank=True, related_name="materiel"
     )
@@ -69,7 +70,11 @@ class Equipement(models.Model):
             models.UniqueConstraint(
                 fields=["etablissement", "identifiant"],
                 name="salles_equipement_identifiant_unique",
-            )
+            ),
+            models.CheckConstraint(
+                condition=models.Q(actif=True) | models.Q(salle__isnull=True),
+                name="salles_equipement_inactif_sans_salle",
+            ),
         ]
 
     def __str__(self):

@@ -1,12 +1,16 @@
 """API tests for salles."""
 
+from unittest.mock import patch
+
 from apps.classes.models import Classe, Matiere
+from apps.core.models import WorkflowEvent
 from apps.emplois_du_temps.models import Creneau
 from apps.enseignants.models import Personnel
 from apps.etablissement.models import AnneeScolaire, Niveau
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.salles.models import Equipement, IndisponibiliteSalle, Salle
 from apps.utilisateurs.models import Utilisateur
+from django.db import IntegrityError, transaction
 from django.test import SimpleTestCase
 from django.urls import resolve
 from django_tenants.utils import schema_context
@@ -144,6 +148,116 @@ class EquipementAPITestCase(TenantAPITestCase):
         listing = self.client.get(self.url)
         results = listing.data.get("results", listing.data)
         assert [item["id"] for item in results] == [created.data["id"]]
+
+    def test_deactivation_releases_assignment_and_keeps_audited_history(self):
+        created = self.client.post(
+            self.url,
+            {"identifiant": "INV-LIFE", "nom": "Projecteur", "salle": self.room.pk},
+            format="json",
+        )
+        assert created.status_code == 201, created.data
+        assert created.data["actif"] is True
+        equipment = Equipement.objects.get(pk=created.data["id"])
+        detail_url = f"{self.url}{equipment.pk}/"
+        events = WorkflowEvent.objects.filter(
+            app_label="salles", model="equipement", object_id=str(equipment.pk)
+        )
+        assert events.get(action="creation").metadata["apres"]["salle_id"] == self.room.pk
+
+        rejected = self.client.patch(
+            detail_url, {"actif": False, "salle": self.other_room.pk}, format="json"
+        )
+        assert rejected.status_code == 400, rejected.data
+        assert "salle" in rejected.data
+        equipment.refresh_from_db()
+        assert equipment.actif is True
+        assert equipment.salle_id == self.room.pk
+        assert events.count() == 1
+
+        disabled = self.client.patch(detail_url, {"actif": False}, format="json")
+        assert disabled.status_code == 200, disabled.data
+        equipment.refresh_from_db()
+        assert equipment.actif is False
+        assert equipment.salle_id is None
+        event = events.get(action="desactivation")
+        assert event.actor.username == "equipements-admin"
+        assert event.tenant_id == self.tenant.pk
+        assert event.metadata == {
+            "avant": {
+                "actif": True, "salle_id": self.room.pk,
+                "salle_code": self.room.code, "salle_nom": self.room.nom,
+            },
+            "apres": {"actif": False, "salle_id": None, "salle_code": None, "salle_nom": None},
+        }
+        assert self.client.patch(detail_url, {"actif": False}, format="json").status_code == 200
+        for room in (self.room, self.other_room):
+            rejected = self.client.patch(detail_url, {"salle": room.pk}, format="json")
+            assert rejected.status_code == 400, rejected.data
+            assert "salle" in rejected.data
+        assert events.count() == 2
+        assert self.client.get(detail_url).data["salle"] is None
+        listing = self.client.get(self.url, {"actif": "false"})
+        assert listing.status_code == 200, listing.data
+        results = listing.data.get("results", listing.data)
+        assert [item["id"] for item in results] == [equipment.pk]
+
+        reactivated = self.client.patch(detail_url, {"actif": True}, format="json")
+        assert reactivated.status_code == 200, reactivated.data
+        assert reactivated.data["salle"] is None
+        reassigned = self.client.patch(detail_url, {"salle": self.other_room.pk}, format="json")
+        assert reassigned.status_code == 200, reassigned.data
+        equipment.refresh_from_db()
+        assert equipment.actif is True
+        assert equipment.salle_id == self.other_room.pk
+        assert events.get(action="reactivation").metadata["apres"]["salle_id"] is None
+        assert events.get(action="affectation").metadata["apres"]["salle_id"] == self.other_room.pk
+        assert events.get(action="desactivation").metadata["avant"]["salle_id"] == self.room.pk
+
+    def test_inactive_create_and_full_update_require_no_room(self):
+        payload = {"identifiant": "INV-INACTIVE", "nom": "Écran", "actif": False}
+        rejected = self.client.post(self.url, {**payload, "salle": self.room.pk}, format="json")
+        assert rejected.status_code == 400, rejected.data
+        assert "salle" in rejected.data
+        assert not Equipement.objects.filter(identifiant=payload["identifiant"]).exists()
+        created = self.client.post(self.url, payload, format="json")
+        assert created.status_code == 201, created.data
+        assert created.data["salle"] is None
+        detail_url = f"{self.url}{created.data['id']}/"
+        for update in (payload, {"identifiant": payload["identifiant"], "nom": "Écran renommé"}):
+            rejected = self.client.put(detail_url, {**update, "salle": self.room.pk}, format="json")
+            assert rejected.status_code == 400, rejected.data
+            assert "salle" in rejected.data
+        equipment = Equipement.objects.get(pk=created.data["id"])
+        assert equipment.actif is False
+        assert equipment.salle_id is None
+        reactivated = self.client.patch(
+            detail_url, {"actif": True, "salle": self.room.pk}, format="json"
+        )
+        assert reactivated.status_code == 200, reactivated.data
+        equipment.refresh_from_db()
+        assert equipment.actif is True
+        assert equipment.salle_id == self.room.pk
+
+    def test_failed_lifecycle_audit_rolls_back_deactivation(self):
+        equipment = Equipement.objects.create(
+            etablissement=self.tenant, identifiant="INV-ROLLBACK", nom="Écran", salle=self.room
+        )
+        with patch("apps.salles.api.record_workflow_event", side_effect=RuntimeError("Audit indisponible")):
+            with self.assertRaises(RuntimeError):
+                self.client.patch(f"{self.url}{equipment.pk}/", {"actif": False}, format="json")
+        equipment.refresh_from_db()
+        assert equipment.actif is True
+        assert equipment.salle_id == self.room.pk
+
+    def test_database_rejects_inactive_equipment_with_room(self):
+        equipment = Equipement.objects.create(
+            etablissement=self.tenant, identifiant="INV-CHECK", nom="Écran", salle=self.room
+        )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Equipement.objects.filter(pk=equipment.pk).update(actif=False)
+        equipment.refresh_from_db()
+        assert equipment.actif is True
+        assert equipment.salle_id == self.room.pk
 
 
 class IndisponibiliteSalleAPITestCase(TenantAPITestCase):
