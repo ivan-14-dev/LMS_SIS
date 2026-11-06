@@ -6,6 +6,9 @@ avec une clé secrète Stripe côté serveur, jamais dans le client ou dans le
 dépôt. Sans clé ou en cas d'indisponibilité Stripe, la validation échoue sans
 modifier la facture. Les espèces, chèques et autres modes conservent le circuit
 de validation manuel existant.
+La validation d'un paiement encore en attente, quel que soit son mode, refuse
+une facture annulée, même si le paiement avait été créé avant son annulation.
+Cette protection locale ne qualifie ni Stripe réel ni un parcours pilote.
 
 La référence externe doit être l'identifiant `pi_…` d'un PaymentIntent créé
 côté serveur sur ce compte Stripe. Son paiement confirmé doit être en euros,

@@ -5,7 +5,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from apps.paiements.api import PaiementsViewSet
+from apps.paiements.api import IsFinanceManager, PaiementsViewSet
 from apps.paiements.models import Facture, Paiement
 from apps.paiements.serializers import PaiementCreateSerializer
 from apps.paiements.services import PaymentConfirmationRejected, PaymentProviderUnavailable, confirm_card_payment
@@ -13,6 +13,7 @@ from django.conf import settings
 from django.test import SimpleTestCase
 from django.urls import resolve
 from rest_framework.exceptions import ValidationError
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 
 class EmptyGuardianLinks:
@@ -215,6 +216,38 @@ class CardConfirmationTests(SimpleTestCase):
         response = self._approve()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.facture.montant_paye, Decimal("25.00"))
+
+    def test_pending_cash_payment_cannot_credit_cancelled_invoice(self):
+        self.facture.statut = "annulee"
+        self.paiement.mode = "especes"
+        path = f"/api/v1/paiements/transactions/{self.paiement.pk}/valider/"
+        endpoint = resolve(path).func
+        request = APIRequestFactory().post(path)
+        request.tenant = self.tenant
+        force_authenticate(request, user=SimpleNamespace(id=1, pk=1, is_authenticated=True))
+        with (
+            patch.object(IsFinanceManager, "has_permission", return_value=True),
+            patch.object(PaiementsViewSet, "get_object", return_value=self.paiement),
+            patch.object(PaiementsViewSet, "get_throttles", return_value=[]),
+            patch.object(PaiementsViewSet, "_workflow_for_facture", return_value={}),
+            patch("apps.paiements.api.transaction.atomic", return_value=nullcontext()),
+            patch.object(Paiement, "objects") as payments,
+            patch.object(Facture, "objects") as factures,
+            patch("apps.paiements.api.workflow_transition_allowed", return_value=True),
+            patch("apps.paiements.api.record_workflow_event") as event,
+            patch("apps.paiements.api.PaiementSerializer", return_value=SimpleNamespace(data={})),
+        ):
+            payments.select_for_update.return_value.get.return_value = self.paiement
+            factures.select_for_update.return_value.get.return_value = self.facture
+            response = endpoint(request, pk=str(self.paiement.pk))
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(self.paiement.statut, "en_attente")
+        self.assertEqual(self.facture.statut, "annulee")
+        self.assertEqual(self.facture.montant_paye, Decimal("0.00"))
+        self.paiement.save.assert_not_called()
+        self.facture.save.assert_not_called()
+        event.assert_not_called()
 
     def test_card_cannot_be_accounted_as_refunded_without_provider_refund(self):
         self.paiement.statut = "valide"

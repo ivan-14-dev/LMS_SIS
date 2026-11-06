@@ -358,6 +358,8 @@ class PaiementsViewSet(viewsets.ModelViewSet):
                 workflow = self._workflow_for_facture(facture)
                 if paiement.statut != "en_attente":
                     return Response({"error": "Ce paiement a déjà été traité."}, status=409)
+                if facture.statut == "annulee":
+                    return Response({"error": "Une facture annulée n'accepte plus de paiement."}, status=409)
                 if not workflow_transition_allowed(workflow, "valider", paiement.statut, "valide"):
                     return Response({"error": "Transition non autorisée par le workflow financier."}, status=409)
                 reste = facture.montant - facture.montant_paye
