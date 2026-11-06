@@ -163,7 +163,7 @@ class TranscriptDetailSerializer(serializers.ModelSerializer):
             "signe_par_nom",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "created_at", "signe_par"]
 
     def get_annees_list(self, obj):
         return [{"id": a.id, "libelle": a.libelle} for a in obj.annees.all()]
