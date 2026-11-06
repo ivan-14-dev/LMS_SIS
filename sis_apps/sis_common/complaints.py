@@ -133,7 +133,7 @@ class ComplaintSerializer(serializers.ModelSerializer):
         coordinator = allowed(request.user, ASSIGN, request.tenant) and not owner
         handler = obj.responsable_id == request.user.pk and allowed(request.user, PROCESS, request.tenant) and not owner
         return {
-            "affecter": coordinator and obj.statut != "cloturee",
+            "affecter": coordinator and obj.statut in ("soumise", "en_cours", "complement"),
             "traiter": handler and obj.statut in ("en_cours", "complement"),
             "cloturer": (owner or handler) and obj.statut == "resolue",
             "recours": owner and obj.statut in ("resolue", "cloturee"),

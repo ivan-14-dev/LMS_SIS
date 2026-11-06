@@ -258,6 +258,38 @@ class ComplaintTests(TenantAPITestCase):
             assert self.client.get(f"{BASE}{item['id']}/").status_code == 404
             assert self.client.get(BASE).data["count"] == 0
 
+    def test_decided_complaint_cannot_be_reassigned_until_appeal_reopens_it(self):
+        item = self.assigned()
+        decided = self.post(item, "transition", self.handler, statut="resolue", message="Décision initiale.")
+        assert decided.status_code == 200, decided.data
+        item = decided.data
+        self.client.force_authenticate(self.coordinator)
+        assert self.client.get(f"{BASE}{item['id']}/").data["actions"]["affecter"] is False
+        before_history = list(item["historique"])
+        rejected = self.post(item, "affecter", self.coordinator, responsable=self.other_handler.pk)
+        assert rejected.status_code == 403, rejected.data
+        obj = Reclamation.objects.get(pk=item["id"])
+        assert obj.responsable_id == self.handler.pk
+        assert obj.version == item["version"]
+        assert obj.decision == "Décision initiale."
+        assert list(ReclamationEntry.objects.filter(reclamation=obj).values_list("message", flat=True)) == [
+            entry["message"] for entry in before_history
+        ]
+
+        appealed = self.post(item, "transition", self.owner, statut="recours", message="Nouvel élément.")
+        assert appealed.status_code == 200, appealed.data
+        self.client.force_authenticate(self.coordinator)
+        assert self.client.get(f"{BASE}{item['id']}/").data["actions"]["affecter"] is True
+        reassigned = self.post(appealed.data, "affecter", self.coordinator, responsable=self.other_handler.pk)
+        assert reassigned.status_code == 200, reassigned.data
+        assert reassigned.data["decision"] == "Décision initiale."
+        assert [entry["message"] for entry in reassigned.data["historique"][: len(before_history)]] == [
+            entry["message"] for entry in before_history
+        ]
+        assert self.post(reassigned.data, "message", self.handler, message="Ancien agent").status_code == 404
+        self.client.force_authenticate(self.other_handler)
+        assert self.client.get(f"{BASE}{item['id']}/").status_code == 200
+
     def test_invalid_upload_and_notification_failure_leave_no_file_or_partial_history(self):
         item = self.create()
         response = self.client.post(
