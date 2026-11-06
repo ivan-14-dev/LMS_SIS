@@ -1,6 +1,7 @@
 """API views for paiements (ViewSets DRF) - SIS Supérieur."""
 
 import uuid
+from decimal import Decimal
 from pathlib import Path
 
 from apps.core.serializers import WorkflowEventSerializer
@@ -162,6 +163,21 @@ class FacturesViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = FactureFrais.objects.select_related("etudiant__user", "type_frais")
         user = self.request.user
+        if self.action == "solde":
+            tenant_id = getattr(self.request.tenant, "pk", None)
+            qs = qs.filter(
+                etudiant__universite_id=tenant_id,
+                type_frais__annee_universitaire__universite_id=tenant_id,
+            )
+            if getattr(user, "etablissement_id", None) != tenant_id:
+                return qs.none()
+            if getattr(user, "role", None) in ("etudiant", "doctorant"):
+                return qs.filter(etudiant__user_id=user.pk)
+            if getattr(user, "role", None) == "parent":
+                return qs.none()
+            if IsFinanceManager().has_permission(self.request, self):
+                return qs
+            return qs.none()
         if IsFinanceManager().has_permission(self.request, self):
             return qs
         if hasattr(user, "etudiant_profile"):
@@ -177,6 +193,22 @@ class FacturesViewSet(viewsets.ModelViewSet):
         # Générer un numéro de facture unique
         numero = f"FACT-{timezone.now().strftime('%Y%m')}-{uuid.uuid4().hex[:6].upper()}"
         serializer.save(numero=numero)
+
+    @action(detail=True, methods=["get"])
+    def solde(self, request, pk=None):
+        """Calcule le solde à partir des seuls paiements validés encore actifs."""
+        facture = self.get_object()
+        confirme = (
+            facture.paiements.filter(statut="valide").aggregate(total=Sum("montant"))["total"] or Decimal("0.00")
+        )
+        return Response(
+            {
+                "facture": facture.pk,
+                "montant_facture": facture.montant,
+                "montant_confirme": confirme,
+                "reste_a_payer": facture.montant - confirme,
+            }
+        )
 
     @action(detail=True, methods=["get"])
     def paiements(self, request, pk=None):

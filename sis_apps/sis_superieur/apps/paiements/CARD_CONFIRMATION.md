@@ -1,5 +1,13 @@
 # Validation des paiements par carte
 
+`GET /api/v1/paiements/factures/{id}/solde/` renvoie le montant de la facture,
+le total confirmé et le reste à payer calculés côté serveur à partir des
+transactions encore `valide` uniquement. Une carte en attente, rejetée ou
+remboursée ne crédite pas ce solde ; la lecture ne valide aucun paiement.
+Seuls l'étudiant propriétaire et un responsable financier rattaché à
+l'université courante peuvent consulter cette route. Aucun lien parent–étudiant
+fiable n'étant défini ici, un compte parent n'a pas accès au solde.
+
 `POST /api/v1/paiements/transactions/{id}/valider/` consulte **Stripe** avant de
 créditer une facture pour le mode `carte`. Renseigner `SIS_STRIPE_SECRET_KEY`
 avec une clé secrète Stripe côté serveur, jamais dans le client ou dans le

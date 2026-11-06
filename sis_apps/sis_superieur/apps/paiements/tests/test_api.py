@@ -5,13 +5,20 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from apps.etablissement.models import AnneeUniversitaire, Universite
+from apps.etudiants.models import Etudiant
+from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.paiements.api import FacturesViewSet, PaiementsViewSet
-from apps.paiements.models import FactureFrais, PaiementFrais
+from apps.paiements.models import FactureFrais, PaiementFrais, TypeFraisInscription
 from apps.paiements.serializers import FactureFraisDetailSerializer, PaiementCreateSerializer
 from apps.paiements.services import PaymentConfirmationRejected, PaymentProviderUnavailable, confirm_card_payment
+from apps.utilisateurs.models import Utilisateur
 from django.conf import settings
+from django.db import connection
 from django.test import SimpleTestCase
 from django.urls import resolve
+from django.utils import timezone
+from django_tenants.utils import schema_context
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory, force_authenticate
 
@@ -103,6 +110,145 @@ class InvoiceStateAPITests(SimpleTestCase):
                 self.assertIn("montant", response.data)
                 self.assertEqual(facture.montant, Decimal("100.00"))
                 facture.save.assert_not_called()
+
+
+class ConfirmedInvoiceBalanceTests(TenantAPITestCase):
+    def setUp(self):
+        today = timezone.localdate()
+        self.student_user = Utilisateur.objects.create_user(
+            "balance-student", role="etudiant", etablissement=self.tenant
+        )
+        self.student = Etudiant.objects.create(
+            universite=self.tenant,
+            user=self.student_user,
+            matricule="BAL-1",
+            date_naissance=today,
+            lieu_naissance="Test",
+            sexe="F",
+        )
+        self.year = AnneeUniversitaire.objects.create(
+            universite=self.tenant,
+            libelle="balance-year",
+            date_debut=today,
+            date_fin=today,
+        )
+        self.rubric = TypeFraisInscription.objects.create(
+            annee_universitaire=self.year, code="BAL", libelle="Frais de test", montant=Decimal("100.00")
+        )
+        self.invoice = self._invoice(self.student, self.rubric, "BAL-INV-1")
+        self.manager = Utilisateur.objects.create_user("balance-manager", role="comptable", etablissement=self.tenant)
+        self.url = f"/api/v1/paiements/factures/{self.invoice.pk}/solde/"
+
+    def _invoice(self, student, rubric, numero):
+        today = timezone.localdate()
+        return FactureFrais.objects.create(
+            etudiant=student,
+            type_frais=rubric,
+            numero=numero,
+            date_emission=today,
+            date_echeance=today,
+            montant=Decimal("100.00"),
+        )
+
+    def _payment(self, numero, amount, status, *, mode="especes"):
+        return PaiementFrais.objects.create(
+            facture=self.invoice,
+            numero=numero,
+            date_paiement=timezone.localdate(),
+            montant=Decimal(amount),
+            mode=mode,
+            statut=status,
+        )
+
+    def test_validated_payment_produces_server_derived_full_balance(self):
+        self._payment("BAL-PAY-1", "100.00", "valide")
+        self.client.force_authenticate(self.student_user)
+        self.assertEqual(resolve(self.url).url_name, "facture-solde")
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["montant_facture"], Decimal("100.00"))
+        self.assertEqual(response.data["montant_confirme"], Decimal("100.00"))
+        self.assertEqual(response.data["reste_a_payer"], Decimal("0.00"))
+        self.invoice.refresh_from_db()
+        self.assertEqual(self.invoice.montant_paye, Decimal("0.00"))
+
+    def test_partial_balance_excludes_pending_card_and_refunded_payment(self):
+        self._payment("BAL-PAY-2", "25.00", "valide")
+        self._payment("BAL-PAY-3", "50.00", "en_attente", mode="carte")
+        self._payment("BAL-PAY-4", "25.00", "rembourse")
+        self.client.force_authenticate(self.manager)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["montant_confirme"], Decimal("25.00"))
+        self.assertEqual(response.data["reste_a_payer"], Decimal("75.00"))
+
+    def test_unrelated_student_parent_and_foreign_university_are_denied(self):
+        other_user = Utilisateur.objects.create_user("balance-other", role="etudiant", etablissement=self.tenant)
+        parent = Utilisateur.objects.create_user("balance-parent", role="parent", etablissement=self.tenant)
+        parent.is_superuser = True
+        parent.save(update_fields=["is_superuser"])
+        foreign = Universite(schema_name="foreign_balance")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        foreign_manager = Utilisateur.objects.create_user(
+            "balance-foreign-manager", role="comptable", etablissement=foreign
+        )
+        foreign_year = AnneeUniversitaire.objects.create(
+            universite=foreign, libelle="foreign-balance", date_debut=timezone.localdate(),
+            date_fin=timezone.localdate(),
+        )
+        foreign_rubric = TypeFraisInscription.objects.create(
+            annee_universitaire=foreign_year, code="FOREIGN", libelle="Frais étrangers", montant=Decimal("100.00")
+        )
+        foreign_invoice = self._invoice(self.student, foreign_rubric, "BAL-FOREIGN-1")
+        foreign_student_user = Utilisateur.objects.create_user(
+            "balance-foreign-student", role="etudiant", etablissement=foreign
+        )
+        foreign_student = Etudiant.objects.create(
+            universite=foreign,
+            user=foreign_student_user,
+            matricule="BAL-FOREIGN",
+            date_naissance=timezone.localdate(),
+            lieu_naissance="Test",
+            sexe="F",
+        )
+        foreign_student_invoice = self._invoice(foreign_student, self.rubric, "BAL-FOREIGN-2")
+        for actor, url in (
+            (other_user, self.url),
+            (parent, self.url),
+            (foreign_manager, self.url),
+            (self.manager, f"/api/v1/paiements/factures/{foreign_invoice.pk}/solde/"),
+            (self.student_user, f"/api/v1/paiements/factures/{foreign_invoice.pk}/solde/"),
+            (self.manager, f"/api/v1/paiements/factures/{foreign_student_invoice.pk}/solde/"),
+            (foreign_student_user, f"/api/v1/paiements/factures/{foreign_student_invoice.pk}/solde/"),
+        ):
+            with self.subTest(actor=actor.username, url=url):
+                self.client.force_authenticate(actor)
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 404, response.data)
+        self.assertEqual(connection.schema_name, self.tenant.schema_name)
+
+    def test_repeated_balance_reads_never_credit_or_create_payments(self):
+        pending = self._payment("BAL-PAY-5", "100.00", "en_attente", mode="carte")
+        self.client.force_authenticate(self.student_user)
+
+        first = self.client.get(self.url)
+        second = self.client.get(self.url)
+
+        self.assertEqual(first.status_code, 200, first.data)
+        self.assertEqual(second.data, first.data)
+        self.assertEqual(second.data["montant_confirme"], Decimal("0.00"))
+        self.assertEqual(PaiementFrais.objects.filter(facture=self.invoice).count(), 1)
+        pending.refresh_from_db()
+        self.invoice.refresh_from_db()
+        self.assertEqual(pending.statut, "en_attente")
+        self.assertEqual(self.invoice.montant_paye, Decimal("0.00"))
 
 
 class CardConfirmationTests(SimpleTestCase):
