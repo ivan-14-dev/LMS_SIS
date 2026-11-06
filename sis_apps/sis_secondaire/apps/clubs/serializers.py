@@ -1,5 +1,6 @@
 """Serializers for clubs (SIS Secondaire)."""
 
+from django.db import transaction
 from rest_framework import serializers
 
 from sis_common.serializers import TenantBoundSerializerMixin
@@ -65,6 +66,18 @@ class ClubDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializ
     def get_nb_membres(self, obj):
         return obj.membres.filter(statut="actif").count()
 
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        club = Club.objects.select_for_update().get(pk=instance.pk)
+        if (
+            "capacite" in validated_data
+            and MembreClub.objects.filter(club=club, statut="actif").count() > validated_data["capacite"]
+        ):
+            raise serializers.ValidationError(
+                {"capacite": "La capacité ne peut être inférieure au nombre de membres actifs."}
+            )
+        return super().update(club, validated_data)
+
 
 class MembreClubSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les membres."""
@@ -90,6 +103,31 @@ class MembreClubSerializer(TenantBoundSerializerMixin, serializers.ModelSerializ
             "statut_display",
         ]
         read_only_fields = ["id", "date_inscription"]
+
+    def _check_capacity(self, attrs, instance=None):
+        club = attrs.get("club", instance.club if instance is not None else None)
+        statut = attrs.get("statut", instance.statut if instance is not None else "actif")
+        if statut != "actif" or (
+            instance is not None and instance.statut == "actif" and instance.club_id == club.pk
+        ):
+            return
+
+        club = Club.objects.select_for_update().get(pk=club.pk)
+        membres = MembreClub.objects.filter(club=club, statut="actif")
+        if instance is not None:
+            membres = membres.exclude(pk=instance.pk)
+        if membres.count() >= club.capacite:
+            raise serializers.ValidationError({"club": "La capacité du club est atteinte."})
+
+    @transaction.atomic
+    def create(self, validated_data):
+        self._check_capacity(validated_data)
+        return super().create(validated_data)
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        self._check_capacity(validated_data, instance)
+        return super().update(instance, validated_data)
 
 
 class SeanceClubSerializer(serializers.ModelSerializer):

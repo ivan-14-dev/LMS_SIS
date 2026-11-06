@@ -103,8 +103,9 @@ class MembresClubViewSet(viewsets.ModelViewSet):
     def reactiver(self, request, pk=None):
         """Réactive un membre."""
         membre = self.get_object()
-        membre.statut = "actif"
-        membre.save(update_fields=["statut"])
+        serializer = self.get_serializer(membre, data={"statut": "actif"}, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response({"detail": "Membre réactivé.", "id": membre.id})
 
 
