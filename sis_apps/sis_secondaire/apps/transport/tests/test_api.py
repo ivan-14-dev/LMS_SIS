@@ -1,10 +1,14 @@
 """API tests for transport."""
 
+from datetime import datetime
+
+import pytest
 from apps.eleves.models import Eleve
 from apps.etablissement.models import AnneeScolaire
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
-from apps.transport.models import Arret, InscriptionTransport, LigneTransport, Vehicule
+from apps.transport.models import Arret, InscriptionTransport, LigneTransport, TrajetScolaire, Vehicule
 from apps.utilisateurs.models import Utilisateur
+from django.db import IntegrityError, transaction
 from django.test import SimpleTestCase
 from django.urls import resolve
 
@@ -16,7 +20,113 @@ class TransportAPITestCase(SimpleTestCase):
         assert resolve("/api/v1/transport/lignes-transport/").url_name == "ligne-transport-list"
         assert resolve("/api/v1/transport/arrets/").url_name == "arret-list"
         assert resolve("/api/v1/transport/vehicules/").url_name == "vehicule-list"
+        assert resolve("/api/v1/transport/trajets-scolaires/").url_name == "trajet-scolaire-list"
         assert resolve("/api/v1/transport/inscriptions-transport/").url_name == "inscription-transport-list"
+
+
+class TransportTripTestCase(TenantAPITestCase):
+    url = "/api/v1/transport/trajets-scolaires/"
+
+    def setUp(self):
+        self.admin = Utilisateur.objects.create_superuser(
+            "trip-admin", role="super_admin", etablissement=self.tenant
+        )
+        self.client.force_authenticate(self.admin)
+        self.line = LigneTransport.objects.create(nom="Ligne A", itineraire="A-B")
+        self.other_line = LigneTransport.objects.create(nom="Ligne B", itineraire="C-D")
+        self.vehicle = Vehicule.objects.create(
+            immatriculation="TRIP-A", ligne=self.line, capacite=20, chauffeur="Conducteur"
+        )
+        self.other_vehicle = Vehicule.objects.create(
+            immatriculation="TRIP-B", ligne=self.other_line, capacite=20, chauffeur="Conducteur"
+        )
+
+    def payload(
+        self, *, vehicle=None, line=None,
+        start="2026-11-09T08:00:00+01:00", end="2026-11-09T09:00:00+01:00",
+    ):
+        return {
+            "ligne": (line or self.line).pk,
+            "vehicule": (vehicle or self.vehicle).pk,
+            "depart_at": start,
+            "arrivee_at": end,
+        }
+
+    def test_vehicle_cannot_be_double_booked_across_lines_but_adjacent_trips_are_allowed(self):
+        first = self.client.post(self.url, self.payload(), format="json")
+        assert first.status_code == 201, first.data
+        overlap = self.client.post(
+            self.url,
+            self.payload(line=self.other_line, start="2026-11-09T08:30:00+01:00",
+                         end="2026-11-09T09:30:00+01:00"),
+            format="json",
+        )
+        assert overlap.status_code == 400, overlap.data
+        assert "vehicule" in overlap.data
+        assert TrajetScolaire.objects.count() == 1
+
+        adjacent = self.client.post(
+            self.url,
+            self.payload(start="2026-11-09T09:00:00+01:00", end="2026-11-09T10:00:00+01:00"),
+            format="json",
+        )
+        other_vehicle = self.client.post(
+            self.url,
+            self.payload(vehicle=self.other_vehicle, start="2026-11-09T08:30:00+01:00",
+                         end="2026-11-09T09:30:00+01:00"),
+            format="json",
+        )
+        next_day = self.client.post(
+            self.url,
+            self.payload(start="2026-11-10T08:00:00+01:00", end="2026-11-10T09:00:00+01:00"),
+            format="json",
+        )
+        assert adjacent.status_code == other_vehicle.status_code == next_day.status_code == 201
+        assert self.client.get(f"{self.url}{first.data['id']}/").status_code == 200
+
+        move = self.client.patch(
+            f"{self.url}{adjacent.data['id']}/",
+            {"depart_at": "2026-11-09T08:45:00+01:00"}, format="json",
+        )
+        assert move.status_code == 400, move.data
+        assert "vehicule" in move.data
+        assert TrajetScolaire.objects.get(pk=adjacent.data["id"]).depart_at == datetime.fromisoformat(
+            "2026-11-09T09:00:00+01:00"
+        )
+
+    def test_invalid_times_and_direct_database_overlap_are_rejected(self):
+        invalid = self.client.post(
+            self.url,
+            self.payload(end="2026-11-09T08:00:00+01:00"), format="json",
+        )
+        assert invalid.status_code == 400, invalid.data
+        assert "arrivee_at" in invalid.data
+
+        first = self.client.post(self.url, self.payload(), format="json")
+        assert first.status_code == 201, first.data
+        with pytest.raises(IntegrityError), transaction.atomic():
+            TrajetScolaire.objects.create(
+                ligne=self.other_line, vehicule=self.vehicle,
+                depart_at="2026-11-09T08:59:00+01:00",
+                arrivee_at="2026-11-09T10:00:00+01:00",
+            )
+        with pytest.raises(IntegrityError), transaction.atomic():
+            TrajetScolaire.objects.create(
+                ligne=self.line, vehicule=self.other_vehicle,
+                depart_at="2026-11-09T10:00:00+01:00",
+                arrivee_at="2026-11-09T10:00:00+01:00",
+            )
+        assert TrajetScolaire.objects.count() == 1
+
+    def test_write_requires_existing_transport_permission(self):
+        pupil = Utilisateur.objects.create_user(
+            "trip-pupil", role="eleve", etablissement=self.tenant
+        )
+        self.client.force_authenticate(pupil)
+        assert self.client.get(self.url).status_code == 200
+        denied = self.client.post(self.url, self.payload(), format="json")
+        assert denied.status_code == 403
+        assert TrajetScolaire.objects.count() == 0
 
 
 class TransportCapacityTestCase(TenantAPITestCase):

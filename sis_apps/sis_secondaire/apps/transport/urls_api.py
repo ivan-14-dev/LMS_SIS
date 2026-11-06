@@ -6,6 +6,7 @@ from .api import (
     ArretsViewSet,
     InscriptionsTransportViewSet,
     LignesTransportViewSet,
+    TrajetsScolairesViewSet,
     VehiculesViewSet,
 )
 
@@ -15,6 +16,7 @@ router = DefaultRouter()
 router.register("lignes-transport", LignesTransportViewSet, basename="ligne-transport")
 router.register("arrets", ArretsViewSet, basename="arret")
 router.register("vehicules", VehiculesViewSet, basename="vehicule")
+router.register("trajets-scolaires", TrajetsScolairesViewSet, basename="trajet-scolaire")
 router.register("inscriptions-transport", InscriptionsTransportViewSet, basename="inscription-transport")
 
 urlpatterns = router.urls

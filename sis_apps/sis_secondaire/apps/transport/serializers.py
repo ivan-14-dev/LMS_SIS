@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from sis_common.serializers import TenantBoundSerializerMixin
 
-from .models import Arret, InscriptionTransport, LigneTransport, Vehicule
+from .models import Arret, InscriptionTransport, LigneTransport, TrajetScolaire, Vehicule
 
 
 class ArretSerializer(serializers.ModelSerializer):
@@ -104,6 +104,21 @@ class VehiculeSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+class TrajetScolaireSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TrajetScolaire
+        fields = ["id", "ligne", "vehicule", "depart_at", "arrivee_at"]
+        read_only_fields = ["id"]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        depart = attrs.get("depart_at", getattr(self.instance, "depart_at", None))
+        arrivee = attrs.get("arrivee_at", getattr(self.instance, "arrivee_at", None))
+        if depart and arrivee and depart >= arrivee:
+            raise serializers.ValidationError({"arrivee_at": "L'arrivée doit suivre le départ."})
+        return attrs
 
 
 class InscriptionTransportSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):

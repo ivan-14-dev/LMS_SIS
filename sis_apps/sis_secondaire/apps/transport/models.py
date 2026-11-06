@@ -1,7 +1,10 @@
 """Models for transport (SIS Secondaire)."""
 
 from apps.eleves.models import Eleve
+from django.contrib.postgres.constraints import ExclusionConstraint
+from django.contrib.postgres.fields import DateTimeRangeField, RangeOperators
 from django.db import models
+from django.db.models import F, Func, Q, Value
 
 
 class LigneTransport(models.Model):
@@ -77,6 +80,44 @@ class Vehicule(models.Model):
 
     def __str__(self):
         return f"{self.immatriculation} - {self.modele}"
+
+
+class TrajetScolaire(models.Model):
+    """Trajet ponctuel, distinct de la ligne et de son véhicule habituels."""
+
+    ligne = models.ForeignKey(
+        LigneTransport, on_delete=models.PROTECT, related_name="trajets"
+    )
+    vehicule = models.ForeignKey(
+        Vehicule, on_delete=models.PROTECT, related_name="trajets"
+    )
+    depart_at = models.DateTimeField()
+    arrivee_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["depart_at", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(arrivee_at__gt=F("depart_at")),
+                name="transport_trajet_positive_duration",
+            ),
+            ExclusionConstraint(
+                name="transport_trajet_vehicle_no_overlap",
+                expressions=[
+                    (
+                        Func(
+                            F("depart_at"),
+                            F("arrivee_at"),
+                            Value("[)"),
+                            function="TSTZRANGE",
+                            output_field=DateTimeRangeField(),
+                        ),
+                        RangeOperators.OVERLAPS,
+                    ),
+                    ("vehicule", RangeOperators.EQUAL),
+                ],
+            ),
+        ]
 
 
 class InscriptionTransport(models.Model):

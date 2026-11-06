@@ -1,6 +1,6 @@
 """API views for transport (ViewSets DRF) - SIS Secondaire."""
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q, Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
@@ -12,12 +12,13 @@ from rest_framework.response import Response
 
 from sis_common.authorization import request_has_business_access
 
-from .models import Arret, InscriptionTransport, LigneTransport, Vehicule
+from .models import Arret, InscriptionTransport, LigneTransport, TrajetScolaire, Vehicule
 from .serializers import (
     ArretSerializer,
     InscriptionTransportSerializer,
     LigneTransportDetailSerializer,
     LigneTransportListSerializer,
+    TrajetScolaireSerializer,
     VehiculeSerializer,
 )
 
@@ -104,6 +105,35 @@ class VehiculesViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Vehicule.objects.select_related("ligne")
+
+
+class TrajetsScolairesViewSet(viewsets.ModelViewSet):
+    """Affectations ponctuelles de véhicules, indépendantes de leur ligne habituelle."""
+
+    permission_classes = [IsIntendanceOrReadOnly]
+    serializer_class = TrajetScolaireSerializer
+    queryset = TrajetScolaire.objects.select_related("ligne", "vehicule")
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ["ligne", "vehicule"]
+    ordering = ["depart_at", "id"]
+
+    def _save_trip(self, serializer):
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError as exc:
+            constraint = getattr(getattr(exc.__cause__, "diag", None), "constraint_name", None)
+            if constraint == "transport_trajet_vehicle_no_overlap":
+                raise ValidationError(
+                    {"vehicule": "Ce véhicule est déjà affecté pendant ce trajet."}
+                ) from exc
+            raise
+
+    def perform_create(self, serializer):
+        self._save_trip(serializer)
+
+    def perform_update(self, serializer):
+        self._save_trip(serializer)
 
 
 class InscriptionsTransportViewSet(viewsets.ModelViewSet):
