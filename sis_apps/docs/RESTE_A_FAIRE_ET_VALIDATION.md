@@ -28,6 +28,20 @@ carte avant la contrainte unique, et requalifier le vrai Stripe, Open edX et
 les parcours navigateur. Aucune nouvelle campagne à 500 connexions n'a été validée ;
 ne cocher aucune exigence supplémentaire sur la seule base de ce lot.
 
+**Avancement du 6 novembre 2026 :** neuf correctifs bornés ont été testés,
+committés et poussés : validation des imports Excel, séparation des acteurs
+courrier, diagnostic des écritures incertaines à la charge, lint des utilitaires
+frontend, refus du rejeu LMS après changement d'établissement, refus du
+remboursement comptable d'une carte sans preuve Stripe, revalidation des
+portails, précontrôle des références carte avant migration et périmètre des
+anciens portails. Les suites ciblées passent dans les deux SIS, la nouvelle
+construction frontend passe et les 31 tests hors ligne du banc de charge
+passent. Le registre de session indique 179 tâches terminées, 8 en cours,
+28 en attente et 3 bloquées ; **les 94 exigences gardent leurs statuts**.
+Le patch Open edX de rejeu d'un cours attend encore des tests sur une base
+LMS isolée. Aucun nouveau déploiement, pilote réel ni passage à 500 vert
+n'a été démontré.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
