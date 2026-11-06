@@ -56,6 +56,18 @@ class BilanECTSSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "date_calcul", "created_at"]
 
     def validate(self, attrs):
+        if self.instance is None or {"credits_inscrits", "credits_valides"} & attrs.keys():
+            inscrits = attrs.get(
+                "credits_inscrits", getattr(self.instance, "credits_inscrits", 0)
+            )
+            valides = attrs.get(
+                "credits_valides", getattr(self.instance, "credits_valides", 0)
+            )
+            if valides > inscrits:
+                raise serializers.ValidationError(
+                    {"credits_valides": "Les crédits validés ne peuvent pas dépasser les crédits inscrits."}
+                )
+
         inscription = attrs.get("inscription_admin")
         if inscription is None and self.instance is not None:
             inscription = self.instance.inscription_admin
