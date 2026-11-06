@@ -10,7 +10,10 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from sisctl import ROOT, compose, read_configuration, variants
+if __package__:
+    from .sisctl import ROOT, compose, read_configuration, variants
+else:
+    from sisctl import ROOT, compose, read_configuration, variants
 
 RESTIC_IMAGE = "restic/restic:0.18.1"
 
@@ -207,7 +210,7 @@ def restore(options, configuration):
                 f"type=volume,source={name},target=/target,readonly",
                 RESTIC_IMAGE,
                 "-c",
-                "find /target -type f -print -quit",
+                "find /target -mindepth 1 -print -quit",
             ],
             check=True,
             capture_output=True,
