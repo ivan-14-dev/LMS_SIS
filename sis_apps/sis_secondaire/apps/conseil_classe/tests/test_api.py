@@ -4,6 +4,11 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from apps.conseil_classe.api import ConseilsClasseViewSet, IsDirectionOrReadOnly
+from apps.classes.models import Classe
+from apps.conseil_classe.models import ConseilClasse
+from apps.etablissement.models import AnneeScolaire, Niveau, Periode
+from apps.integration.tests.tenant_test_case import TenantAPITestCase
+from apps.utilisateurs.models import Utilisateur
 from django.test import SimpleTestCase
 from django.urls import resolve
 
@@ -112,3 +117,77 @@ class ConseilWorkflowActionsTestCase(SimpleTestCase):
         assert conseil.statut == "valide"
         conseil.save.assert_called_once_with(update_fields=["statut"])
         mock_event.assert_called_once()
+
+
+class ConseilWorkflowHTTPTestCase(TenantAPITestCase):
+    def setUp(self):
+        manager = Utilisateur.objects.create_superuser(
+            "conseil-manager", role="super_admin", etablissement=self.tenant
+        )
+        self.client.force_authenticate(manager)
+        annee = AnneeScolaire.objects.create(
+            etablissement=self.tenant,
+            libelle="2026-2027",
+            date_debut="2026-09-01",
+            date_fin="2027-06-30",
+        )
+        niveau = Niveau.objects.create(
+            etablissement=self.tenant, code="6e", libelle="6ème", ordre=1
+        )
+        classe = Classe.objects.create(
+            etablissement=self.tenant,
+            annee_scolaire=annee,
+            niveau=niveau,
+            nom="6e A",
+        )
+        periode = Periode.objects.create(
+            annee_scolaire=annee,
+            type="trimestre",
+            numero=1,
+            date_debut="2026-09-01",
+            date_fin="2026-12-20",
+        )
+        self.url = "/api/v1/conseils/conseils-classe/"
+        self.payload = {
+            "classe": classe.pk,
+            "periode": periode.pk,
+            "date": "2026-12-15T09:00:00Z",
+            "president": manager.pk,
+        }
+
+    def test_create_cannot_start_validated(self):
+        response = self.client.post(
+            self.url, {**self.payload, "statut": "valide"}, format="json"
+        )
+
+        assert response.status_code == 400, response.data
+        assert not ConseilClasse.objects.exists()
+
+    def test_patch_cannot_bypass_workflow_actions(self):
+        created = self.client.post(self.url, self.payload, format="json")
+        assert created.status_code == 201, created.data
+        url = f"{self.url}{created.data['id']}/"
+
+        for statut in ("tenu", "valide"):
+            response = self.client.patch(url, {"statut": statut}, format="json")
+            assert response.status_code == 400, response.data
+            assert ConseilClasse.objects.get(pk=created.data["id"]).statut == "planifie"
+
+        assert self.client.post(f"{url}tenir/").status_code == 200
+        response = self.client.patch(url, {"statut": "valide"}, format="json")
+        assert response.status_code == 400, response.data
+        assert ConseilClasse.objects.get(pk=created.data["id"]).statut == "tenu"
+
+        assert self.client.post(f"{url}valider/").status_code == 200
+        assert ConseilClasse.objects.get(pk=created.data["id"]).statut == "valide"
+
+    def test_planned_conseil_can_still_be_cancelled(self):
+        created = self.client.post(self.url, self.payload, format="json")
+        assert created.status_code == 201, created.data
+
+        response = self.client.patch(
+            f"{self.url}{created.data['id']}/", {"statut": "annule"}, format="json"
+        )
+
+        assert response.status_code == 200, response.data
+        assert ConseilClasse.objects.get(pk=created.data["id"]).statut == "annule"

@@ -79,6 +79,18 @@ class ConseilClasseDetailSerializer(TenantBoundSerializerMixin, serializers.Mode
             raise serializers.ValidationError({"periode": "La période doit appartenir à l'année de la classe."})
         return attrs
 
+    def validate_statut(self, statut):
+        if self.instance is None:
+            if statut != "planifie":
+                raise serializers.ValidationError("Un nouveau conseil doit être planifié.")
+        elif statut != self.instance.statut and not (
+            statut == "annule" and self.instance.statut in ("planifie", "tenu")
+        ):
+            raise serializers.ValidationError(
+                "La tenue et la validation doivent passer par leurs actions dédiées."
+            )
+        return statut
+
 
 class DecisionConseilSerializer(serializers.ModelSerializer):
     """Serializer pour les décisions."""
