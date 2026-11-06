@@ -55,6 +55,25 @@ class BilanECTSSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "date_calcul", "created_at"]
 
+    def validate(self, attrs):
+        inscription = attrs.get("inscription_admin")
+        if inscription is None and self.instance is not None:
+            inscription = self.instance.inscription_admin
+        if inscription is None:
+            return attrs
+
+        for field in ("etudiant", "annee_universitaire"):
+            identity_id = (
+                attrs[field].pk
+                if field in attrs
+                else getattr(self.instance, f"{field}_id", None)
+            )
+            if identity_id is not None and identity_id != getattr(inscription, f"{field}_id"):
+                raise serializers.ValidationError(
+                    {field: "Le bilan doit correspondre à l'inscription administrative."}
+                )
+        return attrs
+
     def get_ues_validees_list(self, obj):
         return [
             {"id": ue.id, "code": ue.code, "nom": ue.nom, "credits": ue.credits}
