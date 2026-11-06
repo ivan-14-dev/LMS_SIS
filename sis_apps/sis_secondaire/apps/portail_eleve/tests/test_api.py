@@ -57,6 +57,7 @@ class PortailNiveauTestCase(TenantAPITestCase):
 
     def get_action(self, viewset, action, user, **params):
         request = APIRequestFactory().get("/", params)
+        request.tenant = self.tenant
         force_authenticate(request, user=user)
         response = viewset.as_view({"get": action})(request)
         self.assertEqual(response.status_code, 200)

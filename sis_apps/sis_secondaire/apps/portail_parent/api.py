@@ -5,10 +5,13 @@ from apps.emplois_du_temps.models import Creneau
 from apps.notes.models import Bulletin, Note
 from apps.paiements.models import Facture
 from apps.presences.models import Presence
+from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from sis_common.authorization import is_current_tenant_user
 
 UNPAID_STATUSES = ("emise", "partielle", "en_retard")
 
@@ -23,7 +26,12 @@ class IsParent(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        return hasattr(request.user, "tuteur_profile")
+        return (
+            request.user.role == "parent"
+            and is_current_tenant_user(request)
+            and hasattr(request.user, "tuteur_profile")
+            and request.user.tuteur_profile.etablissement_id == request.tenant.pk
+        )
 
 
 class PortailParentViewSet(viewsets.ViewSet):
@@ -32,9 +40,16 @@ class PortailParentViewSet(viewsets.ViewSet):
     permission_classes = [IsParent]
 
     def _authorized_links(self, request):
+        tenant_id = request.tenant.pk
         return EleveTuteur.objects.filter(
             tuteur=request.user.tuteur_profile,
+            tuteur__etablissement_id=tenant_id,
             autorise_acces_portail=True,
+            eleve__etablissement_id=tenant_id,
+            eleve__user__etablissement_id=tenant_id,
+        ).filter(
+            Q(eleve__classe_actuelle__isnull=True)
+            | Q(eleve__classe_actuelle__etablissement_id=tenant_id)
         ).select_related("eleve__user", "eleve__classe_actuelle__niveau")
 
     def _get_enfants(self, request):

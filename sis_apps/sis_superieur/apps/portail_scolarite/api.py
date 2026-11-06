@@ -200,7 +200,7 @@ class PortailScolariteViewSet(viewsets.ViewSet):
                 "statut": i.statut,
                 "annee_en_cours": i.annee_universitaire.en_cours,
             }
-            for i in etudiant.inscriptions_admin.select_related(
+            for i in self._inscriptions_queryset().filter(etudiant=etudiant).select_related(
                 "formation", "annee_universitaire"
             )
         ]

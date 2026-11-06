@@ -46,19 +46,23 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
 
     def _affectations_queryset(self, enseignant):
         return AffectationEnseignement.objects.filter(enseignant=enseignant).select_related(
-            "ecue__ue__formation__departement",
-            "ue__formation__departement",
+            "ecue__ue__maquette__formation__departement",
+            "ue__maquette__formation__departement",
             "annee_universitaire",
         )
 
-    def _accessible_ecue_ids(self, request):
-        ecue_ids = set()
+    def _accessible_ecue_years(self, request):
+        ecue_years = {}
         for affectation in self._affectations_queryset(self._get_enseignant(request)):
             if affectation.ecue_id:
-                ecue_ids.add(affectation.ecue_id)
+                ecue_ids = (affectation.ecue_id,)
             elif affectation.ue_id:
-                ecue_ids.update(affectation.ue.ecues.values_list("id", flat=True))
-        return ecue_ids
+                ecue_ids = affectation.ue.ecues.values_list("id", flat=True)
+            else:
+                continue
+            for ecue_id in ecue_ids:
+                ecue_years.setdefault(ecue_id, set()).add(affectation.annee_universitaire_id)
+        return ecue_years
 
     @action(detail=False, methods=["get"])
     def tableau_bord(self, request):
@@ -72,7 +76,7 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
         for affectation in affectations:
             ecue = affectation.ecue
             ue = affectation.ue or (ecue.ue if ecue else None)
-            formation = ue.formation if ue and ue.formation else None
+            formation = ue.maquette.formation if ue else None
             departement = formation.departement if formation else None
             if departement:
                 departements.add(departement.nom)
@@ -165,10 +169,15 @@ class PortailEnseignantViewSet(viewsets.ViewSet):
         )
         if error:
             return error
-        if ecue_id not in self._accessible_ecue_ids(request):
+        allowed_years = self._accessible_ecue_years(request).get(ecue_id)
+        if not allowed_years:
             return Response({"error": "ECUE non trouvé ou non autorisé."}, status=404)
 
-        inscriptions = InscriptionPedagogique.objects.filter(statut="validee").select_related(
+        inscriptions = InscriptionPedagogique.objects.filter(
+            statut="validee",
+            semestre__annee_universitaire_id__in=allowed_years,
+            inscription_admin__annee_universitaire_id__in=allowed_years,
+        ).select_related(
             "inscription_admin__etudiant__user",
             "inscription_admin__formation",
         )

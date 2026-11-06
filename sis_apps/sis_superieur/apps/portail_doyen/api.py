@@ -55,6 +55,18 @@ class PortailDoyenViewSet(viewsets.ViewSet):
             },
         )
 
+    def _facultes_queryset(self):
+        return filter_queryset_by_scopes(
+            Faculte.objects.filter(universite=self.request.tenant),
+            self.request.user,
+            "formations.view_formation",
+            {
+                "facultes": "id",
+                "departements": "departements__id",
+                "formations": "departements__formations__id",
+            },
+        )
+
     def _departements_queryset(self):
         return filter_queryset_by_scopes(
             Departement.objects.all(),
@@ -85,8 +97,8 @@ class PortailDoyenViewSet(viewsets.ViewSet):
             self.request.user,
             "utilisateurs.view_utilisateur",
             {
-                "facultes": "affectations__ecue__ue__formation__departement__faculte_id",
-                "departements": "affectations__ecue__ue__formation__departement_id",
+                "facultes": "affectations__ecue__ue__maquette__formation__departement__faculte_id",
+                "departements": "affectations__ecue__ue__maquette__formation__departement_id",
             },
         )
 
@@ -124,19 +136,19 @@ class PortailDoyenViewSet(viewsets.ViewSet):
         laboratoires = self._laboratoires_queryset()
         theses = self._theses_queryset()
         if faculte_id:
-            try:
-                faculte = Faculte.objects.get(id=faculte_id)
-            except Faculte.DoesNotExist:
-                return Response({"error": "Faculté non trouvée."}, status=404)
+            faculte = self._facultes_queryset().filter(id=faculte_id).first()
+            if not faculte:
+                return Response({"error": "Faculté non trouvée ou non autorisée."}, status=404)
             formations = formations.filter(departement__faculte=faculte)
             departements = departements.filter(faculte=faculte)
             inscriptions = inscriptions.filter(formation__departement__faculte=faculte)
             enseignants = enseignants.filter(
-                Q(affectations__ecue__ue__formation__departement__faculte=faculte)
-                | Q(affectations__ue__formation__departement__faculte=faculte)
+                Q(affectations__ecue__ue__maquette__formation__departement__faculte=faculte)
+                | Q(affectations__ue__maquette__formation__departement__faculte=faculte)
                 | Q(laboratoire__faculte=faculte)
             ).distinct()
             laboratoires = laboratoires.filter(faculte=faculte)
+            theses = theses.filter(laboratoire__faculte=faculte)
         elif not formations.exists() and not departements.exists():
             faculte = None
         else:
@@ -161,7 +173,8 @@ class PortailDoyenViewSet(viewsets.ViewSet):
                 "directeur": d.directeur.get_full_name() if d.directeur else None,
                 "nb_formations": d.formations.count(),
                 "nb_enseignants": AffectationEnseignement.objects.filter(
-                    Q(ecue__ue__formation__departement=d) | Q(ue__formation__departement=d)
+                    Q(ecue__ue__maquette__formation__departement=d)
+                    | Q(ue__maquette__formation__departement=d)
                 )
                 .values("enseignant_id")
                 .distinct()
