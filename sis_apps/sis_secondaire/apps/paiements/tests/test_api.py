@@ -245,6 +245,120 @@ class InvoiceCancellationTests(TenantAPITestCase):
         assert self.facture.statut == "emise"
 
 
+class PaymentSchoolIsolationTests(TenantAPITestCase):
+    def setUp(self):
+        self.manager = Utilisateur.objects.create_user(
+            "payment-school-manager", role="comptable", etablissement=self.tenant
+        )
+        self.client.force_authenticate(self.manager)
+        student = Utilisateur.objects.create_user(
+            "payment-school-student", role="eleve", etablissement=self.tenant
+        )
+        pupil = Eleve.objects.create(
+            etablissement=self.tenant, user=student, matricule="PAY-SCHOOL-1",
+            date_naissance="2010-01-01", lieu_naissance="Paris", sexe="F",
+            date_inscription="2026-09-01",
+        )
+        year = AnneeScolaire.objects.create(
+            etablissement=self.tenant, libelle="2026-2027",
+            date_debut="2026-09-01", date_fin="2027-08-31",
+        )
+        fee = TypeFrais.objects.create(
+            annee_scolaire=year, code="PAY-SCHOOL", libelle="Scolarité", montant="100.00",
+        )
+        self.invoice = Facture.objects.create(
+            eleve=pupil, type_frais=fee, numero="FAC-PAY-SCHOOL",
+            date_emission="2026-09-01", date_echeance="2026-10-01", montant="100.00",
+        )
+        self.transactions_url = "/api/v1/paiements/transactions/"
+
+    def submit(self, invoice):
+        return self.client.post(self.transactions_url, {
+            "facture": invoice.pk,
+            "date_paiement": "2026-09-02",
+            "montant": "25.00",
+            "mode": "especes",
+        }, format="json")
+
+    def test_manager_cannot_submit_or_settle_another_schools_invoice(self):
+        foreign = type(self.tenant)(schema_name="foreign_payment_scope")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        foreign_student = Utilisateur.objects.create_user(
+            "foreign-payment-student", role="eleve", etablissement=foreign
+        )
+        foreign_pupil = Eleve.objects.create(
+            etablissement=foreign, user=foreign_student, matricule="PAY-SCHOOL-FOREIGN",
+            date_naissance="2010-01-01", lieu_naissance="Paris", sexe="F",
+            date_inscription="2026-09-01",
+        )
+        foreign_year = AnneeScolaire.objects.create(
+            etablissement=foreign, libelle="2026-2027",
+            date_debut="2026-09-01", date_fin="2027-08-31",
+        )
+        foreign_fee = TypeFrais.objects.create(
+            annee_scolaire=foreign_year, code="PAY-FOREIGN", libelle="Autre", montant="100.00",
+        )
+        foreign_invoice = Facture.objects.create(
+            eleve=foreign_pupil, type_frais=foreign_fee, numero="FAC-PAY-FOREIGN",
+            date_emission="2026-09-01", date_echeance="2026-10-01", montant="100.00",
+        )
+        mixed_invoice = Facture.objects.create(
+            eleve=self.invoice.eleve, type_frais=foreign_fee, numero="FAC-PAY-MIXED",
+            date_emission="2026-09-01", date_echeance="2026-10-01", montant="100.00",
+        )
+        for invoice in (foreign_invoice, mixed_invoice):
+            response = self.submit(invoice)
+            assert response.status_code == 400, response.data
+            assert not Paiement.objects.filter(facture=invoice).exists()
+
+            pending = Paiement.objects.create(
+                facture=invoice, numero=f"PAY-SCHOOL-FOREIGN-{invoice.pk}",
+                date_paiement="2026-09-02", montant="25.00", mode="especes", statut="en_attente",
+            )
+            detail = f"{self.transactions_url}{pending.pk}/"
+            assert self.client.get(detail).status_code == 404
+            assert self.client.post(f"{detail}valider/").status_code == 404
+            assert self.client.post(f"{detail}rejeter/", {"motif": "Autre"}).status_code == 404
+            pending.refresh_from_db()
+            invoice.refresh_from_db()
+            assert pending.statut == "en_attente"
+            assert invoice.montant_paye == Decimal("0.00")
+
+        created = self.submit(self.invoice)
+        assert created.status_code == 201, created.data
+        local_payment = Paiement.objects.get(facture=self.invoice)
+        assert local_payment.statut == "en_attente"
+        with patch("apps.paiements.api.record_workflow_event"):
+            validated = self.client.post(f"{self.transactions_url}{local_payment.pk}/valider/")
+        assert validated.status_code == 200, validated.data
+        self.invoice.refresh_from_db()
+        assert self.invoice.montant_paye == Decimal("25.00")
+        assert self.invoice.statut == "partielle"
+
+    def test_manager_from_another_school_cannot_access_local_payments(self):
+        created = self.submit(self.invoice)
+        assert created.status_code == 201, created.data
+        local_payment = Paiement.objects.get(facture=self.invoice)
+        foreign = type(self.tenant)(schema_name="foreign_payment_manager")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        foreign_manager = Utilisateur.objects.create_user(
+            "foreign-payment-manager", role="comptable", etablissement=foreign
+        )
+        self.client.force_authenticate(foreign_manager)
+        assert self.submit(self.invoice).status_code == 400
+        detail = f"{self.transactions_url}{local_payment.pk}/"
+        assert self.client.get(detail).status_code == 404
+        assert self.client.post(f"{detail}valider/").status_code == 404
+        self.invoice.refresh_from_db()
+        assert self.invoice.montant_paye == Decimal("0.00")
+
+
 class CardConfirmationTests(SimpleTestCase):
     def setUp(self):
         self.tenant = SimpleNamespace(pk=7, schema_name="school_a")

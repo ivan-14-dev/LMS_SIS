@@ -420,6 +420,13 @@ class PaiementsViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Paiement.objects.select_related("facture__eleve__user", "enregistre_par", "verifie_par")
         user = self.request.user
+        tenant = getattr(self.request, "tenant", None)
+        if not getattr(tenant, "pk", None) or getattr(user, "etablissement_id", None) != tenant.pk:
+            return queryset.none()
+        queryset = queryset.filter(
+            facture__eleve__etablissement_id=tenant.pk,
+            facture__type_frais__annee_scolaire__etablissement_id=tenant.pk,
+        )
         if IsFinanceManager().has_permission(self.request, self):
             return queryset
         if user_has_any_role(user, ("eleve",)):

@@ -219,6 +219,14 @@ class PaiementCreateSerializer(serializers.ModelSerializer):
         )
         if not is_manager and not owns_invoice:
             raise serializers.ValidationError({"facture": "Vous ne pouvez pas payer cette facture."})
+        tenant = getattr(request, "tenant", None)
+        if (
+            not getattr(tenant, "pk", None)
+            or getattr(user, "etablissement_id", None) != tenant.pk
+            or facture.eleve.etablissement_id != tenant.pk
+            or facture.type_frais.annee_scolaire.etablissement_id != tenant.pk
+        ):
+            raise serializers.ValidationError({"facture": "Cette facture n'appartient pas à votre établissement."})
         if facture.statut in ("payee", "annulee"):
             raise serializers.ValidationError({"facture": "Cette facture n'accepte plus de paiement."})
         if data["montant"] <= 0:

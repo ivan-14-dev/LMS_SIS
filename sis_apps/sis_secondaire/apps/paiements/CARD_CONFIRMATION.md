@@ -14,6 +14,9 @@ gestionnaire de l'établissement de l'élève et du type de frais, refuse aussi
 une facture ayant encore un paiement `valide`, même si son total encaissé
 enregistré est périmé. Une facture déjà annulée ne produit pas une deuxième
 annulation. Les paiements en attente ne sont pas assimilés à des encaissements.
+Les transactions ne sont accessibles et validables que dans l'établissement
+de l'utilisateur, de l'élève et de l'année du type de frais ; la création
+refuse également une facture liée à un autre établissement dans le même schéma.
 
 La référence externe doit être l'identifiant `pi_…` d'un PaymentIntent créé
 côté serveur sur ce compte Stripe. Son paiement confirmé doit être en euros,
