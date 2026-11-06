@@ -152,6 +152,14 @@ class EleveCreateSerializer(TenantBoundSerializerMixin, serializers.ModelSeriali
         ]
         read_only_fields = ["etablissement"]
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs.get("classe_actuelle") is not None:
+            raise serializers.ValidationError(
+                {"classe_actuelle": "Créez une inscription puis validez-la pour affecter l'élève."}
+            )
+        return attrs
+
     @transaction.atomic
     def create(self, validated_data):
         import uuid

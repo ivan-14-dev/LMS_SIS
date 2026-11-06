@@ -64,6 +64,32 @@ class EnrollmentCapacityTestCase(TenantAPITestCase):
         )
         return pupil, enrollment
 
+    def test_creating_pupil_cannot_assign_class_without_validated_enrollment(self):
+        self.enroll("occupant", self.target)
+        payload = {
+            "username": "capacity-new-pupil",
+            "email": "new-pupil@example.test",
+            "first_name": "New",
+            "last_name": "Pupil",
+            "password": "Secure-Password-2030!",
+            "date_naissance": "2008-01-01",
+            "lieu_naissance": "Paris",
+            "sexe": "F",
+            "classe_actuelle": self.target.pk,
+        }
+
+        response = self.client.post("/api/v1/eleves/", payload, format="json", secure=True)
+        assert response.status_code == 400, response.data
+        assert "classe_actuelle" in response.data
+        assert not Utilisateur.objects.filter(username=payload["username"]).exists()
+
+        payload.pop("classe_actuelle")
+        response = self.client.post("/api/v1/eleves/", payload, format="json", secure=True)
+        assert response.status_code == 201, response.data
+        pupil = Eleve.objects.get(user__username=payload["username"])
+        assert pupil.classe_actuelle_id is None
+        assert not pupil.inscriptions.exists()
+
     def test_validation_refuses_full_class_and_preserves_pending_enrollment(self):
         self.enroll("occupant", self.target)
         candidate, pending = self.enroll("candidate", self.target, statut="en_cours", current=False)
