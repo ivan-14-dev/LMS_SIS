@@ -67,7 +67,7 @@ class ReenrollmentMixin:
     @transaction.atomic
     def reinscrire(self, request, pk=None):
         source = self.get_object()
-        learner_field, year_field, target_field, _, _ = admission_fields(type(source))
+        learner_field, year_field, target_field, pending, _ = admission_fields(type(source))
         if source.statut != "validee":
             raise serializers.ValidationError("La réinscription exige une inscription d'origine validée.")
         motif = serializers.CharField(trim_whitespace=True, max_length=2000).run_validation(request.data.get("motif"))
@@ -83,6 +83,16 @@ class ReenrollmentMixin:
         destination_year = serializer.validated_data[year_field]
         if destination_year.date_debut <= getattr(source, year_field).date_fin:
             raise serializers.ValidationError({year_field: "Choisissez une année postérieure, sans chevauchement."})
+        if type(source).objects.filter(
+            **{
+                f"{learner_field}_id": learner.pk,
+                f"{year_field}__date_debut__gt": getattr(source, year_field).date_debut,
+                "statut__in": (pending, "validee"),
+            }
+        ).exists():
+            raise serializers.ValidationError(
+                {year_field: "Une inscription ultérieure est déjà en cours ou validée pour cet apprenant."}
+            )
         destination = self.save_academic(serializer)
         record_workflow_event(
             request,

@@ -94,6 +94,45 @@ class AdmissionsTests(GradeEntryFixture):
         assert self.client.post(self.renew_url, self.next_payload, format="json").status_code == 400
         assert not type(self.enrollment).objects.filter(**{self.year_field: self.new_year}).exists()
 
+    def test_replay_from_older_origin_is_rejected_but_latest_validated_origin_can_progress(self):
+        later_year = self.create(
+            self.year_model,
+            **{self.owner_field: self.tenant},
+            libelle="Année suivante",
+            date_debut=self.year.date_debut.replace(year=self.today.year + 2),
+            date_fin=self.year.date_fin.replace(year=self.today.year + 2),
+        )
+        later_target = (
+            self.create(
+                "classes.Classe",
+                etablissement=self.tenant,
+                annee_scolaire=later_year,
+                niveau=self.classe.niveau,
+                nom="Classe suivante",
+            )
+            if self.secondary
+            else self.target
+        )
+        later_payload = {
+            **self.next_payload,
+            self.year_field: later_year.pk,
+            self.target_field: later_target.pk,
+        }
+        renewed = self.renew()
+        assert self.client.post(self.renew_url, later_payload, format="json").status_code == 400
+        assert not type(self.enrollment).objects.filter(
+            **{self.field: self.learner, self.year_field: later_year}
+        ).exists()
+
+        assert self.client.post(f"{self.base}{renewed.pk}/valider/", {}, format="json").status_code == 200
+        assert self.client.post(self.renew_url, later_payload, format="json").status_code == 400
+        response = self.client.post(f"{self.base}{renewed.pk}/reinscrire/", later_payload, format="json")
+        assert response.status_code == 201, response.data
+        assert (
+            getattr(type(self.enrollment).objects.get(pk=response.data["id"]), f"{self.year_field}_id")
+            == later_year.pk
+        )
+
     def test_decisions_cannot_be_forged_and_approved_records_cannot_be_refused(self):
         forged = {**self.next_payload, self.field: self.learner.pk, "statut": "validee"}
         assert self.client.post(self.base, forged, format="json").status_code == 400
