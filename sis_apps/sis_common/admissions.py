@@ -131,6 +131,8 @@ class ReenrollmentMixin:
         learner_field, year_field, target_field, pending, _ = admission_fields(type(source))
         if source.statut != "validee":
             raise serializers.ValidationError("La réinscription exige une inscription d'origine validée.")
+        if not isinstance(request.data, Mapping):
+            raise serializers.ValidationError({"detail": "Un dossier de réinscription est attendu."})
         motif = serializers.CharField(trim_whitespace=True, max_length=2000).run_validation(request.data.get("motif"))
         learner = getattr(source, learner_field)
         type(learner).objects.select_for_update().get(pk=learner.pk)

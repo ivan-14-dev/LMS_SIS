@@ -94,6 +94,27 @@ class AdmissionsTests(GradeEntryFixture):
         assert self.client.post(self.renew_url, self.next_payload, format="json").status_code == 400
         assert not type(self.enrollment).objects.filter(**{self.year_field: self.new_year}).exists()
 
+    def test_non_object_reenrollment_payload_is_rejected_without_mutation_and_can_be_retried(self):
+        history_url = f"{self.base}{self.enrollment.pk}/historique/"
+        previous_history = self.client.get(history_url).data
+        previous_enrollment = self.client.get(f"{self.base}{self.enrollment.pk}/").data
+        for payload in ([], [{"motif": "Poursuite"}], "Poursuite", 1, True):
+            with self.subTest(payload=payload):
+                response = self.client.post(self.renew_url, payload, format="json")
+                assert response.status_code == 400, response.data
+                assert "detail" in response.data
+        assert self.client.get(f"{self.base}{self.enrollment.pk}/").data == previous_enrollment
+        assert self.client.get(history_url).data == previous_history
+        assert not type(self.enrollment).objects.filter(**{self.year_field: self.new_year}).exists()
+
+        self.client.force_authenticate(self.learner.user)
+        assert self.client.post(self.renew_url, [], format="json").status_code == 403
+        self.client.force_authenticate(self.admin)
+        renewed = self.renew()
+        assert renewed.statut == ("en_cours" if self.secondary else "provisoire")
+        assert self.client.post(self.renew_url, self.next_payload, format="json").status_code == 400
+        assert type(self.enrollment).objects.filter(**{self.year_field: self.new_year}).count() == 1
+
     def test_replay_from_older_origin_is_rejected_but_latest_validated_origin_can_progress(self):
         later_year = self.create(
             self.year_model,
