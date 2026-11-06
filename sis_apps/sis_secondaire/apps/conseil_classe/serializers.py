@@ -73,6 +73,10 @@ class ConseilClasseDetailSerializer(TenantBoundSerializerMixin, serializers.Mode
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        if self.instance is not None and self.instance.statut == "valide":
+            raise serializers.ValidationError(
+                {"statut": "Un conseil validé ne peut plus être modifié."}
+            )
         classe = attrs.get("classe", getattr(self.instance, "classe", None))
         periode = attrs.get("periode", getattr(self.instance, "periode", None))
         if classe and periode and classe.annee_scolaire_id != periode.annee_scolaire_id:

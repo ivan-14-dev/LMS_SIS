@@ -191,3 +191,34 @@ class ConseilWorkflowHTTPTestCase(TenantAPITestCase):
 
         assert response.status_code == 200, response.data
         assert ConseilClasse.objects.get(pk=created.data["id"]).statut == "annule"
+
+    def test_validated_conseil_cannot_be_changed_or_deleted_via_detail_api(self):
+        created = self.client.post(self.url, self.payload, format="json")
+        assert created.status_code == 201, created.data
+        url = f"{self.url}{created.data['id']}/"
+        assert self.client.post(f"{url}tenir/").status_code == 200
+        assert self.client.post(f"{url}valider/").status_code == 200
+
+        for method, data in (
+            (self.client.patch, {"pv": "PV modifié"}),
+            (self.client.put, {**self.payload, "pv": "PV remplacé"}),
+        ):
+            response = method(url, data, format="json")
+            assert response.status_code == 400, response.data
+        response = self.client.delete(url)
+        assert response.status_code == 400, response.data
+
+        conseil = ConseilClasse.objects.get(pk=created.data["id"])
+        assert conseil.statut == "valide"
+        assert conseil.pv == ""
+
+    def test_held_conseil_can_still_edit_its_minutes(self):
+        created = self.client.post(self.url, self.payload, format="json")
+        assert created.status_code == 201, created.data
+        url = f"{self.url}{created.data['id']}/"
+        assert self.client.post(f"{url}tenir/").status_code == 200
+
+        response = self.client.patch(url, {"pv": "PV du conseil"}, format="json")
+
+        assert response.status_code == 200, response.data
+        assert ConseilClasse.objects.get(pk=created.data["id"]).pv == "PV du conseil"

@@ -5,6 +5,7 @@ from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -92,6 +93,8 @@ class ConseilsClasseViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance):
+        if instance.statut == "valide":
+            raise ValidationError({"statut": "Un conseil validé ne peut plus être supprimé."})
         record_workflow_event(
             self.request,
             instance,
