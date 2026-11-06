@@ -1,8 +1,11 @@
 """API tests for clubs."""
 
+import uuid
+
 from django.test import SimpleTestCase
 from django.urls import resolve
 from django.utils import timezone
+from django_tenants.utils import schema_context
 
 from apps.clubs.models import Club, MembreClub
 from apps.eleves.models import Eleve
@@ -104,3 +107,30 @@ class ClubCapacityAPITestCase(TenantAPITestCase):
         assert response.status_code == 200, response.data
         self.club.refresh_from_db()
         assert self.club.capacite == 2
+
+    def test_foreign_school_superuser_cannot_read_or_manage_club_members(self):
+        local_pupil = self.pupil("local")
+        other_pupil = self.pupil("other")
+        members_url = "/api/v1/clubs/membres-clubs/"
+        created = self.client.post(
+            members_url, {"club": self.club.pk, "eleve": local_pupil.pk}, secure=True
+        )
+        assert created.status_code == 201, created.data
+        assert self.client.get(f"{members_url}{created.data['id']}/", secure=True).status_code == 200
+
+        foreign = type(self.tenant)(schema_name=f"foreign_clubs_{uuid.uuid4().hex[:12]}")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        visitor = Utilisateur.objects.create_superuser(
+            "foreign-clubs-admin", role="super_admin", etablissement=foreign
+        )
+        self.client.force_authenticate(visitor)
+
+        assert self.client.get(members_url, secure=True).status_code == 403
+        assert self.client.get(f"{members_url}{created.data['id']}/", secure=True).status_code == 403
+        assert self.client.post(
+            members_url, {"club": self.club.pk, "eleve": other_pupil.pk}, secure=True
+        ).status_code == 403
+        assert not MembreClub.objects.filter(club=self.club, eleve=other_pupil).exists()
