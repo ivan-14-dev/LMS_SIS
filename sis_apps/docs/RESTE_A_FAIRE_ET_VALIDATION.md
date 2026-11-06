@@ -168,6 +168,17 @@ aucun frontend ni service partagé n'ont été modifiés ; cette preuve
 technique ne valide ni les parcours réels, ni la charge à 500, ni les
 fournisseurs. **Matrice : 1/94 vérifiée.**
 
+**Essai de démarrage isolé de l'image de huitième vague :** les migrations
+du schéma public et d'un tenant synthétique ont réussi dans chaque SIS sur
+deux bases PostgreSQL jetables distinctes. Les deux serveurs Gunicorn ont
+répondu en HTTP à `/health/` et `/ready/` ; la disponibilité de PostgreSQL
+et Redis y était vraie. Les serveurs et bases de cet essai ont ensuite été
+arrêtés et supprimés sans modifier les services partagés. Cet essai avec
+identifiants synthétiques ne constitue pas un déploiement institutionnel
+persistent ni une preuve des parcours complets, du vrai LMS, des paiements
+externes, d'une restauration ou de la charge à 500 ; la matrice reste à
+**1/94 vérifiée**.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
