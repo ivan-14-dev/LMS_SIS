@@ -196,7 +196,7 @@ class DepartementsViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelVi
 
         enseignants = EnseignantChercheur.objects.filter(
             affectations__ue__maquette__formation__departement=departement
-        ).select_related("user")
+        ).select_related("user").distinct()
         serializer = EnseignantListSerializer(enseignants, many=True)
         return Response(serializer.data)
 

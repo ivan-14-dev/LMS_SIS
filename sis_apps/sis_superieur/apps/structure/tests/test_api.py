@@ -3,7 +3,14 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from apps.enseignants.models import AffectationEnseignement, EnseignantChercheur
+from apps.etablissement.models import AnneeUniversitaire, Semestre
+from apps.formations.models import Formation, MaquetteFormation
+from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.structure.api import DepartementsViewSet, EcolesDoctoralesViewSet, FacultesViewSet, IsAdminOrReadOnly
+from apps.structure.models import Departement, Faculte
+from apps.ue_ecue.models import UE
+from apps.utilisateurs.models import Utilisateur
 from django.test import SimpleTestCase
 from django.urls import resolve
 
@@ -107,3 +114,40 @@ class FacultesActionsTestCase(SimpleTestCase):
 
         departements_manager.select_related.assert_called_once_with("directeur")
         assert response.status_code == 200
+
+
+class DepartementEnseignantsAPITestCase(TenantAPITestCase):
+    def test_enseignants_route_lists_each_teacher_once_across_multiple_affectations(self):
+        user = Utilisateur.objects.create_user(
+            "structure-reader", role="scolarite", etablissement=self.tenant
+        )
+        self.client.force_authenticate(user)
+        faculte = Faculte.objects.create(universite=self.tenant, code="SCI", nom="Sciences")
+        departement = Departement.objects.create(faculte=faculte, code="INFO", nom="Informatique")
+        formation = Formation.objects.create(departement=departement, code="LIC", nom="Licence", type="licence")
+        year = AnneeUniversitaire.objects.create(
+            universite=self.tenant, libelle="2026-2027",
+            date_debut="2026-09-01", date_fin="2027-08-31",
+        )
+        semester = Semestre.objects.create(
+            annee_universitaire=year, numero=1, type="impair",
+            date_debut="2026-09-01", date_fin="2027-01-31",
+        )
+        maquette = MaquetteFormation.objects.create(formation=formation, annee_universitaire=year)
+        teacher = EnseignantChercheur.objects.create(
+            user=Utilisateur.objects.create_user("structure-teacher", etablissement=self.tenant),
+            specialite="Informatique",
+        )
+        for code in ("ALG", "SYS"):
+            ue = UE.objects.create(
+                maquette=maquette, semestre=semester, code=code, nom=code, credits_ects=6,
+            )
+            AffectationEnseignement.objects.create(
+                enseignant=teacher, ue=ue, annee_universitaire=year,
+                type_enseignement="CM", heures=12,
+            )
+
+        response = self.client.get(f"/api/v1/structure/departements/{departement.pk}/enseignants/")
+
+        assert response.status_code == 200, response.data
+        assert [item["id"] for item in response.data] == [teacher.pk]
