@@ -161,6 +161,9 @@ class EvaluationDetailSerializer(
         tenant = getattr(request, "tenant", None)
         if tenant and periode and periode.annee_scolaire.etablissement_id != tenant.pk:
             raise serializers.ValidationError({"periode": "Cette période appartient à un autre établissement."})
+        date = attrs.get("date", getattr(self.instance, "date", None))
+        if date and periode and not periode.date_debut <= date <= periode.date_fin:
+            raise serializers.ValidationError({"date": "La date doit appartenir à la période de l'évaluation."})
         user = getattr(request, "user", None)
         if user and not user.is_superuser and user_has_any_role(user, ("enseignant",)):
             if enseignant and enseignant.user_id != user.pk:
