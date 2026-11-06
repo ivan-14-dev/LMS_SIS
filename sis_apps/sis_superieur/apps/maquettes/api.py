@@ -12,6 +12,7 @@ from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from sis_common.academic_lifecycle import AcademicLifecycleMixin
 from sis_common.authorization import request_has_business_access
 
 from .serializers import MaquetteSerializer
@@ -33,11 +34,12 @@ class IsScolariteOrReadOnly(IsAuthenticated):
         )
 
 
-class MaquettesViewSet(viewsets.ModelViewSet):
+class MaquettesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet pour les maquettes de formation."""
 
     permission_classes = [IsScolariteOrReadOnly]
     serializer_class = MaquetteSerializer
+    academic_period_paths = ("annee_universitaire",)
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["formation", "annee_universitaire", "statut"]
     ordering = ["-annee_universitaire__date_debut", "formation__nom"]
