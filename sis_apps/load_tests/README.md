@@ -321,6 +321,19 @@ et l'étape HTTP sont désormais conservés sans texte d'exception ni secret ;
 les anciens rapports v1 restent inchangés et ne permettent pas de reconstruire
 rétroactivement TCP/TLS/attente d'en-têtes.
 
+Pour une écriture dont le reçu a expiré, la relecture finale vérifie toujours
+l'ID de la ressource et compare maintenant **tous** les champs attendus.
+`data_integrity.unconfirmed_matches` compte les relectures correspondant aux
+champs demandés ; `unconfirmed_differs` compte celles qui ne correspondent pas.
+Une différence ne prouve pas une corruption : l'écriture a pu ne jamais être
+appliquée. Une relecture indisponible ne figure dans aucun des deux compteurs.
+Ces observations restent dans `checks_indeterminate` et ne rendent jamais le
+passage vert : le reçu HTTP initial reste manquant. Les 262 écritures incertaines
+du précédent 500 ne sont **pas** reclassées rétroactivement par ces compteurs.
+Un nouveau résultat exige une campagne isolée distinctement autorisée, une
+fixture et des preuves neuves ; la validation hors ligne ne démontre aucune
+capacité serveur.
+
 Les utilisateurs sortis prématurément d'un scénario attendent la fin des
 requêtes métier de tous les autres avant les vérifications finales et logout.
 Cela sépare la mesure métier du trafic de diagnostic ; le départ prématuré

@@ -379,10 +379,17 @@ class Client:
                         data = json.loads(raw)
                     except (ValueError, UnicodeError):
                         reason = "invalid_json"
-                    if not reason and not expect(data, equals or {}):
-                        reason = "assertion_failed"
                     if not reason and unconfirmed_write:
-                        reason = "unconfirmed_write_outcome"
+                        if equals and "id" in equals and not expect(data, {"id": equals["id"]}):
+                            reason = "assertion_failed"
+                        elif not equals or len(equals) < 2:
+                            reason = "unconfirmed_write_outcome"
+                        elif expect(data, equals):
+                            reason = "unconfirmed_write_matches_expected"
+                        else:
+                            reason = "unconfirmed_write_differs_from_expected"
+                    elif not reason and not expect(data, equals or {}):
+                        reason = "assertion_failed"
                     if not reason and capture:
                         try:
                             for response_field in capture.values():
@@ -459,6 +466,7 @@ def run_campaign(args, seed, client_factory=Client, progress=None):
             "user_index": index, "role": account["role"], "scenario": account["scenario"],
             "authenticated": False, "cycles": 0, "integrity_checks": 0,
             "integrity_failures": 0, "integrity_indeterminate": 0, "unconfirmed_writes": 0,
+            "unconfirmed_matches": 0, "unconfirmed_differs": 0,
             "last_attempted_iteration": 0, "failed_step": None, "errors": [], "logged_out": False,
         }
         client = client_factory(args.target, args.timeout, account, index, stats)
@@ -543,11 +551,15 @@ def run_campaign(args, seed, client_factory=Client, progress=None):
                     try:
                         client.request(
                             name + "-final-readback", api_path(verify["path"]),
-                            equals=verify["equals"] if confirmed else {"id": verify["equals"]["id"]},
+                            equals=verify["equals"],
                             unconfirmed_write=not confirmed,
                         )
                         result["integrity_checks"] += 1
                     except ScenarioFailure as exc:
+                        if str(exc) == "unconfirmed_write_matches_expected":
+                            result["unconfirmed_matches"] += 1
+                        elif str(exc) == "unconfirmed_write_differs_from_expected":
+                            result["unconfirmed_differs"] += 1
                         key = "integrity_failures" if str(exc) == "assertion_failed" else "integrity_indeterminate"
                         result[key] += 1
                 stats.departed()
@@ -586,6 +598,7 @@ def run_campaign(args, seed, client_factory=Client, progress=None):
                     "user_index": index, "role": account["role"], "scenario": account["scenario"],
                     "authenticated": False, "cycles": 0, "integrity_checks": 0,
                     "integrity_failures": 0, "integrity_indeterminate": 0, "unconfirmed_writes": 0,
+                    "unconfirmed_matches": 0, "unconfirmed_differs": 0,
                     "errors": ["worker_capacity_or_harness_failure"], "logged_out": False,
                 })
     ended = time.monotonic()
@@ -631,6 +644,8 @@ def run_campaign(args, seed, client_factory=Client, progress=None):
             "checks_failed": sum(result["integrity_failures"] for result in results),
             "checks_indeterminate": sum(result["integrity_indeterminate"] for result in results),
             "unconfirmed_writes": sum(result["unconfirmed_writes"] for result in results),
+            "unconfirmed_matches": sum(result["unconfirmed_matches"] for result in results),
+            "unconfirmed_differs": sum(result["unconfirmed_differs"] for result in results),
         },
         "metrics": metrics, "users": results,
         "limitations": [

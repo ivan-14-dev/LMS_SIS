@@ -81,6 +81,7 @@ class MemoryServer:
     def __init__(
         self, seed, failure_status=None, lose_write=False, login_failure=False, duplicate_cookie=False,
         failure_user=None, write_transport_failure=False, auxiliary_cookie=False, missing_session_cookie=False,
+        final_readback_failure=False,
     ):
         self.accounts = {account["username"]: account for account in seed["accounts"]}
         self.notes = {account["variables"]["note_id"]: {"id": account["variables"]["note_id"], "appreciation": ""}
@@ -89,6 +90,7 @@ class MemoryServer:
         self.login_failure, self.duplicate_cookie = login_failure, duplicate_cookie
         self.failure_user, self.write_transport_failure = failure_user, write_transport_failure
         self.auxiliary_cookie, self.missing_session_cookie = auxiliary_cookie, missing_session_cookie
+        self.final_readback_failure = final_readback_failure
         self.clients = []
         self.requests = []
 
@@ -151,6 +153,8 @@ class MemoryTransport:
             return Response({"detail": "NEVER-LOG-RESPONSE"}, self.server.failure_status)
         note_id = int(path.rstrip("/").split("/")[-1])
         assert note_id == self.account["variables"]["note_id"]
+        if method == "GET" and self.server.final_readback_failure and self.server.notes[note_id]["appreciation"]:
+            raise URLError(TimeoutError("The read operation timed out NEVER-LOG-TRANSPORT"))
         if method == "PATCH" and not self.server.lose_write:
             self.server.notes[note_id].update(json.loads(request.data))
         if method == "PATCH" and self.server.write_transport_failure:
@@ -354,9 +358,29 @@ class HarnessTests(unittest.TestCase):
                 self.assertEqual(report["data_integrity"]["checks_failed"], 0)
                 self.assertEqual(report["data_integrity"]["checks_indeterminate"], 2)
                 self.assertEqual(report["data_integrity"]["unconfirmed_writes"], 2)
-                self.assertTrue(any(step["reasons"].get("unconfirmed_write_outcome")
+                self.assertEqual(report["data_integrity"]["unconfirmed_matches"], 0 if lose_write else 2)
+                self.assertEqual(report["data_integrity"]["unconfirmed_differs"], 2 if lose_write else 0)
+                reason = (
+                    "unconfirmed_write_differs_from_expected" if lose_write
+                    else "unconfirmed_write_matches_expected"
+                )
+                self.assertTrue(any(step["reasons"].get(reason)
                                     for step in report["metrics"]["steps"]))
                 self.assertNotIn("NEVER-LOG", json.dumps(report))
+
+    def test_unavailable_uncertain_write_readback_is_not_reported_as_observed(self):
+        report, _ = self.campaign(write_transport_failure=True, final_readback_failure=True)
+        self.assertFalse(report["passed"])
+        self.assertEqual(report["data_integrity"]["unconfirmed_writes"], 2)
+        self.assertEqual(report["data_integrity"]["checks_indeterminate"], 2)
+        self.assertEqual(report["data_integrity"]["unconfirmed_matches"], 0)
+        self.assertEqual(report["data_integrity"]["unconfirmed_differs"], 0)
+        self.assertTrue(any(
+            step["phase"] == "integrity" and step["name"] == "write-note-final-readback"
+            and step["reasons"].get("transport_error") == 2
+            for step in report["metrics"]["steps"]
+        ))
+        self.assertNotIn("NEVER-LOG", json.dumps(report))
 
     def test_failed_user_waits_for_all_business_traffic_before_final_checks(self):
         seed = fixture()
@@ -402,6 +426,10 @@ class HarnessTests(unittest.TestCase):
             with self.assertRaises(sessions.ScenarioFailure) as failure:
                 client.request("final-readback", "/api/v1/notes/notes/1/", equals={"id": 1}, unconfirmed_write=True)
             self.assertEqual(str(failure.exception), "assertion_failed")
+            factory.return_value.open.return_value = Response({"id": 2})
+            with self.assertRaises(sessions.ScenarioFailure) as failure:
+                client.request("final-readback", "/api/v1/notes/notes/1/", unconfirmed_write=True)
+            self.assertEqual(str(failure.exception), "unconfirmed_write_outcome")
 
     def test_failed_auth_aborts_cohort_before_business_requests(self):
         report, server = self.campaign(login_failure=True)
