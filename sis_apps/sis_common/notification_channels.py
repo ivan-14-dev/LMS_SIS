@@ -252,7 +252,9 @@ def initialize_event_delivery(event, channels, webhook_urls=None):
     event.save(update_fields=["metadata"])
 
 
-def update_notification_channel_status(schema_name, notification_id, channel, status, attempts=None, error="", detail=""):
+def update_notification_channel_status(
+    schema_name, notification_id, channel, status, attempts=None, error="", detail=""
+):
     with schema_context(schema_name):
         WorkflowNotification = _core_model("WorkflowNotification")
         notification = WorkflowNotification.objects.get(pk=notification_id)
@@ -312,6 +314,7 @@ def update_event_webhook_status(schema_name, event_id, webhook_url, status, atte
 
 
 def send_notification_email(schema_name, notification_id):
+    """Record success only after backend acknowledgement; otherwise let the task retry."""
     with schema_context(schema_name):
         WorkflowNotification = _core_model("WorkflowNotification")
         notification = WorkflowNotification.objects.select_related("recipient", "event").get(pk=notification_id)
@@ -320,15 +323,19 @@ def send_notification_email(schema_name, notification_id):
             _update_notification_channel(notification, "email", "skipped", detail="Aucune adresse email.")
             return {"status": "skipped"}
         if not _channel_enabled(recipient, "email", notification.category):
-            _update_notification_channel(notification, "email", "skipped", detail="Canal email désactivé par l'utilisateur.")
+            _update_notification_channel(
+                notification, "email", "skipped", detail="Canal email désactivé par l'utilisateur."
+            )
             return {"status": "skipped"}
-        send_mail(
+        sent_count = send_mail(
             notification.title,
             notification.message,
             getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@example.com"),
             [recipient.email],
             fail_silently=False,
         )
+        if sent_count != 1:
+            raise RuntimeError("Le backend email n'a pas confirmé l'envoi.")
         _update_notification_channel(notification, "email", "sent", detail=recipient.email)
         return {"status": "sent"}
 
@@ -351,7 +358,9 @@ def send_notification_sms(schema_name, notification_id, gateway_url):
             _update_notification_channel(notification, "sms", "skipped", detail="Aucun numéro de téléphone.")
             return {"status": "skipped"}
         if not _channel_enabled(recipient, "sms", notification.category):
-            _update_notification_channel(notification, "sms", "skipped", detail="Canal SMS désactivé par l'utilisateur.")
+            _update_notification_channel(
+                notification, "sms", "skipped", detail="Canal SMS désactivé par l'utilisateur."
+            )
             return {"status": "skipped"}
         payload = {
             "notification_id": notification.id,
