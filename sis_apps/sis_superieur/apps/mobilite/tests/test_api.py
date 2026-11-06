@@ -375,3 +375,57 @@ class CandidatureDecisionAPITestCase(TenantAPITestCase):
         for action in ("valider_origine", "valider_accueil"):
             response = self.client.post(f"{base}{accord_id}/{action}/")
             assert response.status_code == 200, response.data
+
+    def test_accord_validation_cannot_be_forged_via_crud(self):
+        base = "/api/v1/mobilite/accords-etudes/"
+        validated_at = timezone.now().isoformat()
+        response = self.client.post(
+            base,
+            {
+                "candidature": self.candidature.pk,
+                "statut": "valide_accueil",
+                "date_validation_accueil": validated_at,
+            },
+            format="json",
+        )
+        assert response.status_code == 400, response.data
+        assert "statut" in response.data
+        assert not AccordEtudes.objects.filter(candidature=self.candidature).exists()
+
+        response = self.client.post(
+            base, {"candidature": self.candidature.pk, "statut": "soumis"}, format="json"
+        )
+        assert response.status_code == 201, response.data
+        accord = AccordEtudes.objects.get(pk=response.data["id"])
+        url = f"{base}{accord.pk}/"
+        for method, payload in (
+            (self.client.patch, {"statut": "valide_local"}),
+            (self.client.put, {"candidature": self.candidature.pk, "statut": "valide_accueil"}),
+        ):
+            response = method(url, payload, format="json")
+            assert response.status_code == 400, response.data
+            assert "statut" in response.data
+            accord.refresh_from_db()
+            assert accord.statut == "soumis"
+
+        response = self.client.patch(
+            url,
+            {
+                "date_validation_origine": validated_at,
+                "date_validation_accueil": validated_at,
+            },
+            format="json",
+        )
+        assert response.status_code == 200, response.data
+        accord.refresh_from_db()
+        assert accord.date_validation_origine is None
+        assert accord.date_validation_accueil is None
+
+        response = self.client.post(f"{url}valider_origine/")
+        assert response.status_code == 200, response.data
+        response = self.client.post(f"{url}valider_accueil/")
+        assert response.status_code == 200, response.data
+        accord.refresh_from_db()
+        assert accord.statut == "valide_accueil"
+        assert accord.date_validation_origine is not None
+        assert accord.date_validation_accueil is not None

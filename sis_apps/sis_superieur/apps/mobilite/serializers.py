@@ -191,6 +191,7 @@ class AccordEtudesSerializer(TenantRelationsMixin, serializers.ModelSerializer):
     """Serializer pour les accords d'études."""
 
     tenant_relations = {"candidature": candidatures_du_tenant}
+    VALIDATED_STATUSES = ("valide_local", "valide_accueil")
     etudiant_nom = serializers.CharField(
         source="candidature.etudiant.user.get_full_name", read_only=True
     )
@@ -212,4 +213,11 @@ class AccordEtudesSerializer(TenantRelationsMixin, serializers.ModelSerializer):
             "date_validation_origine",
             "date_validation_accueil",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "date_validation_origine", "date_validation_accueil"]
+
+    def validate_statut(self, value):
+        if value in self.VALIDATED_STATUSES:
+            raise serializers.ValidationError(
+                "Utilisez l'action de validation pour valider un accord d'études."
+            )
+        return value
