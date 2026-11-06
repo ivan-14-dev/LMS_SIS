@@ -42,6 +42,8 @@ class IsScolariteOrEnseignant(IsAuthenticated):
         # Un enseignant peut voir son propre profil
         if hasattr(obj, "user") and obj.user == user:
             return True
+        if request.method in ("GET", "HEAD", "OPTIONS") and isinstance(obj, AffectationEnseignement):
+            return obj.enseignant.user_id == user.pk
         return False
 
 
@@ -126,4 +128,8 @@ class AffectationsViewSet(viewsets.ModelViewSet):
     ordering = ["-annee_universitaire__date_debut"]
 
     def get_queryset(self):
-        return AffectationEnseignement.objects.select_related("enseignant__user", "ue", "ecue", "annee_universitaire")
+        qs = AffectationEnseignement.objects.select_related("enseignant__user", "ue", "ecue", "annee_universitaire")
+        user = self.request.user
+        if not user.is_staff and getattr(user, "role", "") not in ("scolarite", "directeur_etudes", "doyen"):
+            qs = qs.filter(enseignant__user=user)
+        return qs
