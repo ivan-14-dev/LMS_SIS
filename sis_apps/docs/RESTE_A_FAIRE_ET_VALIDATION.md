@@ -42,6 +42,22 @@ Le patch Open edX de rejeu d'un cours attend encore des tests sur une base
 LMS isolée. Aucun nouveau déploiement, pilote réel ni passage à 500 vert
 n'a été démontré.
 
+**Avancement suivant du 6 novembre 2026 :** onze correctifs supplémentaires
+ont été testés, committés et poussés séparément : affectation en classe
+secondaire conditionnée à l'inscription, retrait d'accès aux documents après
+changement de rôle, réaffectation des réclamations seulement après recours,
+dépendances effectives des modules, neutralisation des formules CSV/XLSX,
+exclusion des sessions JWT expirées, gestion des sessions depuis le compte
+local, actions IAM bornées par les scopes, accès aux portails selon le rôle,
+lint de cinq pages universitaires et restriction du répertoire des étudiants
+supérieurs. Les suites partagées ont passé **26 tests dans chaque SIS** sur
+PostgreSQL isolé ; les cas d'inscription secondaire (4) et de répertoire
+supérieur (5) passent également. Les contrôles frontend ciblés, le lint des
+fichiers modifiés et le build de production passent. Le lint global compte
+encore **87 erreurs** avant la tranche suivante. Le patch Open edX non testé,
+la recette institutionnelle, les fournisseurs externes et la charge 500
+restent ouverts : **1/94 exigences vérifiées**, sans nouvelle promotion.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
