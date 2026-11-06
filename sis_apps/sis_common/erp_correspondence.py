@@ -259,8 +259,8 @@ class CorrespondanceViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vi
         obj = self._checked(payload.validated_data)
         if obj.statut != "approuvee":
             raise ValidationError({"statut": "Seule une correspondance approuvée peut être archivée."})
-        if obj.approuve_par_id == request.user.pk:
-            raise PermissionDenied("L'archivage est réservé à un autre agent habilité.")
+        if request.user.pk in (obj.cree_par_id, obj.approuve_par_id):
+            raise PermissionDenied("L'archivage est réservé à un agent distinct du créateur et de l'approbateur.")
         obj.archive_par = request.user
         obj.archive_le = timezone.now()
         obj.statut = "archivee"

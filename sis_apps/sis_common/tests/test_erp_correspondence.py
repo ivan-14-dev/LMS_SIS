@@ -137,6 +137,30 @@ class CorrespondanceTests(TenantAPITestCase):
         assert Correspondance.objects.get(pk=item["id"]).statut == "affectee"
         assert WorkflowEvent.objects.filter(object_id=item["id"]).count() == 2
 
+    def test_creator_cannot_archive_own_approved_correspondence(self):
+        self.grant(self.creator, "archive_correspondance")
+        for direction in ("entrante", "sortante"):
+            item = self.create(direction)
+            assigned = self.transition(item, "affecter", self.coordinator, assigne_a=self.reviewer.pk)
+            assert assigned.status_code == 200, assigned.data
+            approved = self.transition(assigned.data, "approuver", self.reviewer)
+            assert approved.status_code == 200, approved.data
+            item = approved.data
+
+            rejected = self.transition(item, "archiver", self.creator)
+            assert rejected.status_code == 403, rejected.data
+            unchanged = Correspondance.objects.get(pk=item["id"])
+            assert unchanged.statut == "approuvee"
+            assert unchanged.version == item["version"]
+            assert unchanged.archive_par_id is None
+            assert not WorkflowEvent.objects.filter(
+                object_id=item["id"], action="correspondance_archivee"
+            ).exists()
+
+            archived = self.transition(item, "archiver", self.coordinator)
+            assert archived.status_code == 200, archived.data
+            assert archived.data["version"] == item["version"] + 1
+
     def test_former_assigner_cannot_approve_after_reassignment(self):
         self.grant(self.reviewer, "assign_correspondance")
         self.grant(self.coordinator, "approve_correspondance")
