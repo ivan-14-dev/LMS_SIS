@@ -16,6 +16,16 @@ const AccountPage = ({ variant }) => {
   const client = useQueryClient();
   const url = resourceUrl(variant, 'utilisateurs/comptes');
   const profile = useQuery({ queryKey: ['profile', url], queryFn: () => fetchApi(`${url}me/`) });
+  const localMode = usesLocalSession();
+  const sessions = useQuery({
+    queryKey: ['sessions', url],
+    enabled: localMode,
+    queryFn: async () => {
+      const result = await fetchApi(`${url}sessions/`);
+      if (!Array.isArray(result)) { throw new Error('Réponse des sessions invalide.'); }
+      return result;
+    },
+  });
   const action = useMutation({
     mutationFn: ({ name, payload }) => postApi(`${url}${name}/`, payload),
     onSuccess: (result) => {
@@ -24,6 +34,13 @@ const AccountPage = ({ variant }) => {
       setCode('');
       setPassword('');
       client.invalidateQueries({ queryKey: ['profile', url] });
+    },
+  });
+  const revoke = useMutation({
+    mutationFn: jti => postApi(`${url}revoke_session/`, { jti }),
+    onSuccess: (result) => {
+      setNotice(result.detail);
+      client.invalidateQueries({ queryKey: ['sessions', url] });
     },
   });
   const logout = useMutation({
@@ -40,7 +57,7 @@ const AccountPage = ({ variant }) => {
         Le MFA configuré ici protège les connexions SIS locales.
         Pour Open edX, configurez également le MFA de votre fournisseur d’identité.
       </Alert>
-      {(profile.error || action.error || logout.error) && <Alert severity="error">{apiErrorMessage(profile.error || action.error || logout.error)}</Alert>}
+      {(profile.error || action.error || revoke.error || logout.error) && <Alert severity="error">{apiErrorMessage(profile.error || action.error || revoke.error || logout.error)}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
       <Typography sx={{ my: 2 }}>{profile.data?.full_name || profile.data?.username}</Typography>
       <Stack spacing={2}>
@@ -72,8 +89,28 @@ const AccountPage = ({ variant }) => {
             <Button disabled={action.isPending || !code || !password} onClick={() => action.mutate({ name: 'mfa_disable', payload: { code, password } })}>Désactiver le MFA local</Button>
           </>
         )}
-        {usesLocalSession() && (
-          <Button onClick={() => logout.mutate()} disabled={logout.isPending}>Se déconnecter</Button>
+        {localMode && (
+          <>
+            <Typography variant="h6">Sessions SIS locales</Typography>
+            <Typography>Jetons non expirés ; les appareils ne sont pas identifiés.</Typography>
+            {sessions.error && <Alert severity="error">{apiErrorMessage(sessions.error)}</Alert>}
+            {(sessions.isFetching || revoke.isPending) && <Typography>Chargement des sessions…</Typography>}
+            {sessions.isSuccess && !sessions.isFetching && !revoke.isPending && (
+              sessions.data.length ? sessions.data.map((session, index) => (
+                <Box key={session.jti} display="flex" alignItems="center" justifyContent="space-between">
+                  <Typography>Session {index + 1}</Typography>
+                  {session.revoked
+                    ? <Typography>Révoquée</Typography>
+                    : (
+                      <Button onClick={() => revoke.mutate(session.jti)} disabled={revoke.isPending}>
+                        Révoquer la session
+                      </Button>
+                    )}
+                </Box>
+              )) : <Typography>Aucune session JWT non expirée.</Typography>
+            )}
+            <Button onClick={() => logout.mutate()} disabled={logout.isPending}>Se déconnecter</Button>
+          </>
         )}
       </Stack>
     </Box>
