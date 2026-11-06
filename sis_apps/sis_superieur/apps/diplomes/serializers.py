@@ -3,6 +3,7 @@
 from rest_framework import serializers
 
 from .models import CessionDiplome, Diplome
+from .services import has_issuance_prerequisite
 
 
 class DiplomeSerializer(serializers.ModelSerializer):
@@ -104,6 +105,30 @@ class CessionDiplomeDetailSerializer(serializers.ModelSerializer):
             "qr_verification",
             "created_at",
         ]
+
+    def validate(self, attrs):
+        identity_fields = ("etudiant", "diplome", "annee_universitaire", "date_obtention")
+        if self.instance and self.instance.date_signature is not None:
+            if any(
+                field in attrs and attrs[field] != getattr(self.instance, field)
+                for field in identity_fields
+            ):
+                raise serializers.ValidationError(
+                    "Le titulaire et le diplôme d'une délivrance signée ne peuvent pas être modifiés."
+                )
+        if self.instance is None or any(field in attrs for field in identity_fields):
+            values = {
+                field: attrs.get(field, getattr(self.instance, field, None))
+                for field in identity_fields
+            }
+            if not has_issuance_prerequisite(
+                **values,
+                tenant=getattr(self.context.get("request"), "tenant", None),
+            ):
+                raise serializers.ValidationError(
+                    "Une inscription validée et une admission par le jury final clôturé sont requises."
+                )
+        return attrs
 
 
 class AlumniRevisionSerializer(serializers.Serializer):

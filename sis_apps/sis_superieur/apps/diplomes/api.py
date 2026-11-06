@@ -20,6 +20,7 @@ from sis_common.official_documents import render_official_pdf, tenant_identity_r
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 from .models import CessionDiplome, ConsentementAlumni, Diplome
+from .services import has_issuance_prerequisite
 from .serializers import (
     AlumniOptInSerializer,
     AlumniRevisionSerializer,
@@ -151,6 +152,17 @@ class CessionsDiplomesViewSet(viewsets.ModelViewSet):
         cession = get_action_object(self)
         if cession.date_signature:
             return Response({"error": "Déjà signé."}, status=400)
+        if not has_issuance_prerequisite(
+            etudiant=cession.etudiant,
+            diplome=cession.diplome,
+            annee_universitaire=cession.annee_universitaire,
+            date_obtention=cession.date_obtention,
+            tenant=request.tenant,
+        ):
+            return Response(
+                {"detail": "Une inscription validée et une admission par le jury final clôturé sont requises."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         from django.utils import timezone
 
@@ -210,6 +222,8 @@ class CessionsDiplomesViewSet(viewsets.ModelViewSet):
     def pdf_officiel(self, request, pk=None):
         """Génère le PDF officiel du diplôme délivré."""
         cession = self.get_object()
+        if cession.date_signature is None:
+            return Response({"detail": "Diplôme non signé."}, status=status.HTTP_409_CONFLICT)
         if cession.date_revocation is not None:
             return Response({"detail": "Diplôme révoqué."}, status=status.HTTP_409_CONFLICT)
         serialized = CessionDiplomeDetailSerializer(cession).data
