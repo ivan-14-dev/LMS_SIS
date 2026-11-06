@@ -102,7 +102,19 @@ class ConventionStageDetailSerializer(serializers.ModelSerializer):
             "suivis",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "created_at", "date_signature_complete"]
+
+    def validate_statut(self, statut):
+        if self.instance is None:
+            if statut != "brouillon":
+                raise serializers.ValidationError(
+                    "Une nouvelle convention doit être en brouillon."
+                )
+        elif statut not in (self.instance.statut, "annulee"):
+            raise serializers.ValidationError(
+                "La signature doit passer par l'action signer."
+            )
+        return statut
 
     def get_suivis(self, obj):
         return SuiviStageSerializer(obj.suivis.all()[:5], many=True).data
