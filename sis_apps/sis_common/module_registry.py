@@ -69,7 +69,12 @@ MODULES = {
 
 
 def effective_modules(overrides):
-    return {identifier: overrides.get(identifier, item.default_enabled) for identifier, item in MODULES.items()}
+    configured = {identifier: overrides.get(identifier, item.default_enabled) for identifier, item in MODULES.items()}
+
+    def active(identifier):
+        return configured[identifier] and all(active(dependency) for dependency in MODULES[identifier].dependencies)
+
+    return {identifier: active(identifier) for identifier in MODULES}
 
 
 def validate_module_changes(current, changes):
@@ -81,11 +86,11 @@ def validate_module_changes(current, changes):
         if type(enabled) is not bool:
             raise ValidationError({"enabled": "L'activation d'un module doit être un booléen."})
     proposed = {**current, **changes}
-    effective = effective_modules(proposed)
+    configured = {identifier: proposed.get(identifier, item.default_enabled) for identifier, item in MODULES.items()}
     for identifier, item in MODULES.items():
-        if item.required and not effective[identifier]:
+        if item.required and not configured[identifier]:
             raise ValidationError({"enabled": f"Le module {item.label} est obligatoire."})
-        if effective[identifier] and any(not effective[dependency] for dependency in item.dependencies):
+        if configured[identifier] and any(not configured[dependency] for dependency in item.dependencies):
             raise ValidationError({"enabled": f"Les dépendances de {item.label} doivent être actives."})
     return proposed
 

@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+from unittest import TestCase
 from unittest.mock import patch
 
 from apps.core.models import ModuleConfiguration, Reclamation, WorkflowEvent
@@ -5,11 +7,32 @@ from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django_tenants.utils import schema_context
+from rest_framework.exceptions import PermissionDenied
 
-from sis_common.module_registry import module_snapshot
+from sis_common.module_registry import module_snapshot, require_module
 
 BASE = "/api/v1/etablissement/current/modules/"
 COMPLAINTS = "/api/v1/core/reclamations/"
+
+
+class ModuleDependencyTests(TestCase):
+    def test_persisted_disabled_dependency_blocks_dependent_modules(self):
+        tenant = SimpleNamespace(pk=11)
+        configuration = SimpleNamespace(
+            revision=3,
+            enabled={"core.notifications": False, "sis.complaints": True, "sis.delegations": True},
+        )
+        with patch("sis_common.module_registry.module_configuration", return_value=configuration):
+            snapshot = module_snapshot(tenant)
+            self.assertFalse(snapshot["enabled"]["core.notifications"])
+            for identifier in ("sis.complaints", "sis.delegations"):
+                with self.subTest(identifier=identifier):
+                    self.assertFalse(snapshot["enabled"][identifier])
+                    self.assertFalse(
+                        next(item["enabled"] for item in snapshot["modules"] if item["identifier"] == identifier)
+                    )
+                    with self.assertRaises(PermissionDenied):
+                        require_module(tenant, identifier)
 
 
 class ModuleConfigurationTests(TenantAPITestCase):
@@ -85,6 +108,16 @@ class ModuleConfigurationTests(TenantAPITestCase):
                 self.client.patch(BASE, self.payload, format="json")
         assert not ModuleConfiguration.objects.exists()
         assert self.client.get(COMPLAINTS).status_code == 200
+
+    def test_persisted_disabled_dependency_blocks_complaints(self):
+        ModuleConfiguration.objects.create(
+            etablissement=self.tenant, enabled={"core.notifications": False, "sis.complaints": True}
+        )
+        snapshot = self.client.get(BASE)
+        assert snapshot.status_code == 200, snapshot.data
+        assert snapshot.data["enabled"]["sis.complaints"] is False
+        self.client.force_authenticate(self.learner)
+        assert self.client.get(COMPLAINTS).status_code == 403
 
     def test_other_establishment_configuration_does_not_change_this_tenant(self):
         other = type(self.tenant)(
