@@ -2,16 +2,17 @@
 
 from django.db import transaction
 from django.db.models import Count
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from sis_common.authorization import request_has_business_access, user_has_any_role
+from sis_common.authorization import is_current_tenant_user, request_has_business_access, user_has_any_role
 
 from .models import Appel, Justificatif, Presence
 from .serializers import (
@@ -288,12 +289,67 @@ class JustificatifsViewSet(viewsets.ModelViewSet):
             return qs
         return qs.none()
 
+    @transaction.atomic
+    def perform_update(self, serializer):
+        justificatif = Justificatif.objects.select_for_update().get(pk=serializer.instance.pk)
+        if justificatif.statut != "en_attente":
+            raise ValidationError({"statut": "Une décision déjà prise ne peut être modifiée."})
+        serializer.instance = justificatif
+        serializer.save()
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        justificatif = Justificatif.objects.select_for_update().get(pk=instance.pk)
+        if justificatif.statut != "en_attente":
+            raise ValidationError({"statut": "Une décision déjà prise ne peut être supprimée."})
+        justificatif.delete()
+
+    def _pending_review(self, request):
+        if not is_current_tenant_user(request):
+            raise PermissionDenied()
+        justificatif = self.get_object()
+        justificatif = get_object_or_404(Justificatif.objects.select_for_update(), pk=justificatif.pk)
+        if justificatif.statut != "en_attente":
+            raise ValidationError({"statut": "Ce justificatif a déjà été traité."})
+        return justificatif
+
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def accepter(self, request, pk=None):
         """Accepte un justificatif."""
-        justificatif = self.get_object()
-        if justificatif.statut != "en_attente":
-            return Response({"error": "Ce justificatif a déjà été traité."}, status=400)
+        justificatif = self._pending_review(request)
+        presence = Presence.objects.select_for_update().select_related(
+            "eleve__user", "appel__creneau__classe__annee_scolaire", "appel__creneau__matiere",
+            "appel__enseignant__user",
+        ).get(pk=justificatif.presence_id)
+        appel = presence.appel
+        creneau = appel.creneau
+        classe = creneau.classe
+        eleve = presence.eleve
+        tenant_id = request.tenant.pk
+        if (
+            presence.statut != "absent"
+            or eleve.etablissement_id != tenant_id
+            or eleve.user.etablissement_id != tenant_id
+            or classe.etablissement_id != tenant_id
+            or classe.annee_scolaire.etablissement_id != tenant_id
+            or creneau.matiere.etablissement_id != tenant_id
+            or appel.enseignant.user.etablissement_id != tenant_id
+            or appel.enseignant_id != creneau.enseignant_id
+            or not classe.annee_scolaire.date_debut <= appel.date <= classe.annee_scolaire.date_fin
+            or creneau.jour != appel.date.isoweekday()
+            or (creneau.date_specifique is not None and creneau.date_specifique != appel.date)
+            or (
+                eleve.classe_actuelle_id != classe.pk
+                and not eleve.inscriptions.filter(
+                    classe=classe,
+                    annee_scolaire=classe.annee_scolaire,
+                    date_inscription__lte=appel.date,
+                    statut="validee",
+                ).exists()
+            )
+        ):
+            raise ValidationError({"presence": "Cette absence ne correspond pas à un cours de cet établissement."})
 
         valide_par = None
         if hasattr(request.user, "personnel_profile"):
@@ -305,20 +361,16 @@ class JustificatifsViewSet(viewsets.ModelViewSet):
         justificatif.commentaire_validation = request.data.get("commentaire", "")
         justificatif.save()
 
-        # Mettre à jour le statut de la présence
-        presence = justificatif.presence
-        if presence.statut == "absent":
-            presence.statut = "absent_justifie"
-            presence.save(update_fields=["statut"])
+        presence.statut = "absent_justifie"
+        presence.save(update_fields=["statut"])
 
         return Response({"detail": "Justificatif accepté.", "id": justificatif.id})
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def refuser(self, request, pk=None):
         """Refuse un justificatif."""
-        justificatif = self.get_object()
-        if justificatif.statut != "en_attente":
-            return Response({"error": "Ce justificatif a déjà été traité."}, status=400)
+        justificatif = self._pending_review(request)
 
         valide_par = None
         if hasattr(request.user, "personnel_profile"):
