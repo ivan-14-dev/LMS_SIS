@@ -234,7 +234,15 @@ def initialize(configuration, options):
         raise ValueError("The requested variant is disabled by SIS_MODE.")
     path = options.institution.resolve(strict=True)
     # Validate JSON before starting any containers.
-    json.loads(path.read_text(encoding="utf-8"))
+    institution = json.loads(path.read_text(encoding="utf-8"))
+    if (
+        not isinstance(institution, dict)
+        or not isinstance(institution.get("schema_name"), str)
+        or not isinstance(institution.get("domain"), str)
+        or not isinstance(institution.get("institution"), dict)
+        or not isinstance(institution.get("admin"), dict)
+    ):
+        raise ValueError("Institution JSON requires schema_name, domain, institution and admin.")
     compose(configuration, "config", "--quiet")
     compose(configuration, "build", f"api-{options.variant}")
     compose(configuration, "up", "-d", "--wait", f"postgres-{options.variant}", "redis")

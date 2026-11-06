@@ -61,7 +61,10 @@ class CardReferencePreflightTests(unittest.TestCase):
     def test_init_aborts_before_bootstrap_on_duplicate_refs(self):
         with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
             institution = Path(directory) / "institution.json"
-            institution.write_text(json.dumps({"schema_name": "school_a"}), encoding="utf-8")
+            institution.write_text(json.dumps({
+                "schema_name": "school_a", "domain": "school-a.example.test",
+                "institution": {}, "admin": {},
+            }), encoding="utf-8")
             calls = []
 
             def fake_compose(_configuration, *arguments, **_kwargs):
@@ -85,6 +88,30 @@ class CardReferencePreflightTests(unittest.TestCase):
             ("config", "--quiet"), ("build", "api-secondaire"), ("up", "-d"),
         ])
         self.assertFalse(any(call[0] == "run" for call in calls))
+
+    def test_init_rejects_malformed_institution_before_compose_or_password_prompt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            institution = Path(directory) / "institution.json"
+            for content in (
+                [],
+                {"schema_name": "school_a"},
+                {
+                    "schema_name": "school_a", "domain": "school-a.example.test",
+                    "institution": [], "admin": {},
+                },
+            ):
+                with self.subTest(content=content):
+                    institution.write_text(json.dumps(content), encoding="utf-8")
+                    with patch.object(
+                        sisctl, "compose", side_effect=AssertionError("Must not start Compose")
+                    ), patch.object(
+                        sisctl.getpass, "getpass", side_effect=AssertionError("Must not prompt")
+                    ):
+                        with self.assertRaisesRegex(ValueError, "Institution JSON requires"):
+                            sisctl.initialize(
+                                {"SIS_MODE": "secondaire"},
+                                SimpleNamespace(variant="secondaire", institution=institution),
+                            )
 
 
 class ConfigureSafetyTests(unittest.TestCase):
