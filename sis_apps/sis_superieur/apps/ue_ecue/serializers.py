@@ -151,3 +151,11 @@ class PrerequisSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        ue_cible = attrs.get("ue_cible", getattr(self.instance, "ue_cible", None))
+        ue_prereq = attrs.get("ue_prereq", getattr(self.instance, "ue_prereq", None))
+        if ue_cible and ue_prereq and ue_cible.pk == ue_prereq.pk:
+            raise serializers.ValidationError({"ue_prereq": "Une UE ne peut pas être son propre prérequis."})
+        return attrs
