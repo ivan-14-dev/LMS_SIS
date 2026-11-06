@@ -2,8 +2,10 @@
 
 from apps.core.models import WorkflowEvent, WorkflowNotification
 from apps.core.serializers import WorkflowNotificationSerializer
+from apps.etudiants.models import Etudiant
 from apps.formations.models import Formation, Parcours
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q, Value
+from django.db.models.functions import Concat
 from rest_framework import generics, mixins, permissions, response, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -52,11 +54,12 @@ class AcademicSearchPagination(SISPagination):
 
 
 class AcademicSearchView(generics.ListAPIView):
-    """Recherche GET ?ressource=formations|parcours&q=terme.
+    """Recherche GET ?ressource=formations|parcours|etudiants&q=terme.
 
     Chaque requête porte sur un seul modèle, et ne renvoie que id, code et nom.
     Pagination : 20 résultats par défaut, au plus 50 via page_size.
     Les formations sans rattachement sont propres au schéma du tenant courant.
+    Les étudiants restent soumis au même périmètre que leur fiche.
     """
 
     permission_classes = [ActiveTenantAccess]
@@ -66,8 +69,8 @@ class AcademicSearchView(generics.ListAPIView):
 
     def get_queryset(self):
         resource = self.request.query_params.get("ressource")
-        if resource not in ("formations", "parcours"):
-            raise ValidationError({"ressource": "Choisissez formations ou parcours."})
+        if resource not in ("formations", "parcours", "etudiants"):
+            raise ValidationError({"ressource": "Choisissez formations, parcours ou etudiants."})
         raw_term = self.request.query_params.get("q", "")
         term = raw_term.strip()
         if (
@@ -77,13 +80,27 @@ class AcademicSearchView(generics.ListAPIView):
         ):
             raise ValidationError({"q": "Saisissez entre 2 et 100 caractères, sans caractères de contrôle."})
 
-        model = Formation if resource == "formations" else Parcours
-        permission = f"formations.view_{model._meta.model_name}"
+        model = {"formations": Formation, "parcours": Parcours, "etudiants": Etudiant}[resource]
+        permission = f"{model._meta.app_label}.view_{model._meta.model_name}"
         if not self.request.user.has_perm(permission):
             raise PermissionDenied("La consultation de cette ressource exige sa permission de lecture.")
 
-        prefix = "" if model is Formation else "formation__"
         tenant_id = self.request.tenant.pk
+        if resource == "etudiants":
+            queryset = Etudiant.objects.filter(universite_id=tenant_id)
+            queryset = filter_queryset_by_scopes(queryset, self.request.user, permission, {"etudiants": "pk"})
+            if self.request.user.role in ("etudiant", "doctorant", "parent") and not self.request.user.is_superuser:
+                queryset = queryset.filter(user=self.request.user)
+            return queryset.filter(
+                Q(matricule__icontains=term)
+                | Q(user__first_name__icontains=term)
+                | Q(user__last_name__icontains=term)
+            ).annotate(
+                code=F("matricule"),
+                nom=Concat("user__first_name", Value(" "), "user__last_name"),
+            ).order_by("pk").values("id", "code", "nom")
+
+        prefix = "" if model is Formation else "formation__"
         queryset = model.objects.filter(
             Q(**{f"{prefix}departement__isnull": True})
             | Q(**{f"{prefix}departement__faculte__universite_id": tenant_id}),

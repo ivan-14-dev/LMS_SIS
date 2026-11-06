@@ -61,6 +61,18 @@ class CoreAPITestCase(SimpleTestCase):
 class AcademicSearchAPITests(TenantAPITestCase):
     url = "/api/v1/core/recherche-academique/"
 
+    def _create_student(self, username, universite, surname):
+        user = Utilisateur.objects.create_user(username, etablissement=universite, role="etudiant")
+        user.first_name = "Anne"
+        user.last_name = surname
+        user.save(update_fields=["first_name", "last_name"])
+        profile = Etudiant.objects.create(
+            universite=universite, user=user, matricule=f"SEARCH-{username}",
+            date_naissance="2003-01-01", lieu_naissance="Paris", sexe="F",
+            adresse="1 rue des Tests", code_postal="75000", ville="Paris", telephone="0100000000",
+        )
+        return user, profile
+
     def setUp(self):
         self.user = Utilisateur.objects.create_user("academic_search", etablissement=self.tenant, role="scolarite")
         self.user.user_permissions.add(
@@ -183,6 +195,45 @@ class AcademicSearchAPITests(TenantAPITestCase):
             )
         historical = self.client.get(self.url, {"ressource": "formations", "q": "ancienne"})
         assert [row["id"] for row in historical.data["results"]] == [other_formation.pk]
+
+    def test_learner_search_respects_tenant_scope_and_permission_revocation(self):
+        _, own = self._create_student("local_a", self.tenant, "Mercier")
+        _, peer = self._create_student("local_b", self.tenant, "Mercier")
+        self._create_student("foreign_a", self.other, "Mercier")
+        permission = Permission.objects.get(content_type__app_label="etudiants", codename="view_etudiant")
+        self.user.user_permissions.add(permission)
+
+        result = self.client.get(self.url, {"ressource": "etudiants", "q": "Mercier"})
+        assert result.status_code == 200
+        assert [row["id"] for row in result.data["results"]] == [own.pk, peer.pk]
+        assert result.data["results"][0] == {
+            "id": own.pk, "code": own.matricule, "nom": "Anne Mercier",
+        }
+
+        self.user.attributs_acces = {
+            "permission_scopes": {"etudiants.view_etudiant": {"etudiants": [peer.pk]}}
+        }
+        self.user.save(update_fields=["attributs_acces"])
+        scoped = self.client.get(self.url, {"ressource": "etudiants", "q": "Mercier"})
+        assert [row["id"] for row in scoped.data["results"]] == [peer.pk]
+
+        self.user.user_permissions.remove(permission)
+        self.user = Utilisateur.objects.get(pk=self.user.pk)
+        self.client.force_authenticate(self.user)
+        assert self.client.get(self.url, {"ressource": "etudiants", "q": "Mercier"}).status_code == 403
+
+    def test_learner_cannot_search_other_learners_with_model_permission(self):
+        user, own = self._create_student("learner_a", self.tenant, "Mercier")
+        self._create_student("learner_b", self.tenant, "Durand")
+        user.user_permissions.add(
+            Permission.objects.get(content_type__app_label="etudiants", codename="view_etudiant")
+        )
+        self.client.force_authenticate(user)
+
+        result = self.client.get(self.url, {"ressource": "etudiants", "q": "Mercier"})
+        assert result.status_code == 200
+        assert [row["id"] for row in result.data["results"]] == [own.pk]
+        assert self.client.get(self.url, {"ressource": "etudiants", "q": "Durand"}).data["count"] == 0
 
     def test_invalid_queries_and_unauthenticated_access(self):
         for params in (
