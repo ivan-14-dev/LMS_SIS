@@ -1,10 +1,12 @@
 """API views for releves (ViewSets DRF) - SIS Supérieur."""
 
 from apps.core.serializers import WorkflowEventSerializer
+from django.db import transaction
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.response import Response
 
@@ -195,7 +197,7 @@ class RelevesNotesViewSet(viewsets.ModelViewSet):
 
 
 class TranscriptsViewSet(viewsets.ModelViewSet):
-    """ViewSet CRUD pour transcripts."""
+    """ViewSet CRUD pour transcripts ; un transcript signé est immuable."""
 
     permission_classes = [IsScolariteOrReadOnly]
     required_change_permission = "releves.change_transcript"
@@ -222,6 +224,26 @@ class TranscriptsViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return TranscriptListSerializer
         return TranscriptDetailSerializer
+
+    @staticmethod
+    def _lock_unsigned(transcript_id):
+        signer_id = (
+            Transcript.objects.select_for_update()
+            .values_list("signe_par_id", flat=True)
+            .get(pk=transcript_id)
+        )
+        if signer_id is not None:
+            raise ValidationError({"detail": "Un transcript signé ne peut plus être modifié ou supprimé."})
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            self._lock_unsigned(serializer.instance.pk)
+            serializer.save()
+
+    def perform_destroy(self, instance):
+        with transaction.atomic():
+            self._lock_unsigned(instance.pk)
+            instance.delete()
 
     @action(detail=False, methods=["get"])
     def mes_transcripts(self, request):
@@ -252,19 +274,21 @@ class TranscriptsViewSet(viewsets.ModelViewSet):
     def signer(self, request, pk=None):
         """Signe le transcript officiel."""
         transcript = get_action_object(self)
-        if transcript.signe_par_id:
-            return Response({"error": "Déjà signé."}, status=400)
-        transcript.signe_par = request.user
-        transcript.save(update_fields=["signe_par"])
-        record_workflow_event(
-            request,
-            transcript,
-            "signature",
-            "Transcript signé",
-            message=f"Le transcript {transcript.numero_serie} de {transcript.etudiant} a été signé.",
-            recipients=_student_notification_recipients(request, transcript.etudiant),
-            metadata={"etudiant_id": transcript.etudiant_id},
-        )
+        with transaction.atomic():
+            transcript = Transcript.objects.select_for_update().get(pk=transcript.pk)
+            if transcript.signe_par_id:
+                return Response({"error": "Déjà signé."}, status=400)
+            transcript.signe_par = request.user
+            transcript.save(update_fields=["signe_par"])
+            record_workflow_event(
+                request,
+                transcript,
+                "signature",
+                "Transcript signé",
+                message=f"Le transcript {transcript.numero_serie} de {transcript.etudiant} a été signé.",
+                recipients=_student_notification_recipients(request, transcript.etudiant),
+                metadata={"etudiant_id": transcript.etudiant_id},
+            )
         return Response({"detail": "Transcript signé.", "id": transcript.id})
 
     @action(detail=True, methods=["get"])

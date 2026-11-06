@@ -65,6 +65,13 @@ class TranscriptPublicationTestCase(TenantAPITestCase):
         self.transcript.annees.add(self.year)
         self.client.force_authenticate(self.staff)
 
+    def sign_transcript(self):
+        with patch("sis_common.document_policies.requires_financial_clearance", return_value=True), patch(
+            "sis_common.document_policies.subject_has_financial_clearance", return_value=True
+        ):
+            response = self.client.post(f"/api/v1/releves/transcripts/{self.transcript.pk}/signer/")
+        assert response.status_code == 200, response.data
+
     def test_crud_cannot_publish_unsigned_transcripts_or_bypass_signature_gate(self):
         url = f"/api/v1/releves/transcripts/{self.transcript.pk}/"
         with patch("sis_common.document_policies.requires_financial_clearance", return_value=True), patch(
@@ -73,10 +80,13 @@ class TranscriptPublicationTestCase(TenantAPITestCase):
             response = self.client.post(f"{url}signer/")
         assert response.status_code == 409, response.data
 
-        response = self.client.patch(url, {"signe_par": self.staff.pk}, format="json")
+        response = self.client.patch(
+            url, {"credits_total": "61.00", "signe_par": self.staff.pk}, format="json"
+        )
         assert response.status_code == 200, response.data
         self.transcript.refresh_from_db()
         assert self.transcript.signe_par_id is None
+        assert self.transcript.credits_total == 61
 
         response = self.client.post(
             "/api/v1/releves/transcripts/",
@@ -99,3 +109,63 @@ class TranscriptPublicationTestCase(TenantAPITestCase):
         assert self.client.get(url).status_code == 404
         assert self.client.get(f"{url}pdf_officiel/").status_code == 404
         assert self.client.get("/api/v1/releves/transcripts/mes_transcripts/").data == []
+
+    def test_signed_transcript_cannot_be_tampered_with_or_deleted(self):
+        url = f"/api/v1/releves/transcripts/{self.transcript.pk}/"
+        self.sign_transcript()
+
+        assert self.client.patch(url, {"credits_total": "90.00"}, format="json").status_code == 400
+        assert self.client.patch(url, {"annees": []}, format="json").status_code == 400
+        assert self.client.put(
+            url,
+            {
+                "etudiant": self.student.pk,
+                "annees": [],
+                "pdf_path": "transcripts/altered.pdf",
+                "credits_total": "90.00",
+                "credits_valides": "60.00",
+                "date_emission": timezone.localdate().isoformat(),
+                "numero_serie": "TRANSCRIPT-01",
+            },
+            format="json",
+        ).status_code == 400
+        assert self.client.delete(url).status_code == 400
+
+        self.transcript.refresh_from_db()
+        assert self.transcript.credits_total == 60
+        assert self.transcript.pdf_path == "transcripts/draft.pdf"
+        assert list(self.transcript.annees.values_list("pk", flat=True)) == [self.year.pk]
+        assert self.transcript.signe_par_id == self.staff.pk
+        history = self.client.get(f"{url}historique/")
+        assert history.status_code == 200
+        assert len(history.data) == 1
+
+    def test_signed_transcript_is_published_without_allowing_replay_or_foreign_role(self):
+        url = f"/api/v1/releves/transcripts/{self.transcript.pk}/"
+        self.client.force_authenticate(self.student.user)
+        assert self.client.post(f"{url}signer/").status_code == 403
+        self.client.force_authenticate(self.staff)
+        self.sign_transcript()
+        with patch("sis_common.document_policies.requires_financial_clearance", return_value=True), patch(
+            "sis_common.document_policies.subject_has_financial_clearance", return_value=True
+        ):
+            assert self.client.post(f"{url}signer/").status_code == 400
+
+        self.client.force_authenticate(self.student.user)
+        response = self.client.get(f"{url}pdf_officiel/")
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/pdf"
+        assert self.client.get(url).status_code == 200
+
+        other_user = Utilisateur.objects.create_user(
+            username="transcript-other-student", role="etudiant", etablissement=self.tenant
+        )
+        Etudiant.objects.create(
+            user=other_user,
+            universite=self.tenant,
+            matricule="TRANSCRIPT-OTHER",
+            date_naissance="2000-01-01",
+        )
+        self.client.force_authenticate(other_user)
+        assert self.client.get(f"{url}pdf_officiel/").status_code == 404
+        assert self.client.post(f"{url}signer/").status_code == 403
