@@ -2,6 +2,8 @@
 
 from django.urls import path
 
+from sis_common.delegations import ActiveTenantAccess
+
 from . import api
 
 app_name = "eleves_api"
@@ -11,6 +13,11 @@ urlpatterns = [
         "inscriptions/",
         api.InscriptionsViewSet.as_view({"get": "list", "post": "create"}),
         name="inscriptions-list",
+    ),
+    path(
+        "inscriptions/deposer/",
+        api.InscriptionsViewSet.as_view({"post": "deposer"}, permission_classes=[ActiveTenantAccess]),
+        name="inscriptions-deposer",
     ),
     path(
         "inscriptions/<int:pk>/",
