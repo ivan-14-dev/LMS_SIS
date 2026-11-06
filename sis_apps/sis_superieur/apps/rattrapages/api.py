@@ -7,7 +7,11 @@ from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from sis_common.authorization import request_has_business_access
+from sis_common.authorization import (
+    is_current_tenant_user,
+    request_has_business_access,
+    user_has_any_role,
+)
 
 from .models import InscriptionRattrapage
 from .serializers import InscriptionRattrapageSerializer
@@ -17,7 +21,7 @@ class IsScolariteOrReadOnly(IsAuthenticated):
     """Permission: scolarité pour écriture."""
 
     def has_permission(self, request, view):
-        if not super().has_permission(request, view):
+        if not super().has_permission(request, view) or not is_current_tenant_user(request):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
@@ -39,9 +43,31 @@ class InscriptionsRattrapageViewSet(viewsets.ModelViewSet):
     ordering = ["-date_inscription"]
 
     def get_queryset(self):
-        return InscriptionRattrapage.objects.select_related(
+        inscriptions = InscriptionRattrapage.objects.select_related(
             "etudiant__user", "ecue", "session_rattrapage"
+        ).filter(
+            etudiant__universite_id=self.request.tenant.pk,
+            session_rattrapage__semestre__annee_universitaire__universite_id=self.request.tenant.pk,
         )
+        if not is_current_tenant_user(self.request):
+            return inscriptions.none()
+        if not self.request.user.is_superuser and user_has_any_role(
+            self.request.user, ("etudiant", "doctorant")
+        ):
+            return inscriptions.filter(etudiant__user=self.request.user)
+        if request_has_business_access(
+            self.request,
+            "rattrapages.view_inscriptionrattrapage",
+            ("scolarite", "responsable_formation", "doyen"),
+            tenant_group_codes=("retake_manager_superieur",),
+        ) or request_has_business_access(
+            self.request,
+            "rattrapages.change_inscriptionrattrapage",
+            ("scolarite", "responsable_formation", "doyen"),
+            tenant_group_codes=("retake_manager_superieur",),
+        ):
+            return inscriptions
+        return inscriptions.none()
 
     @action(detail=False, methods=["get"])
     def en_attente(self, request):

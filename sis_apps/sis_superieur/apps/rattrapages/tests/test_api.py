@@ -110,6 +110,97 @@ class RattrapageSessionValidationTestCase(TenantAPITestCase):
         self.assertEqual(replay.status_code, 400, replay.data)
         self.assertEqual(InscriptionRattrapage.objects.count(), 1)
 
+    def test_read_endpoints_only_expose_a_students_own_registrations(self):
+        other_user = Utilisateur.objects.create_user(
+            username="retake-other-student", role="etudiant", etablissement=self.tenant
+        )
+        other_student = Etudiant.objects.create(
+            user=other_user, universite=self.tenant, matricule="RET-02",
+            date_naissance="2000-01-01",
+        )
+        other_ia = InscriptionAdministrative.objects.create(
+            etudiant=other_student, annee_universitaire=self.year, formation=self.formation,
+            date_inscription="2026-09-10", statut="validee",
+        )
+        other_ip = InscriptionPedagogique.objects.create(
+            inscription_admin=other_ia, semestre=self.semester, statut="validee",
+        )
+        other_ip.ues.add(self.ue)
+        own = self.client.post("/api/v1/rattrapages/", self.payload, format="json")
+        other = self.client.post(
+            "/api/v1/rattrapages/",
+            {**self.payload, "etudiant": other_student.pk}, format="json",
+        )
+        self.assertEqual(own.status_code, 201, own.data)
+        self.assertEqual(other.status_code, 201, other.data)
+
+        self.client.force_authenticate(self.student.user)
+        own_list = self.client.get("/api/v1/rattrapages/")
+        self.assertEqual(own_list.status_code, 200, own_list.data)
+        self.assertEqual([row["id"] for row in own_list.data["results"]], [own.data["id"]])
+        self.assertEqual(
+            self.client.get(f"/api/v1/rattrapages/{own.data['id']}/").status_code, 200
+        )
+        self.assertEqual(
+            self.client.get(f"/api/v1/rattrapages/{other.data['id']}/").status_code, 404
+        )
+        filtered = self.client.get("/api/v1/rattrapages/", {"etudiant": other_student.pk})
+        self.assertEqual(filtered.status_code, 200, filtered.data)
+        self.assertEqual(filtered.data["results"], [])
+        pending = self.client.get("/api/v1/rattrapages/en_attente/")
+        self.assertEqual(pending.status_code, 200, pending.data)
+        self.assertEqual([row["id"] for row in pending.data], [own.data["id"]])
+
+        outsider = Utilisateur.objects.create_user(
+            username="retake-outsider", role="enseignant", etablissement=self.tenant
+        )
+        self.client.force_authenticate(outsider)
+        self.assertEqual(self.client.get("/api/v1/rattrapages/").data["results"], [])
+        self.assertEqual(
+            self.client.get(f"/api/v1/rattrapages/{own.data['id']}/").status_code, 404
+        )
+        self.assertEqual(self.client.get("/api/v1/rattrapages/en_attente/").data, [])
+
+        manager = Utilisateur.objects.create_user(
+            username="retake-manager", role="scolarite", etablissement=self.tenant
+        )
+        self.client.force_authenticate(manager)
+        managed = self.client.get("/api/v1/rattrapages/")
+        self.assertEqual(managed.status_code, 200, managed.data)
+        self.assertEqual(
+            {row["id"] for row in managed.data["results"]},
+            {own.data["id"], other.data["id"]},
+        )
+        self.assertEqual(
+            self.client.get(f"/api/v1/rattrapages/{other.data['id']}/").status_code, 200
+        )
+
+    def test_foreign_manager_cannot_create_a_registration_in_the_current_tenant(self):
+        foreign = Universite(
+            schema_name="foreign_retake_manager", nom="Autre université",
+            type="universite_publique", adresse="1 rue des Tests", code_postal="75000",
+            ville="Paris", telephone="0100000000", email="other-manager@example.test",
+        )
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        foreign_manager = Utilisateur.objects.create_user(
+            username="foreign-retake-manager", role="scolarite", etablissement=foreign
+        )
+        local_manager = Utilisateur.objects.create_user(
+            username="local-retake-manager", role="scolarite", etablissement=self.tenant
+        )
+
+        self.client.force_authenticate(foreign_manager)
+        denied = self.client.post("/api/v1/rattrapages/", self.payload, format="json")
+        self.assertEqual(denied.status_code, 403, denied.data)
+        self.assertFalse(InscriptionRattrapage.objects.exists())
+
+        self.client.force_authenticate(local_manager)
+        allowed = self.client.post("/api/v1/rattrapages/", self.payload, format="json")
+        self.assertEqual(allowed.status_code, 201, allowed.data)
+        self.assertEqual(InscriptionRattrapage.objects.count(), 1)
+
     def test_refuses_unvalidated_or_unrelated_registration(self):
         self.ip.statut = "soumise"
         self.ip.save(update_fields=["statut"])
