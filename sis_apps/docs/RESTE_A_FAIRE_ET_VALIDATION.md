@@ -58,6 +58,22 @@ encore **87 erreurs** avant la tranche suivante. Le patch Open edX non testé,
 la recette institutionnelle, les fournisseurs externes et la charge 500
 restent ouverts : **1/94 exigences vérifiées**, sans nouvelle promotion.
 
+**Tranche suivante :** le lint frontend global passe désormais sans erreur,
+les **342 tests Jest sur 30 suites** et le build de production passent. Les suites
+isolées admissions, cycle académique, emploi du temps et services passent
+**36/36 dans chacun des deux SIS**. Deux précontrôles d'installation ont
+été ajoutés : rejet des clés privées/incomplètes du JWKS et des URL LMS/Studio
+invalides avant la saisie des secrets ; les 8 tests CLI passent. Une image
+backend correspondant au code publié (`lms-sis:local-20261106-1e196e9`) a
+été construite ; `manage.py check` passe pour les deux variantes. Avec les
+sources des tests d'installation, des contrats frontend et de la fixture
+transport corrigée montées en lecture seule sur l'image applicative précédente
+(code backend identique), la régression complète passe aussi (**596 secondaire,
+593 supérieur**) sur PostgreSQL/Redis jetables. Cette image
+n'est **pas déployée** sur les services partagés. La recette intégrale, les
+vrais parcours LMS/prestataires et la charge 500 restent à démontrer ; le
+correctif Open edX demeure non publié faute d'essai CMS/MySQL isolé.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
