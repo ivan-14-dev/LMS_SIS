@@ -1,13 +1,15 @@
 """API tests for examens."""
 
 from datetime import timedelta
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from apps.examens.api import IsExamManager, ResultatsExamenViewSet, _ensure_entry_allowed
 from django.urls import resolve
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory
 
 
@@ -108,3 +110,102 @@ class ExamensAPITestCase(TestCase):
         )
 
         _ensure_entry_allowed(epreuve, "normal", {})
+
+    @patch("apps.examens.api.record_workflow_event")
+    @patch("apps.examens.api._exam_result_workflow", return_value={})
+    def test_validated_result_can_be_published_after_entry_deadline(self, workflow_mock, _event):
+        now = timezone.now()
+        request = SimpleNamespace(
+            user=SimpleNamespace(is_staff=True),
+            tenant=SimpleNamespace(configuration_academique={}),
+        )
+        for result_type, session_closed, workflow in (
+            ("normal", False, {}),
+            ("retake", True, {"allow_retake_after_closure": True}),
+        ):
+            with self.subTest(result_type=result_type, session_closed=session_closed):
+                workflow_mock.return_value = workflow
+                epreuve = SimpleNamespace(
+                    debut_soumission=now - timedelta(days=2),
+                    fin_soumission=now - timedelta(days=1),
+                    session=SimpleNamespace(
+                        cloturee=session_closed,
+                        semestre=SimpleNamespace(
+                            cloture=False,
+                            annee_universitaire=SimpleNamespace(cloturee=False),
+                        ),
+                    ),
+                )
+                result = SimpleNamespace(
+                    epreuve=epreuve,
+                    etudiant=SimpleNamespace(user=SimpleNamespace()),
+                    statut="validated",
+                    type_resultat=result_type,
+                    note=Decimal("14"),
+                    admis=False,
+                    mention="",
+                    save=Mock(),
+                )
+                view = ResultatsExamenViewSet()
+                view.get_object = Mock(return_value=result)
+                view.get_serializer = Mock(return_value=SimpleNamespace(data={"statut": "published"}))
+
+                # Invoke the API action without its database transaction; the result itself is a stub.
+                response = ResultatsExamenViewSet.publier.__wrapped__(view, request, pk=1)
+
+                assert response.status_code == 200
+                assert result.statut == "published"
+                assert result.note == Decimal("14")
+                assert result.admis is True
+                assert result.mention == "Bien"
+                result.save.assert_called_once()
+
+    @patch("apps.examens.api._exam_result_workflow", return_value={})
+    def test_closed_academic_period_still_rejects_publication(self, _workflow):
+        request = SimpleNamespace(user=SimpleNamespace(is_staff=True))
+        for closed_period, result_type in (
+            ("session", "normal"),
+            ("semestre", "normal"),
+            ("annee", "normal"),
+            ("session", "retake"),
+        ):
+            with self.subTest(closed_period=closed_period, result_type=result_type):
+                epreuve = SimpleNamespace(
+                    fin_soumission=timezone.now() - timedelta(days=1),
+                    session=SimpleNamespace(
+                        cloturee=closed_period == "session",
+                        semestre=SimpleNamespace(
+                            cloture=closed_period == "semestre",
+                            annee_universitaire=SimpleNamespace(cloturee=closed_period == "annee"),
+                        ),
+                    ),
+                )
+                result = SimpleNamespace(epreuve=epreuve, type_resultat=result_type, statut="validated")
+                view = ResultatsExamenViewSet()
+                view.get_object = Mock(return_value=result)
+
+                with self.assertRaisesRegex(ValidationError, "clôturé"):
+                    ResultatsExamenViewSet.publier.__wrapped__(view, request, pk=1)
+
+                assert result.statut == "validated"
+
+    def test_closed_session_still_rejects_grade_submission(self):
+        epreuve = SimpleNamespace(
+            session=SimpleNamespace(
+                cloturee=True,
+                semestre=SimpleNamespace(
+                    cloture=False,
+                    annee_universitaire=SimpleNamespace(cloturee=False),
+                ),
+            ),
+        )
+        result = SimpleNamespace(epreuve=epreuve, type_resultat="normal", statut="draft")
+        view = ResultatsExamenViewSet()
+        view.get_object = Mock(return_value=result)
+        request = SimpleNamespace(user=SimpleNamespace(is_staff=True))
+
+        with patch("apps.examens.api._exam_result_workflow", return_value={}):
+            with self.assertRaisesRegex(ValidationError, "clôturé"):
+                ResultatsExamenViewSet.soumettre.__wrapped__(view, request, pk=1)
+
+        assert result.statut == "draft"

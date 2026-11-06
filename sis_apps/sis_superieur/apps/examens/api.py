@@ -219,7 +219,7 @@ def _ensure_result_mutable(result, workflow):
             raise ValidationError({"workflow": "La fenêtre de réouverture est expirée."})
 
 
-def _ensure_entry_allowed(epreuve, type_resultat, workflow):
+def _ensure_entry_allowed(epreuve, type_resultat, workflow, *, check_submission_window=True):
     session = epreuve.session
     if session.cloturee or session.semestre.cloture or session.semestre.annee_universitaire.cloturee:
         allow_retake = workflow.get("allow_retake_after_closure", False)
@@ -232,7 +232,8 @@ def _ensure_entry_allowed(epreuve, type_resultat, workflow):
                     )
                 }
             )
-    _ensure_submission_window(epreuve, "La période de soumission des résultats")
+    if check_submission_window:
+        _ensure_submission_window(epreuve, "La période de soumission des résultats")
 
 
 def _apply_result_outcome(result, pass_mark):
@@ -883,7 +884,7 @@ class ResultatsExamenViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
         result = self.get_object()
         workflow = _exam_result_workflow(request, result.epreuve)
         _ensure_workflow_access(request, workflow, "publication_group_codes")
-        _ensure_entry_allowed(result.epreuve, result.type_resultat, workflow)
+        _ensure_entry_allowed(result.epreuve, result.type_resultat, workflow, check_submission_window=False)
         if result.statut != "validated":
             return Response({"error": "Ce résultat doit être validé avant publication."}, status=400)
         _set_result_status(result, "published", request, _pass_mark(request))
