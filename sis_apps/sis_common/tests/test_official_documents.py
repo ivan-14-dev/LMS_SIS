@@ -84,7 +84,10 @@ class OfficialDocumentsTests(SimpleTestCase):
             )
             return queryset
 
-        with patch("sis_common.signed_documents.Archive.objects.filter", side_effect=scoped_lookup) as filter_archive:
+        with (
+            patch("sis_common.signed_documents.Archive.objects.filter", side_effect=scoped_lookup) as filter_archive,
+            patch("sis_common.signed_documents.SignedDocumentViewSet.get_throttles", return_value=[]),
+        ):
             response = verify()
             assert response.status_code == 200
             assert response.data == {"valide": True}
