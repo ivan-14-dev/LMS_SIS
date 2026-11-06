@@ -23,6 +23,7 @@ class CantinePointageTestCase(TenantAPITestCase):
         admin = Utilisateur.objects.create_superuser(
             "cantine-admin", role="super_admin", etablissement=self.tenant
         )
+        self.admin = admin
         self.client.force_authenticate(admin)
         pupil = Utilisateur.objects.create_user(
             "cantine-pupil", role="eleve", etablissement=self.tenant
@@ -51,6 +52,77 @@ class CantinePointageTestCase(TenantAPITestCase):
         assert response.status_code == 201, response.data
         self.inscription_url = f"/api/v1/cantine/inscriptions-cantine/{response.data['id']}/"
         self.presences_url = "/api/v1/cantine/presences-cantine/"
+
+    def test_foreign_superuser_cannot_access_local_canteen_records(self):
+        local = self.client.patch(
+            self.inscription_url, {"allergies": ["arachides"]}, format="json"
+        )
+        assert local.status_code == 200, local.data
+        pupil_user = Utilisateur.objects.create_user(
+            "cantine-second-local-pupil", role="eleve", etablissement=self.tenant
+        )
+        second_pupil = Eleve.objects.create(
+            etablissement=self.tenant,
+            user=pupil_user,
+            matricule="CANT-2",
+            date_naissance="2010-01-01",
+            lieu_naissance="Paris",
+            sexe="F",
+            date_inscription="2026-09-01",
+        )
+
+        foreign = type(self.tenant)(schema_name="foreign_cantine_admin")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        visitor = Utilisateur.objects.create_superuser(
+            "cantine-foreign-admin", role="super_admin", etablissement=foreign
+        )
+        self.client.force_authenticate(visitor)
+
+        for url in (
+            "/api/v1/cantine/menus/",
+            f"/api/v1/cantine/menus/{self.menu_id}/",
+            "/api/v1/cantine/inscriptions-cantine/",
+            self.inscription_url,
+            "/api/v1/cantine/inscriptions-cantine/statistiques/",
+            self.presences_url,
+        ):
+            response = self.client.get(url)
+            assert response.status_code == 403, (url, response.data)
+
+        new_menu = self.client.post(
+            "/api/v1/cantine/menus/",
+            {"date": "2026-10-13", "plat": "Repas étranger"},
+            format="json",
+        )
+        assert new_menu.status_code == 403, new_menu.data
+        enrolled = self.client.post(
+            "/api/v1/cantine/inscriptions-cantine/",
+            {"eleve": second_pupil.pk, "date_debut": "2026-10-01"},
+            format="json",
+        )
+        assert enrolled.status_code == 403, enrolled.data
+        changed = self.client.patch(self.inscription_url, {"allergies": []}, format="json")
+        assert changed.status_code == 403, changed.data
+        pointage = self.client.post(
+            self.presences_url,
+            {"menu": self.menu_id, "eleve": self.eleve.pk, "present": True},
+            format="json",
+        )
+        assert pointage.status_code == 403, pointage.data
+        assert not Menu.objects.filter(date="2026-10-13").exists()
+        assert not InscriptionCantine.objects.filter(eleve=second_pupil).exists()
+        assert not PresenceCantine.objects.filter(eleve=self.eleve).exists()
+
+        self.client.force_authenticate(self.admin)
+        own = self.client.get(self.inscription_url)
+        assert own.status_code == 200, own.data
+        assert own.data["allergies"] == ["arachides"]
+        updated = self.client.patch(self.inscription_url, {"forfait": "mensuel"}, format="json")
+        assert updated.status_code == 200, updated.data
+        assert updated.data["forfait"] == "mensuel"
 
     def test_cancelled_inscription_cannot_be_marked_present_via_single_or_bulk_api(self):
         cancelled = self.client.patch(self.inscription_url, {"actif": False}, format="json")
@@ -221,6 +293,63 @@ class CantinePointageTestCase(TenantAPITestCase):
         assert still_absent.status_code == 404, still_absent.data
         absence.refresh_from_db()
         assert not absence.present
+
+    def test_subscriptions_are_scoped_to_the_pupils_establishment(self):
+        foreign = type(self.tenant)(schema_name="foreign_cantine_inscription")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        user = Utilisateur.objects.create_user(
+            "cantine-foreign-inscription-pupil", role="eleve", etablissement=foreign
+        )
+        pupil = Eleve.objects.create(
+            etablissement=foreign,
+            user=user,
+            matricule="CANT-FOREIGN-INSCRIPTION",
+            date_naissance="2010-01-01",
+            lieu_naissance="Paris",
+            sexe="F",
+            date_inscription="2026-09-01",
+        )
+        url = "/api/v1/cantine/inscriptions-cantine/"
+        rejected = self.client.post(
+            url, {"eleve": pupil.pk, "date_debut": "2026-10-01"}, format="json"
+        )
+        assert rejected.status_code == 400, rejected.data
+        assert "eleve" in rejected.data
+        reassigned = self.client.patch(self.inscription_url, {"eleve": pupil.pk}, format="json")
+        assert reassigned.status_code == 400, reassigned.data
+        assert "eleve" in reassigned.data
+        assert not InscriptionCantine.objects.filter(eleve=pupil).exists()
+        assert InscriptionCantine.objects.get(eleve=self.eleve).eleve_id == self.eleve.pk
+
+        foreign_inscription = InscriptionCantine.objects.create(
+            eleve=pupil, date_debut="2026-10-01", forfait="mensuel",
+            regime="vegetarien", allergies=["arachides"]
+        )
+        listing = self.client.get(url)
+        assert listing.status_code == 200, listing.data
+        assert [item["eleve"] for item in listing.data["results"]] == [self.eleve.pk]
+        foreign_url = f"{url}{foreign_inscription.pk}/"
+        assert self.client.get(foreign_url).status_code == 404
+        assert self.client.patch(foreign_url, {"actif": False}, format="json").status_code == 404
+        assert self.client.delete(foreign_url).status_code == 404
+        stats = self.client.get(f"{url}statistiques/")
+        assert stats.status_code == 200, stats.data
+        assert stats.data["total_inscrits"] == 1
+        assert stats.data["par_forfait"] == {"annuel": 1}
+        assert stats.data["par_regime"] == {"standard": 1}
+
+        own = self.client.get(self.inscription_url)
+        assert own.status_code == 200, own.data
+        assert own.data["eleve"] == self.eleve.pk
+        updated = self.client.patch(self.inscription_url, {"forfait": "trimestriel"}, format="json")
+        assert updated.status_code == 200, updated.data
+        assert updated.data["forfait"] == "trimestriel"
+        foreign_inscription.refresh_from_db()
+        assert foreign_inscription.actif
+        assert foreign_inscription.allergies == ["arachides"]
 
     def test_menu_from_another_schema_cannot_be_used_for_pointage(self):
         foreign = type(self.tenant)(schema_name="foreign_cantine_menu")

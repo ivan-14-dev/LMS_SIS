@@ -76,6 +76,12 @@ class InscriptionCantineSerializer(DateRangeSerializerMixin, serializers.ModelSe
     def get_regime_display(self, obj):
         return dict(obj._meta.get_field("regime").choices).get(obj.regime, "")
 
+    def validate_eleve(self, eleve):
+        tenant = getattr(self.context.get("request"), "tenant", None)
+        if tenant is None or eleve.etablissement_id != tenant.pk:
+            raise serializers.ValidationError("Cet élève appartient à un autre établissement.")
+        return eleve
+
 
 class PresenceCantineSerializer(serializers.ModelSerializer):
     """Serializer pour les présences cantine."""
