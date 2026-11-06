@@ -89,6 +89,11 @@ class IncidentDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSeri
     def get_nb_sanctions(self, obj):
         return obj.sanctions.count()
 
+    def validate_statut(self, value):
+        if self.instance and self.instance.statut in ("sanctionne", "classe") and value != self.instance.statut:
+            raise serializers.ValidationError("Un incident déjà traité ne peut pas changer de statut.")
+        return value
+
 
 class SanctionSerializer(DateRangeSerializerMixin, serializers.ModelSerializer):
     """Serializer pour les sanctions."""
