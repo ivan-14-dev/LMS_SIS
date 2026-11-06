@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import AttributionBourse, DemandeBourse, TypeBourse, VersementBourse
+from .permissions import CanAwardBourse
 from .serializers import (
     AttributionBourseCreateSerializer,
     AttributionBourseDetailSerializer,
@@ -83,7 +84,10 @@ class DemandeBourseViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return DemandeBourse.objects.select_related(
             "etudiant", "type_bourse", "annee_universitaire", "decision_par"
-        ).prefetch_related("attribution")
+        ).prefetch_related("attribution").filter(
+            etudiant__universite=self.request.tenant,
+            annee_universitaire__universite=self.request.tenant,
+        )
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -135,7 +139,7 @@ class DemandeBourseViewSet(viewsets.ModelViewSet):
             }
         )
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], permission_classes=[CanAwardBourse])
     def creer_attribution(self, request, pk=None):
         """Créer l'attribution pour une demande acceptée."""
         demande = self.get_object()
@@ -154,7 +158,7 @@ class DemandeBourseViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         # Générer numéro d'attribution
-        annee = demande.annee_universitaire.annee_debut
+        annee = demande.annee_universitaire.date_debut.year
         count = (
             AttributionBourse.objects.filter(
                 numero_attribution__startswith=f"ATT-{annee}"
@@ -227,10 +231,18 @@ class AttributionBourseViewSet(viewsets.ModelViewSet):
     filterset_fields = ["statut"]
     search_fields = ["numero_attribution", "demande__etudiant__nom"]
 
+    def get_permissions(self):
+        if self.action in {"create", "update", "partial_update", "destroy"}:
+            return [CanAwardBourse()]
+        return super().get_permissions()
+
     def get_queryset(self):
         return AttributionBourse.objects.select_related(
             "demande__etudiant", "demande__type_bourse"
-        ).prefetch_related("versements")
+        ).prefetch_related("versements").filter(
+            demande__etudiant__universite=self.request.tenant,
+            demande__annee_universitaire__universite=self.request.tenant,
+        )
 
     def get_serializer_class(self):
         if self.action == "list":

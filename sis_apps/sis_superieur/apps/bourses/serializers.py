@@ -5,6 +5,13 @@ from rest_framework import serializers
 from .models import AttributionBourse, DemandeBourse, TypeBourse, VersementBourse
 
 
+class PositiveAwardAmountMixin:
+    def validate_montant_mensuel(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("La mensualité doit être strictement positive.")
+        return value
+
+
 # === TypeBourse Serializers ===
 class TypeBourseListSerializer(serializers.ModelSerializer):
     """Liste légère des types de bourses."""
@@ -75,7 +82,7 @@ class AttributionBourseListSerializer(serializers.ModelSerializer):
         ]
 
 
-class AttributionBourseDetailSerializer(serializers.ModelSerializer):
+class AttributionBourseDetailSerializer(PositiveAwardAmountMixin, serializers.ModelSerializer):
     """Détail d'une attribution avec versements."""
 
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
@@ -94,6 +101,23 @@ class AttributionBourseDetailSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"demande": "Une attribution requiert une demande acceptée."}
             )
+        tenant = getattr(self.context.get("request"), "tenant", None)
+        if demande and tenant and (
+            demande.etudiant.universite_id != tenant.pk
+            or demande.annee_universitaire.universite_id != tenant.pk
+        ):
+            raise serializers.ValidationError({"demande": "Demande hors établissement."})
+        if demande:
+            monthly = attrs.get("montant_mensuel", getattr(self.instance, "montant_mensuel", None))
+            total = attrs.get("montant_total", getattr(self.instance, "montant_total", None))
+            if monthly is not None and monthly <= 0:
+                raise serializers.ValidationError(
+                    {"montant_mensuel": "La mensualité doit être strictement positive."}
+                )
+            if monthly is not None and total is not None and total != monthly * demande.type_bourse.duree_mois:
+                raise serializers.ValidationError(
+                    {"montant_total": "Le total doit correspondre à la mensualité multipliée par la durée."}
+                )
         return attrs
 
     def get_etudiant(self, obj):
@@ -208,7 +232,7 @@ class DecisionBourseSerializer(serializers.Serializer):
 
 
 # === Attribution Create ===
-class AttributionBourseCreateSerializer(serializers.ModelSerializer):
+class AttributionBourseCreateSerializer(PositiveAwardAmountMixin, serializers.ModelSerializer):
     """Création d'une attribution suite à acceptation."""
 
     class Meta:
