@@ -8,8 +8,8 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Salle
-from .serializers import SalleDetailSerializer, SalleListSerializer
+from .models import Equipement, Salle
+from .serializers import EquipementSerializer, SalleDetailSerializer, SalleListSerializer
 
 
 class IsAdminOrReadOnly(IsAuthenticated):
@@ -67,3 +67,21 @@ class SallesViewSet(viewsets.ModelViewSet):
         )
         serializer = CreneauListSerializer(creneaux, many=True)
         return Response(serializer.data)
+
+
+class EquipementsViewSet(viewsets.ModelViewSet):
+    """Inventaire minimal et affectation des équipements aux salles."""
+
+    serializer_class = EquipementSerializer
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["salle"]
+    search_fields = ["identifiant", "nom"]
+    ordering_fields = ["identifiant", "nom"]
+    ordering = ["identifiant"]
+
+    def get_queryset(self):
+        tenant = getattr(self.request, "tenant", None)
+        if tenant is None:
+            return Equipement.objects.none()
+        return Equipement.objects.filter(etablissement=tenant).select_related("salle")

@@ -47,3 +47,30 @@ class Salle(models.Model):
 
     def __str__(self):
         return f"{self.nom} ({self.batiment})"
+
+
+class Equipement(models.Model):
+    """Équipement inventorié, éventuellement affecté à une salle."""
+
+    etablissement = models.ForeignKey(
+        Etablissement, on_delete=models.CASCADE, related_name="equipements_salles"
+    )
+    identifiant = models.CharField(max_length=50)
+    nom = models.CharField(max_length=100)
+    salle = models.ForeignKey(
+        Salle, on_delete=models.SET_NULL, null=True, blank=True, related_name="materiel"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["identifiant"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["etablissement", "identifiant"],
+                name="salles_equipement_identifiant_unique",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.identifiant} — {self.nom}"
