@@ -2,7 +2,9 @@
 
 import datetime
 
-from apps.enseignants.models import Personnel
+from apps.classes.models import Classe, Matiere
+from apps.enseignants.models import AffectationEnseignant, Personnel
+from apps.etablissement.models import AnneeScolaire, Niveau
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.utilisateurs.models import Utilisateur
 
@@ -92,3 +94,51 @@ class PersonnelAPITestCase(TenantAPITestCase):
         assert user.check_password(TEST_USER_PASSWORD)
         assert Personnel.objects.filter(user=user).exists()
         assert self.client.post("/api/v1/enseignants/personnel/", data, format="json").status_code == 400
+
+    def test_affectation_rejects_class_from_another_school_year(self):
+        year = AnneeScolaire.objects.create(
+            etablissement=self.tenant, libelle="2026-2027",
+            date_debut="2026-09-01", date_fin="2027-07-01",
+        )
+        next_year = AnneeScolaire.objects.create(
+            etablissement=self.tenant, libelle="2027-2028",
+            date_debut="2027-09-01", date_fin="2028-07-01",
+        )
+        level = Niveau.objects.create(etablissement=self.tenant, code="6e", libelle="Sixième")
+        current_class = Classe.objects.create(
+            etablissement=self.tenant, annee_scolaire=year, niveau=level, nom="6A"
+        )
+        next_class = Classe.objects.create(
+            etablissement=self.tenant, annee_scolaire=next_year, niveau=level, nom="6A"
+        )
+        subject = Matiere.objects.create(etablissement=self.tenant, code="MATH", nom="Mathématiques")
+        payload = {
+            "enseignant": self.personnel.pk,
+            "matiere": subject.pk,
+            "annee_scolaire": year.pk,
+            "classes": [next_class.pk],
+            "heures_semaine": "4.00",
+        }
+        self.client.force_authenticate(user=self.direction)
+        url = "/api/v1/enseignants/affectations/"
+
+        rejected = self.client.post(url, payload, format="json")
+        assert rejected.status_code == 400, rejected.data
+        assert "classes" in rejected.data
+        assert not AffectationEnseignant.objects.exists()
+
+        created = self.client.post(url, {**payload, "classes": [current_class.pk]}, format="json")
+        assert created.status_code == 201, created.data
+        assignment = AffectationEnseignant.objects.get(pk=created.data["id"])
+        detail_url = f"{url}{assignment.pk}/"
+
+        rejected = self.client.patch(detail_url, {"classes": [next_class.pk]}, format="json")
+        assert rejected.status_code == 400, rejected.data
+        assert "classes" in rejected.data
+
+        rejected = self.client.patch(detail_url, {"annee_scolaire": next_year.pk}, format="json")
+        assert rejected.status_code == 400, rejected.data
+        assert "classes" in rejected.data
+        assignment.refresh_from_db()
+        assert assignment.annee_scolaire_id == year.pk
+        assert list(assignment.classes.values_list("pk", flat=True)) == [current_class.pk]

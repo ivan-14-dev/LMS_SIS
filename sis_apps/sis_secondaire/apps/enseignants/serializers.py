@@ -121,6 +121,16 @@ class AffectationEnseignantSerializer(serializers.ModelSerializer):
     def get_classes_noms(self, obj):
         return [c.nom for c in obj.classes.all()]
 
+    def validate(self, attrs):
+        if "classes" in attrs or "annee_scolaire" in attrs:
+            year = attrs.get("annee_scolaire", self.instance.annee_scolaire if self.instance else None)
+            classes = attrs.get("classes", self.instance.classes.all() if self.instance else [])
+            if year and any(classe.annee_scolaire_id != year.pk for classe in classes):
+                raise serializers.ValidationError(
+                    {"classes": "Les classes doivent appartenir à l'année scolaire de l'affectation."}
+                )
+        return attrs
+
 
 class PersonnelCreateSerializer(serializers.ModelSerializer):
     """Serializer pour la création de personnel."""
