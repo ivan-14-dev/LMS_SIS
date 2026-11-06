@@ -58,6 +58,12 @@ class SujetsMemoireViewSet(viewsets.ModelViewSet):
             return SujetMemoireListSerializer
         return SujetMemoireDetailSerializer
 
+    def destroy(self, request, *args, **kwargs):
+        sujet = self.get_object()
+        if sujet.memoires.filter(statut__in=Memoire.STATUTS_TERMINAUX).exists():
+            return Response({"error": "Un sujet avec un mémoire décidé ne peut plus être supprimé."}, status=400)
+        return super().destroy(request, *args, **kwargs)
+
     @action(detail=False, methods=["get"])
     def disponibles(self, request):
         """Liste les sujets disponibles (non attribués)."""
@@ -93,6 +99,14 @@ class MemoiresViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return MemoireListSerializer
         return MemoireDetailSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        memoire = self.get_object()
+        if memoire.statut in Memoire.STATUTS_TERMINAUX:
+            return Response(
+                {"error": "Un mémoire ayant reçu une décision définitive ne peut plus être supprimé."}, status=400
+            )
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=["post"])
     def soumettre(self, request, pk=None):

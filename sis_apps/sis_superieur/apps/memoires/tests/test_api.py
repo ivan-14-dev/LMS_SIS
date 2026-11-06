@@ -125,3 +125,46 @@ class MemoireValidationTestCase(TenantAPITestCase):
                 self.assertEqual(response.status_code, 200)
                 self.memoire.refresh_from_db()
                 self.assertEqual(self.memoire.statut, decision)
+
+    def test_terminal_decisions_block_crud_edits_and_deletion(self):
+        url = f"/api/v1/memoires/{self.memoire.pk}/"
+        for statut in Memoire.STATUTS_TERMINAUX:
+            with self.subTest(statut=statut):
+                Memoire.objects.filter(pk=self.memoire.pk).update(statut=statut)
+                response = self.client.patch(url, {"resume": "Nouvelle version"}, format="json")
+                self.assertEqual(response.status_code, 400)
+                response = self.client.put(
+                    url,
+                    {"sujet": self.memoire.sujet_id, "etudiant": self.memoire.etudiant_id, "statut": statut},
+                    format="json",
+                )
+                self.assertEqual(response.status_code, 400)
+                response = self.client.delete(url)
+                self.assertEqual(response.status_code, 400)
+                self.memoire.refresh_from_db()
+                self.assertEqual(self.memoire.statut, statut)
+                self.assertEqual(self.memoire.resume, "")
+
+    def test_decided_memoire_cannot_be_deleted_through_its_subject(self):
+        response = self.client.post(
+            f"/api/v1/memoires/{self.memoire.pk}/valider/", {"decision": "accepte"}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        response = self.client.delete(f"/api/v1/memoires/sujets-memoire/{self.memoire.sujet_id}/")
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(Memoire.objects.filter(pk=self.memoire.pk, statut="accepte").exists())
+
+    def test_reserved_memoire_can_be_edited_resubmitted_and_deleted(self):
+        Memoire.objects.filter(pk=self.memoire.pk).update(statut="reserve")
+        url = f"/api/v1/memoires/{self.memoire.pk}/"
+        response = self.client.patch(url, {"resume": "Corrections apportées"}, format="json")
+        self.assertEqual(response.status_code, 200)
+        response = self.client.post(f"{url}soumettre/", format="json")
+        self.assertEqual(response.status_code, 200)
+        self.memoire.refresh_from_db()
+        self.assertEqual(self.memoire.statut, "soumis")
+        self.assertEqual(self.memoire.resume, "Corrections apportées")
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, 204)
+        response = self.client.delete(f"/api/v1/memoires/sujets-memoire/{self.memoire.sujet_id}/")
+        self.assertEqual(response.status_code, 204)

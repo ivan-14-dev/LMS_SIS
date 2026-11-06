@@ -64,6 +64,7 @@ class SujetMemoire(models.Model):
 class Memoire(models.Model):
     """Mémoire d'un étudiant."""
 
+    STATUTS_TERMINAUX = ("accepte", "refuse", "soutenu")
     STATUT_CHOICES = [
         ("brouillon", "Brouillon"),
         ("soumis", "Soumis"),

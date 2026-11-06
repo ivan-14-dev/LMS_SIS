@@ -146,6 +146,13 @@ class MemoireDetailSerializer(serializers.ModelSerializer):
             return value
         raise serializers.ValidationError("Ce changement de statut nécessite une action du circuit de validation.")
 
+    def validate(self, attrs):
+        if self.instance and self.instance.statut in Memoire.STATUTS_TERMINAUX:
+            raise serializers.ValidationError(
+                "Un mémoire ayant reçu une décision définitive ne peut plus être modifié."
+            )
+        return attrs
+
 
 class JuryMemoireSerializer(serializers.ModelSerializer):
     """Serializer pour les jurys de mémoire."""
