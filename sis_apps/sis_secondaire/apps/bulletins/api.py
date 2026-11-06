@@ -1,6 +1,8 @@
 """API views for bulletins (ViewSets DRF) - SIS Secondaire."""
 
 from apps.notes.api import BulletinsViewSet as _BulletinsViewSet
+from apps.notes.models import Bulletin
+from django.db.models import Exists, OuterRef
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -10,6 +12,46 @@ from rest_framework.response import Response
 
 from .models import AppreciationMatiere
 from .serializers import AppreciationMatiereCreateSerializer, AppreciationMatiereSerializer
+
+
+def _visible_appreciations(queryset, request):
+    tenant = getattr(request, "tenant", None)
+    user = request.user
+    if tenant is None or user.etablissement_id != tenant.pk:
+        return queryset.none()
+
+    queryset = queryset.filter(
+        eleve__etablissement_id=tenant.pk,
+        periode__annee_scolaire__etablissement_id=tenant.pk,
+    )
+    if user.role == "eleve" and not user.is_superuser:
+        queryset = queryset.filter(eleve__user=user)
+    elif user.role == "parent" or hasattr(user, "tuteur_profile"):
+        queryset = queryset.filter(
+            eleve__tuteurs_lies__tuteur__user=user,
+            eleve__tuteurs_lies__autorise_acces_portail=True,
+        ).distinct()
+    elif not (
+        user.is_staff
+        or user.is_superuser
+        or user.role in (
+            "enseignant", "scolarite", "direction", "responsable_pedagogique",
+            "vie_scolaire", "directeur", "proviseur", "principal",
+        )
+    ):
+        return queryset.none()
+    else:
+        return queryset
+
+    return queryset.filter(
+        Exists(
+            Bulletin.objects.filter(
+                eleve_id=OuterRef("eleve_id"),
+                periode_id=OuterRef("periode_id"),
+                publie=True,
+            )
+        )
+    )
 
 
 class IsEnseignantOrScolarite(IsAuthenticated):
@@ -37,7 +79,10 @@ class AppreciationsMatiereViewSet(viewsets.ModelViewSet):
     ordering = ["eleve__user__last_name", "matiere__nom"]
 
     def get_queryset(self):
-        return AppreciationMatiere.objects.select_related("eleve__user", "matiere", "periode")
+        return _visible_appreciations(
+            AppreciationMatiere.objects.select_related("eleve__user", "matiere", "periode"),
+            self.request,
+        )
 
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
@@ -73,9 +118,13 @@ class BulletinsViewSet(_BulletinsViewSet):
                 {"error": "Paramètres classe, matiere et periode requis."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        appreciations = _visible_appreciations(
+            AppreciationMatiere.objects.select_related("eleve__user", "matiere", "periode"),
+            request,
+        )
         appreciations = (
-            AppreciationMatiere.objects.select_related("eleve__user", "matiere", "periode")
-            .filter(eleve__classe_id=classe_id, matiere_id=matiere_id, periode_id=periode_id)
+            appreciations
+            .filter(eleve__classe_actuelle_id=classe_id, matiere_id=matiere_id, periode_id=periode_id)
             .order_by("rang", "eleve__user__last_name")
         )
         serializer = AppreciationMatiereSerializer(appreciations, many=True)
