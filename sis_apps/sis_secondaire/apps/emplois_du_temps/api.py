@@ -119,7 +119,7 @@ class CreneauxViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSe
         from apps.classes.models import Classe
 
         try:
-            classe = Classe.objects.get(pk=classe_id)
+            classe = Classe.objects.get(pk=classe_id, etablissement=request.tenant)
         except Classe.DoesNotExist:
             return Response({"error": "Classe non trouvée."}, status=404)
 
@@ -156,7 +156,9 @@ class CreneauxViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSe
         from apps.enseignants.models import Personnel
 
         try:
-            enseignant = Personnel.objects.select_related("user").get(pk=enseignant_id)
+            enseignant = Personnel.objects.select_related("user").get(
+                pk=enseignant_id, user__etablissement=request.tenant
+            )
             nom = enseignant.user.get_full_name()
         except Personnel.DoesNotExist:
             return Response({"error": "Enseignant non trouvé."}, status=404)

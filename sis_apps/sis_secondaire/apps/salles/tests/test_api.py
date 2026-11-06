@@ -269,6 +269,29 @@ class IndisponibiliteSalleAPITestCase(TenantAPITestCase):
         foreign_period = IndisponibiliteSalle.objects.create(
             salle=foreign_room, date_debut="2026-09-07", date_fin="2026-09-07"
         )
+        foreign_year = AnneeScolaire.objects.create(
+            etablissement=foreign, libelle="2026-2027",
+            date_debut="2026-09-01", date_fin="2027-07-01",
+        )
+        foreign_level = Niveau.objects.create(
+            etablissement=foreign, code="5e", libelle="Cinquième"
+        )
+        foreign_class = Classe.objects.create(
+            etablissement=foreign, niveau=foreign_level,
+            annee_scolaire=foreign_year, nom="Classe étrangère",
+        )
+        foreign_teacher = Utilisateur.objects.create_user(
+            "indispo-foreign-teacher", role="enseignant", etablissement=foreign
+        )
+        foreign_personnel = Personnel.objects.create(
+            user=foreign_teacher, matricule="IND-FOREIGN", date_embauche="2026-01-01"
+        )
+        assert self.client.get(
+            f"{self.creneaux_url}par_classe/", {"classe_id": self.creneau["classe"]}
+        ).status_code == 200
+        assert self.client.get(
+            f"{self.creneaux_url}par_enseignant/", {"enseignant_id": self.creneau["enseignant"]}
+        ).status_code == 200
         assert self.client.get(f"/api/v1/salles/{foreign_room.pk}/").status_code == 404
         assert self.client.get(f"{self.url}{foreign_period.pk}/").status_code == 404
         assert self.client.post(
@@ -281,6 +304,12 @@ class IndisponibiliteSalleAPITestCase(TenantAPITestCase):
         ).status_code == 400
         assert self.client.get(
             f"{self.creneaux_url}par_salle/", {"salle_id": foreign_room.pk}
+        ).status_code == 404
+        assert self.client.get(
+            f"{self.creneaux_url}par_classe/", {"classe_id": foreign_class.pk}
+        ).status_code == 404
+        assert self.client.get(
+            f"{self.creneaux_url}par_enseignant/", {"enseignant_id": foreign_personnel.pk}
         ).status_code == 404
         reader = Utilisateur.objects.create_user(
             "indispo-reader", role="eleve", etablissement=self.tenant
