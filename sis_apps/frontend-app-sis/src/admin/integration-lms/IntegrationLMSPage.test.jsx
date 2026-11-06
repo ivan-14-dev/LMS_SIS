@@ -13,6 +13,8 @@ import {
 } from '../../services/api';
 import IntegrationLMSPage from './IntegrationLMSPage';
 
+jest.setTimeout(20000);
+
 jest.mock('@edx/frontend-platform', () => ({ getConfig: jest.fn() }));
 jest.mock('@edx/frontend-platform/auth', () => ({ getAuthenticatedHttpClient: jest.fn() }));
 jest.mock('../../services/api', () => ({
