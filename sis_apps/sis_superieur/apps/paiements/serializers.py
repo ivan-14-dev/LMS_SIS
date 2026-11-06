@@ -107,6 +107,11 @@ class FactureFraisDetailSerializer(serializers.ModelSerializer):
     def get_nb_paiements(self, obj):
         return obj.paiements.filter(statut="valide").count()
 
+    def validate_montant(self, value):
+        if self.instance and self.instance.montant_paye > 0 and value != self.instance.montant:
+            raise serializers.ValidationError("Le montant d'une facture avec paiement validé ne peut pas être modifié.")
+        return value
+
 
 class PaiementFraisSerializer(serializers.ModelSerializer):
     """Serializer pour les paiements."""

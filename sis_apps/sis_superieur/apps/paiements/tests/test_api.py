@@ -76,6 +76,34 @@ class InvoiceStateAPITests(SimpleTestCase):
                 self.assertEqual(facture.montant_paye, paid)
                 self.assertEqual(facture.note, "Correction")
 
+    def test_patch_cannot_change_invoice_amount_after_payment(self):
+        route = resolve("/api/v1/paiements/factures/5/")
+        self.assertEqual(route.url_name, "facture-detail")
+        for statut, paid in (("payee", Decimal("100.00")), ("partielle", Decimal("25.00"))):
+            with self.subTest(statut=statut):
+                facture = FactureFrais(statut=statut, montant=Decimal("100.00"), montant_paye=paid)
+                facture.save = Mock()
+                request = APIRequestFactory().patch(
+                    "/api/v1/paiements/factures/5/", {"montant": "150.00"}, format="json"
+                )
+                force_authenticate(request, user=SimpleNamespace(pk=1, is_authenticated=True))
+                with (
+                    patch("apps.paiements.api.IsComptabiliteOrReadOnly.has_permission", return_value=True),
+                    patch.object(FacturesViewSet, "get_throttles", return_value=[]),
+                    patch.object(FacturesViewSet, "get_object", return_value=facture),
+                    patch.object(
+                        FactureFraisDetailSerializer,
+                        "to_representation",
+                        side_effect=lambda obj: {"montant": obj.montant, "statut": obj.statut},
+                    ),
+                ):
+                    response = route.func(request, pk=5)
+
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("montant", response.data)
+                self.assertEqual(facture.montant, Decimal("100.00"))
+                facture.save.assert_not_called()
+
 
 class CardConfirmationTests(SimpleTestCase):
     def setUp(self):
