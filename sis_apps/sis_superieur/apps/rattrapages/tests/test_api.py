@@ -2,9 +2,15 @@
 
 from django.test import SimpleTestCase
 from django.urls import resolve
+from django_tenants.utils import schema_context
 
-from apps.etablissement.models import AnneeUniversitaire, Semestre
-from apps.etudiants.models import Etudiant
+from apps.etablissement.models import AnneeUniversitaire, Semestre, Universite
+from apps.etudiants.models import (
+    AffectationECUEIndividuelle,
+    Etudiant,
+    InscriptionAdministrative,
+    InscriptionPedagogique,
+)
 from apps.examens.models import SessionExamen
 from apps.formations.models import Formation, MaquetteFormation
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
@@ -30,29 +36,43 @@ class RattrapageSessionValidationTestCase(TenantAPITestCase):
         student_user = Utilisateur.objects.create_user(
             username="retake-student", role="etudiant", etablissement=self.tenant
         )
-        student = Etudiant.objects.create(
+        self.student = Etudiant.objects.create(
             user=student_user, universite=self.tenant, matricule="RET-01", date_naissance="2000-01-01"
         )
-        year = AnneeUniversitaire.objects.create(
+        self.year = AnneeUniversitaire.objects.create(
             universite=self.tenant, libelle="2026-2027", date_debut="2026-09-01", date_fin="2027-08-31"
         )
-        semester = Semestre.objects.create(
-            annee_universitaire=year, numero=1, type="impair", date_debut="2026-09-01", date_fin="2027-01-31"
+        self.semester = Semestre.objects.create(
+            annee_universitaire=self.year, numero=1, type="impair",
+            date_debut="2026-09-01", date_fin="2027-01-31",
         )
-        formation = Formation.objects.create(nom="Licence", code="RET", type="licence")
-        maquette = MaquetteFormation.objects.create(formation=formation, annee_universitaire=year)
-        ue = UE.objects.create(maquette=maquette, semestre=semester, code="UE1", nom="UE", credits_ects=6)
-        ecue = ECUE.objects.create(ue=ue, code="EC1", nom="ECUE", credits_ects=6)
+        self.formation = Formation.objects.create(nom="Licence", code="RET", type="licence")
+        maquette = MaquetteFormation.objects.create(formation=self.formation, annee_universitaire=self.year)
+        self.ue = UE.objects.create(
+            maquette=maquette, semestre=self.semester, code="UE1", nom="UE", credits_ects=6,
+        )
+        self.ecue = ECUE.objects.create(ue=self.ue, code="EC1", nom="ECUE", credits_ects=6)
+        self.ia = InscriptionAdministrative.objects.create(
+            etudiant=self.student, annee_universitaire=self.year, formation=self.formation,
+            date_inscription="2026-09-10", statut="validee",
+        )
+        self.ip = InscriptionPedagogique.objects.create(
+            inscription_admin=self.ia, semestre=self.semester, statut="validee",
+        )
+        self.ip.ues.add(self.ue)
         self.normal_session = SessionExamen.objects.create(
-            semestre=semester, numero=1, type="normale", date_debut="2027-01-10", date_fin="2027-01-15"
+            semestre=self.semester, numero=1, type="normale",
+            date_debut="2027-01-10", date_fin="2027-01-15",
         )
         self.retake_session = SessionExamen.objects.create(
-            semestre=semester, numero=2, type="rattrapage", date_debut="2027-01-20", date_fin="2027-01-25"
+            semestre=self.semester, numero=2, type="rattrapage",
+            date_debut="2027-01-20", date_fin="2027-01-25",
         )
         self.payload = {
-            "etudiant": student.pk,
-            "ecue": ecue.pk,
+            "etudiant": self.student.pk,
+            "ecue": self.ecue.pk,
             "date_echeance_inscription": "2027-01-18",
+            "session_rattrapage": self.retake_session.pk,
         }
 
     def test_normal_exam_session_cannot_be_used_for_a_retake(self):
@@ -80,4 +100,162 @@ class RattrapageSessionValidationTestCase(TenantAPITestCase):
         )
         self.assertEqual(update.status_code, 400, update.data)
         self.assertIn("session_rattrapage", update.data)
+        self.assertEqual(InscriptionRattrapage.objects.get().session_rattrapage, self.retake_session)
+
+    def test_validated_registration_succeeds_once_and_replay_is_rejected(self):
+        created = self.client.post("/api/v1/rattrapages/", self.payload, format="json")
+        self.assertEqual(created.status_code, 201, created.data)
+
+        replay = self.client.post("/api/v1/rattrapages/", self.payload, format="json")
+        self.assertEqual(replay.status_code, 400, replay.data)
+        self.assertEqual(InscriptionRattrapage.objects.count(), 1)
+
+    def test_refuses_unvalidated_or_unrelated_registration(self):
+        self.ip.statut = "soumise"
+        self.ip.save(update_fields=["statut"])
+        pending = self.client.post("/api/v1/rattrapages/", self.payload, format="json")
+        self.assertEqual(pending.status_code, 400, pending.data)
+        self.assertIn("etudiant", pending.data)
+
+        self.ip.statut = "validee"
+        self.ip.save(update_fields=["statut"])
+        self.ia.statut = "provisoire"
+        self.ia.save(update_fields=["statut"])
+        provisional = self.client.post("/api/v1/rattrapages/", self.payload, format="json")
+        self.assertEqual(provisional.status_code, 400, provisional.data)
+
+        self.ia.statut = "validee"
+        self.ia.save(update_fields=["statut"])
+        other_ue = UE.objects.create(
+            maquette=self.ue.maquette, semestre=self.semester,
+            code="UE2", nom="Autre UE", credits_ects=6,
+        )
+        other_ecue = ECUE.objects.create(ue=other_ue, code="EC2", nom="Autre ECUE", credits_ects=6)
+        unrelated = self.client.post(
+            "/api/v1/rattrapages/", {**self.payload, "ecue": other_ecue.pk}, format="json",
+        )
+        self.assertEqual(unrelated.status_code, 400, unrelated.data)
+        self.assertIn("etudiant", unrelated.data)
+        self.assertFalse(InscriptionRattrapage.objects.exists())
+
+    def test_individual_ecue_assignment_is_accepted(self):
+        self.ip.delete()
+        AffectationECUEIndividuelle.objects.create(
+            inscription_admin=self.ia, semestre_cible=self.semester, ecue=self.ecue,
+        )
+        response = self.client.post("/api/v1/rattrapages/", self.payload, format="json")
+        self.assertEqual(response.status_code, 201, response.data)
+
+    def test_refuses_another_formations_ecue_even_when_added_to_ip_or_assigned(self):
+        other_formation = Formation.objects.create(
+            nom="Autre licence", code="RET-OTHER", type="licence",
+        )
+        other_maquette = MaquetteFormation.objects.create(
+            formation=other_formation, annee_universitaire=self.year,
+        )
+        other_ue = UE.objects.create(
+            maquette=other_maquette, semestre=self.semester,
+            code="UE-OTHER", nom="UE externe", credits_ects=6,
+        )
+        other_ecue = ECUE.objects.create(
+            ue=other_ue, code="EC-OTHER", nom="ECUE externe", credits_ects=6,
+        )
+        self.ip.ues.add(other_ue)
+        foreign_payload = {**self.payload, "ecue": other_ecue.pk}
+        through_ip = self.client.post("/api/v1/rattrapages/", foreign_payload, format="json")
+        self.assertEqual(through_ip.status_code, 400, through_ip.data)
+        self.assertIn("etudiant", through_ip.data)
+
+        self.ip.ues.remove(other_ue)
+        AffectationECUEIndividuelle.objects.create(
+            inscription_admin=self.ia, semestre_cible=self.semester, ecue=other_ecue,
+        )
+        through_assignment = self.client.post(
+            "/api/v1/rattrapages/", foreign_payload, format="json",
+        )
+        self.assertEqual(through_assignment.status_code, 400, through_assignment.data)
+        self.assertIn("etudiant", through_assignment.data)
+        self.assertFalse(InscriptionRattrapage.objects.exists())
+
+        same_formation = self.client.post("/api/v1/rattrapages/", self.payload, format="json")
+        self.assertEqual(same_formation.status_code, 201, same_formation.data)
+
+    def test_refuses_different_semester_or_university_on_create_and_update(self):
+        other_semester = Semestre.objects.create(
+            annee_universitaire=self.year, numero=2, type="pair",
+            date_debut="2027-02-01", date_fin="2027-06-30",
+        )
+        other_session = SessionExamen.objects.create(
+            semestre=other_semester, numero=2, type="rattrapage",
+            date_debut="2027-06-20", date_fin="2027-06-25",
+        )
+        wrong_semester = self.client.post(
+            "/api/v1/rattrapages/",
+            {**self.payload, "session_rattrapage": other_session.pk}, format="json",
+        )
+        self.assertEqual(wrong_semester.status_code, 400, wrong_semester.data)
+        self.assertIn("ecue", wrong_semester.data)
+
+        foreign = Universite(
+            schema_name="foreign_retake_eligibility", nom="Autre université",
+            type="universite_publique", adresse="1 rue des Tests", code_postal="75000",
+            ville="Paris", telephone="0100000000", email="other@example.test",
+        )
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        self.student.universite = foreign
+        self.student.save(update_fields=["universite"])
+        wrong_university = self.client.post("/api/v1/rattrapages/", self.payload, format="json")
+        self.assertEqual(wrong_university.status_code, 400, wrong_university.data)
+        self.assertIn("ecue", wrong_university.data)
+
+        foreign_year = AnneeUniversitaire.objects.create(
+            universite=foreign, libelle="2026-2027",
+            date_debut="2026-09-01", date_fin="2027-08-31",
+        )
+        foreign_semester = Semestre.objects.create(
+            annee_universitaire=foreign_year, numero=1, type="impair",
+            date_debut="2026-09-01", date_fin="2027-01-31",
+        )
+        foreign_maquette = MaquetteFormation.objects.create(
+            formation=self.formation, annee_universitaire=foreign_year,
+        )
+        foreign_ue = UE.objects.create(
+            maquette=foreign_maquette, semestre=foreign_semester,
+            code="UE-FOREIGN", nom="UE externe", credits_ects=6,
+        )
+        foreign_ecue = ECUE.objects.create(
+            ue=foreign_ue, code="EC-FOREIGN", nom="ECUE externe", credits_ects=6,
+        )
+        foreign_ia = InscriptionAdministrative.objects.create(
+            etudiant=self.student, formation=self.formation, annee_universitaire=foreign_year,
+            date_inscription="2026-09-10", statut="validee",
+        )
+        foreign_ip = InscriptionPedagogique.objects.create(
+            inscription_admin=foreign_ia, semestre=foreign_semester, statut="validee",
+        )
+        foreign_ip.ues.add(foreign_ue)
+        foreign_session = SessionExamen.objects.create(
+            semestre=foreign_semester, numero=2, type="rattrapage",
+            date_debut="2027-01-20", date_fin="2027-01-25",
+        )
+        foreign_registration = self.client.post(
+            "/api/v1/rattrapages/",
+            {**self.payload, "ecue": foreign_ecue.pk, "session_rattrapage": foreign_session.pk},
+            format="json",
+        )
+        self.assertEqual(foreign_registration.status_code, 400, foreign_registration.data)
+        self.assertIn("ecue", foreign_registration.data)
+
+        self.student.universite = self.tenant
+        self.student.save(update_fields=["universite"])
+
+        created = self.client.post("/api/v1/rattrapages/", self.payload, format="json")
+        self.assertEqual(created.status_code, 201, created.data)
+        invalid_update = self.client.patch(
+            f"/api/v1/rattrapages/{created.data['id']}/",
+            {"session_rattrapage": other_session.pk}, format="json",
+        )
+        self.assertEqual(invalid_update.status_code, 400, invalid_update.data)
         self.assertEqual(InscriptionRattrapage.objects.get().session_rattrapage, self.retake_session)
