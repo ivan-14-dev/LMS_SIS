@@ -272,6 +272,23 @@ class AcademicPeriodCatalogTests(GradeEntryFixture):
 
 
 class AcademicLifecycleTests(GradeEntryFixture):
+    def test_year_dates_cannot_exclude_existing_periods(self):
+        url = f"/api/v1/etablissement/annees/{self.year.pk}/"
+        for field in ("date_debut", "date_fin"):
+            with self.subTest(field=field):
+                original = getattr(self.year, field)
+                change = timedelta(days=1 if field == "date_debut" else -1)
+                response = self.client.patch(url, {field: (original + change).isoformat()}, format="json")
+                assert response.status_code == 400, response.data
+                self.year.refresh_from_db()
+                assert getattr(self.year, field) == original
+                assert getattr(self.period, field) == original
+
+                response = self.client.patch(url, {field: (original - change).isoformat()}, format="json")
+                assert response.status_code == 200, response.data
+                self.year.refresh_from_db()
+                assert getattr(self.year, field) == original - change
+
     def test_grade_patch_reads_the_locked_note_once(self):
         assert self.save_grades([self.row(self.learners[0])]).status_code == 200
         note = self.evaluation.notes.get()

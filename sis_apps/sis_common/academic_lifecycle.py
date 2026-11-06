@@ -81,6 +81,17 @@ class AcademicLifecycleMixin:
                 ):
                     raise ValidationError({field: "Utilisez l'action d'activation, de clôture ou de réouverture."})
         ensure_academic_open(serializer.instance, serializer.validated_data, self.academic_period_paths)
+        if serializer.instance and "" in self.academic_period_paths:
+            periods = getattr(serializer.instance, "periodes", None)
+            if periods is None:
+                periods = getattr(serializer.instance, "semestres", None)
+            if periods is not None:
+                start = serializer.validated_data.get("date_debut")
+                end = serializer.validated_data.get("date_fin")
+                if start and start > serializer.instance.date_debut and periods.filter(date_debut__lt=start).exists():
+                    raise ValidationError({"date_debut": "Le début doit précéder les périodes existantes."})
+                if end and end < serializer.instance.date_fin and periods.filter(date_fin__gt=end).exists():
+                    raise ValidationError({"date_fin": "La fin doit suivre les périodes existantes."})
         return serializer.save(**kwargs)
 
     def perform_create(self, serializer):
