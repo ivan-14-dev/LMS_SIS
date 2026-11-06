@@ -189,3 +189,74 @@ class AdmissionsTests(GradeEntryFixture):
         self.client.force_authenticate(clerk)
         assert self.client.post(self.renew_url, self.next_payload, format="json").status_code == 403
         assert not type(self.enrollment).objects.filter(**{self.year_field: self.new_year}).exists()
+
+    def test_authenticated_candidate_deposits_first_dossier_once_with_audit(self):
+        candidate = self.learners[2]
+        self.client.force_authenticate(candidate.user)
+        url = f"{self.base}deposer/"
+        payload = {
+            self.year_field: self.year.pk,
+            self.target_field: self.classe.pk if self.secondary else self.formation.pk,
+        }
+
+        response = self.client.post(url, {**payload, "motif": "Première admission"}, format="json")
+        assert response.status_code == 201, response.data
+        enrollment = type(self.enrollment).objects.get(pk=response.data["id"])
+        assert getattr(enrollment, f"{self.field}_id") == candidate.pk
+        assert enrollment.statut == ("en_cours" if self.secondary else "provisoire")
+        assert enrollment.date_inscription == self.today
+        if self.secondary:
+            assert enrollment.motif == "Première admission"
+        else:
+            assert enrollment.regime == candidate.regime
+        history = self.client.get(f"{self.base}{enrollment.pk}/historique/")
+        assert history.status_code == 200, history.data
+        assert [event["action"] for event in history.data] == ["admission_deposee"]
+        assert self.client.post(url, payload, format="json").status_code == 400
+        assert type(self.enrollment).objects.filter(**{self.field: candidate}).count() == 1
+        assert self.client.post(self.base, {**payload, self.field: candidate.pk}, format="json").status_code == 403
+        assert self.client.post(f"{self.base}{enrollment.pk}/valider/", {}, format="json").status_code == 403
+        self.client.force_authenticate(self.learner.user)
+        assert self.client.post(url, self.next_payload, format="json").status_code == 400
+        assert not type(self.enrollment).objects.filter(**{self.year_field: self.new_year}).exists()
+
+    def test_candidate_cannot_deposit_without_proof_or_choose_another_identity_or_closed_year(self):
+        candidate = self.learners[2]
+        url = f"{self.base}deposer/"
+        payload = {
+            self.year_field: self.year.pk,
+            self.target_field: self.classe.pk if self.secondary else self.formation.pk,
+        }
+        self.client.force_authenticate(user=None)
+        assert self.client.post(url, payload, format="json").status_code in (401, 403)
+        self.client.force_authenticate(self.admin)
+        assert self.client.post(url, payload, format="json").status_code == 403
+        self.client.force_authenticate(candidate.user)
+        assert self.client.post(url, {**payload, self.field: self.learners[1].pk}, format="json").status_code == 400
+        assert self.client.post(url, {**payload, "statut": "validee"}, format="json").status_code == 400
+        if self.secondary:
+            response = self.client.post(url, {**payload, self.target_field: self.target.pk}, format="json")
+            assert response.status_code == 400
+        assert not type(self.enrollment).objects.filter(**{self.field: candidate}).exists()
+        self.year.cloturee = True
+        self.year.save(update_fields=["cloturee"])
+        assert self.client.post(url, payload, format="json").status_code == 400
+        assert not type(self.enrollment).objects.filter(**{self.field: candidate}).exists()
+        unverified = type(self.admin).objects.create_user(
+            "admission-without-profile", role=candidate.user.role, etablissement=self.tenant
+        )
+        self.client.force_authenticate(unverified)
+        assert self.client.post(url, payload, format="json").status_code == 403
+
+    def test_candidate_deposit_and_notification_are_atomic(self):
+        candidate = self.learners[2]
+        self.client.force_authenticate(candidate.user)
+        payload = {
+            self.year_field: self.year.pk,
+            self.target_field: self.classe.pk if self.secondary else self.formation.pk,
+        }
+        notifications = apps.get_model("core.WorkflowNotification")
+        with patch.object(notifications.objects, "create", side_effect=RuntimeError("notification failed")):
+            with pytest.raises(RuntimeError, match="notification failed"):
+                self.client.post(f"{self.base}deposer/", payload, format="json")
+        assert not type(self.enrollment).objects.filter(**{self.field: candidate}).exists()

@@ -1,5 +1,7 @@
 """Admissions decisions and year-to-year transitions that preserve prior records."""
 
+from collections.abc import Mapping
+
 from django.apps import apps
 from django.db import transaction
 from django.utils import timezone
@@ -63,6 +65,65 @@ def scoped_admissions(queryset, request):
 
 
 class ReenrollmentMixin:
+    @action(detail=False, methods=["post"], permission_classes=[ActiveTenantAccess])
+    @transaction.atomic
+    def deposer(self, request):
+        model = self.serializer_class.Meta.model
+        learner_field, year_field, target_field, _, _ = admission_fields(model)
+        roles = ("eleve",) if learner_field == "eleve" else ("etudiant", "doctorant")
+        if request.user.role not in roles or request.user.is_superuser:
+            raise PermissionDenied("Seul un apprenant peut déposer sa première demande d'admission.")
+        if not isinstance(request.data, Mapping):
+            raise serializers.ValidationError({"detail": "Un dossier d'admission est attendu."})
+        allowed = {year_field, target_field, "motif"}
+        if target_field == "formation":
+            allowed.add("parcours")
+        if set(request.data) - allowed:
+            raise serializers.ValidationError({"detail": "Ce dossier contient des champs non autorisés."})
+
+        learner_model = model._meta.get_field(learner_field).remote_field.model
+        owner_field = "etablissement" if learner_field == "eleve" else "universite"
+        learner = learner_model.objects.select_for_update().filter(
+            user=request.user, **{owner_field: request.tenant}
+        ).first()
+        if learner is None:
+            raise PermissionDenied("Aucun profil d'apprenant ne vous est attribué dans cet établissement.")
+        if model.objects.filter(**{learner_field: learner}).exists():
+            raise serializers.ValidationError(
+                {
+                    "detail": (
+                        "Un dossier existe déjà pour cet apprenant. "
+                        "Adressez-vous à la scolarité pour une réinscription."
+                    )
+                }
+            )
+
+        motif = serializers.CharField(allow_blank=True, max_length=2000).run_validation(request.data.get("motif", ""))
+        data = {
+            learner_field: learner.pk,
+            year_field: request.data.get(year_field),
+            target_field: request.data.get(target_field),
+            "date_inscription": timezone.localdate(),
+        }
+        if learner_field == "eleve":
+            data["motif"] = motif
+        else:
+            data["regime"] = learner.regime
+            if "parcours" in request.data:
+                data["parcours"] = request.data["parcours"]
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        enrollment = self.save_academic(serializer)
+        record_workflow_event(
+            request,
+            enrollment,
+            "admission_deposee",
+            "Demande d'admission déposée",
+            message=motif,
+            recipients=[request.user],
+        )
+        return Response(self.get_serializer(enrollment).data, status=201)
+
     @action(detail=True, methods=["post"])
     @transaction.atomic
     def reinscrire(self, request, pk=None):
