@@ -54,6 +54,15 @@ class BilanECTSSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "date_calcul", "created_at"]
+        extra_kwargs = {
+            field: {"min_value": 0}
+            for field in (
+                "credits_inscrits",
+                "credits_valides",
+                "credits_compenses",
+                "credits_echec",
+            )
+        }
 
     def validate(self, attrs):
         if self.instance is None or {"credits_inscrits", "credits_valides"} & attrs.keys():

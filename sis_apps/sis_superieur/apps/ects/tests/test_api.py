@@ -110,6 +110,28 @@ class BilanECTSCreditWriteTestCase(TenantAPITestCase):
         assert response.status_code == 201, response.data
         assert BilanECTS.objects.get().credits_valides == 6
 
+    def test_create_rejects_negative_credits(self):
+        url = "/api/v1/ects/bilans-ects/"
+        payload = {
+            "etudiant": self.etudiant.pk,
+            "annee_universitaire": self.annee.pk,
+            "inscription_admin": self.inscription.pk,
+            "credits_inscrits": "6.00",
+        }
+        for field in (
+            "credits_inscrits",
+            "credits_valides",
+            "credits_compenses",
+            "credits_echec",
+        ):
+            with self.subTest(field=field):
+                response = self.client.post(
+                    url, {**payload, field: "-1.00"}, format="json"
+                )
+                assert response.status_code == 400, response.data
+                assert field in response.data
+                assert not BilanECTS.objects.exists()
+
     def test_patch_cannot_raise_validated_credits_or_lower_enrolled_credits_past_them(self):
         bilan = BilanECTS.objects.create(
             etudiant=self.etudiant, annee_universitaire=self.annee,
@@ -124,3 +146,22 @@ class BilanECTSCreditWriteTestCase(TenantAPITestCase):
                 bilan.refresh_from_db()
                 assert bilan.credits_inscrits == 6
                 assert bilan.credits_valides == 6
+
+    def test_patch_rejects_negative_credits_without_changing_bilan(self):
+        bilan = BilanECTS.objects.create(
+            etudiant=self.etudiant, annee_universitaire=self.annee,
+            inscription_admin=self.inscription, credits_inscrits=6,
+        )
+        url = f"/api/v1/ects/bilans-ects/{bilan.pk}/"
+        for field in (
+            "credits_inscrits",
+            "credits_valides",
+            "credits_compenses",
+            "credits_echec",
+        ):
+            with self.subTest(field=field):
+                response = self.client.patch(url, {field: "-1.00"}, format="json")
+                assert response.status_code == 400, response.data
+                assert field in response.data
+                bilan.refresh_from_db()
+                assert getattr(bilan, field) == (6 if field == "credits_inscrits" else 0)
