@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-06T17:59:59+00:00",
+  "last_evidence_update_at": "2026-11-06T21:38:52+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -2803,10 +2803,25 @@
         "verification": "13 tests core/API verts avec source montée puis 13/13 sur l'image reconstruite sans montage; comptes de deux universités, permission retirée, scope et accès personnel étudiant testés; flake8 ciblé vert.",
         "limits": "Seule la recherche d'apprenants universitaires est ajoutée : ni cours LMS, documents, factures, activités, ni parcours navigateur, deux SIS ou restauration. Image jetable non déployée sur les services partagés; dernier essai à 500 toujours rouge."
       }]
+    },
+    {
+      "id": "EXEC-20261106-wave14-bounded-sis-qualification",
+      "evidence_cutoff_at": "2026-11-06T21:38:52+00:00",
+      "scope": "Vingt correctifs bornés d'installation et des deux SIS publiés séparément ; aucun statut de recette globale promu.",
+      "campaigns": [{
+        "id": "wave14-published-image-regressions",
+        "result": "bounded_backend_regressions_passed_without_institutional_acceptance",
+        "published_head": "d79a735",
+        "image": "lms-sis:local-20261106-d79a735",
+        "image_digest": "sha256:b377b9f51ea4ec4dd785c8ae6d853c85c091a0b65ad063cc961dfd0b153a0018",
+        "verification": "PostgreSQL/Redis jetables : 89 tests API secondaire et 66 supérieur passés avec seuls modules modifiés montés. Image reconstruite du code publié : manage.py check, makemigrations --check --dry-run, 708 tests secondaire et 730 supérieur passés ; lint Python ciblé et git diff --check verts.",
+        "limits": "Un examen disciplinaire refusé avant intervention ; deux fichiers Open edX locaux non testés/non publiés. Pas de remplacement des services partagés, recette institutionnelle, prestataires réels, restauration ni nouveau test de charge 500. Statuts inchangés : 1 verified, 71 partial, 20 absent, 2 unverified."
+      }]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-06T17:59:59+00:00",
+    "as_of": "2026-11-06T21:38:52+00:00",
+    "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Commit 00f1755 publié sur origin/main, image jetable local-20261106-00f1755 testée (13/13 core); 10.7 devient partial pour le seul apprenant universitaire, sans qualification globale ni déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
     "integration_admin_tenant_boundary": "SIS principal sur image integration-admin-tenant1 934fcba… : permission administrative et tenant/schéma contrôlés avant toutes les routes d'intégration concernées. Tests empaquetés52+50 verts, six services redémarrés et sains; snapshots antérieur dc4da52d et final1b26df04,58 snapshots/116 packs relus. Frontendd035, LMS access-ownership2 et fixture100b8 inchangés; dernier500 rouge, aucun500b8 exécuté/autorisé.",

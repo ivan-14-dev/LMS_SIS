@@ -362,6 +362,41 @@ restent nécessaires. **La matrice demeure à 1/94 exigence vérifiée**
 (71 partielles, 20 absentes, 2 non vérifiées) : ces tests de code ne sont
 pas une réception de bout en bout.
 
+**Quatorzième vague du 6 novembre 2026 :** vingt incréments bornés ont été
+revus, testés, committés et poussés séparément. Le précontrôle d'installation
+refuse désormais un manifeste JSON mal formé avant les effets de bord. Dans
+le secondaire, les corrections concernent la confidentialité des emprunts,
+les accès cantine par établissement, la capacité des clubs, les décisions
+validées du conseil de classe, les deux routes d'évaluations, les réservations
+d'internat futures, les transactions de paiement liées à l'établissement,
+les justificatifs de présence et la signature de conventions annulées.
+Dans le supérieur, elles concernent les candidatures à une offre de stage
+fermée, les emprunts d'autres titulaires, les actions sur bourses, les
+diplômes signés, les crédits ECTS négatifs, les affectations enseignantes,
+les maquettes d'un autre établissement, les accords de mobilité, les
+rattrapages et les projets de recherche. L'examen disciplinaire secondaire
+a été refusé avant toute intervention : aucun correctif de ce module
+n'est déclaré qualifié. Les deux fichiers Open edX modifiés localement
+restent non testés et non publiés.
+
+Les suites API groupées passent sur PostgreSQL/Redis jetables (**89 tests
+secondaire, 66 supérieur**), le lint des fichiers Python modifiés et le
+contrôle des espaces passent. L'image du code publié
+`lms-sis:local-20261106-d79a735` passe `manage.py check` et
+`makemigrations --check --dry-run` dans les deux variantes, puis les suites
+complètes en série (**708 secondaire, 730 supérieur**), sans monter de
+code applicatif local. Le premier lancement groupé secondaire redirigeait
+les requêtes HTTP vers HTTPS faute de configuration de test ; la relance
+configurée a passé. Les scripts et contrats frontend utilisés par les tests
+ont été montés en lecture seule ; le frontend inchangé n'a pas été retesté.
+Aucun service partagé n'a été remplacé. Pour clôturer les exigences
+institutionnelles, restent nécessaires les migrations et la restauration
+sur copies de données réelles, les parcours navigateur et LMS/prestataires
+autorisés, les contrôles de rôles sur deux établissements et une nouvelle
+campagne à 500 précontrôlée, autorisée et verte. La dernière campagne à
+500 demeure rouge : **1/94 exigence vérifiée** (71 partielles, 20 absentes,
+2 non vérifiées), sans promotion sur les seuls tests de code.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
