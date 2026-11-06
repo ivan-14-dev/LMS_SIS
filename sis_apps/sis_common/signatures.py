@@ -135,7 +135,9 @@ class SignatureViewSet(mixins.CreateModelMixin, viewsets.ReadOnlyModelViewSet):
         elif view == "personnel":
             queryset = queryset.filter(own)
         elif view == "utilisables":
-            queryset = queryset.filter(own | mandates, statut="validee", debut__lte=now, fin__gt=now)
+            queryset = queryset.filter(
+                own | mandates, statut="validee", debut__lte=now, fin__gt=now, titulaire__is_active=True
+            )
         elif not allowed(request.user, APPROVE, request.tenant):
             queryset = queryset.filter(own | mandates)
         return queryset

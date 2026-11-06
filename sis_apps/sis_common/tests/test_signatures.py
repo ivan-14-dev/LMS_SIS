@@ -200,6 +200,21 @@ class SignatureArchiveTests(DocumentFixture):
         self.client.force_authenticate(self.operator)
         assert self.client.post(self.archives, self.archive_payload(), format="json").status_code == 403
 
+    def test_delegated_usable_signatures_exclude_inactive_holder(self):
+        self.approve()
+        self.grant_mandate()
+        self.client.force_authenticate(self.operator)
+        usable = self.client.get(self.signatures, {"vue": "utilisables"})
+        assert usable.status_code == 200, usable.data
+        assert [item["id"] for item in usable.data["results"]] == [self.signature_id]
+
+        self.admin.is_active = False
+        self.admin.save(update_fields=["is_active"])
+        usable = self.client.get(self.signatures, {"vue": "utilisables"})
+        assert usable.status_code == 200, usable.data
+        assert usable.data["count"] == 0
+        assert self.client.post(self.archives, self.archive_payload(), format="json").status_code == 403
+
     def test_expiration_revocation_versions_and_database_immutability(self):
         self.approve()
         archive_id = self.sign()
