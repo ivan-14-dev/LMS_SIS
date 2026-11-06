@@ -87,7 +87,7 @@ class CardReferencePreflightTests(unittest.TestCase):
         self.assertFalse(any(call[0] == "run" for call in calls))
 
 
-class ConfigureJWKSTests(unittest.TestCase):
+class ConfigureSafetyTests(unittest.TestCase):
     def options(self, directory, keys):
         jwks = Path(directory) / "public-jwks.json"
         jwks.write_text(json.dumps({"keys": keys}), encoding="utf-8")
@@ -132,6 +132,39 @@ class ConfigureJWKSTests(unittest.TestCase):
             saved = sisctl.read_configuration(options.env_file)
             self.assertEqual(json.loads(saved["EDX_JWT_PUBLIC_SIGNING_JWK_SET"]), {"keys": [public]})
             self.assertEqual(options.env_file.stat().st_mode & 0o777, 0o600)
+
+    def test_refuses_incomplete_lms_or_insecure_studio_urls_before_prompting(self):
+        public = {"kty": "RSA", "n": "AQAB", "e": "AQAB"}
+        with tempfile.TemporaryDirectory() as directory:
+            for url in ("https://", "https://lms.school.example/oauth2", "https://user@lms.school.example"):
+                with self.subTest(lms=url):
+                    options = self.options(directory, [public])
+                    options.lms_url = url
+                    with patch.object(sisctl.getpass, "getpass", side_effect=AssertionError("Must not prompt")):
+                        with self.assertRaisesRegex(ValueError, "LMS URL"):
+                            sisctl.configure(options)
+                    self.assertFalse(options.env_file.exists())
+            for url in ("http://studio.school.example", "https://", "https://studio.school.example/?key=value"):
+                with self.subTest(studio=url):
+                    options = self.options(directory, [public])
+                    options.cms_url = url
+                    with patch.object(sisctl.getpass, "getpass", side_effect=AssertionError("Must not prompt")):
+                        with self.assertRaisesRegex(ValueError, "Studio URL"):
+                            sisctl.configure(options)
+                    self.assertFalse(options.env_file.exists())
+
+    def test_local_mode_accepts_explicit_http_origins(self):
+        public = {"kty": "RSA", "n": "AQAB", "e": "AQAB"}
+        with tempfile.TemporaryDirectory() as directory:
+            options = self.options(directory, [public])
+            options.local = True
+            options.lms_url = "http://lms.localhost:59080/"
+            options.cms_url = "http://studio.localhost:59080/"
+            with patch.object(sisctl.getpass, "getpass", return_value="throwaway-test-only"):
+                sisctl.configure(options)
+            saved = sisctl.read_configuration(options.env_file)
+            self.assertEqual(saved["EDX_LMS_URL"], "http://lms.localhost:59080")
+            self.assertEqual(saved["EDX_CMS_URL"], "http://studio.localhost:59080")
 
 
 if __name__ == "__main__":

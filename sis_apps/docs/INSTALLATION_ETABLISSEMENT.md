@@ -52,6 +52,8 @@ python3 scripts/sisctl.py configure \
 ```
 
 L'issuer par défaut est `LMS_URL/oauth2` ; utilisez `--issuer` s'il diffère.
+Les URL LMS et Studio doivent être des origines complètes sans chemin,
+paramètre ni identifiant intégré, en HTTPS sauf avec `--local`.
 Les clients SIS demandent explicitement `asymmetric_jwt=true` à Open edX :
 son endpoint OAuth peut sinon retourner un jeton symétrique, qui ne peut pas
 être vérifié avec le JWKS public. Ne partagez pas le secret de signature du

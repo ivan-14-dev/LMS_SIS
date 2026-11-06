@@ -43,6 +43,29 @@ def variants(configuration):
     return [mode]
 
 
+def deployment_url(value, label, local):
+    url = value.rstrip("/")
+    parsed = urlparse(url)
+    schemes = ("http", "https") if local else ("https",)
+    if (
+        parsed.scheme not in schemes
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.path
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError(f"{label} URL must be a complete {'HTTP(S)' if local else 'HTTPS'} origin.")
+    try:
+        if parsed.port == 0:
+            raise ValueError("Port zero is not a service port.")
+    except ValueError as exc:
+        raise ValueError(f"{label} URL must use a valid service port.") from exc
+    return url
+
+
 def compose(configuration, *arguments, **kwargs):
     environment = {**os.environ, **kwargs.pop("env", {})}
     environment["SIS_ENV_FILE"] = configuration.get("_ENV_FILE", str(ROOT / ".env"))
@@ -144,9 +167,8 @@ def configure(options):
         raise ValueError("Use --local for a localhost-only installation.")
     scheme = "http" if options.local else "https"
     port = ":8080" if options.local else ""
-    lms = options.lms_url.rstrip("/")
-    if urlparse(lms).scheme != "https" and not options.local:
-        raise ValueError("The LMS must use HTTPS outside local development.")
+    lms = deployment_url(options.lms_url, "LMS", options.local)
+    cms = deployment_url(options.cms_url, "Studio", options.local)
     jwks = json.loads(options.jwks.read_text(encoding="utf-8"))
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list) or not keys:
@@ -180,7 +202,7 @@ def configure(options):
         "FIELD_ENCRYPTION_KEY": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
         "WEBHOOK_SECRET": secrets.token_urlsafe(32),
         "EDX_LMS_URL": lms,
-        "EDX_CMS_URL": options.cms_url.rstrip("/"),
+        "EDX_CMS_URL": cms,
         "EDX_OAUTH_CLIENT_ID": options.oauth_client_id,
         "EDX_OAUTH_CLIENT_SECRET": oauth_secret,
         "EDX_JWT_ISSUER": options.issuer or f"{lms}/oauth2",
