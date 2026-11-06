@@ -337,6 +337,11 @@ commits ne modifient que le secondaire. L'image finale
 des migrations dans les deux variantes ; la suite secondaire finale passe
 **693 tests**. Ces suites ont été exécutées en série sur PostgreSQL et
 Redis jetables, sans installer l'image sur les services partagés.
+Sur deux bases et deux tenants synthétiques neufs, les migrations publiques
+et tenant ont réussi avec un propriétaire PostgreSQL non superutilisateur
+(`salles.0003` et `transport.0002` comprises) ; `/health/` et `/ready/`
+répondent 200 avec base et cache prêts dans les deux variantes via le
+client Django. Ce contrôle n'est pas un déploiement institutionnel.
 
 Restent notamment à valider avant clôture : installer et migrer les deux
 tenants sur une copie de données réelles, vérifier sur deux hôtes que ni
