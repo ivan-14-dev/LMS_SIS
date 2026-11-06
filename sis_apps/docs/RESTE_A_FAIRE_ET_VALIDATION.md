@@ -74,6 +74,27 @@ n'est **pas déployée** sur les services partagés. La recette intégrale, les
 vrais parcours LMS/prestataires et la charge 500 restent à démontrer ; le
 correctif Open edX demeure non publié faute d'essai CMS/MySQL isolé.
 
+**Quatrième vague du 6 novembre 2026 :** dix correctifs distincts ont été
+testés, committés et poussés : signatures indisponibles après désactivation
+du titulaire, refus des redirections d'inscription LMS, récupération de compte
+inactif, bilan ECTS lié à son inscription, création de cours dans les seuls
+espaces SIS gérés, présence cantine conditionnée à l'inscription, protection
+des dossiers d'infirmerie par appartenance au tenant, transitions des projets
+de recherche, attribution des bourses sur demande acceptée et capacité des
+chambres d'internat sur périodes chevauchantes. La revue a aussi vérifié
+qu'une occupation entièrement terminée n'empêche pas de diminuer la capacité.
+L'image `lms-sis:local-20261106-f9f9018` a été reconstruite depuis ces
+commits ; `manage.py check` passe pour les deux variantes. Sur PostgreSQL et
+Redis jetables, les suites complètes de cette image passent (**609 tests
+secondaire, 606 supérieur**), avec les scripts d'installation et contrats
+frontend nécessaires à la collecte montés en lecture seule. La suite
+frontend et son build n'ont pas été relancés : aucun fichier frontend n'a
+changé depuis leurs derniers résultats verts. Cette image n'a remplacé aucun
+service partagé ; le correctif Open edX antérieur reste non qualifié et non
+publié. **La matrice demeure à 1/94 vérifiée** : ni parcours réels
+institutionnels, ni fournisseurs externes, ni campagne à 500 connexions
+verte ne sont démontrés par ces tests.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
