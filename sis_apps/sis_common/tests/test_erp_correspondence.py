@@ -216,3 +216,42 @@ class CorrespondanceTests(TenantAPITestCase):
             assert self.client.get(BASE).data["count"] == 0
         assert self.transition(item, "affecter", self.coordinator, assigne_a=self.reviewer.pk).status_code == 404
         assert self.transition(item, "approuver", self.reviewer).status_code == 404
+
+    def test_persisted_assigner_cannot_be_reassigned_without_assignment_history(self):
+        self.grant(self.reviewer, "assign_correspondance")
+        self.grant(self.coordinator, "approve_correspondance")
+        successor = get_user_model().objects.create_user(
+            "erp-legacy-successor", role="personnel_administratif", etablissement=self.tenant
+        )
+        self.grant(successor, "view_correspondance", "approve_correspondance")
+
+        for direction in ("entrante", "sortante"):
+            item = self.create(direction)
+            # Imported assignments can retain their actor fields without a workflow event.
+            Correspondance.objects.filter(pk=item["id"]).update(
+                statut="affectee", assigne_a=self.reviewer, assigne_par=self.coordinator, version=2
+            )
+            item["version"] = 2
+            before = Correspondance.objects.values().get(pk=item["id"])
+            history = list(WorkflowEvent.objects.filter(object_id=item["id"]).values())
+            assert not WorkflowEvent.objects.filter(
+                object_id=item["id"], action="correspondance_affectee"
+            ).exists()
+
+            rejected = self.transition(item, "affecter", self.reviewer, assigne_a=self.coordinator.pk)
+            assert rejected.status_code == 400, rejected.data
+            assert "assigne_a" in rejected.data
+            assert Correspondance.objects.values().get(pk=item["id"]) == before
+            assert list(WorkflowEvent.objects.filter(object_id=item["id"]).values()) == history
+
+            reassigned = self.transition(item, "affecter", self.reviewer, assigne_a=successor.pk)
+            assert reassigned.status_code == 200, reassigned.data
+            assert reassigned.data["assigne_a"] == successor.pk
+            assert reassigned.data["assigne_par"] == self.reviewer.pk
+            assert reassigned.data["version"] == item["version"] + 1
+            approved = self.transition(reassigned.data, "approuver", successor)
+            assert approved.status_code == 200, approved.data
+            archived = self.transition(approved.data, "archiver", self.coordinator)
+            assert archived.status_code == 200, archived.data
+            assert archived.data["statut"] == "archivee"
+            assert archived.data["contenu"] == item["contenu"]

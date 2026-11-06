@@ -213,7 +213,9 @@ class CorrespondanceViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vi
         )
         if not allowed(assignee, "core.view_correspondance", request.tenant) or not allowed(
             assignee, "core.approve_correspondance", request.tenant
-        ) or assignee.pk in (obj.cree_par_id, request.user.pk) or self._has_assigned(obj, assignee):
+        ) or assignee.pk in (
+            obj.cree_par_id, obj.assigne_par_id, request.user.pk
+        ) or self._has_assigned(obj, assignee):
             raise ValidationError({
                 "assigne_a": "Un agent habilité, distinct du créateur et de tout affectant précédent, est requis."
             })
