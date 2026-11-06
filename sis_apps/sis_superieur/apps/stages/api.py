@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import CandidatureStage, ConventionStage, OffreStage
+from .permissions import can_manage_stage_applications, is_stage_applicant
 from .serializers import (
     CandidatureStageSerializer,
     ConventionStageDetailSerializer,
@@ -27,13 +28,18 @@ class IsRelationsEntreprisesOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        user = request.user
-        return user.is_staff or getattr(user, "role", "") in (
-            "relations_entreprises",
-            "scolarite",
-            "responsable_formation",
-            "doyen",
-        )
+        return can_manage_stage_applications(request.user)
+
+
+class IsCandidatureParticipant(IsAuthenticated):
+    """Only application managers can decide; applicants may view their own."""
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        if can_manage_stage_applications(request.user):
+            return True
+        return view.action not in ("accepter", "refuser") and is_stage_applicant(request.user)
 
 
 class OffresStageViewSet(viewsets.ModelViewSet):
@@ -60,11 +66,13 @@ class OffresStageViewSet(viewsets.ModelViewSet):
             return OffreStageListSerializer
         return OffreStageDetailSerializer
 
-    @action(detail=True, methods=["get"])
+    @action(detail=True, methods=["get"], permission_classes=[IsCandidatureParticipant])
     def candidatures(self, request, pk=None):
         """Liste les candidatures pour l'offre."""
         offre = self.get_object()
         candidatures = offre.candidatures.select_related("etudiant__user").order_by("-date_soumission")
+        if not can_manage_stage_applications(request.user):
+            candidatures = candidatures.filter(etudiant__user=request.user)
         serializer = CandidatureStageSerializer(candidatures, many=True)
         return Response(serializer.data)
 
@@ -96,7 +104,7 @@ class OffresStageViewSet(viewsets.ModelViewSet):
 class CandidaturesStageViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour candidatures."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsCandidatureParticipant]
     serializer_class = CandidatureStageSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["offre", "etudiant", "statut"]
@@ -105,10 +113,8 @@ class CandidaturesStageViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = CandidatureStage.objects.select_related("etudiant__user", "offre__entreprise")
         user = self.request.user
-        # Un étudiant ne voit que ses propres candidatures
-        if hasattr(user, "etudiant_profile"):
-            if not user.is_staff:
-                qs = qs.filter(etudiant__user=user)
+        if not can_manage_stage_applications(user):
+            qs = qs.filter(etudiant__user=user)
         return qs
 
     def perform_create(self, serializer):

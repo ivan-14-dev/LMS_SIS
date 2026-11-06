@@ -3,6 +3,7 @@
 from rest_framework import serializers
 
 from .models import CandidatureStage, ConventionStage, OffreStage
+from .permissions import can_manage_stage_applications, is_stage_applicant
 
 
 class OffreStageListSerializer(serializers.ModelSerializer):
@@ -127,6 +128,19 @@ class CandidatureStageSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "date_soumission", "created_at"]
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        if request and is_stage_applicant(request.user) and not can_manage_stage_applications(request.user):
+            decision_fields = {"statut", "date_reponse", "motif_refus"} & self.initial_data.keys()
+            if decision_fields:
+                raise serializers.ValidationError(
+                    {field: "Réservé au service des stages." for field in decision_fields}
+                )
+            etudiant = attrs.get("etudiant")
+            if etudiant is not None and etudiant.user_id != request.user.pk:
+                raise serializers.ValidationError({"etudiant": "Cette candidature ne vous appartient pas."})
+        return attrs
 
 
 class ConventionStageListSerializer(serializers.ModelSerializer):
