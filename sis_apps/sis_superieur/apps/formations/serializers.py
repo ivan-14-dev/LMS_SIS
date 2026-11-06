@@ -119,6 +119,13 @@ class MaquetteFormationSerializer(serializers.ModelSerializer):
     formation_nom = serializers.CharField(source="formation.nom", read_only=True)
     annee_libelle = serializers.CharField(source="annee_universitaire.libelle", read_only=True)
 
+    def validate_annee_universitaire(self, year):
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None)
+        if tenant is not None and year.universite_id != tenant.pk:
+            raise serializers.ValidationError("L'année universitaire doit appartenir à l'établissement courant.")
+        return year
+
     class Meta:
         model = MaquetteFormation
         fields = [
