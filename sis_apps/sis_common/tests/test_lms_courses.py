@@ -73,6 +73,19 @@ class LMSCourseContractTests(TestCase):
         post.assert_not_called()
 
     @patch("sis_common.lms_courses.requests.post")
+    def test_creation_is_limited_to_sis_owned_namespaces(self, post):
+        post.return_value = self.response(id="course-v1:SIS-U+opaque-course+sis")
+        self.assertEqual(
+            self.client.create_course("SIS-U", "opaque-course", "sis", "Synthetic Course")["id"],
+            "course-v1:SIS-U+opaque-course+sis",
+        )
+        post.reset_mock()
+        for org, run in (("Other", "sis"), ("SIS", "other"), ("SIS-U", "other")):
+            with self.subTest(org=org, run=run), self.assertRaises(ValueError):
+                self.client.create_course(org, "opaque-course", run, "Synthetic Course")
+        post.assert_not_called()
+
+    @patch("sis_common.lms_courses.requests.post")
     def test_wrong_or_incomplete_confirmation_does_not_create_a_local_success(self, post):
         for changes in ({"id": None}, {"id": "another-course"}, {"display_name": None}, {"display_name": "Other"}):
             post.return_value = self.response(**changes)

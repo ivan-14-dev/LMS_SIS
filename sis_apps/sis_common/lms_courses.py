@@ -69,6 +69,8 @@ def _request(client, operation, course_key, data=None):
 def create_course(client, org, number, run, display_name, course_data=None):
     if not all(isinstance(value, str) for value in (org, number, run)):
         raise ValueError("Les composantes de l'identifiant du cours doivent être du texte.")
+    if org not in ("SIS", "SIS-U") or run != "sis":
+        raise ValueError("Un nouveau cours doit appartenir à l'espace SIS géré.")
     if course_data is not None and course_data != {}:
         raise ValueError("Les métadonnées supplémentaires nécessitent un contrat Studio distinct.")
     return _request(client, requests.post, f"course-v1:{org}+{number}+{run}", {"display_name": display_name})
