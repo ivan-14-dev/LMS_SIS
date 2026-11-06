@@ -45,7 +45,9 @@ class MaquettesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     ordering = ["-annee_universitaire__date_debut", "formation__nom"]
 
     def get_queryset(self):
-        return MaquetteFormation.objects.select_related("formation", "annee_universitaire")
+        return MaquetteFormation.objects.filter(
+            annee_universitaire__universite=self.request.tenant
+        ).select_related("formation", "annee_universitaire")
 
     @action(detail=False, methods=["get"])
     def par_formation(self, request):
