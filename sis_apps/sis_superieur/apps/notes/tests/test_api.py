@@ -1,6 +1,7 @@
 """API integration-style tests for tenant-driven superior note exports."""
 
 from datetime import timedelta
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -14,6 +15,8 @@ from django.test import SimpleTestCase
 from django.urls import resolve
 from django.utils import timezone
 from rest_framework.test import APIRequestFactory
+
+from sis_common.tests.test_grade_entry import GradeEntryFixture
 
 
 class FakeQuerySet:
@@ -220,3 +223,24 @@ class NotesAPITestCase(SimpleTestCase):
         )
 
         _ensure_superior_continuous_assessment(evaluation)
+
+
+class SuperiorNoteScaleAPITestCase(GradeEntryFixture):
+    def test_direct_note_patch_rejects_out_of_scale_grade_but_allows_correction(self):
+        response = self.save_grades([self.row(self.learners[0], "14")])
+        assert response.status_code == 200, response.data
+        note = self.evaluation.notes.get(etudiant=self.learners[0])
+        url = f"/api/v1/notes/notes/{note.pk}/"
+        assert resolve(url).url_name == "note-detail"
+
+        for value in ("20.01", "-0.01"):
+            response = self.client.patch(url, {"valeur": value}, format="json")
+            assert response.status_code == 400, response.data
+            assert "valeur" in response.data
+            note.refresh_from_db()
+            assert note.valeur == Decimal("14.00")
+
+        response = self.client.patch(url, {"valeur": "17.50"}, format="json")
+        assert response.status_code == 200, response.data
+        note.refresh_from_db()
+        assert note.valeur == Decimal("17.50")

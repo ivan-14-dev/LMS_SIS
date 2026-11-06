@@ -173,6 +173,17 @@ class NoteSerializer(ModelValidationSerializerMixin, GradeUpdateSerializerMixin,
         ]
         read_only_fields = ["id", "date_saisie"]
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if "valeur" in attrs or "evaluation" in attrs:
+            evaluation = attrs.get("evaluation", getattr(self.instance, "evaluation", None))
+            valeur = attrs.get("valeur", getattr(self.instance, "valeur", None))
+            if valeur is not None and not 0 <= valeur <= evaluation.bareme:
+                raise serializers.ValidationError(
+                    {"valeur": f"La note doit être comprise entre 0 et {evaluation.bareme}."}
+                )
+        return attrs
+
 
 class NoteSaisieSerializer(serializers.Serializer):
     """Serializer pour la saisie en masse de notes."""
