@@ -6,10 +6,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from apps.etudiants.api import EtudiantsViewSet, InscriptionsAdminViewSet, IsScolariteOrReadOnly
 from apps.etudiants.serializers import InscriptionAdministrativeSerializer
+from apps.utilisateurs.models import Utilisateur
 from django.test import SimpleTestCase
 from django.urls import resolve
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
+
+from sis_common.tests.test_grade_entry import GradeEntryFixture
 
 
 class EtudiantsAPITestCase(SimpleTestCase):
@@ -51,7 +54,7 @@ class EtudiantsQuerysetTestCase(SimpleTestCase):
     @patch("apps.etudiants.api.Etudiant")
     def test_queryset_is_filtered_by_tenant(self, mock_model):
         tenant = SimpleNamespace(id=1)
-        user = SimpleNamespace(is_staff=True, role="scolarite")
+        user = SimpleNamespace(is_staff=True, role="scolarite", has_perm=lambda _: True)
         view = EtudiantsViewSet()
         view.request = SimpleNamespace(tenant=tenant, user=user)
 
@@ -71,6 +74,51 @@ class EtudiantsQuerysetTestCase(SimpleTestCase):
 
         tenant_filtered_qs = mock_model.objects.select_related.return_value.filter.return_value
         tenant_filtered_qs.filter.assert_called_once_with(user=user)
+
+    @patch("apps.etudiants.api.request_has_business_access", return_value=False)
+    @patch("apps.etudiants.api.Etudiant")
+    def test_staff_flag_without_student_view_permission_sees_only_own_record(self, mock_model, _mock_access):
+        user = SimpleNamespace(is_staff=True, is_superuser=False, role="autre", has_perm=lambda _: False)
+        view = EtudiantsViewSet()
+        view.request = SimpleNamespace(tenant=SimpleNamespace(pk=11), user=user)
+
+        view.get_queryset()
+
+        tenant_filtered_qs = mock_model.objects.select_related.return_value.filter.return_value
+        tenant_filtered_qs.filter.assert_called_once_with(user=user)
+
+    @patch("apps.etudiants.api.Etudiant")
+    def test_student_with_staff_flag_and_permission_cannot_list_other_students(self, mock_model):
+        user = SimpleNamespace(is_staff=True, is_superuser=False, role="etudiant", has_perm=lambda _: True)
+        view = EtudiantsViewSet()
+        view.request = SimpleNamespace(tenant=SimpleNamespace(pk=11), user=user)
+
+        view.get_queryset()
+
+        tenant_filtered_qs = mock_model.objects.select_related.return_value.filter.return_value
+        tenant_filtered_qs.filter.assert_called_once_with(user=user)
+
+
+class EtudiantsReadAccessTestCase(GradeEntryFixture):
+    def test_staff_flag_without_student_view_permission_does_not_expose_student_directory(self):
+        visitor = Utilisateur.objects.create_user(
+            "student-directory-visitor", role="autre", is_staff=True, etablissement=self.tenant
+        )
+        self.client.force_authenticate(visitor)
+        url = "/api/v1/etudiants/"
+        response = self.client.get(url, secure=True)
+        assert response.status_code == 200, response.data
+        assert response.data["count"] == 0
+        assert self.client.get(f"{url}{self.learners[0].pk}/", secure=True).status_code == 404
+        search = self.client.get(f"{url}search/", {"q": "Learner"}, secure=True)
+        assert search.status_code == 200, search.data
+        assert search.data["count"] == 0
+
+        self.client.force_authenticate(self.learners[0].user)
+        own = self.client.get(url, secure=True)
+        assert own.status_code == 200, own.data
+        assert own.data["count"] == 1
+        assert own.data["results"][0]["id"] == self.learners[0].pk
 
 
 class EtudiantsActionsTestCase(SimpleTestCase):

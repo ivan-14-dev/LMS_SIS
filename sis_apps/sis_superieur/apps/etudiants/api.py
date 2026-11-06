@@ -93,9 +93,19 @@ class EtudiantsViewSet(LearnerImportMixin, AcademicLifecycleMixin, viewsets.Mode
         if hasattr(request, "tenant"):
             qs = qs.filter(universite=request.tenant)
 
-        # Un étudiant ne voit que son propre profil
         user = request.user
-        if not user.is_staff and not getattr(user, "is_superuser", False) and getattr(user, "role", "") == "etudiant":
+        if not getattr(user, "is_superuser", False) and (
+            user.role in ("etudiant", "doctorant", "parent")
+            or not (
+                user.has_perm("etudiants.view_etudiant")
+                or request_has_business_access(
+                    request,
+                    "etudiants.view_etudiant",
+                    ("scolarite", "directeur_etudes", "responsable_formation", "doyen"),
+                    tenant_group_codes=("student_manager_superieur",),
+                )
+            )
+        ):
             qs = qs.filter(user=user)
 
         return qs
