@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from sis_common.serializers import TenantBoundSerializerMixin
 
-from .models import Arret, InscriptionTransport, LigneTransport, TrajetScolaire, Vehicule
+from .models import Arret, Chauffeur, InscriptionTransport, LigneTransport, TrajetScolaire, Vehicule
 
 
 class ArretSerializer(serializers.ModelSerializer):
@@ -106,10 +106,17 @@ class VehiculeSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
 
+class ChauffeurSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Chauffeur
+        fields = ["id", "nom", "telephone", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
 class TrajetScolaireSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrajetScolaire
-        fields = ["id", "ligne", "vehicule", "depart_at", "arrivee_at"]
+        fields = ["id", "ligne", "vehicule", "chauffeur", "depart_at", "arrivee_at"]
         read_only_fields = ["id"]
 
     def validate(self, attrs):

@@ -2,6 +2,7 @@
 
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q, Sum
+from django.db.models.deletion import ProtectedError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -12,9 +13,10 @@ from rest_framework.response import Response
 
 from sis_common.authorization import is_current_tenant_user, request_has_business_access
 
-from .models import Arret, InscriptionTransport, LigneTransport, TrajetScolaire, Vehicule
+from .models import Arret, Chauffeur, InscriptionTransport, LigneTransport, TrajetScolaire, Vehicule
 from .serializers import (
     ArretSerializer,
+    ChauffeurSerializer,
     InscriptionTransportSerializer,
     LigneTransportDetailSerializer,
     LigneTransportListSerializer,
@@ -31,12 +33,29 @@ class IsIntendanceOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
+        return self.has_management_permission(request)
+
+    @staticmethod
+    def has_management_permission(request):
         return request_has_business_access(
             request,
             "transport.change_lignetransport",
             ("intendance", "vie_scolaire", "directeur", "proviseur", "principal"),
             tenant_group_codes=("transport_manager_secondary",),
         )
+
+
+class CanManageOrViewChauffeurs(IsIntendanceOrReadOnly):
+    """Réserver les coordonnées des chauffeurs aux comptes habilités."""
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return self.has_management_permission(request) or request_has_business_access(
+                request, "transport.view_chauffeur"
+            )
+        return True
 
 
 class LignesTransportViewSet(viewsets.ModelViewSet):
@@ -107,14 +126,32 @@ class VehiculesViewSet(viewsets.ModelViewSet):
         return Vehicule.objects.select_related("ligne")
 
 
+class ChauffeursViewSet(viewsets.ModelViewSet):
+    """Référentiel de conducteurs du locataire courant."""
+
+    permission_classes = [CanManageOrViewChauffeurs]
+    serializer_class = ChauffeurSerializer
+    queryset = Chauffeur.objects.all()
+    filter_backends = [SearchFilter]
+    search_fields = ["nom"]
+
+    def perform_destroy(self, instance):
+        try:
+            instance.delete()
+        except ProtectedError as exc:
+            raise ValidationError(
+                {"chauffeur": "Ce chauffeur est encore affecté à un trajet."}
+            ) from exc
+
+
 class TrajetsScolairesViewSet(viewsets.ModelViewSet):
-    """Affectations ponctuelles de véhicules, indépendantes de leur ligne habituelle."""
+    """Affectations ponctuelles de véhicules et, facultativement, de conducteurs."""
 
     permission_classes = [IsIntendanceOrReadOnly]
     serializer_class = TrajetScolaireSerializer
-    queryset = TrajetScolaire.objects.select_related("ligne", "vehicule")
+    queryset = TrajetScolaire.objects.select_related("ligne", "vehicule", "chauffeur")
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ["ligne", "vehicule"]
+    filterset_fields = ["ligne", "vehicule", "chauffeur"]
     ordering = ["depart_at", "id"]
 
     def _save_trip(self, serializer):
@@ -126,6 +163,10 @@ class TrajetsScolairesViewSet(viewsets.ModelViewSet):
             if constraint == "transport_trajet_vehicle_no_overlap":
                 raise ValidationError(
                     {"vehicule": "Ce véhicule est déjà affecté pendant ce trajet."}
+                ) from exc
+            if constraint == "transport_trajet_driver_no_overlap":
+                raise ValidationError(
+                    {"chauffeur": "Ce chauffeur est déjà affecté pendant ce trajet."}
                 ) from exc
             raise
 

@@ -82,6 +82,22 @@ class Vehicule(models.Model):
         return f"{self.immatriculation} - {self.modele}"
 
 
+class Chauffeur(models.Model):
+    """Identité de conducteur propre au schéma de l'établissement."""
+
+    nom = models.CharField(max_length=200)
+    telephone = models.CharField(max_length=20, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["nom", "id"]
+        verbose_name = "Chauffeur"
+        verbose_name_plural = "Chauffeurs"
+
+    def __str__(self):
+        return self.nom
+
+
 class TrajetScolaire(models.Model):
     """Trajet ponctuel, distinct de la ligne et de son véhicule habituels."""
 
@@ -90,6 +106,9 @@ class TrajetScolaire(models.Model):
     )
     vehicule = models.ForeignKey(
         Vehicule, on_delete=models.PROTECT, related_name="trajets"
+    )
+    chauffeur = models.ForeignKey(
+        Chauffeur, on_delete=models.PROTECT, related_name="trajets", null=True, blank=True
     )
     depart_at = models.DateTimeField()
     arrivee_at = models.DateTimeField()
@@ -116,6 +135,23 @@ class TrajetScolaire(models.Model):
                     ),
                     ("vehicule", RangeOperators.EQUAL),
                 ],
+            ),
+            ExclusionConstraint(
+                name="transport_trajet_driver_no_overlap",
+                expressions=[
+                    (
+                        Func(
+                            F("depart_at"),
+                            F("arrivee_at"),
+                            Value("[)"),
+                            function="TSTZRANGE",
+                            output_field=DateTimeRangeField(),
+                        ),
+                        RangeOperators.OVERLAPS,
+                    ),
+                    ("chauffeur", RangeOperators.EQUAL),
+                ],
+                condition=Q(chauffeur__isnull=False),
             ),
         ]
 
