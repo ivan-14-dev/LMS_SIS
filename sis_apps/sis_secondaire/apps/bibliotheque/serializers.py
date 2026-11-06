@@ -90,7 +90,9 @@ class ExemplaireSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def get_disponible(self, obj):
-        return not obj.emprunts.filter(statut="en_cours").exists()
+        return obj.etat in ("neuf", "bon", "use") and not obj.emprunts.filter(
+            statut="en_cours"
+        ).exists()
 
 
 class EmpruntSerializer(serializers.ModelSerializer):
