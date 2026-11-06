@@ -52,3 +52,8 @@ class SalleDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSeriali
             "updated_at",
         ]
         read_only_fields = ["id", "etablissement", "created_at", "updated_at"]
+
+    def validate_capacite(self, value):
+        if value < 1:
+            raise serializers.ValidationError("La capacité doit être supérieure à zéro.")
+        return value
