@@ -223,12 +223,13 @@ def _ensure_entry_allowed(epreuve, type_resultat, workflow, *, check_submission_
     session = epreuve.session
     if session.cloturee or session.semestre.cloture or session.semestre.annee_universitaire.cloturee:
         allow_retake = workflow.get("allow_retake_after_closure", False)
-        if not (allow_retake and type_resultat == "retake"):
+        is_retake_session = session.type == "rattrapage" or session.numero == 2
+        if not (allow_retake and type_resultat == "retake" and is_retake_session):
             raise ValidationError(
                 {
                     "workflow": (
                         "La session, le semestre ou l'année est clôturé; seules les "
-                        "saisies de rattrapage autorisées restent possibles."
+                        "saisies de rattrapage autorisées sur une épreuve de rattrapage restent possibles."
                     )
                 }
             )

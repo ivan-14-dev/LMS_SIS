@@ -10,7 +10,7 @@ from apps.examens.api import IsExamManager, ResultatsExamenViewSet, _ensure_entr
 from django.urls import resolve
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 
 class ExamensAPITestCase(TestCase):
@@ -130,6 +130,8 @@ class ExamensAPITestCase(TestCase):
                     fin_soumission=now - timedelta(days=1),
                     session=SimpleNamespace(
                         cloturee=session_closed,
+                        numero=2 if result_type == "retake" else 1,
+                        type="rattrapage" if result_type == "retake" else "normale",
                         semestre=SimpleNamespace(
                             cloture=False,
                             annee_universitaire=SimpleNamespace(cloturee=False),
@@ -160,6 +162,90 @@ class ExamensAPITestCase(TestCase):
                 assert result.mention == "Bien"
                 result.save.assert_called_once()
 
+    @patch("django.db.transaction.Atomic.__exit__", return_value=False)
+    @patch("django.db.transaction.Atomic.__enter__")
+    @patch("apps.examens.api.record_workflow_event")
+    @patch("apps.examens.api._exam_result_workflow", return_value={"allow_retake_after_closure": True})
+    def test_closed_normal_session_cannot_publish_result_disguised_as_retake(
+        self, _workflow, event, _enter, _exit
+    ):
+        epreuve = SimpleNamespace(
+            fin_soumission=timezone.now() - timedelta(days=1),
+            session=SimpleNamespace(
+                numero=1,
+                type="normale",
+                cloturee=True,
+                semestre=SimpleNamespace(
+                    cloture=False,
+                    annee_universitaire=SimpleNamespace(cloturee=False),
+                ),
+            ),
+        )
+        result = SimpleNamespace(
+            epreuve=epreuve,
+            etudiant=SimpleNamespace(user=SimpleNamespace()),
+            type_resultat="retake",
+            statut="validated",
+            note=Decimal("14"),
+            save=Mock(),
+        )
+        request = self.factory.post("/api/v1/examens/resultats/1/publier/")
+        force_authenticate(request, user=SimpleNamespace(pk=1, is_authenticated=True, is_staff=True))
+        with (
+            patch.object(ResultatsExamenViewSet, "get_object", return_value=result),
+            patch.object(ResultatsExamenViewSet, "get_serializer", return_value=SimpleNamespace(data={})),
+        ):
+            response = resolve(request.path).func(request, pk="1")
+
+        assert response.status_code == 400
+        assert "workflow" in response.data
+        assert result.statut == "validated"
+        result.save.assert_not_called()
+        event.assert_not_called()
+
+    @patch("django.db.transaction.Atomic.__exit__", return_value=False)
+    @patch("django.db.transaction.Atomic.__enter__")
+    @patch("apps.examens.api.record_workflow_event")
+    @patch("apps.examens.api._exam_result_workflow", return_value={"allow_retake_after_closure": True})
+    def test_closed_retake_session_can_publish_validated_result(
+        self, _workflow, event, _enter, _exit
+    ):
+        epreuve = SimpleNamespace(
+            fin_soumission=timezone.now() - timedelta(days=1),
+            session=SimpleNamespace(
+                numero=2,
+                type="rattrapage",
+                cloturee=True,
+                semestre=SimpleNamespace(
+                    cloture=False,
+                    annee_universitaire=SimpleNamespace(cloturee=False),
+                ),
+            ),
+        )
+        result = SimpleNamespace(
+            epreuve=epreuve,
+            etudiant=SimpleNamespace(user=SimpleNamespace()),
+            type_resultat="retake",
+            statut="validated",
+            note=Decimal("14"),
+            save=Mock(),
+        )
+        request = self.factory.post("/api/v1/examens/resultats/1/publier/")
+        force_authenticate(request, user=SimpleNamespace(pk=1, is_authenticated=True, is_staff=True))
+        with (
+            patch.object(ResultatsExamenViewSet, "get_object", return_value=result),
+            patch.object(
+                ResultatsExamenViewSet, "get_serializer",
+                return_value=SimpleNamespace(data={"statut": "published"}),
+            ),
+        ):
+            response = resolve(request.path).func(request, pk="1")
+
+        assert response.status_code == 200
+        assert result.statut == "published"
+        result.save.assert_called_once()
+        event.assert_called_once()
+
     @patch("apps.examens.api._exam_result_workflow", return_value={})
     def test_closed_academic_period_still_rejects_publication(self, _workflow):
         request = SimpleNamespace(user=SimpleNamespace(is_staff=True))
@@ -174,6 +260,8 @@ class ExamensAPITestCase(TestCase):
                     fin_soumission=timezone.now() - timedelta(days=1),
                     session=SimpleNamespace(
                         cloturee=closed_period == "session",
+                        numero=1,
+                        type="normale",
                         semestre=SimpleNamespace(
                             cloture=closed_period == "semestre",
                             annee_universitaire=SimpleNamespace(cloturee=closed_period == "annee"),
@@ -193,6 +281,8 @@ class ExamensAPITestCase(TestCase):
         epreuve = SimpleNamespace(
             session=SimpleNamespace(
                 cloturee=True,
+                numero=1,
+                type="normale",
                 semestre=SimpleNamespace(
                     cloture=False,
                     annee_universitaire=SimpleNamespace(cloturee=False),
