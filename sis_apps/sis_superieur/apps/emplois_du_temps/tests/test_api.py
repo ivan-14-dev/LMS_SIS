@@ -52,6 +52,29 @@ class PlanningWorkflowTests(GradeEntryFixture):
         assert self.client.post(url, {**self.payload, "jour": 2}, format="json").status_code == 400
         assert self.client.patch(f"{url}{identifier}/", {"jour": 2}, format="json").status_code == 400
 
+    def test_room_conflicts_use_clock_overlap_not_slot_identity(self):
+        url = "/api/v1/edt/creneaux-cours/"
+        overlapping = self.create("emplois_du_temps.CreneauHoraire", heure_debut="09:00", heure_fin="10:30")
+        adjacent = self.create("emplois_du_temps.CreneauHoraire", heure_debut="10:00", heure_fin="11:00")
+        first = self.client.post(url, self.payload, format="json")
+        assert first.status_code == 201, first.data
+
+        conflict = self.client.post(url, {**self.payload, "creneau_horaire": overlapping.pk}, format="json")
+        assert conflict.status_code == 400, conflict.data
+        assert "salle" in conflict.data
+
+        other_day = self.client.post(
+            url, {**self.payload, "jour": 1, "creneau_horaire": overlapping.pk}, format="json"
+        )
+        assert other_day.status_code == 201, other_day.data
+        identifier = self.client.get(url, {"jour": 1}).data["results"][0]["id"]
+        moved = self.client.patch(f"{url}{identifier}/", {"jour": 0}, format="json")
+        assert moved.status_code == 400, moved.data
+        assert "salle" in moved.data
+
+        free = self.client.post(url, {**self.payload, "creneau_horaire": adjacent.pk}, format="json")
+        assert free.status_code == 201, free.data
+
     def test_reservation_confirmation_rechecks_conflicts_and_captures_actor(self):
         url = "/api/v1/edt/reservations/"
         payload = {

@@ -202,7 +202,13 @@ class CreneauCoursCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"semaine_fin": "La dernière semaine doit suivre la première."})
 
         if salle and creneau:
-            conflits = CreneauCours.objects.filter(salle=salle, jour=jour, creneau_horaire=creneau, semestre=semestre)
+            conflits = CreneauCours.objects.filter(
+                salle=salle,
+                jour=jour,
+                semestre=semestre,
+                creneau_horaire__heure_debut__lt=creneau.heure_fin,
+                creneau_horaire__heure_fin__gt=creneau.heure_debut,
+            )
             if instance:
                 conflits = conflits.exclude(pk=instance.pk)
             if conflits.exists():
