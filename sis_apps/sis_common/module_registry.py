@@ -69,7 +69,10 @@ MODULES = {
 
 
 def effective_modules(overrides):
-    configured = {identifier: overrides.get(identifier, item.default_enabled) for identifier, item in MODULES.items()}
+    """Only explicit JSON true enables a configured module, including dependencies."""
+    configured = {
+        identifier: overrides.get(identifier, item.default_enabled) is True for identifier, item in MODULES.items()
+    }
 
     def active(identifier):
         return configured[identifier] and all(active(dependency) for dependency in MODULES[identifier].dependencies)
@@ -86,7 +89,9 @@ def validate_module_changes(current, changes):
         if type(enabled) is not bool:
             raise ValidationError({"enabled": "L'activation d'un module doit être un booléen."})
     proposed = {**current, **changes}
-    configured = {identifier: proposed.get(identifier, item.default_enabled) for identifier, item in MODULES.items()}
+    configured = {
+        identifier: proposed.get(identifier, item.default_enabled) is True for identifier, item in MODULES.items()
+    }
     for identifier, item in MODULES.items():
         if item.required and not configured[identifier]:
             raise ValidationError({"enabled": f"Le module {item.label} est obligatoire."})

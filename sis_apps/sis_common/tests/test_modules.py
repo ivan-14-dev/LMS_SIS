@@ -119,6 +119,49 @@ class ModuleConfigurationTests(TenantAPITestCase):
         self.client.force_authenticate(self.learner)
         assert self.client.get(COMPLAINTS).status_code == 403
 
+    def test_invalid_flag_reactivation_requires_admin_and_does_not_grant_business_permissions(self):
+        self.client.force_authenticate(self.learner)
+        complaint = self.client.post(
+            COMPLAINTS, {"categorie": "autre", "objet": "Demande", "description": "Privée"}, format="json"
+        )
+        assert complaint.status_code == 201, complaint.data
+        configuration = ModuleConfiguration.objects.create(
+            etablissement=self.tenant, enabled={"sis.complaints": "false"}
+        )
+        repair = {**self.payload, "enabled": {"sis.complaints": True}}
+        assert self.client.get(COMPLAINTS).status_code == 403
+        assert self.client.patch(BASE, repair, format="json").status_code == 403
+        configuration.refresh_from_db()
+        assert configuration.enabled == {"sis.complaints": "false"}
+        assert not WorkflowEvent.objects.filter(action="configuration_modules").exists()
+
+        self.client.force_authenticate(self.admin)
+        preview = self.client.post(BASE, repair, format="json")
+        assert preview.status_code == 200, preview.data
+        assert preview.data["changes"] == {"sis.complaints": {"before": False, "after": True}}
+        assert preview.data["saved"] is False
+        configuration.refresh_from_db()
+        assert configuration.enabled == {"sis.complaints": "false"}
+        response = self.client.patch(BASE, repair, format="json")
+        assert response.status_code == 200, response.data
+        assert response.data["revision"] == 1
+        configuration.refresh_from_db()
+        assert configuration.enabled == {"sis.complaints": True}
+        event = WorkflowEvent.objects.get(action="configuration_modules")
+        assert event.actor == self.admin
+        assert event.metadata["changes"] == preview.data["changes"]
+
+        self.client.force_authenticate(self.learner)
+        url = f"{COMPLAINTS}{complaint.data['id']}/"
+        assert self.client.get(url).status_code == 200
+        forbidden = self.client.post(
+            f"{url}affecter/", {"version": complaint.data["version"], "responsable": self.admin.pk}, format="json"
+        )
+        assert forbidden.status_code == 403, forbidden.data
+        assert Reclamation.objects.filter(pk=complaint.data["id"], responsable__isnull=True).exists()
+        self.learner.refresh_from_db()
+        assert not self.learner.get_all_permissions()
+
     def test_other_establishment_configuration_does_not_change_this_tenant(self):
         other = type(self.tenant)(
             schema_name="modules_other",
