@@ -1,3 +1,4 @@
+/* eslint import/no-extraneous-dependencies: ["error", { "devDependencies": true }] */
 import '@testing-library/jest-dom';
 import { configure } from '@testing-library/react';
 
@@ -27,8 +28,8 @@ const originalError = console.error;
 beforeAll(() => {
   console.error = (...args) => {
     if (
-      typeof args[0] === 'string' &&
-      args[0].includes('Warning: ReactDOM.render is no longer supported')
+      typeof args[0] === 'string'
+      && args[0].includes('Warning: ReactDOM.render is no longer supported')
     ) {
       return;
     }

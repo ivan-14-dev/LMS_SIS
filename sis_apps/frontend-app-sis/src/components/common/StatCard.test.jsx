@@ -10,20 +10,18 @@ const queryClient = new QueryClient({
   },
 });
 
-const renderWithProviders = (component) => {
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <IntlProvider locale="fr">
-        {component}
-      </IntlProvider>
-    </QueryClientProvider>
-  );
-};
+const renderWithProviders = (component) => render(
+  <QueryClientProvider client={queryClient}>
+    <IntlProvider locale="fr">
+      {component}
+    </IntlProvider>
+  </QueryClientProvider>,
+);
 
 describe('StatCard', () => {
   it('renders title and value correctly', () => {
     renderWithProviders(
-      <StatCard title="Total étudiants" value={1250} variant="primary" />
+      <StatCard title="Total étudiants" value={1250} variant="primary" />,
     );
 
     expect(screen.getByText('Total étudiants')).toBeInTheDocument();
@@ -33,7 +31,7 @@ describe('StatCard', () => {
   it('renders with icon', () => {
     const MockIcon = () => <span data-testid="mock-icon">Icon</span>;
     renderWithProviders(
-      <StatCard title="Test" value={100} icon={<MockIcon />} />
+      <StatCard title="Test" value={100} icon={<MockIcon />} />,
     );
 
     expect(screen.getByTestId('mock-icon')).toBeInTheDocument();
@@ -41,7 +39,7 @@ describe('StatCard', () => {
 
   it('shows loading state', () => {
     renderWithProviders(
-      <StatCard title="Test" value={100} loading />
+      <StatCard title="Test" value={100} loading />,
     );
 
     // Component should handle loading state
@@ -50,7 +48,7 @@ describe('StatCard', () => {
 
   it('applies variant class correctly', () => {
     const { container } = renderWithProviders(
-      <StatCard title="Test" value={100} variant="success" />
+      <StatCard title="Test" value={100} variant="success" />,
     );
 
     // Check if success variant is applied

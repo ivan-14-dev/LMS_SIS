@@ -7,7 +7,9 @@ import { getConfig } from '@edx/frontend-platform';
 import * as mockData from './mockData';
 
 // Simulate network delay
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const delay = (ms) => new Promise((resolve) => {
+  setTimeout(resolve, ms);
+});
 
 /**
  * Mock API handlers mapping URL patterns to mock data
@@ -16,66 +18,66 @@ const mockHandlers = {
   // Dashboard
   '/dashboard/stats': () => mockData.mockSuperieurDashboardStats,
   '/dashboard/activites': () => mockData.mockRecentActivities,
-  
+
   // Étudiants
   '/etudiants': () => ({ results: mockData.mockEtudiants, count: mockData.mockEtudiants.length }),
   '/etudiants/': () => ({ results: mockData.mockEtudiants, count: mockData.mockEtudiants.length }),
-  
+
   // Cours
   '/cours': () => ({ results: mockData.mockCours, count: mockData.mockCours.length }),
   '/cours/': () => ({ results: mockData.mockCours, count: mockData.mockCours.length }),
-  
+
   // Enseignants
   '/enseignants': () => ({ results: mockData.mockEnseignants, count: mockData.mockEnseignants.length }),
   '/enseignants/': () => ({ results: mockData.mockEnseignants, count: mockData.mockEnseignants.length }),
-  
+
   // Filières
   '/filieres': () => ({ results: mockData.mockFilieres, count: mockData.mockFilieres.length }),
   '/formations': () => ({ results: mockData.mockFilieres, count: mockData.mockFilieres.length }),
-  
+
   // Notes
   '/notes': () => ({ results: mockData.mockNotes, count: mockData.mockNotes.length }),
   '/notes/': () => ({ results: mockData.mockNotes, count: mockData.mockNotes.length }),
-  
+
   // Inscriptions
   '/inscriptions': () => ({ results: mockData.mockInscriptions, count: mockData.mockInscriptions.length }),
   '/inscriptions/': () => ({ results: mockData.mockInscriptions, count: mockData.mockInscriptions.length }),
-  
+
   // Secondaire Dashboard
   '/secondaire/dashboard/stats': () => mockData.mockSecondaireDashboardStats,
-  
+
   // Élèves
   '/eleves': () => ({ results: mockData.mockEleves, count: mockData.mockEleves.length }),
   '/eleves/': () => ({ results: mockData.mockEleves, count: mockData.mockEleves.length }),
-  
+
   // Classes
   '/classes': () => ({ results: mockData.mockClasses, count: mockData.mockClasses.length }),
   '/classes/': () => ({ results: mockData.mockClasses, count: mockData.mockClasses.length }),
-  
+
   // Présences
   '/presences': () => ({ results: mockData.mockPresences, count: mockData.mockPresences.length }),
   '/presences/': () => ({ results: mockData.mockPresences, count: mockData.mockPresences.length }),
-  
+
   // Bulletins
   '/bulletins': () => ({ results: mockData.mockBulletins, count: mockData.mockBulletins.length }),
   '/bulletins/': () => ({ results: mockData.mockBulletins, count: mockData.mockBulletins.length }),
-  
+
   // Évaluations
   '/evaluations': () => ({ results: mockData.mockEvaluations, count: mockData.mockEvaluations.length }),
   '/evaluations/': () => ({ results: mockData.mockEvaluations, count: mockData.mockEvaluations.length }),
-  
+
   // Admin - Établissement
   '/etablissement': () => mockData.mockEtablissement,
   '/admin/etablissement': () => mockData.mockEtablissement,
-  
+
   // Admin - Utilisateurs
   '/utilisateurs': () => ({ results: mockData.mockUtilisateurs, count: mockData.mockUtilisateurs.length }),
   '/admin/utilisateurs': () => ({ results: mockData.mockUtilisateurs, count: mockData.mockUtilisateurs.length }),
-  
+
   // Admin - Structure
   '/structure': () => mockData.mockStructure,
   '/admin/structure': () => mockData.mockStructure,
-  
+
 };
 
 /**
@@ -86,14 +88,14 @@ const findMockHandler = (url) => {
   if (mockHandlers[url]) {
     return mockHandlers[url];
   }
-  
+
   // Try partial match
   for (const pattern of Object.keys(mockHandlers)) {
     if (url.includes(pattern)) {
       return mockHandlers[pattern];
     }
   }
-  
+
   // Handle detail endpoints (e.g., /etudiants/1/)
   const detailMatch = url.match(/\/(\w+)\/(\d+)\/?$/);
   if (detailMatch) {
@@ -108,7 +110,7 @@ const findMockHandler = (url) => {
       }
     }
   }
-  
+
   return null;
 };
 
@@ -117,13 +119,13 @@ const findMockHandler = (url) => {
  */
 export const mockFetch = async (url) => {
   await delay(300 + Math.random() * 500); // Simulate network delay
-  
+
   const handler = findMockHandler(url);
   if (handler) {
     console.log(`[Mock API] GET ${url}`);
     return handler();
   }
-  
+
   console.warn(`[Mock API] No handler found for: ${url}`);
   return { results: [], count: 0 };
 };
