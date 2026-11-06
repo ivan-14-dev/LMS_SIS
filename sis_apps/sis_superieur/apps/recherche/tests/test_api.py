@@ -1,5 +1,6 @@
 """API tests for recherche."""
 
+import uuid
 from datetime import date
 
 from apps.enseignants.models import EnseignantChercheur
@@ -8,6 +9,7 @@ from apps.recherche.models import Laboratoire, ProjetRecherche
 from apps.utilisateurs.models import Utilisateur
 from django.test import SimpleTestCase
 from django.urls import resolve
+from django_tenants.utils import schema_context
 
 
 class RechercheAPITestCase(SimpleTestCase):
@@ -21,6 +23,54 @@ class RechercheAPITestCase(SimpleTestCase):
             == "production-scientifique-list"
         )
         assert resolve("/api/v1/recherche/theses/").url_name == "these-list"
+
+
+class RechercheTenantAccessTestCase(TenantAPITestCase):
+    def setUp(self):
+        foreign = type(self.tenant)(schema_name=f"foreign_recherche_{uuid.uuid4().hex[:12]}")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        self.foreign_researcher = Utilisateur.objects.create_user(
+            "foreign-researcher", role="recherche", etablissement=foreign
+        )
+        self.local_researcher = Utilisateur.objects.create_user(
+            "local-researcher", role="recherche", etablissement=self.tenant
+        )
+        self.laboratoire = Laboratoire.objects.create(nom="Laboratoire local", acronyme="LOC")
+        self.base = "/api/v1/recherche/laboratoires/"
+        self.detail = f"{self.base}{self.laboratoire.pk}/"
+
+    def test_foreign_researcher_cannot_read_or_modify_local_laboratory(self):
+        self.client.force_authenticate(self.foreign_researcher)
+        for url in (self.base, self.detail, f"{self.detail}statistiques/"):
+            response = self.client.get(url, secure=True)
+            assert response.status_code == 403, (url, response.data)
+
+        response = self.client.patch(
+            self.detail, {"nom": "Laboratoire détourné"}, format="json", secure=True
+        )
+        assert response.status_code == 403, response.data
+        self.laboratoire.refresh_from_db()
+        assert self.laboratoire.nom == "Laboratoire local"
+
+    def test_local_researcher_can_read_and_modify_local_laboratory(self):
+        self.client.force_authenticate(self.local_researcher)
+        response = self.client.get(self.base, secure=True)
+        assert response.status_code == 200, response.data
+        assert any(row["id"] == self.laboratoire.pk for row in response.data["results"])
+
+        response = self.client.get(self.detail, secure=True)
+        assert response.status_code == 200, response.data
+        assert response.data["nom"] == "Laboratoire local"
+
+        response = self.client.patch(
+            self.detail, {"nom": "Laboratoire modifié"}, format="json", secure=True
+        )
+        assert response.status_code == 200, response.data
+        self.laboratoire.refresh_from_db()
+        assert self.laboratoire.nom == "Laboratoire modifié"
 
 
 class ProjetRechercheStatusAPITestCase(TenantAPITestCase):
