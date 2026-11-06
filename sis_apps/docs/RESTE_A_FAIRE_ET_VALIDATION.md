@@ -212,6 +212,38 @@ connexions verte** restent à démontrer. Le dernier essai à 500 avait
 500 timeouts et 262 écritures indéterminées : **1/94 exigence vérifiée**,
 sans promotion.
 
+**Dixième vague du 6 novembre 2026 :** dix incréments bornés ont été testés,
+committés et poussés séparément : les événements LMS ne remplacent plus une
+note corrigée par le personnel ou une période close, sans pour autant créer
+le brouillon officiel attendu ; réservations et remise de livres dans les
+deux SIS, pointages cantine liés à l'élève du tenant, séjours d'internat
+sans chevauchement pour un élève, solde de facture scolaire calculé sur les
+seuls paiements confirmés, diplôme universitaire conditionné à l'inscription
+validée et à une admission par jury final clôturé, candidatures/programmes/
+accords de mobilité bornés à l'université, attributions de bourses vérifiées
+et autorisées par les permissions, et conflits d'emploi du temps d'un groupe
+refusés. Le transport n'a **pas** été modifié : ni trajet daté ni affectation
+horaire véhicule/conducteur n'existent pour prouver un conflit. Les chambres
+et bâtiments d'internat n'ont toujours pas de propriétaire tenant ; les
+menus cantine s'appuient sur le schéma tenant. Les réservations universitaires
+n'envoient pas de notification et n'ont pas de politique d'expiration.
+
+Après vérification des routes, refus, rejouements et relations étrangères
+concernés, l'image `lms-sis:local-20261106-e5a8be9` a été construite
+à partir du code publié.
+Les suites **correctement limitées à chaque variante** passent sur
+PostgreSQL/Redis jetables (**669 tests secondaire, 691 supérieur**),
+`manage.py check` et `makemigrations --check --dry-run` passent dans
+les deux variantes. Sur deux bases indépendantes, les migrations du schéma
+public et d'un tenant synthétique passent ; chaque serveur répond 200 à
+`/health/` et `/ready/`, avec PostgreSQL et Redis prêts, puis les ressources
+de cet essai sont arrêtées. Le frontend inchangé conserve ses dernières
+preuves (349 tests, lint et build verts) ; aucune recette navigateur ni
+restauration de cette image n'a été exécutée. Le patch Open edX local reste
+non testé et non publié. Aucun service partagé n'a été remplacé, les
+fournisseurs réels, la validation humaine des notes et la campagne à 500
+connexions restent ouverts : **1/94 exigence vérifiée**, sans promotion.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
