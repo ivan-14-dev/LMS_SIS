@@ -20,6 +20,7 @@ from sis_common.academic_lifecycle import AcademicLifecycleMixin
 from sis_common.authorization import (
     filter_queryset_by_scopes,
     has_business_permission_or_role,
+    is_current_tenant_user,
     request_has_business_access,
     user_has_any_role,
 )
@@ -295,6 +296,11 @@ class IsEnseignantOrVieScolarite(IsAuthenticated):
         )
 
 
+class IsCurrentTenantEvaluationUser(IsEnseignantOrVieScolarite):
+    def has_permission(self, request, view):
+        return is_current_tenant_user(request) and super().has_permission(request, view)
+
+
 class IsAcademicAdmin(IsAuthenticated):
     def has_permission(self, request, view):
         return super().has_permission(request, view) and has_business_permission_or_role(
@@ -307,7 +313,7 @@ class IsAcademicAdmin(IsAuthenticated):
 class EvaluationsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour évaluations."""
 
-    permission_classes = [IsEnseignantOrVieScolarite]
+    permission_classes = [IsCurrentTenantEvaluationUser]
     permission_model = "evaluation"
     academic_period_paths = ("classe.annee_scolaire", "periode.annee_scolaire", "periode")
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
