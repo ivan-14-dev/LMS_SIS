@@ -1,10 +1,12 @@
 """API views for discipline (ViewSets DRF) - SIS Secondaire."""
 
+from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -112,13 +114,16 @@ class SanctionsViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Sanction.objects.select_related("incident__eleve__user")
 
+    @transaction.atomic
     def perform_create(self, serializer):
-        sanction = serializer.save()
-        # Mettre à jour le statut de l'incident
-        incident = sanction.incident
-        if incident.statut in ("ouvert", "en_instruction"):
-            incident.statut = "sanctionne"
-            incident.save(update_fields=["statut", "updated_at"])
+        incident = Incident.objects.select_for_update().get(
+            pk=serializer.validated_data["incident"].pk
+        )
+        if incident.statut not in ("ouvert", "en_instruction"):
+            raise ValidationError({"incident": "L'incident est déjà traité."})
+        serializer.save(incident=incident)
+        incident.statut = "sanctionne"
+        incident.save(update_fields=["statut", "updated_at"])
 
     @action(detail=True, methods=["post"])
     def notifier_parents(self, request, pk=None):
