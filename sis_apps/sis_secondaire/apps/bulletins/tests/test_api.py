@@ -242,3 +242,43 @@ class AppreciationPublicationHTTPTestCase(TenantAPITestCase):
         assert self.client.get(f"{base}{self.visible.pk}/").status_code == 200
         assert self.client.get(f"{base}{self.draft.pk}/").status_code == 404
         assert self.client.get(f"{base}{self.other.pk}/").status_code == 404
+
+    def test_published_appreciations_cannot_be_changed_through_http(self):
+        staff = Utilisateur.objects.create_user(
+            "appreciation-scolarite", role="scolarite", etablissement=self.tenant
+        )
+        self.client.force_authenticate(user=staff)
+        base = "/api/v1/bulletins/appreciations/"
+
+        response = self.client.patch(
+            f"{base}{self.visible.pk}/", {"appreciation": "Changed after publication"},
+            format="json", secure=True,
+        )
+        assert response.status_code == 400, response.data
+        assert self.client.delete(f"{base}{self.visible.pk}/", secure=True).status_code == 400
+        self.visible.refresh_from_db()
+        assert self.visible.appreciation == "Own published"
+
+        subject = Matiere.objects.create(etablissement=self.tenant, code="HIST", nom="Histoire")
+        payload = {
+            "eleve": self.own.pk,
+            "matiere": subject.pk,
+            "periode": self.periods[0].pk,
+            "appreciation": "Added after publication",
+        }
+        response = self.client.post(base, payload, format="json", secure=True)
+        assert response.status_code == 400, response.data
+        assert not AppreciationMatiere.objects.filter(
+            eleve=self.own, matiere=subject, periode=self.periods[0]
+        ).exists()
+
+        payload["periode"] = self.periods[1].pk
+        response = self.client.post(base, payload, format="json", secure=True)
+        assert response.status_code == 201, response.data
+        draft_id = response.data["id"]
+        response = self.client.patch(
+            f"{base}{draft_id}/", {"periode": self.periods[0].pk},
+            format="json", secure=True,
+        )
+        assert response.status_code == 400, response.data
+        assert AppreciationMatiere.objects.get(pk=draft_id).periode_id == self.periods[1].pk

@@ -4,7 +4,7 @@ from apps.notes.api import BulletinsViewSet as _BulletinsViewSet
 from apps.notes.models import Bulletin
 from django.db.models import Exists, OuterRef
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import status, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
@@ -88,6 +88,33 @@ class AppreciationsMatiereViewSet(viewsets.ModelViewSet):
         if self.action in ("create", "update", "partial_update"):
             return AppreciationMatiereCreateSerializer
         return AppreciationMatiereSerializer
+
+    @staticmethod
+    def _ensure_unpublished(eleve_id, periode_id):
+        if Bulletin.objects.filter(eleve_id=eleve_id, periode_id=periode_id, publie=True).exists():
+            raise serializers.ValidationError(
+                {"appreciation": "Une appréciation d'un bulletin publié ne peut plus être modifiée."}
+            )
+
+    def perform_create(self, serializer):
+        self._ensure_unpublished(
+            serializer.validated_data["eleve"].pk,
+            serializer.validated_data["periode"].pk,
+        )
+        serializer.save()
+
+    def perform_update(self, serializer):
+        appreciation = serializer.instance
+        self._ensure_unpublished(appreciation.eleve_id, appreciation.periode_id)
+        self._ensure_unpublished(
+            serializer.validated_data.get("eleve", appreciation.eleve).pk,
+            serializer.validated_data.get("periode", appreciation.periode).pk,
+        )
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._ensure_unpublished(instance.eleve_id, instance.periode_id)
+        instance.delete()
 
     @action(detail=False, methods=["get"])
     def par_eleve(self, request):
