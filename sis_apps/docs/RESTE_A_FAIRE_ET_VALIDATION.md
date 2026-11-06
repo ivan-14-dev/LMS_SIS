@@ -148,6 +148,26 @@ aucun service partagé n'a été remplacé. Open edX, les prestataires réels,
 la restauration et la campagne à 500 restent ouverts. **Matrice : 1/94
 vérifiée.**
 
+**Huitième vague du 6 novembre 2026 :** neuf correctifs ciblés ont été
+testés, lintés, committés et poussés séparément : année cohérente des
+groupes et des matières individuelles, conservation des périodes closes
+lors de la suppression d'une année, appréciations immuables après
+publication du bulletin, crédits ECTS validés bornés aux crédits inscrits,
+notes universitaires dans leur barème, enseignants non dupliqués par
+département, profil étudiant synchronisé avec l'inscription validée et
+montant de facture universitaire inchangé après paiement. Une régression
+initiale des matières individuelles a été corrigée : l'année est
+obligatoire dans la requête ; quatre anciens tests d'inscription
+universitaire utilisant une année fictive ont également été réalignés
+avant publication. Le dixième examen, portant sur les inscriptions
+universitaires, a été refusé avant toute modification et reste ouvert.
+L'image `lms-sis:local-20261106-3d6e387` passe `manage.py check` dans
+chaque variante et les suites backend complètes sur PostgreSQL/Redis
+jetables (**638 tests secondaire, 642 supérieur**). Aucune migration,
+aucun frontend ni service partagé n'ont été modifiés ; cette preuve
+technique ne valide ni les parcours réels, ni la charge à 500, ni les
+fournisseurs. **Matrice : 1/94 vérifiée.**
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
