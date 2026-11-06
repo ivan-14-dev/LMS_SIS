@@ -5,6 +5,9 @@ from rest_framework import serializers
 from .models import Emprunt, Exemplaire, Livre, Reservation
 
 
+STATUTS_EMPRUNT_ACTIF = ("en_cours", "renouvele")
+
+
 class LivreListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les listes de livres."""
 
@@ -28,7 +31,7 @@ class LivreListSerializer(serializers.ModelSerializer):
 
     def get_nb_exemplaires_disponibles(self, obj):
         emprunts_actifs = Emprunt.objects.filter(
-            exemplaire__livre=obj, statut="en_cours"
+            exemplaire__livre=obj, statut__in=STATUTS_EMPRUNT_ACTIF
         ).count()
         return obj.nombre_exemplaires - emprunts_actifs
 
@@ -68,7 +71,7 @@ class LivreDetailSerializer(serializers.ModelSerializer):
 
     def get_nb_exemplaires_disponibles(self, obj):
         emprunts_actifs = Emprunt.objects.filter(
-            exemplaire__livre=obj, statut="en_cours"
+            exemplaire__livre=obj, statut__in=STATUTS_EMPRUNT_ACTIF
         ).count()
         return obj.nombre_exemplaires - emprunts_actifs
 
@@ -101,7 +104,7 @@ class ExemplaireSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def get_disponible(self, obj):
-        return not obj.emprunts.filter(statut="en_cours").exists()
+        return not obj.emprunts.filter(statut__in=STATUTS_EMPRUNT_ACTIF).exists()
 
 
 class EmpruntSerializer(serializers.ModelSerializer):
@@ -137,7 +140,7 @@ class EmpruntSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def get_jours_retard(self, obj):
-        if obj.statut == "en_cours" and obj.date_retour_prevue:
+        if obj.statut in STATUTS_EMPRUNT_ACTIF and obj.date_retour_prevue:
             from django.utils import timezone
 
             today = timezone.now().date()

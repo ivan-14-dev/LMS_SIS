@@ -19,6 +19,7 @@ from .serializers import (
     LivreDetailSerializer,
     LivreListSerializer,
     ReservationSerializer,
+    STATUTS_EMPRUNT_ACTIF,
 )
 
 
@@ -136,7 +137,7 @@ class EmpruntsViewSet(viewsets.ModelViewSet):
     def rendre(self, request, pk=None):
         """Rend un emprunt."""
         emprunt = self.get_object()
-        if emprunt.statut != "en_cours":
+        if emprunt.statut not in STATUTS_EMPRUNT_ACTIF:
             return Response({"error": "Cet emprunt n'est pas en cours."}, status=400)
 
         emprunt.statut = "rendu"
@@ -162,7 +163,7 @@ class EmpruntsViewSet(viewsets.ModelViewSet):
     def renouveler(self, request, pk=None):
         """Renouvelle un emprunt."""
         emprunt = self.get_object()
-        if emprunt.statut != "en_cours":
+        if emprunt.statut not in STATUTS_EMPRUNT_ACTIF:
             return Response({"error": "Cet emprunt n'est pas en cours."}, status=400)
         if emprunt.nb_renouvellements >= 2:
             return Response(
@@ -187,7 +188,9 @@ class EmpruntsViewSet(viewsets.ModelViewSet):
     def en_retard(self, request):
         """Liste les emprunts en retard."""
         today = timezone.now().date()
-        qs = self.get_queryset().filter(statut="en_cours", date_retour_prevue__lt=today)
+        qs = self.get_queryset().filter(
+            statut__in=STATUTS_EMPRUNT_ACTIF, date_retour_prevue__lt=today
+        )
         serializer = EmpruntSerializer(qs, many=True)
         return Response(serializer.data)
 
