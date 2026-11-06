@@ -209,3 +209,35 @@ class CardConfirmationTests(SimpleTestCase):
         response = self._approve()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.facture.montant_paye, Decimal("25.00"))
+
+    def test_card_cannot_be_accounted_as_refunded_without_provider_refund(self):
+        self.paiement.statut = "valide"
+        request = SimpleNamespace(tenant=self.tenant, user=SimpleNamespace(id=1))
+        view = PaiementsViewSet()
+        view.request = request
+        view.get_object = Mock(return_value=self.paiement)
+        view._workflow_for_facture = Mock(return_value={})
+        with (
+            patch("apps.paiements.api.transaction.atomic", return_value=nullcontext()),
+            patch.object(PaiementFrais, "objects") as payments,
+            patch.object(FactureFrais, "objects") as factures,
+            patch("apps.paiements.api.workflow_transition_allowed", return_value=True),
+            patch("apps.paiements.api.record_workflow_event") as event,
+        ):
+            payments.select_for_update.return_value.get.return_value = self.paiement
+            factures.select_for_update.return_value.get.return_value = self.facture
+            self.facture.montant_paye = Decimal("25.00")
+            response = view.rembourser(request, self.paiement.pk)
+            self.assertEqual(response.status_code, 409)
+            self.assertEqual(self.paiement.statut, "valide")
+            self.assertEqual(self.facture.montant_paye, Decimal("25.00"))
+            self.paiement.save.assert_not_called()
+            self.facture.save.assert_not_called()
+            event.assert_not_called()
+            self.paiement.mode = "especes"
+            response = view.rembourser(request, self.paiement.pk)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(self.paiement.statut, "rembourse")
+            self.assertEqual(self.facture.montant_paye, Decimal("0.00"))
+            self.facture.save.assert_called_once()
+            event.assert_called_once()

@@ -426,6 +426,11 @@ class PaiementsViewSet(viewsets.ModelViewSet):
             paiement = PaiementFrais.objects.select_for_update().get(pk=self.get_object().pk)
             if paiement.statut != "valide":
                 return Response({"error": "Ce paiement ne peut pas être remboursé."}, status=400)
+            if paiement.mode == "carte":
+                return Response(
+                    {"error": "Un remboursement de carte doit être confirmé par Stripe avant sa comptabilisation."},
+                    status=409,
+                )
             facture = FactureFrais.objects.select_for_update().get(pk=paiement.facture_id)
             workflow = self._workflow_for_facture(facture)
             if not workflow_transition_allowed(workflow, "rembourser", paiement.statut, "rembourse"):
