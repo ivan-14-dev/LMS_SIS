@@ -1,9 +1,12 @@
 """API tests for etablissement."""
 
+from datetime import date
 from unittest import TestCase
 
-from apps.etablissement.models import Etablissement
+from apps.etablissement.models import AnneeScolaire, Etablissement, Periode
 from apps.etablissement.serializers import EtablissementSerializer
+from apps.integration.tests.tenant_test_case import TenantAPITestCase
+from apps.utilisateurs.models import Utilisateur
 from django.urls import resolve
 
 
@@ -54,3 +57,39 @@ class EtablissementConfigurationSerializerTestCase(TestCase):
 
         assert not serializer.is_valid()
         assert "configuration_visio" in serializer.errors
+
+
+class AcademicYearDeletionAPITestCase(TenantAPITestCase):
+    def setUp(self):
+        super().setUp()
+        admin = Utilisateur.objects.create_superuser("calendar-admin", etablissement=self.tenant)
+        self.client.force_authenticate(admin)
+        self.year = AnneeScolaire.objects.create(
+            etablissement=self.tenant,
+            libelle="2026-2027",
+            date_debut=date(2026, 9, 1),
+            date_fin=date(2027, 6, 30),
+        )
+        self.period = Periode.objects.create(
+            annee_scolaire=self.year,
+            type="trimestre",
+            numero=1,
+            date_debut=date(2026, 9, 1),
+            date_fin=date(2026, 12, 20),
+        )
+
+    def test_deleting_year_does_not_cascade_into_closed_period(self):
+        closed = self.client.post(f"/api/v1/etablissement/periodes/{self.period.pk}/cloturer/")
+        assert closed.status_code == 200, closed.data
+
+        response = self.client.delete(f"/api/v1/etablissement/annees/{self.year.pk}/")
+
+        assert response.status_code == 400, response.data
+        assert AnneeScolaire.objects.filter(pk=self.year.pk).exists()
+        assert Periode.objects.filter(pk=self.period.pk, cloturee=True).exists()
+
+    def test_deleting_year_with_only_open_periods_still_works(self):
+        response = self.client.delete(f"/api/v1/etablissement/annees/{self.year.pk}/")
+
+        assert response.status_code == 204, response.data
+        assert not Periode.objects.filter(pk=self.period.pk).exists()

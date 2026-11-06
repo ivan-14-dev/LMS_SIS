@@ -4,6 +4,7 @@ from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -141,6 +142,13 @@ class AnneesScolairesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         self.save_academic(serializer, etablissement=self.request.tenant)
+
+    def perform_destroy(self, instance):
+        if instance.periodes.filter(cloturee=True).exists():
+            raise ValidationError(
+                {"calendrier": "Une année contenant des périodes clôturées ne peut pas être supprimée."}
+            )
+        super().perform_destroy(instance)
 
     @action(detail=True, methods=["get"])
     def periodes(self, request, pk=None):
