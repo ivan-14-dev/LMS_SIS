@@ -1,7 +1,17 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Badge } from '@openedx/paragon';
 import { PageHeader, SISDataTable } from '../../components/common';
 import { useMemoires } from '../../services/api';
+
+const StatusCell = ({ value }) => {
+  const variants = {
+    en_redaction: 'warning', soumis: 'info', soutenu: 'success', valide: 'success',
+  };
+  return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
+};
+
+StatusCell.propTypes = { value: PropTypes.string };
 
 const MemoiresPage = () => {
   const { data: memoires = [], isLoading } = useMemoires();
@@ -15,10 +25,7 @@ const MemoiresPage = () => {
     {
       Header: 'Statut',
       accessor: 'statut',
-      Cell: ({ value }) => {
-        const variants = { en_redaction: 'warning', soumis: 'info', soutenu: 'success', valide: 'success' };
-        return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
-      },
+      Cell: StatusCell,
     },
   ];
 

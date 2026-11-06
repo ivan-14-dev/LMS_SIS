@@ -1,7 +1,15 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Badge } from '@openedx/paragon';
 import { PageHeader, SISDataTable } from '../../components/common';
 import { useJurys } from '../../services/api';
+
+const StatusCell = ({ value }) => {
+  const variants = { planifie: 'warning', en_cours: 'info', cloture: 'success' };
+  return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
+};
+
+StatusCell.propTypes = { value: PropTypes.string };
 
 const JurysPage = () => {
   const { data: jurys = [], isLoading } = useJurys();
@@ -15,10 +23,7 @@ const JurysPage = () => {
     {
       Header: 'Statut',
       accessor: 'statut',
-      Cell: ({ value }) => {
-        const variants = { planifie: 'warning', en_cours: 'info', cloture: 'success' };
-        return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
-      },
+      Cell: StatusCell,
     },
   ];
 

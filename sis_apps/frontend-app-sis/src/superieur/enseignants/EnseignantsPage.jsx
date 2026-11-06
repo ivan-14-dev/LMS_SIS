@@ -1,7 +1,14 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Badge } from '@openedx/paragon';
 import { PageHeader, SISDataTable } from '../../components/common';
 import { useEnseignants } from '../../services/api';
+
+const StatusCell = ({ value }) => (
+  <Badge variant={value === 'actif' ? 'success' : 'secondary'}>{value}</Badge>
+);
+
+StatusCell.propTypes = { value: PropTypes.string };
 
 const EnseignantsPage = () => {
   const { data: enseignants = [], isLoading } = useEnseignants();
@@ -16,7 +23,7 @@ const EnseignantsPage = () => {
     {
       Header: 'Statut',
       accessor: 'statut',
-      Cell: ({ value }) => <Badge variant={value === 'actif' ? 'success' : 'secondary'}>{value}</Badge>,
+      Cell: StatusCell,
     },
   ];
 

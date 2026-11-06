@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -8,14 +9,12 @@ import {
   Typography,
   Avatar,
   LinearProgress,
-  IconButton,
   Button,
   Paper,
   List,
   ListItem,
   ListItemAvatar,
   ListItemText,
-  ListItemSecondaryAction,
   Chip,
   Divider,
   useTheme,
@@ -28,21 +27,21 @@ import {
   EventNote as EventNoteIcon,
   AttachMoney as MoneyIcon,
   ArrowForward as ArrowForwardIcon,
-  Add as AddIcon,
   PersonAdd as PersonAddIcon,
   NoteAdd as NoteAddIcon,
-  MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi, getSuperieurApiUrl } from '../services/api';
 
 // Stat Card Component
-const StatCard = ({ title, value, icon, color, trend, trendLabel, onClick }) => {
+const StatCard = ({
+  title, value, icon, color, trend, trendLabel, onClick,
+}) => {
   const theme = useTheme();
-  
+
   return (
-    <Card 
-      sx={{ 
+    <Card
+      sx={{
         cursor: onClick ? 'pointer' : 'default',
         height: '100%',
         position: 'relative',
@@ -71,10 +70,10 @@ const StatCard = ({ title, value, icon, color, trend, trendLabel, onClick }) => 
               </Box>
             )}
           </Box>
-          <Avatar 
-            sx={{ 
-              width: 56, 
-              height: 56, 
+          <Avatar
+            sx={{
+              width: 56,
+              height: 56,
               bgcolor: `${color}.main`,
               boxShadow: `0 8px 16px ${theme.palette[color]?.main}40`,
             }}
@@ -87,10 +86,22 @@ const StatCard = ({ title, value, icon, color, trend, trendLabel, onClick }) => 
   );
 };
 
+StatCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  value: PropTypes.node.isRequired,
+  icon: PropTypes.node.isRequired,
+  color: PropTypes.string.isRequired,
+  trend: PropTypes.number,
+  trendLabel: PropTypes.string,
+  onClick: PropTypes.func,
+};
+
 // Quick Action Card
-const QuickActionCard = ({ title, description, icon, color, onClick }) => (
-  <Card 
-    sx={{ 
+const QuickActionCard = ({
+  title, description, icon, color, onClick,
+}) => (
+  <Card
+    sx={{
       cursor: 'pointer',
       transition: 'all 0.2s',
       '&:hover': {
@@ -100,7 +111,10 @@ const QuickActionCard = ({ title, description, icon, color, onClick }) => (
     }}
     onClick={onClick}
   >
-    <CardContent sx={{ p: 2.5, display: 'flex', alignItems: 'center', gap: 2 }}>
+    <CardContent sx={{
+      p: 2.5, display: 'flex', alignItems: 'center', gap: 2,
+    }}
+    >
       <Avatar sx={{ bgcolor: `${color}.light`, color: `${color}.main` }}>
         {icon}
       </Avatar>
@@ -112,9 +126,22 @@ const QuickActionCard = ({ title, description, icon, color, onClick }) => (
   </Card>
 );
 
+QuickActionCard.propTypes = {
+  title: PropTypes.string.isRequired,
+  description: PropTypes.string.isRequired,
+  icon: PropTypes.node.isRequired,
+  color: PropTypes.string.isRequired,
+  onClick: PropTypes.func.isRequired,
+};
+
+const getActivityColor = (type) => {
+  if (type === 'inscription') { return 'primary'; }
+  if (type === 'note') { return 'success'; }
+  return 'warning';
+};
+
 const ModernDashboard = () => {
   const navigate = useNavigate();
-  const theme = useTheme();
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -136,7 +163,7 @@ const ModernDashboard = () => {
           Tableau de bord
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Bienvenue ! Voici un aperçu de votre système d'information universitaire.
+          Bienvenue ! Voici un aperçu de votre système d&apos;information universitaire.
         </Typography>
       </Box>
 
@@ -193,19 +220,22 @@ const ModernDashboard = () => {
         <Grid item xs={12} lg={8}>
           <Card>
             <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Box sx={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3,
+              }}
+              >
                 <Typography variant="h6" fontWeight={600}>Progression des Inscriptions</Typography>
                 <Chip label="Semestre en cours" size="small" color="primary" />
               </Box>
-              
+
               <Grid container spacing={3}>
                 <Grid item xs={12} md={4}>
                   <Box sx={{ textAlign: 'center', p: 2 }}>
                     <Typography variant="h3" fontWeight={700} color="primary.main">85%</Typography>
                     <Typography variant="body2" color="text.secondary">Taux de réussite</Typography>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={85} 
+                    <LinearProgress
+                      variant="determinate"
+                      value={85}
                       sx={{ mt: 1, height: 8, borderRadius: 4 }}
                     />
                   </Box>
@@ -214,9 +244,9 @@ const ModernDashboard = () => {
                   <Box sx={{ textAlign: 'center', p: 2 }}>
                     <Typography variant="h3" fontWeight={700} color="secondary.main">92%</Typography>
                     <Typography variant="body2" color="text.secondary">Taux de présence</Typography>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={92} 
+                    <LinearProgress
+                      variant="determinate"
+                      value={92}
                       color="secondary"
                       sx={{ mt: 1, height: 8, borderRadius: 4 }}
                     />
@@ -226,9 +256,9 @@ const ModernDashboard = () => {
                   <Box sx={{ textAlign: 'center', p: 2 }}>
                     <Typography variant="h3" fontWeight={700} color="success.main">78%</Typography>
                     <Typography variant="body2" color="text.secondary">Objectif atteint</Typography>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={78} 
+                    <LinearProgress
+                      variant="determinate"
+                      value={78}
                       color="success"
                       sx={{ mt: 1, height: 8, borderRadius: 4 }}
                     />
@@ -238,16 +268,19 @@ const ModernDashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} lg={4}>
           <Card sx={{ height: '100%' }}>
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" fontWeight={600} gutterBottom>
                 Actions Rapides
               </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-                <Button 
-                  variant="contained" 
+              <Box sx={{
+                display: 'flex', flexDirection: 'column', gap: 2, mt: 2,
+              }}
+              >
+                <Button
+                  variant="contained"
                   startIcon={<PersonAddIcon />}
                   onClick={() => navigate('/superieur/etudiants')}
                   fullWidth
@@ -255,8 +288,8 @@ const ModernDashboard = () => {
                 >
                   Nouvel étudiant
                 </Button>
-                <Button 
-                  variant="outlined" 
+                <Button
+                  variant="outlined"
                   startIcon={<NoteAddIcon />}
                   onClick={() => navigate('/superieur/notes')}
                   fullWidth
@@ -264,8 +297,8 @@ const ModernDashboard = () => {
                 >
                   Saisir des notes
                 </Button>
-                <Button 
-                  variant="outlined" 
+                <Button
+                  variant="outlined"
                   startIcon={<EventNoteIcon />}
                   onClick={() => navigate('/superieur/examens')}
                   fullWidth
@@ -284,41 +317,50 @@ const ModernDashboard = () => {
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent sx={{ p: 0 }}>
-              <Box sx={{ p: 3, pb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box sx={{
+                p: 3, pb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}
+              >
                 <Typography variant="h6" fontWeight={600}>Activités Récentes</Typography>
                 <Button size="small" endIcon={<ArrowForwardIcon />}>Voir tout</Button>
               </Box>
               <List sx={{ py: 0 }}>
                 {(recentActivities.length > 0 ? recentActivities : [
-                  { id: 1, type: 'inscription', message: 'Nouvel étudiant inscrit: Ahmed BENNANI', date: '10:30' },
-                  { id: 2, type: 'note', message: 'Notes saisies pour Mathématiques L2', date: '09:15' },
-                  { id: 3, type: 'paiement', message: 'Paiement reçu: 15000 MAD', date: '08:45' },
-                ]).map((activity, index) => (
-                  <React.Fragment key={activity.id}>
-                    <ListItem sx={{ px: 3, py: 2 }}>
-                      <ListItemAvatar>
-                        <Avatar sx={{ 
-                          bgcolor: activity.type === 'inscription' ? 'primary.light' 
-                            : activity.type === 'note' ? 'success.light' 
-                            : 'warning.light',
-                          color: activity.type === 'inscription' ? 'primary.main' 
-                            : activity.type === 'note' ? 'success.main' 
-                            : 'warning.main',
-                        }}>
-                          {activity.type === 'inscription' && <PersonAddIcon />}
-                          {activity.type === 'note' && <AssignmentIcon />}
-                          {activity.type === 'paiement' && <MoneyIcon />}
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={activity.message}
-                        secondary={activity.date}
-                        primaryTypographyProps={{ fontWeight: 500, fontSize: '0.875rem' }}
-                      />
-                    </ListItem>
-                    {index < 2 && <Divider component="li" />}
-                  </React.Fragment>
-                ))}
+                  {
+                    id: 1, type: 'inscription', message: 'Nouvel étudiant inscrit: Ahmed BENNANI', date: '10:30',
+                  },
+                  {
+                    id: 2, type: 'note', message: 'Notes saisies pour Mathématiques L2', date: '09:15',
+                  },
+                  {
+                    id: 3, type: 'paiement', message: 'Paiement reçu: 15000 MAD', date: '08:45',
+                  },
+                ]).map((activity, index) => {
+                  const activityColor = getActivityColor(activity.type);
+                  return (
+                    <React.Fragment key={activity.id}>
+                      <ListItem sx={{ px: 3, py: 2 }}>
+                        <ListItemAvatar>
+                          <Avatar sx={{
+                            bgcolor: `${activityColor}.light`,
+                            color: `${activityColor}.main`,
+                          }}
+                          >
+                            {activity.type === 'inscription' && <PersonAddIcon />}
+                            {activity.type === 'note' && <AssignmentIcon />}
+                            {activity.type === 'paiement' && <MoneyIcon />}
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={activity.message}
+                          secondary={activity.date}
+                          primaryTypographyProps={{ fontWeight: 500, fontSize: '0.875rem' }}
+                        />
+                      </ListItem>
+                      {index < 2 && <Divider component="li" />}
+                    </React.Fragment>
+                  );
+                })}
               </List>
             </CardContent>
           </Card>
@@ -354,12 +396,12 @@ const ModernDashboard = () => {
       </Grid>
 
       {/* Year indicator */}
-      <Paper 
-        sx={{ 
-          mt: 4, 
-          p: 2, 
-          display: 'flex', 
-          justifyContent: 'center', 
+      <Paper
+        sx={{
+          mt: 4,
+          p: 2,
+          display: 'flex',
+          justifyContent: 'center',
           alignItems: 'center',
           gap: 2,
           bgcolor: 'primary.main',

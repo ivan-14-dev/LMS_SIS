@@ -1,22 +1,47 @@
 import React, { useState } from 'react';
-import { Row, Col, Card, Badge, Button, Modal, Form, ActionRow, Tabs, Tab } from '@openedx/paragon';
-import { Add, Money, Check, Close } from '@openedx/paragon/icons';
+import PropTypes from 'prop-types';
+import {
+  Row, Col, Card, Badge, Button, Modal, ActionRow, Tabs, Tab,
+} from '@openedx/paragon';
+import {
+  Add, Money, Check, Close,
+} from '@openedx/paragon/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PageHeader, SISDataTable, StatCard } from '../../components/common';
-import { 
-  useTypesBourses, useDemandesBourses, useDemandeBourse,
-  fetchApi, postApi, getSuperieurApiUrl 
+import {
+  useTypesBourses, useDemandesBourses,
+  fetchApi, postApi, getSuperieurApiUrl,
 } from '../../services/api';
+
+const DemandeStatusCell = ({ value }) => {
+  const variants = {
+    brouillon: 'secondary',
+    soumise: 'warning',
+    en_instruction: 'info',
+    acceptee: 'success',
+    refusee: 'danger',
+    liste_attente: 'warning',
+  };
+  return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
+};
+
+DemandeStatusCell.propTypes = { value: PropTypes.string };
+
+const ActiveCell = ({ value }) => (
+  value ? <Badge variant="success">Oui</Badge> : <Badge variant="danger">Non</Badge>
+);
+
+ActiveCell.propTypes = { value: PropTypes.bool };
 
 const BoursesPage = () => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('demandes');
-  const [showNewDemande, setShowNewDemande] = useState(false);
+  const [, setShowNewDemande] = useState(false);
   const [selectedDemande, setSelectedDemande] = useState(null);
 
   const { data: types = [] } = useTypesBourses();
   const { data: demandes = [], isLoading: loadingDemandes } = useDemandesBourses();
-  
+
   const { data: stats } = useQuery({
     queryKey: ['bourses-stats'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/demandes-bourses/statistiques/`),
@@ -38,17 +63,7 @@ const BoursesPage = () => {
     {
       Header: 'Statut',
       accessor: 'statut',
-      Cell: ({ value }) => {
-        const variants = {
-          brouillon: 'secondary',
-          soumise: 'warning',
-          en_instruction: 'info',
-          acceptee: 'success',
-          refusee: 'danger',
-          liste_attente: 'warning',
-        };
-        return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
-      },
+      Cell: DemandeStatusCell,
     },
   ];
 
@@ -60,12 +75,12 @@ const BoursesPage = () => {
     {
       Header: 'Actif',
       accessor: 'actif',
-      Cell: ({ value }) => value ? <Badge variant="success">Oui</Badge> : <Badge variant="danger">Non</Badge>,
+      Cell: ActiveCell,
     },
   ];
 
   const handleDecision = (decision) => {
-    if (!selectedDemande) return;
+    if (!selectedDemande) { return; }
     decisionMutation.mutate({
       id: selectedDemande.id,
       data: { decision, motif: '' },
@@ -77,11 +92,11 @@ const BoursesPage = () => {
       <PageHeader
         title="Gestion des bourses"
         subtitle="Demandes, attributions et versements"
-        actions={
+        actions={(
           <Button variant="primary" iconBefore={Add} onClick={() => setShowNewDemande(true)}>
             Nouvelle demande
           </Button>
-        }
+        )}
       />
 
       {/* Stats */}
@@ -167,34 +182,34 @@ const BoursesPage = () => {
             <dl className="row">
               <dt className="col-sm-4">Étudiant</dt>
               <dd className="col-sm-8">{selectedDemande.etudiant_nom}</dd>
-              
+
               <dt className="col-sm-4">Type de bourse</dt>
               <dd className="col-sm-8">{selectedDemande.type_bourse_nom}</dd>
-              
+
               <dt className="col-sm-4">Année</dt>
               <dd className="col-sm-8">{selectedDemande.annee_universitaire}</dd>
-              
+
               <dt className="col-sm-4">Statut</dt>
               <dd className="col-sm-8">
                 <Badge>{selectedDemande.statut}</Badge>
               </dd>
-              
+
               <dt className="col-sm-4">Date soumission</dt>
               <dd className="col-sm-8">{selectedDemande.date_soumission || 'Non soumise'}</dd>
             </dl>
 
             {selectedDemande.statut === 'soumise' && (
               <ActionRow>
-                <Button 
-                  variant="danger" 
+                <Button
+                  variant="danger"
                   iconBefore={Close}
                   onClick={() => handleDecision('refusee')}
                   disabled={decisionMutation.isPending}
                 >
                   Refuser
                 </Button>
-                <Button 
-                  variant="success" 
+                <Button
+                  variant="success"
                   iconBefore={Check}
                   onClick={() => handleDecision('acceptee')}
                   disabled={decisionMutation.isPending}
