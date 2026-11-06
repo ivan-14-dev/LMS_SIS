@@ -91,8 +91,9 @@ def list_active_sessions(user) -> list:
     Returns:
         Liste de dictionnaires triés du plus récent au plus ancien :
         ``{"jti": str, "created_at": datetime, "expires_at": datetime,
-        "revoked": bool}``. Liste vide si l'application de blacklist
-        SimpleJWT n'est pas installée.
+        "revoked": bool}``. Les jetons expirés sont exclus, mais les jetons
+        révoqués non expirés restent visibles. Liste vide si l'application
+        de blacklist SimpleJWT n'est pas installée.
     """
     try:
         from rest_framework_simplejwt.token_blacklist.models import (
@@ -105,7 +106,7 @@ def list_active_sessions(user) -> list:
 
     blacklisted_ids = set(BlacklistedToken.objects.filter(token__user=user).values_list("token_id", flat=True))
     sessions = []
-    for token in OutstandingToken.objects.filter(user=user).order_by("-created_at"):
+    for token in OutstandingToken.objects.filter(user=user, expires_at__gt=timezone.now()).order_by("-created_at"):
         sessions.append(
             {
                 "jti": token.jti,
