@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -205,12 +206,25 @@ def user_mappings(request):
     return _paginated_response(request, queryset, EdxUserMappingSerializer)
 
 
+def visible_course_mappings(request):
+    """Mappings administrables, y compris inactifs, appartenant au tenant LMS courant.
+
+    Les deux années de l'ECUE doivent être locales, comme pour sync_course :
+    un ancien rattachement inter-tenant ne doit pas divulguer le nom du cours.
+    """
+    if not IsCurrentLmsTenantAdmin().has_permission(request, None):
+        raise PermissionDenied()
+    return EdxCourseMapping.objects.filter(
+        ecue__ue__semestre__annee_universitaire__universite_id=request.tenant.pk,
+        ecue__ue__maquette__annee_universitaire__universite_id=request.tenant.pk,
+    ).select_related("ecue").order_by("course_name")
+
+
 @api_view(["GET"])
 @permission_classes([IsCurrentLmsTenantAdmin])
 def course_mappings(request):
     """Liste paginée des correspondances entre cours SIS et Open edX."""
-    queryset = EdxCourseMapping.objects.select_related("ecue").order_by("course_name")
-    return _paginated_response(request, queryset, EdxCourseMappingSerializer)
+    return _paginated_response(request, visible_course_mappings(request), EdxCourseMappingSerializer)
 
 
 @api_view(["GET"])
