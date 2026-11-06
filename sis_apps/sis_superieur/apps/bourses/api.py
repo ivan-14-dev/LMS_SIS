@@ -116,6 +116,11 @@ class DemandeBourseViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         data = serializer.validated_data
+        if data["decision"] != "acceptee" and hasattr(demande, "attribution"):
+            return Response(
+                {"error": "Une demande avec attribution doit rester acceptée."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         demande.statut = data["decision"]
         demande.date_decision = timezone.now()
         demande.decision_par = request.user.utilisateur

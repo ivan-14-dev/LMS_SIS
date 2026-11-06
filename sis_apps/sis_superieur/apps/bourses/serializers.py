@@ -88,6 +88,14 @@ class AttributionBourseDetailSerializer(serializers.ModelSerializer):
         model = AttributionBourse
         fields = "__all__"
 
+    def validate(self, attrs):
+        demande = attrs.get("demande") or (self.instance.demande if self.instance else None)
+        if demande and demande.statut != "acceptee":
+            raise serializers.ValidationError(
+                {"demande": "Une attribution requiert une demande acceptée."}
+            )
+        return attrs
+
     def get_etudiant(self, obj):
         return {
             "id": obj.demande.etudiant.id,
