@@ -15,9 +15,10 @@ from .serializers import ContactEntrepriseSerializer, EntrepriseDetailSerializer
 
 
 class IsRelationsEntreprisesOrReadOnly(IsAuthenticated):
-    """Require a local account for reads and writes; writes also require business access.
+    """Require an account from the active tenant; writes also require business access.
 
-    Company and contact records have no required university owner to filter by.
+    Company and contact tables belong to TENANT_APPS and are isolated by schema,
+    including records created before this permission was introduced.
     """
 
     def has_permission(self, request, view):

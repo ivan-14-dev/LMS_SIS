@@ -9,9 +9,12 @@ from apps.etudiants.models import Etudiant
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.stages.models import ConventionStage, OffreStage
 from apps.utilisateurs.models import Utilisateur
-from django.test import SimpleTestCase
+from django.conf import settings
+from django.db import connection
+from django.test import SimpleTestCase, override_settings
 from django.urls import resolve
-from django_tenants.utils import schema_context
+from django_tenants.utils import get_tenant_domain_model, schema_context
+from rest_framework.test import APIClient
 
 
 class EntreprisesAPITestCase(SimpleTestCase):
@@ -106,6 +109,179 @@ class EntreprisesTenantAccessTestCase(TenantAPITestCase):
         response = self.client.get(f"{entreprise_url}contacts/", secure=True)
         assert response.status_code == 200, response.data
         assert {contact["nom"] for contact in response.data} == {"Contact", "Nouveau"}
+
+
+class EntreprisesSchemaIsolationTestCase(TenantAPITestCase):
+    base = "/api/v1/entreprises/"
+    peer_domain = "entreprises-peer.example.test"
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with schema_context("public"):
+            cls.peer = type(cls.tenant)(schema_name="entreprises_peer_test")
+            cls.setup_tenant(cls.peer)
+            cls.peer.save(verbosity=0)
+            get_tenant_domain_model().objects.create(
+                tenant=cls.peer, domain=cls.peer_domain, is_primary=True
+            )
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            with schema_context("public"):
+                cls.peer._drop_schema(force_drop=True)
+                get_tenant_domain_model().objects.filter(tenant=cls.peer)._raw_delete(connection.alias)
+                type(cls.peer).objects.filter(pk=cls.peer.pk)._raw_delete(connection.alias)
+        finally:
+            super().tearDownClass()
+
+    def setUp(self):
+        # A request to the peer host leaves the connection on that schema.
+        connection.set_tenant(self.tenant)
+        self.addCleanup(connection.set_tenant, self.tenant)
+        local_manager = Utilisateur.objects.create_user(
+            "schema-local-manager", role="scolarite", etablissement=self.tenant
+        )
+        self.client.force_authenticate(local_manager)
+        self.local_company = Entreprise.objects.create(
+            raison_sociale="Société locale", adresse="1 rue A", code_postal="75000", ville="Paris"
+        )
+        self.local_contact = ContactEntreprise.objects.create(
+            entreprise=self.local_company, nom="Local", prenom="Contact",
+            email="local@example.test", telephone="0100000000",
+        )
+        self.local_only_company = Entreprise.objects.create(
+            pk=self.local_company.pk + 200000, raison_sociale="Société locale seule",
+            adresse="4 rue A", code_postal="75000", ville="Paris",
+        )
+        self.local_only_contact = ContactEntreprise.objects.create(
+            pk=self.local_contact.pk + 200000, entreprise=self.local_only_company,
+            nom="LocalSeul", prenom="Contact",
+            email="local-only@example.test", telephone="0100000004",
+        )
+        with schema_context(self.peer.schema_name):
+            ContactEntreprise.objects.all().delete()
+            Entreprise.objects.all().delete()
+            peer_manager = Utilisateur.objects.create_user(
+                "schema-peer-manager", role="scolarite", etablissement=self.peer
+            )
+            # Equal primary keys must resolve to different records on the two hosts.
+            self.peer_company = Entreprise.objects.create(
+                pk=self.local_company.pk, raison_sociale="Société distante",
+                adresse="2 rue B", code_postal="75001", ville="Paris",
+            )
+            self.peer_contact = ContactEntreprise.objects.create(
+                pk=self.local_contact.pk, entreprise=self.peer_company,
+                nom="Distant", prenom="Contact", email="peer@example.test", telephone="0100000001",
+            )
+            self.peer_only_company = Entreprise.objects.create(
+                pk=self.local_company.pk + 100000, raison_sociale="Société distante seule",
+                adresse="3 rue B", code_postal="75001", ville="Paris",
+            )
+            self.peer_only_contact = ContactEntreprise.objects.create(
+                pk=self.local_contact.pk + 100000, entreprise=self.peer_only_company,
+                nom="DistantSeul", prenom="Contact",
+                email="peer-only@example.test", telephone="0100000002",
+            )
+        self.peer_client = APIClient(SERVER_NAME=self.peer_domain)
+        self.peer_client.force_authenticate(peer_manager)
+
+    def test_company_and_contact_reads_follow_the_host_schema(self):
+        with override_settings(ALLOWED_HOSTS=[*settings.ALLOWED_HOSTS, self.peer_domain]):
+            for client, expected_company, expected_contact in (
+                (self.client, "Société locale", "Local"),
+                (self.peer_client, "Société distante", "Distant"),
+            ):
+                response = client.get(
+                    f"{self.base}entreprises/{self.local_company.pk}/", secure=True
+                )
+                assert response.status_code == 200, response.data
+                assert response.data["raison_sociale"] == expected_company
+                response = client.get(
+                    f"{self.base}contacts-entreprises/{self.local_contact.pk}/", secure=True
+                )
+                assert response.status_code == 200, response.data
+                assert response.data["nom"] == expected_contact
+                response = client.get(
+                    f"{self.base}entreprises/{self.local_company.pk}/contacts/", secure=True
+                )
+                assert response.status_code == 200, response.data
+                assert [contact["nom"] for contact in response.data] == [expected_contact]
+
+            for client, company, contact in (
+                (self.client, self.peer_only_company, self.peer_only_contact),
+                (self.peer_client, self.local_only_company, self.local_only_contact),
+            ):
+                for url in (
+                    f"{self.base}entreprises/{company.pk}/",
+                    f"{self.base}entreprises/{company.pk}/contacts/",
+                    f"{self.base}contacts-entreprises/{contact.pk}/",
+                ):
+                    assert client.get(url, secure=True).status_code == 404, url
+            for client, expected_company in (
+                (self.client, "Société locale"),
+                (self.peer_client, "Société distante"),
+            ):
+                response = client.get(f"{self.base}entreprises/", secure=True)
+                assert response.status_code == 200, response.data
+                assert response.data["results"][0]["raison_sociale"] == expected_company
+                response = client.get(f"{self.base}contacts-entreprises/", secure=True)
+                assert response.status_code == 200, response.data
+                assert response.data["results"][0]["entreprise_nom"] == expected_company
+                response = client.get(f"{self.base}entreprises/statistiques/", secure=True)
+                assert response.status_code == 200, response.data
+                assert response.data["total"] == 2
+
+    def test_company_and_contact_writes_cannot_cross_schema(self):
+        with override_settings(ALLOWED_HOSTS=[*settings.ALLOWED_HOSTS, self.peer_domain]):
+            for client in (self.client, self.peer_client):
+                response = client.patch(
+                    f"{self.base}entreprises/{self.local_company.pk}/",
+                    {"raison_sociale": "Modifiée"}, format="json", secure=True,
+                )
+                assert response.status_code == 200, (client is self.client, connection.schema_name, response.data)
+                response = client.patch(
+                    f"{self.base}contacts-entreprises/{self.local_contact.pk}/",
+                    {"nom": "Modifié"}, format="json", secure=True,
+                )
+                assert response.status_code == 200, response.data
+            for client, company, contact in (
+                (self.client, self.peer_only_company, self.peer_only_contact),
+                (self.peer_client, self.local_only_company, self.local_only_contact),
+            ):
+                for method in ("patch", "delete"):
+                    for url in (
+                        f"{self.base}entreprises/{company.pk}/",
+                        f"{self.base}contacts-entreprises/{contact.pk}/",
+                    ):
+                        response = getattr(client, method)(url, secure=True)
+                        assert response.status_code == 404, (method, url, response.data)
+                response = client.post(
+                    f"{self.base}contacts-entreprises/",
+                    {
+                        "entreprise": company.pk, "nom": "Invalide",
+                        "prenom": "Contact", "email": "invalid@example.test", "telephone": "0100000003",
+                    },
+                    format="json", secure=True,
+                )
+                assert response.status_code == 400, response.data
+                assert "entreprise" in response.data
+
+        connection.set_tenant(self.tenant)
+        self.local_company.refresh_from_db()
+        self.local_contact.refresh_from_db()
+        assert self.local_company.raison_sociale == "Modifiée"
+        assert self.local_contact.nom == "Modifié"
+        assert Entreprise.objects.count() == 2
+        assert ContactEntreprise.objects.count() == 2
+        with schema_context(self.peer.schema_name):
+            self.peer_company.refresh_from_db()
+            self.peer_contact.refresh_from_db()
+            assert self.peer_company.raison_sociale == "Modifiée"
+            assert self.peer_contact.nom == "Modifié"
+            assert Entreprise.objects.count() == 2
+            assert ContactEntreprise.objects.count() == 2
 
 
 class ContactEntrepriseAssociationTestCase(TenantAPITestCase):
