@@ -82,11 +82,23 @@ def _reject_formula_like_value(value, field_name):
 def _load_xlsx_rows(uploaded_file):
     try:
         from openpyxl import load_workbook
+        from openpyxl.utils.exceptions import InvalidFileException
     except ImportError as exc:
         raise ValidationError({"file": "Le support des imports Excel (.xlsx) n'est pas disponible."}) from exc
-    workbook = load_workbook(filename=BytesIO(uploaded_file.read()), read_only=True, data_only=True)
-    worksheet = workbook.active
-    return [list(row) for row in worksheet.iter_rows(values_only=True)]
+    data = uploaded_file.read(5 * 1024 * 1024 + 1)
+    if len(data) > 5 * 1024 * 1024:
+        raise ValidationError({"file": "La taille maximale est de 5 Mo."})
+    try:
+        with ZipFile(BytesIO(data)) as archive:
+            if sum(item.file_size for item in archive.infolist()) > 20 * 1024 * 1024:
+                raise ValidationError({"file": "Le classeur décompressé dépasse 20 Mo."})
+        workbook = load_workbook(filename=BytesIO(data), read_only=True, data_only=False)
+        try:
+            return [list(row) for row in workbook.active.iter_rows(values_only=True)]
+        finally:
+            workbook.close()
+    except (BadZipFile, InvalidFileException, KeyError, ValueError, ParseError) as exc:
+        raise ValidationError({"file": "Classeur Excel invalide."}) from exc
 
 
 def _load_xls_rows(uploaded_file):
@@ -94,9 +106,15 @@ def _load_xls_rows(uploaded_file):
         import xlrd
     except ImportError as exc:
         raise ValidationError({"file": "Le support des imports Excel (.xls) n'est pas disponible."}) from exc
-    workbook = xlrd.open_workbook(file_contents=uploaded_file.read())
-    sheet = workbook.sheet_by_index(0)
-    return [sheet.row_values(index) for index in range(sheet.nrows)]
+    data = uploaded_file.read(5 * 1024 * 1024 + 1)
+    if len(data) > 5 * 1024 * 1024:
+        raise ValidationError({"file": "La taille maximale est de 5 Mo."})
+    try:
+        workbook = xlrd.open_workbook(file_contents=data)
+        sheet = workbook.sheet_by_index(0)
+        return [sheet.row_values(index) for index in range(sheet.nrows)]
+    except (xlrd.XLRDError, IndexError, ValueError) as exc:
+        raise ValidationError({"file": "Classeur Excel invalide."}) from exc
 
 
 def load_excel_rows(uploaded_file, expected_headers):
