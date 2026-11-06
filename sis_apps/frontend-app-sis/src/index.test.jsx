@@ -4,6 +4,7 @@ import {
 } from '@edx/frontend-platform';
 import { configure as configureI18n, getLocale } from '@edx/frontend-platform/i18n';
 import './index';
+import { disableOfflineShell, registerOfflineShell } from './offlineShellRegistration';
 
 const mockRender = jest.fn();
 jest.mock('react-dom/client', () => ({
@@ -24,6 +25,10 @@ jest.mock('@edx/frontend-platform/react', () => ({
 jest.mock('./App', () => function MockApp() {
   return <p>SIS application</p>;
 });
+jest.mock('./offlineShellRegistration', () => ({
+  disableOfflineShell: jest.fn(),
+  registerOfflineShell: jest.fn(),
+}));
 
 const ready = subscribe.mock.calls.find(([event]) => event === APP_READY)[1];
 const failed = subscribe.mock.calls.find(([event]) => event === APP_INIT_ERROR)[1];
@@ -33,6 +38,7 @@ beforeEach(() => {
   mockRender.mockClear();
   auth.mockReset();
   getConfig.mockReturnValue({});
+  registerOfflineShell.mockClear();
 });
 
 it('registers lifecycle handlers before initializing authentication', () => {
@@ -40,6 +46,7 @@ it('registers lifecycle handlers before initializing authentication', () => {
   expect(subscribe.mock.invocationCallOrder[1]).toBeLessThan(initialize.mock.invocationCallOrder[0]);
   expect(initializationOptions.requireAuthenticatedUser).toBe(true);
   expect(initializationOptions.hydrateAuthenticatedUser).toBe(true);
+  expect(disableOfflineShell).toHaveBeenCalledTimes(1);
 });
 
 it('supplies messages accepted by the real i18n initialization phase', () => {
@@ -84,6 +91,7 @@ it.each([true, 'true'])('permits an explicit demonstration without LMS login (%p
 
 it('renders the application after initialization without a demo banner in live mode', () => {
   ready();
+  expect(registerOfflineShell).toHaveBeenCalledTimes(1);
   render(mockRender.mock.calls[0][0]);
 
   expect(screen.getByText('SIS application')).toBeInTheDocument();

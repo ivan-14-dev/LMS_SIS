@@ -12,6 +12,7 @@ import App from './App';
 import AppearanceProvider from './theme/AppearanceProvider';
 import { isMockMode } from './services/mockApi';
 import { isRecoveryPage, usesLocalSession } from './services/localSession';
+import { disableOfflineShell, registerOfflineShell } from './offlineShellRegistration';
 
 import './index.scss';
 import '@fontsource/inter/latin-400.css';
@@ -36,6 +37,7 @@ const renderApplication = (content) => {
 };
 
 subscribe(APP_READY, () => {
+  registerOfflineShell();
   renderApplication(
     <AppProvider wrapWithRouter={false}>
       <AppearanceProvider>
@@ -59,6 +61,8 @@ subscribe(APP_INIT_ERROR, () => {
     </div>,
   );
 });
+
+disableOfflineShell();
 
 initialize({
   messages: {},
