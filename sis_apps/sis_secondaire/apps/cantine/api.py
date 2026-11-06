@@ -145,7 +145,7 @@ class PresencesCantineViewSet(viewsets.ModelViewSet):
             return Response({"error": "Menu non trouvé."}, status=404)
 
         pointages = request.data.get("pointages", [])
-        serializer = PointageCantineSerializer(data=pointages, many=True)
+        serializer = PointageCantineSerializer(data=pointages, many=True, context={"menu": menu})
         serializer.is_valid(raise_exception=True)
 
         created = 0

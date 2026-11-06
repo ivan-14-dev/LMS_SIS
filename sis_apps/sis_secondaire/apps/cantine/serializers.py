@@ -1,10 +1,19 @@
 """Serializers for cantine (SIS Secondaire)."""
 
+from django.db.models import Q
 from rest_framework import serializers
 
 from sis_common.serializers import DateRangeSerializerMixin
 
 from .models import InscriptionCantine, Menu, PresenceCantine
+
+
+def _has_valid_inscription(eleve_id, menu):
+    return InscriptionCantine.objects.filter(
+        eleve_id=eleve_id,
+        actif=True,
+        date_debut__lte=menu.date,
+    ).filter(Q(date_fin__isnull=True) | Q(date_fin__gte=menu.date)).exists()
 
 
 class MenuSerializer(serializers.ModelSerializer):
@@ -88,9 +97,24 @@ class PresenceCantineSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        menu = attrs.get("menu", getattr(self.instance, "menu", None))
+        eleve = attrs.get("eleve", getattr(self.instance, "eleve", None))
+        present = attrs.get("present", getattr(self.instance, "present", True))
+        if present and menu and eleve and not _has_valid_inscription(eleve.pk, menu):
+            raise serializers.ValidationError({"eleve": "Aucune inscription cantine active à cette date."})
+        return attrs
+
 
 class PointageCantineSerializer(serializers.Serializer):
     """Serializer pour le pointage en masse."""
 
     eleve_id = serializers.IntegerField()
     present = serializers.BooleanField(default=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs["present"] and not _has_valid_inscription(attrs["eleve_id"], self.context["menu"]):
+            raise serializers.ValidationError({"eleve_id": "Aucune inscription cantine active à cette date."})
+        return attrs
