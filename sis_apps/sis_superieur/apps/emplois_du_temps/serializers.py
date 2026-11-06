@@ -1,6 +1,7 @@
 """Serializers for emplois du temps (SIS Supérieur)."""
 
 from django.db import connection
+from django.db.models import Q
 from rest_framework import serializers
 
 from sis_common.academic_lifecycle import ensure_academic_open
@@ -196,9 +197,9 @@ class CreneauCoursCreateUpdateSerializer(serializers.ModelSerializer):
         ecue, formation = value("ecue"), value("formation")
         if ecue and (ecue.ue.maquette.formation_id != formation.pk or ecue.ue.semestre_id != semestre.pk):
             raise serializers.ValidationError({"ecue": "L'ECUE doit appartenir à cette formation et à ce semestre."})
-        if attrs.get("semaine_debut", getattr(instance, "semaine_debut", 1)) > attrs.get(
-            "semaine_fin", getattr(instance, "semaine_fin", 52)
-        ):
+        semaine_debut = attrs.get("semaine_debut", getattr(instance, "semaine_debut", 1))
+        semaine_fin = attrs.get("semaine_fin", getattr(instance, "semaine_fin", 52))
+        if semaine_debut > semaine_fin:
             raise serializers.ValidationError({"semaine_fin": "La dernière semaine doit suivre la première."})
 
         if salle and creneau:
@@ -227,6 +228,28 @@ class CreneauCoursCreateUpdateSerializer(serializers.ModelSerializer):
                 conflits = conflits.exclude(pk=instance.pk)
             if conflits.exists():
                 raise serializers.ValidationError({"enseignant": "Cet enseignant a déjà un cours sur ce créneau."})
+
+        if formation and creneau:
+            groupe = value("groupe")
+            conflits = CreneauCours.objects.filter(
+                formation=formation,
+                semestre=semestre,
+                jour=jour,
+                creneau_horaire__heure_debut__lt=creneau.heure_fin,
+                creneau_horaire__heure_fin__gt=creneau.heure_debut,
+                semaine_debut__lte=semaine_fin,
+                semaine_fin__gte=semaine_debut,
+            )
+            # Un cours sans groupe concerne toute la formation.
+            if groupe:
+                conflits = conflits.filter(Q(groupe=groupe) | Q(groupe=""))
+            semaines_paires = value("semaines_paires")
+            if semaines_paires is not None:
+                conflits = conflits.filter(Q(semaines_paires=semaines_paires) | Q(semaines_paires__isnull=True))
+            if instance:
+                conflits = conflits.exclude(pk=instance.pk)
+            if conflits.exists():
+                raise serializers.ValidationError({"groupe": "Ce groupe a déjà un cours sur ce créneau."})
 
         return attrs
 

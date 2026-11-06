@@ -1,9 +1,14 @@
 """API tests for emplois_du_temps."""
 
+from django.db import connection
 from django.test import SimpleTestCase
 from django.urls import resolve
+from django_tenants.utils import schema_context
 
 from sis_common.tests.test_grade_entry import GradeEntryFixture
+
+from apps.emplois_du_temps.models import CreneauCours
+from apps.emplois_du_temps.serializers import CreneauCoursCreateUpdateSerializer
 
 
 class EmploisDuTempsAPITestCase(SimpleTestCase):
@@ -19,6 +24,22 @@ class EmploisDuTempsAPITestCase(SimpleTestCase):
 
 
 class PlanningWorkflowTests(GradeEntryFixture):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.other_tenant = cls.tenant.__class__(schema_name="edt_group_other")
+        cls.setup_tenant(cls.other_tenant)
+        with schema_context("public"):
+            cls.other_tenant.save(verbosity=0)
+
+    @classmethod
+    def tearDownClass(cls):
+        connection.set_schema_to_public()
+        # La suppression ORM traverse des tables propres au tenant, absentes du schéma public.
+        cls.other_tenant._drop_schema(force_drop=True)
+        cls.tenant.__class__.objects.filter(pk=cls.other_tenant.pk)._raw_delete(using="default")
+        super().tearDownClass()
+
     def setUp(self):
         super().setUp()
         building = self.create("emplois_du_temps.Batiment", nom="Campus", code="CAMPUS")
@@ -74,6 +95,154 @@ class PlanningWorkflowTests(GradeEntryFixture):
 
         free = self.client.post(url, {**self.payload, "creneau_horaire": adjacent.pk}, format="json")
         assert free.status_code == 201, free.data
+
+    def test_group_conflicts_on_create_and_update_even_with_different_rooms(self):
+        url = "/api/v1/edt/creneaux-cours/"
+        building = self.room.batiment
+        other_room = self.create(
+            "emplois_du_temps.Salle", batiment=building, nom="Autre salle", code="S2", capacite=40
+        )
+        overlapping = self.create("emplois_du_temps.CreneauHoraire", heure_debut="09:00", heure_fin="10:30")
+        first = self.client.post(url, {**self.payload, "groupe": "A"}, format="json")
+        assert first.status_code == 201, first.data
+        other_payload = {**self.payload, "salle": other_room.pk, "creneau_horaire": overlapping.pk}
+
+        conflict = self.client.post(url, {**other_payload, "groupe": "A"}, format="json")
+        assert conflict.status_code == 400, conflict.data
+        assert "groupe" in conflict.data
+        everyone = self.client.post(url, other_payload, format="json")
+        assert everyone.status_code == 400, everyone.data
+        assert "groupe" in everyone.data
+
+        different_group = self.client.post(url, {**other_payload, "groupe": "B"}, format="json")
+        assert different_group.status_code == 201, different_group.data
+        identifier = self.client.get(url, {"salle": other_room.pk}).data["results"][0]["id"]
+        for group in ("A", ""):
+            response = self.client.patch(f"{url}{identifier}/", {"groupe": group}, format="json")
+            assert response.status_code == 400, response.data
+            assert "groupe" in response.data
+        response = self.client.patch(f"{url}{identifier}/", {"commentaire": "Cours confirmé"}, format="json")
+        assert response.status_code == 200, response.data
+
+    def test_group_conflicts_respect_boundaries_and_period(self):
+        url = "/api/v1/edt/creneaux-cours/"
+        overlapping = self.create("emplois_du_temps.CreneauHoraire", heure_debut="09:00", heure_fin="10:30")
+        adjacent = self.create("emplois_du_temps.CreneauHoraire", heure_debut="10:00", heure_fin="11:00")
+        first = self.client.post(
+            url, {**self.payload, "groupe": "A", "semaine_debut": 2, "semaine_fin": 4, "semaines_paires": True},
+            format="json",
+        )
+        assert first.status_code == 201, first.data
+        free = self.client.post(
+            url,
+            {
+                **self.payload,
+                "groupe": "A",
+                "creneau_horaire": adjacent.pk,
+                "semaine_debut": 2,
+                "semaine_fin": 4,
+                "semaines_paires": True,
+            },
+            format="json",
+        )
+        assert free.status_code == 201, free.data
+        for index, changes in enumerate(
+            (
+                {"semaine_debut": 5, "semaine_fin": 6},
+                {"semaine_debut": 2, "semaine_fin": 4, "semaines_paires": False},
+                {"jour": 1},
+                {"groupe": "B"},
+            )
+        ):
+            room = self.create(
+                "emplois_du_temps.Salle",
+                batiment=self.room.batiment,
+                nom=f"Salle {index}",
+                code=f"S{index + 3}",
+                capacite=40,
+            )
+            response = self.client.post(
+                url, {**self.payload, "salle": room.pk, "creneau_horaire": overlapping.pk, "groupe": "A", **changes},
+                format="json",
+            )
+            assert response.status_code == 201, response.data
+        conflict_room = self.create(
+            "emplois_du_temps.Salle", batiment=self.room.batiment, nom="Salle conflit", code="S7", capacite=40
+        )
+        conflict = self.client.post(
+            url,
+            {
+                **self.payload,
+                "salle": conflict_room.pk,
+                "creneau_horaire": overlapping.pk,
+                "groupe": "A",
+                "semaine_debut": 4,
+                "semaine_fin": 4,
+                "semaines_paires": True,
+            },
+            format="json",
+        )
+        assert conflict.status_code == 400, conflict.data
+        assert "groupe" in conflict.data
+        other_semester = self.create(
+            "etablissement.Semestre",
+            annee_universitaire=self.year,
+            numero=2,
+            type="pair",
+            date_debut=self.year.date_debut,
+            date_fin=self.year.date_fin,
+        )
+        other_ue = self.create(
+            "ue_ecue.UE",
+            maquette=self.subject.ue.maquette,
+            semestre=other_semester,
+            code="UE2",
+            nom="Autre UE",
+            credits_ects=6,
+        )
+        other_ecue = self.create("ue_ecue.ECUE", ue=other_ue, code="EC2", nom="Autre ECUE", credits_ects=6)
+        other_period = self.client.post(
+            url,
+            {
+                **self.payload,
+                "semestre": other_semester.pk,
+                "ecue": other_ecue.pk,
+                "groupe": "A",
+            },
+            format="json",
+        )
+        assert other_period.status_code == 201, other_period.data
+
+    def test_group_conflicts_are_isolated_between_tenant_schemas(self):
+        url = "/api/v1/edt/creneaux-cours/"
+        first = self.client.post(url, {**self.payload, "groupe": "A"}, format="json")
+        assert first.status_code == 201, first.data
+
+        with schema_context(self.other_tenant.schema_name):
+            year = self.create(
+                "etablissement.AnneeUniversitaire", universite=self.other_tenant, **self.year_values
+            )
+            semester = self.create("etablissement.Semestre", annee_universitaire=year, **self.period_values)
+            formation = self.create("formations.Formation", code="F1", nom="Licence", type="licence")
+            maquette = self.create("formations.MaquetteFormation", formation=formation, annee_universitaire=year)
+            ue = self.create("ue_ecue.UE", maquette=maquette, semestre=semester, code="UE1", nom="UE", credits_ects=6)
+            ecue = self.create("ue_ecue.ECUE", ue=ue, code="EC1", nom="ECUE", credits_ects=6)
+            building = self.create("emplois_du_temps.Batiment", nom="Campus", code="CAMPUS")
+            room = self.create("emplois_du_temps.Salle", batiment=building, nom="Salle", code="S1", capacite=40)
+            slot = self.create("emplois_du_temps.CreneauHoraire", heure_debut="08:30", heure_fin="10:00")
+            serializer = CreneauCoursCreateUpdateSerializer(data={
+                "semestre": semester.pk,
+                "formation": formation.pk,
+                "ecue": ecue.pk,
+                "salle": room.pk,
+                "jour": 0,
+                "creneau_horaire": slot.pk,
+                "groupe": "A",
+            })
+            assert serializer.is_valid(), serializer.errors
+            serializer.save()
+            assert CreneauCours.objects.count() == 1
+        assert CreneauCours.objects.count() == 1
 
     def test_reservation_confirmation_rechecks_conflicts_and_captures_actor(self):
         url = "/api/v1/edt/reservations/"
