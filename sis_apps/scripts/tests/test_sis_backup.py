@@ -8,13 +8,13 @@ from scripts import sis_backup
 
 
 class RestorePreflightTests(unittest.TestCase):
-    def restore(self, existing_volume=None, existing_entry="empty-directory"):
+    def restore(self, existing_volume=None, existing_entry="empty-directory", snapshot_selector="test-snapshot"):
         configuration = {
             "SIS_MODE": "secondaire",
             "FIELD_ENCRYPTION_KEY": "test-key",
             "DB_PASSWORD_SECONDAIRE": "test-password",
         }
-        options = SimpleNamespace(snapshot="test-snapshot", confirm_empty_target=True)
+        options = SimpleNamespace(snapshot=snapshot_selector, confirm_empty_target=True)
         volumes = {"data-secondaire": "test-data", "redis": "test-redis"}
         manifest = {
             "format": 1,
@@ -36,6 +36,8 @@ class RestorePreflightTests(unittest.TestCase):
 
         def fake_restic(_options, *arguments, **_kwargs):
             restic_calls.append(arguments)
+            if arguments[0] == "snapshots":
+                return SimpleNamespace(stdout=json.dumps([{"id": "a" * 64}]).encode())
             if arguments[0] == "dump":
                 return SimpleNamespace(stdout=json.dumps(manifest).encode())
             return SimpleNamespace()
@@ -82,6 +84,37 @@ class RestorePreflightTests(unittest.TestCase):
         self.assertTrue(all("-mindepth 1" in check for check in volume_checks))
         self.assertEqual(len([call for call in restic_calls if call[0] == "restore"]), 1)
         self.assertEqual(len([call for call in compose_calls if call[0] == "run"]), 1)
+
+    def test_pins_latest_for_manifest_validation_and_restore(self):
+        _, restic_calls, _ = self.restore(snapshot_selector="latest")
+        self.assertEqual(restic_calls[0], ("snapshots", "--json", "latest"))
+        self.assertEqual(
+            [call[1] for call in restic_calls if call[0] in ("dump", "restore")],
+            ["a" * 64, "a" * 64],
+        )
+
+    def test_refuses_unresolved_snapshot_before_touching_target(self):
+        options = SimpleNamespace(snapshot="latest", confirm_empty_target=True)
+        configuration = {"SIS_MODE": "secondaire", "FIELD_ENCRYPTION_KEY": "test-key"}
+        invalid_results = [
+            [],
+            [{"id": "a" * 64}, {"id": "b" * 64}],
+            [{"id": "a" * 8}],
+            [{"id": "latest"}],
+            [{}],
+            {},
+        ]
+        for result in invalid_results:
+            with self.subTest(result=result), patch.object(
+                sis_backup, "restic", return_value=SimpleNamespace(stdout=json.dumps(result).encode())
+            ) as restic, patch.object(sis_backup, "compose") as compose, patch.object(
+                sis_backup.subprocess, "run"
+            ) as run:
+                with self.assertRaisesRegex(ValueError, "exactly one full snapshot ID"):
+                    sis_backup.restore(options, configuration)
+                restic.assert_called_once_with(options, "snapshots", "--json", "latest", capture_output=True)
+                compose.assert_not_called()
+                run.assert_not_called()
 
 
 if __name__ == "__main__":

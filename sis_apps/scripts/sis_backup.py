@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Encrypted, local-only SIS snapshots and restoration into an empty deployment."""
+"""Encrypted, local-only SIS snapshots and restoration pinned to one snapshot in an empty deployment."""
 
 import argparse
 import hashlib
@@ -144,11 +144,24 @@ def restore(options, configuration):
     if not options.confirm_empty_target:
         raise ValueError("Restore requires --confirm-empty-target and a fresh deployment, never a live database.")
     selected = variants(configuration)
+    # Resolve mutable selectors once so preflight and restoration use the same snapshot.
+    snapshots = json.loads(restic(options, "snapshots", "--json", options.snapshot, capture_output=True).stdout)
+    snapshot_id = (
+        snapshots[0].get("id")
+        if isinstance(snapshots, list) and len(snapshots) == 1 and isinstance(snapshots[0], dict)
+        else None
+    )
+    if (
+        not isinstance(snapshot_id, str)
+        or len(snapshot_id) != 64
+        or any(character not in "0123456789abcdef" for character in snapshot_id)
+    ):
+        raise ValueError("Restore requires exactly one full snapshot ID from the snapshot lookup.")
     manifest = json.loads(
         restic(
             options,
             "dump",
-            options.snapshot,
+            snapshot_id,
             "/snapshot/database/manifest.json",
             capture_output=True,
         ).stdout
@@ -231,7 +244,7 @@ def restore(options, configuration):
         restic(
             options,
             "restore",
-            options.snapshot,
+            snapshot_id,
             "--target",
             "/restore",
             "--verify",
