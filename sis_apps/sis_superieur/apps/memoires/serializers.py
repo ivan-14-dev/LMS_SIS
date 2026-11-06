@@ -138,6 +138,14 @@ class MemoireDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
+    def validate_statut(self, value):
+        current = self.instance.statut if self.instance else None
+        if value == current or (current is None and value == "brouillon") or (
+            current == "soumis" and value == "en_relecture"
+        ):
+            return value
+        raise serializers.ValidationError("Ce changement de statut nécessite une action du circuit de validation.")
+
 
 class JuryMemoireSerializer(serializers.ModelSerializer):
     """Serializer pour les jurys de mémoire."""

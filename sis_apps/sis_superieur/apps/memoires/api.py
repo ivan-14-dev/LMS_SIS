@@ -98,6 +98,8 @@ class MemoiresViewSet(viewsets.ModelViewSet):
     def soumettre(self, request, pk=None):
         """Soumet le mémoire pour validation."""
         memoire = self.get_object()
+        if memoire.statut not in ("brouillon", "soumis", "en_relecture", "reserve"):
+            return Response({"error": "Statut du mémoire incompatible avec une soumission."}, status=400)
         if not memoire.fichier:
             return Response({"error": "Fichier requis."}, status=400)
         memoire.date_depot = timezone.now()
@@ -109,7 +111,11 @@ class MemoiresViewSet(viewsets.ModelViewSet):
     def valider(self, request, pk=None):
         """Valide le mémoire."""
         memoire = self.get_object()
+        if memoire.statut not in ("soumis", "en_relecture", "reserve"):
+            return Response({"error": "Statut du mémoire incompatible avec une validation."}, status=400)
         decision = request.data.get("decision", "accepte")
+        if decision not in ("accepte", "reserve", "refuse"):
+            return Response({"error": "Décision invalide."}, status=400)
         memoire.statut = decision
         memoire.save(update_fields=["statut"])
         return Response({"detail": f"Mémoire {decision}.", "id": memoire.id})
