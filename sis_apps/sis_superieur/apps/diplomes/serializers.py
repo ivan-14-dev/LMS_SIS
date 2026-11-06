@@ -93,4 +93,11 @@ class CessionDiplomeDetailSerializer(serializers.ModelSerializer):
             "qr_verification",
             "created_at",
         ]
-        read_only_fields = ["id", "numero_serie", "created_at"]
+        read_only_fields = [
+            "id",
+            "numero_serie",
+            "signe_par",
+            "date_signature",
+            "qr_verification",
+            "created_at",
+        ]
