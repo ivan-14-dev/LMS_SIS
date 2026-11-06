@@ -1,7 +1,17 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Badge } from '@openedx/paragon';
 import { PageHeader, SISDataTable } from '../../components/common';
 import { useStages } from '../../services/api';
+
+const StatusCell = ({ value }) => {
+  const variants = {
+    en_cours: 'info', termine: 'success', valide: 'success', annule: 'danger',
+  };
+  return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
+};
+
+StatusCell.propTypes = { value: PropTypes.string };
 
 const StagesPage = () => {
   const { data: stages = [], isLoading } = useStages();
@@ -16,10 +26,7 @@ const StagesPage = () => {
     {
       Header: 'Statut',
       accessor: 'statut',
-      Cell: ({ value }) => {
-        const variants = { en_cours: 'info', termine: 'success', valide: 'success', annule: 'danger' };
-        return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
-      },
+      Cell: StatusCell,
     },
   ];
 

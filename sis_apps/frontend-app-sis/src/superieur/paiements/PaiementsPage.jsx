@@ -1,16 +1,37 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import PropTypes from 'prop-types';
 import {
   Row, Col, Badge, Button,
 } from '@openedx/paragon';
+import { Money } from '@openedx/paragon/icons';
 import {
   PageHeader, SISDataTable, StatCard, WorkflowHistoryPanel, WorkflowNotificationsPanel,
 } from '../../components/common';
 import { usePaiements } from '../../services/api';
-import { Money } from '@openedx/paragon/icons';
+
+const StatusCell = ({ value }) => {
+  const variants = {
+    en_attente: 'warning', valide: 'success', rejete: 'danger', rembourse: 'info',
+  };
+  return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
+};
+
+StatusCell.propTypes = { value: PropTypes.string };
+
+const createActionCell = (onSelect) => {
+  const ActionCell = ({ value }) => (
+    <Button size="sm" variant="outline-info" onClick={() => onSelect(value)}>
+      Historique
+    </Button>
+  );
+  ActionCell.propTypes = { value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]) };
+  return ActionCell;
+};
 
 const PaiementsPage = () => {
   const { data: paiements = [], isLoading } = usePaiements();
   const [selectedPaiementId, setSelectedPaiementId] = useState(null);
+  const actionCell = useMemo(() => createActionCell(setSelectedPaiementId), [setSelectedPaiementId]);
 
   const columns = [
     { Header: 'Référence', accessor: 'numero' },
@@ -22,19 +43,12 @@ const PaiementsPage = () => {
     {
       Header: 'Statut',
       accessor: 'statut',
-      Cell: ({ value }) => {
-        const variants = { en_attente: 'warning', valide: 'success', rejete: 'danger', rembourse: 'info' };
-        return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
-      },
+      Cell: StatusCell,
     },
     {
       Header: 'Actions',
       accessor: 'id',
-      Cell: ({ value }) => (
-        <Button size="sm" variant="outline-info" onClick={() => setSelectedPaiementId(value)}>
-          Historique
-        </Button>
-      ),
+      Cell: actionCell,
     },
   ];
 

@@ -1,7 +1,15 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Badge } from '@openedx/paragon';
 import { PageHeader, SISDataTable } from '../../components/common';
 import { useMobilites } from '../../services/api';
+
+const StatusCell = ({ value }) => {
+  const variants = { en_cours: 'info', termine: 'success', annule: 'danger' };
+  return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
+};
+
+StatusCell.propTypes = { value: PropTypes.string };
 
 const MobilitePage = () => {
   const { data: mobilites = [], isLoading } = useMobilites();
@@ -16,10 +24,7 @@ const MobilitePage = () => {
     {
       Header: 'Statut',
       accessor: 'statut',
-      Cell: ({ value }) => {
-        const variants = { en_cours: 'info', termine: 'success', annule: 'danger' };
-        return <Badge variant={variants[value] || 'secondary'}>{value}</Badge>;
-      },
+      Cell: StatusCell,
     },
   ];
 

@@ -1,8 +1,10 @@
 import React from 'react';
-import { Row, Col, Card, Tabs, Tab } from '@openedx/paragon';
+import {
+  Row, Col, Card, Tabs, Tab,
+} from '@openedx/paragon';
+import { Science, Group, Article } from '@openedx/paragon/icons';
 import { PageHeader, SISDataTable, StatCard } from '../../components/common';
 import { useLaboratoires, useProjetsRecherche } from '../../services/api';
-import { Science, Group, Article } from '@openedx/paragon/icons';
 
 const RecherchePage = () => {
   const { data: laboratoires = [] } = useLaboratoires();

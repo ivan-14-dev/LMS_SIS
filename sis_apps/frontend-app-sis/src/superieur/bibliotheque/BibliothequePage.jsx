@@ -29,7 +29,7 @@ const BibliothequePage = () => {
               <div className="pt-3"><p className="text-muted">Catalogue des ouvrages...</p></div>
             </Tab>
             <Tab eventKey="reservations" title="Réservations">
-              <div className="pt-3"><p className="text-muted">Réservations d'ouvrages...</p></div>
+              <div className="pt-3"><p className="text-muted">Réservations d&apos;ouvrages...</p></div>
             </Tab>
           </Tabs>
         </Card.Body>
