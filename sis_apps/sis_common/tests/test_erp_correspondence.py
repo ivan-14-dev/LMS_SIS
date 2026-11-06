@@ -137,6 +137,35 @@ class CorrespondanceTests(TenantAPITestCase):
         assert Correspondance.objects.get(pk=item["id"]).statut == "affectee"
         assert WorkflowEvent.objects.filter(object_id=item["id"]).count() == 2
 
+    def test_former_assigner_cannot_approve_after_reassignment(self):
+        self.grant(self.reviewer, "assign_correspondance")
+        self.grant(self.coordinator, "approve_correspondance")
+        successor = get_user_model().objects.create_user(
+            "erp-successor", role="personnel_administratif", etablissement=self.tenant
+        )
+        self.grant(successor, "view_correspondance", "approve_correspondance")
+        item = self.create()
+        assigned = self.transition(item, "affecter", self.coordinator, assigne_a=self.reviewer.pk)
+        assert assigned.status_code == 200, assigned.data
+        item = assigned.data
+
+        assert self.transition(
+            item, "affecter", self.reviewer, assigne_a=self.coordinator.pk
+        ).status_code == 400
+        assert Correspondance.objects.get(pk=item["id"]).version == item["version"]
+
+        reassigned = self.transition(item, "affecter", self.reviewer, assigne_a=successor.pk)
+        assert reassigned.status_code == 200, reassigned.data
+        item = reassigned.data
+        # A legacy reassignment may already have assigned the former assigner.
+        Correspondance.objects.filter(pk=item["id"]).update(assigne_a=self.coordinator)
+        assert self.transition(item, "approuver", self.coordinator).status_code == 403
+        assert Correspondance.objects.get(pk=item["id"]).statut == "affectee"
+
+        Correspondance.objects.filter(pk=item["id"]).update(assigne_a=successor)
+        approved = self.transition(item, "approuver", successor)
+        assert approved.status_code == 200, approved.data
+
     def test_tenant_boundaries_apply_to_read_assignment_and_approval(self):
         item = self.create()
         other_tenant = type(self.tenant)(

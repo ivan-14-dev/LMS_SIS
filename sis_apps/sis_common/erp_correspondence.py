@@ -147,6 +147,11 @@ class CorrespondanceViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vi
             metadata={"direction": obj.direction, "statut": obj.statut, "version": obj.version},
         )
 
+    def _has_assigned(self, obj, user):
+        return workflow_history_queryset(obj).filter(
+            tenant_id=self.request.tenant.pk, action="correspondance_affectee", actor_id=user.pk
+        ).exists()
+
     def _result(self, obj):
         return Response(self.get_serializer(obj).data)
 
@@ -208,9 +213,9 @@ class CorrespondanceViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vi
         )
         if not allowed(assignee, "core.view_correspondance", request.tenant) or not allowed(
             assignee, "core.approve_correspondance", request.tenant
-        ) or assignee.pk in (obj.cree_par_id, request.user.pk):
+        ) or assignee.pk in (obj.cree_par_id, request.user.pk) or self._has_assigned(obj, assignee):
             raise ValidationError({
-                "assigne_a": "Un autre agent habilité, distinct du créateur et de l'affectant, est requis."
+                "assigne_a": "Un agent habilité, distinct du créateur et de tout affectant précédent, est requis."
             })
         obj.assigne_a = assignee
         obj.assigne_par = request.user
@@ -230,9 +235,11 @@ class CorrespondanceViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vi
         obj = self._checked(payload.validated_data)
         if obj.statut != "affectee":
             raise ValidationError({"statut": "Une correspondance affectée et non approuvée est requise."})
-        if obj.assigne_a_id != request.user.pk or request.user.pk in (obj.cree_par_id, obj.assigne_par_id):
+        if obj.assigne_a_id != request.user.pk or request.user.pk in (
+            obj.cree_par_id, obj.assigne_par_id
+        ) or self._has_assigned(obj, request.user):
             raise PermissionDenied(
-                "L'approbation est réservée à l'agent affecté, distinct du créateur et de l'affectant."
+                "L'approbation est réservée à l'agent affecté, distinct du créateur et de tout affectant précédent."
             )
         obj.approuve_par = request.user
         obj.approuve_le = timezone.now()
