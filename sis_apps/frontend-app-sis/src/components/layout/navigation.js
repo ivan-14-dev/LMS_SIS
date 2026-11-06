@@ -15,6 +15,7 @@ const schoolRegistry = [...schoolManagers, 'vie_scolaire'];
 const universityManagers = ['president', 'vice_president', 'doyen', 'vice_doyen', 'directeur_etudes'];
 const universityRegistry = [...universityManagers, 'scolarite', 'chef_departement'];
 const teachers = ['enseignant', 'chercheur'];
+const learnerRoles = ['eleve', 'etudiant', 'doctorant'];
 
 export const hasCapability = (capabilities, permission) => Boolean(
   permission && (capabilities?.permissions?.includes('*') || capabilities?.permissions?.includes(permission)),
@@ -27,7 +28,14 @@ export const hasActiveAffiliation = (capabilities, kind) => {
   );
 };
 
-export const canEnterPortal = (capabilities, kind) => hasActiveAffiliation(capabilities, kind)
+const roleMatchesPortal = (role, kind) => {
+  if (kind === 'learner') { return learnerRoles.includes(role); }
+  if (kind === 'staff') { return ![...learnerRoles, 'parent'].includes(role); }
+  return true;
+};
+
+export const canEnterPortal = (capabilities, kind) => roleMatchesPortal(capabilities?.role, kind)
+  && hasActiveAffiliation(capabilities, kind)
   && capabilities?.portals?.[kind] !== false
   && (capabilities?.portals?.[kind] === true || hasCapability(capabilities, `portail.view_${kind}`));
 

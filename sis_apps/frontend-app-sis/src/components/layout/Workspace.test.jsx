@@ -12,7 +12,9 @@ import Sidebar from './Sidebar';
 import WorkspaceTools from './WorkspaceTools';
 import WorkspaceHome from './WorkspaceHome';
 import WorkspaceCalendar from './WorkspaceCalendar';
-import { getNavigation, getWorkspaceGroups } from './navigation';
+import {
+  canEnterPortal, getNavigation, getWorkspaceGroups, workspaceKind,
+} from './navigation';
 import SchoolLearnerPortal from '../../secondaire/portails/PortailApprenantFamille';
 import UniversityLearnerPortal from '../../superieur/portails/PortailApprenantFamille';
 
@@ -40,6 +42,27 @@ const portalRole = (role, permissions = []) => {
     portals: { [kind]: true },
   };
 };
+
+it.each([
+  ['secondaire', 'eleve', 'staff', 'learner'],
+  ['superieur', 'etudiant', 'staff', 'learner'],
+  ['secondaire', 'enseignant', 'learner', 'teacher'],
+  ['superieur', 'enseignant', 'learner', 'teacher'],
+  ['secondaire', 'parent', 'staff', 'learner'],
+])('ignores a stale %s / %s %s portal grant without losing the real workspace', (variant, role, staleKind, expectedKind) => {
+  const valid = portalRole(role);
+  const capabilities = {
+    ...valid,
+    affiliations: [...valid.affiliations, { kind: staleKind, active: true }],
+    portals: { ...valid.portals, [staleKind]: true },
+    permissions: ['*'],
+  };
+  expect(canEnterPortal(capabilities, staleKind)).toBe(false);
+  expect(workspaceKind(capabilities)).toBe(expectedKind);
+  const paths = getNavigation(variant, variant, capabilities).flatMap(section => section.items.map(item => item.path));
+  expect(paths).toContain(`/${variant}/${expectedKind === 'teacher' ? 'portail-staff' : 'portail-apprenant'}`);
+  expect(paths).not.toContain(`/${variant}/${staleKind === 'staff' ? 'portail-staff' : 'portail-apprenant'}`);
+});
 
 it.each([
   ['secondaire', 'eleve'],
