@@ -152,6 +152,27 @@ class DocumentAccessTests(DocumentFixture):
             assert self.client.get(f"/api/v1/{resource}/").data["count"] == 0
             assert self.client.get(f"/api/v1/{resource}/{records[0].pk}/pdf_officiel/").status_code == 404
 
+    def test_parent_role_cannot_keep_clerk_document_access_after_role_change(self):
+        user = type(self.admin).objects.create_user("documents-former-clerk", role="autre", etablissement=self.tenant)
+        for records in self.documents.values():
+            model = records[0]._meta
+            user.user_permissions.add(
+                Permission.objects.get(content_type__app_label=model.app_label, codename=f"view_{model.model_name}")
+            )
+        self.client.force_authenticate(user)
+        for resource, records in self.documents.items():
+            assert self.client.get(f"/api/v1/{resource}/{records[1].pk}/pdf_officiel/").status_code == 200
+
+        user.role = "parent"
+        user.save(update_fields=["role"])
+        user = type(user).objects.get(pk=user.pk)
+        self.client.force_authenticate(user)
+        for resource, records in self.documents.items():
+            base = f"/api/v1/{resource}/"
+            assert self.client.get(base).data["count"] == 0
+            assert self.client.get(f"{base}{records[1].pk}/").status_code == 404
+            assert self.client.get(f"{base}{records[1].pk}/pdf_officiel/").status_code == 404
+
     def test_inactive_anonymous_and_cross_tenant_accounts_are_rejected(self):
         user = self.learners[0].user
         self.client.force_authenticate(None)

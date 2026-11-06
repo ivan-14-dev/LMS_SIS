@@ -34,6 +34,8 @@ def scope_student_documents(view, queryset, approved, scopes):
     queryset = queryset.filter(etudiant__universite_id=request.tenant.pk)
     if user.role in ("etudiant", "doctorant") and not user.is_superuser:
         return queryset.filter(etudiant__user=user, **approved)
+    if user.role == "parent" and not user.is_superuser:
+        return queryset.none()
     permission = view.required_change_permission
     if request.method in ("GET", "HEAD", "OPTIONS"):
         permission = permission.replace(".change_", ".view_")
