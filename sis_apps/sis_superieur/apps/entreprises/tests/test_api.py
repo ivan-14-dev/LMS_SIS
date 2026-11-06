@@ -1,5 +1,6 @@
 """API tests for entreprises."""
 
+import uuid
 from datetime import date
 
 from apps.enseignants.models import EnseignantChercheur
@@ -10,6 +11,7 @@ from apps.stages.models import ConventionStage, OffreStage
 from apps.utilisateurs.models import Utilisateur
 from django.test import SimpleTestCase
 from django.urls import resolve
+from django_tenants.utils import schema_context
 
 
 class EntreprisesAPITestCase(SimpleTestCase):
@@ -18,6 +20,92 @@ class EntreprisesAPITestCase(SimpleTestCase):
     def test_routes_are_registered(self):
         assert resolve("/api/v1/entreprises/entreprises/").url_name == "entreprise-list"
         assert resolve("/api/v1/entreprises/contacts-entreprises/").url_name == "contact-entreprise-list"
+
+
+class EntreprisesTenantAccessTestCase(TenantAPITestCase):
+    base = "/api/v1/entreprises/"
+
+    def setUp(self):
+        self.manager = Utilisateur.objects.create_user(
+            "local-relations-entreprises", role="scolarite", etablissement=self.tenant
+        )
+        foreign = type(self.tenant)(schema_name=f"foreign_entreprises_{uuid.uuid4().hex[:12]}")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        self.foreign_manager = Utilisateur.objects.create_user(
+            "foreign-relations-entreprises", role="scolarite", etablissement=foreign
+        )
+        self.entreprise = Entreprise.objects.create(
+            raison_sociale="Entreprise locale", adresse="1 rue A", code_postal="75000", ville="Paris"
+        )
+        self.contact = ContactEntreprise.objects.create(
+            entreprise=self.entreprise, nom="Contact", prenom="Local",
+            email="contact@example.test", telephone="0100000000",
+        )
+
+    def test_foreign_university_manager_cannot_read_or_write_in_current_schema(self):
+        self.client.force_authenticate(self.foreign_manager)
+        entreprise_url = f"{self.base}entreprises/{self.entreprise.pk}/"
+        contact_url = f"{self.base}contacts-entreprises/{self.contact.pk}/"
+        for url in (
+            f"{self.base}entreprises/",
+            entreprise_url,
+            f"{entreprise_url}contacts/",
+            f"{entreprise_url}offres/",
+            f"{entreprise_url}conventions/",
+            f"{self.base}entreprises/statistiques/",
+            f"{self.base}contacts-entreprises/",
+            contact_url,
+        ):
+            response = self.client.get(url, secure=True)
+            assert response.status_code == 403, (url, response.data)
+
+        for url, data in (
+            (f"{self.base}entreprises/", {
+                "raison_sociale": "Intruse", "adresse": "1 rue B",
+                "code_postal": "75000", "ville": "Paris",
+            }),
+            (f"{self.base}contacts-entreprises/", {
+                "entreprise": self.entreprise.pk, "nom": "Intrus", "prenom": "Contact",
+                "email": "intrus@example.test", "telephone": "0100000001",
+            }),
+        ):
+            response = self.client.post(url, data, format="json", secure=True)
+            assert response.status_code == 403, (url, response.data)
+        for url in (entreprise_url, contact_url):
+            response = self.client.patch(
+                url, {"nom": "Modifié", "raison_sociale": "Modifiée"}, format="json", secure=True
+            )
+            assert response.status_code == 403, (url, response.data)
+        self.entreprise.refresh_from_db()
+        self.contact.refresh_from_db()
+        assert self.entreprise.raison_sociale == "Entreprise locale"
+        assert self.contact.nom == "Contact"
+        assert Entreprise.objects.count() == 1
+        assert ContactEntreprise.objects.count() == 1
+
+    def test_local_manager_can_read_create_and_use_company_action(self):
+        self.client.force_authenticate(self.manager)
+        entreprise_url = f"{self.base}entreprises/{self.entreprise.pk}/"
+        response = self.client.get(entreprise_url, secure=True)
+        assert response.status_code == 200, response.data
+        assert response.data["raison_sociale"] == "Entreprise locale"
+
+        response = self.client.post(
+            f"{self.base}contacts-entreprises/",
+            {
+                "entreprise": self.entreprise.pk, "nom": "Nouveau", "prenom": "Contact",
+                "email": "nouveau@example.test", "telephone": "0100000002",
+            },
+            format="json", secure=True,
+        )
+        assert response.status_code == 201, response.data
+        assert response.data["entreprise"] == self.entreprise.pk
+        response = self.client.get(f"{entreprise_url}contacts/", secure=True)
+        assert response.status_code == 200, response.data
+        assert {contact["nom"] for contact in response.data} == {"Contact", "Nouveau"}
 
 
 class ContactEntrepriseAssociationTestCase(TenantAPITestCase):
