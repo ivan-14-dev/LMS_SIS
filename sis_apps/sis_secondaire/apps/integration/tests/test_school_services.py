@@ -155,6 +155,7 @@ class SchoolServicesWorkflowTest(TenantAPITestCase):
     def test_transport_rejects_inconsistent_stops_and_foreign_academic_years(self):
         first = self.create("transport.LigneTransport", nom="L1", itineraire="Route")
         second = self.create("transport.LigneTransport", nom="L2", itineraire="Route")
+        self.create("transport.Vehicule", immatriculation="SERV-TRANSPORT-1", capacite=2, ligne=first)
         stop = self.create("transport.Arret", ligne=first, nom="A1", heure_passage="07:30", ordre=1)
         payload = {
             "eleve": self.pupil.pk,
