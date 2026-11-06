@@ -162,7 +162,7 @@ class PresenceSaisieSerializer(serializers.Serializer):
 
 
 class JustificatifSerializer(serializers.ModelSerializer):
-    """Serializer pour les justificatifs."""
+    """Les décisions de validation passent par les actions accepter/refuser."""
 
     eleve_nom = serializers.CharField(source="presence.eleve.user.get_full_name", read_only=True)
     date_absence = serializers.DateField(source="presence.appel.date", read_only=True)
@@ -186,4 +186,11 @@ class JustificatifSerializer(serializers.ModelSerializer):
             "date_validation",
             "commentaire_validation",
         ]
-        read_only_fields = ["id", "date_depot"]
+        read_only_fields = [
+            "id",
+            "date_depot",
+            "statut",
+            "valide_par",
+            "date_validation",
+            "commentaire_validation",
+        ]
