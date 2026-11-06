@@ -2,8 +2,11 @@
 
 from django.db import connection
 from django.db.models import Q
+from django.db import transaction
 from rest_framework import serializers
 
+from apps.enseignants.models import EnseignantChercheur
+from apps.formations.models import Formation
 from sis_common.academic_lifecycle import ensure_academic_open
 
 from .models import Batiment, ConflitHoraire, CreneauCours, CreneauHoraire, Reservation, Salle
@@ -166,6 +169,33 @@ class CreneauCoursDetailSerializer(serializers.ModelSerializer):
 
 class CreneauCoursCreateUpdateSerializer(serializers.ModelSerializer):
     """Création/modification d'un créneau de cours."""
+
+    def _lock_conflict_scopes(self, attrs):
+        # Aucune ligne de groupe n'existe : la formation est le plus petit parent
+        # stable commun aux cours d'un même groupe, même si leurs salles diffèrent.
+        for model, field in (
+            (Formation, "formation"),
+            (Salle, "salle"),
+            (EnseignantChercheur, "enseignant"),
+        ):
+            previous_id = getattr(self.instance, f"{field}_id", None)
+            current = attrs.get(field, getattr(self.instance, field, None))
+            ids = {previous_id, getattr(current, "pk", None)} - {None}
+            list(model.objects.filter(pk__in=ids).order_by("pk").select_for_update().values_list("pk", flat=True))
+
+    @transaction.atomic
+    def create(self, validated_data):
+        self._lock_conflict_scopes(validated_data)
+        self.validate(validated_data)
+        return super().create(validated_data)
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        CreneauCours.objects.select_for_update(no_key=True).only("pk").get(pk=instance.pk)
+        instance.refresh_from_db()
+        self._lock_conflict_scopes(validated_data)
+        self.validate(validated_data)
+        return super().update(instance, validated_data)
 
     class Meta:
         model = CreneauCours

@@ -1,9 +1,15 @@
 """API tests for emplois_du_temps."""
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier, local
+from unittest.mock import patch
+
+from django.apps import apps
 from django.db import connection
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TransactionTestCase, override_settings
 from django.urls import resolve
-from django_tenants.utils import schema_context
+from django_tenants.utils import get_tenant_domain_model, get_tenant_model, schema_context
+from rest_framework.test import APIClient
 
 from sis_common.tests.test_grade_entry import GradeEntryFixture
 
@@ -21,6 +27,128 @@ class EmploisDuTempsAPITestCase(SimpleTestCase):
         assert resolve("/api/v1/edt/creneaux-cours/").url_name == "creneau-cours-list"
         assert resolve("/api/v1/edt/reservations/").url_name == "reservation-list"
         assert resolve("/api/v1/edt/conflits-horaires/").url_name == "conflit-horaire-list"
+
+
+@override_settings(ALLOWED_HOSTS=["testserver", "edt-lock.test.com"])
+class ConcurrentPlanningTests(TransactionTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with schema_context("public"):
+            cls.tenant = get_tenant_model().objects.create(
+                schema_name="edt_lock_test",
+                nom="Université de test",
+                type="universite_publique",
+                adresse="1 rue des Tests",
+                code_postal="75000",
+                ville="Paris",
+                telephone="0100000000",
+                email="edt-lock@test.example",
+            )
+            get_tenant_domain_model().objects.create(
+                tenant=cls.tenant, domain="edt-lock.test.com", is_primary=True
+            )
+
+    @classmethod
+    def tearDownClass(cls):
+        connection.set_schema_to_public()
+        cls.tenant._drop_schema(force_drop=True)
+        apps.get_model("etablissement.Semestre").objects.filter(pk=cls.semestre_pk)._raw_delete(using="default")
+        apps.get_model("etablissement.AnneeUniversitaire").objects.filter(pk=cls.year_pk)._raw_delete(using="default")
+        get_tenant_domain_model().objects.filter(tenant=cls.tenant).delete()
+        get_tenant_model().objects.filter(pk=cls.tenant.pk)._raw_delete(using="default")
+        super().tearDownClass()
+
+    def setUp(self):
+        connection.set_tenant(self.tenant)
+
+        def create(model, **values):
+            return apps.get_model(model).objects.create(**values)
+
+        admin = apps.get_model("utilisateurs.Utilisateur").objects.create_superuser(
+            "edt-lock-admin", role="super_admin", etablissement=self.tenant
+        )
+        self.admin = admin
+        year = create(
+            "etablissement.AnneeUniversitaire",
+            universite=self.tenant,
+            libelle="2026",
+            date_debut="2026-01-01",
+            date_fin="2026-12-31",
+        )
+        self.__class__.year_pk = year.pk
+        semestre = create(
+            "etablissement.Semestre",
+            annee_universitaire=year,
+            numero=1,
+            type="impair",
+            date_debut=year.date_debut,
+            date_fin=year.date_fin,
+        )
+        self.__class__.semestre_pk = semestre.pk
+        formation = create("formations.Formation", code="EDT", nom="Licence", type="licence")
+        maquette = create("formations.MaquetteFormation", formation=formation, annee_universitaire=year)
+        ue = create("ue_ecue.UE", maquette=maquette, semestre=semestre, code="UE1", nom="UE", credits_ects=6)
+        ecue = create("ue_ecue.ECUE", ue=ue, code="EC1", nom="ECUE", credits_ects=6)
+        building = create("emplois_du_temps.Batiment", nom="Campus", code="CAMPUS")
+        self.rooms = [
+            create("emplois_du_temps.Salle", batiment=building, nom=f"Salle {i}", code=f"S{i}", capacite=40)
+            for i in range(1, 3)
+        ]
+        first = create("emplois_du_temps.CreneauHoraire", heure_debut="08:30", heure_fin="10:00")
+        overlapping = create("emplois_du_temps.CreneauHoraire", heure_debut="09:00", heure_fin="10:30")
+        adjacent = create("emplois_du_temps.CreneauHoraire", heure_debut="10:00", heure_fin="11:00")
+        self.slots = first, overlapping, adjacent
+        self.payload = {
+            "semestre": semestre.pk,
+            "formation": formation.pk,
+            "ecue": ecue.pk,
+            "jour": 0,
+        }
+
+    def _concurrent_posts(self, first, second):
+        barrier = Barrier(2)
+        validated = local()
+        original_validate = CreneauCoursCreateUpdateSerializer.validate
+
+        def synchronized_validate(serializer, attrs):
+            result = original_validate(serializer, attrs)
+            if not getattr(validated, "passed", False):
+                validated.passed = True
+                barrier.wait(timeout=15)
+            return result
+
+        def submit(payload):
+            try:
+                client = APIClient(SERVER_NAME="edt-lock.test.com")
+                client.force_authenticate(self.admin)
+                response = client.post("/api/v1/edt/creneaux-cours/", payload, format="json")
+                return response.status_code, response.data
+            finally:
+                connection.close()
+
+        with patch.object(CreneauCoursCreateUpdateSerializer, "validate", synchronized_validate):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = [executor.submit(submit, payload) for payload in (first, second)]
+                return [future.result(timeout=30) for future in futures]
+
+    def test_simultaneous_group_overlap_is_refused_but_independent_or_adjacent_courses_succeed(self):
+        first = {**self.payload, "salle": self.rooms[0].pk, "creneau_horaire": self.slots[0].pk, "groupe": "A"}
+        overlapping = {**self.payload, "salle": self.rooms[1].pk, "creneau_horaire": self.slots[1].pk}
+
+        responses = self._concurrent_posts(first, {**overlapping, "groupe": "A"})
+        assert sorted(status for status, _ in responses) == [201, 400], responses
+        assert "groupe" in next(data for status, data in responses if status == 400)
+        assert CreneauCours.objects.count() == 1
+
+        CreneauCours.objects.all().delete()
+        responses = self._concurrent_posts(first, {**overlapping, "groupe": "B"})
+        assert [status for status, _ in responses] == [201, 201], responses
+
+        CreneauCours.objects.all().delete()
+        adjacent = {**first, "creneau_horaire": self.slots[2].pk}
+        responses = self._concurrent_posts(first, adjacent)
+        assert [status for status, _ in responses] == [201, 201], responses
 
 
 class PlanningWorkflowTests(GradeEntryFixture):
