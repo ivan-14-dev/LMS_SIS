@@ -200,8 +200,12 @@ class StudentsImportContractTests(TenantAPITestCase):
         request.tenant = foreign
         force_authenticate(request, user=self.admin)
         cross_tenant = resolve(f"{self.url}importer/").func(request)
-        assert cross_tenant.status_code == 400
-        assert "file" in cross_tenant.data
+        if self.secondary:
+            assert cross_tenant.status_code == 403
+            assert "detail" in cross_tenant.data
+        else:
+            assert cross_tenant.status_code == 400
+            assert "file" in cross_tenant.data
 
         confirmed = self.client.post(
             f"{self.url}importer/",
