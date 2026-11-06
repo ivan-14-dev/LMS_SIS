@@ -28,7 +28,7 @@ class LMSEnrollmentContractTests(TestCase):
 
     @staticmethod
     def response(payload):
-        response = Mock(spec=requests.Response)
+        response = Mock(spec=requests.Response, status_code=200)
         response.json.return_value = payload
         return response
 
@@ -42,7 +42,21 @@ class LMSEnrollmentContractTests(TestCase):
             headers=self.client._headers(),
             timeout=30,
             verify=True,
+            allow_redirects=False,
         )
+
+    @patch("sis_common.lms_enrollments.requests.post")
+    def test_redirect_cannot_replay_an_enrollment_decision_at_another_endpoint(self, post):
+        for active in (True, False):
+            with self.subTest(active=active):
+                post.return_value = self.response({**self.enrollment, "is_active": active})
+                post.return_value.status_code = 307
+                with self.assertRaisesRegex(ValueError, "ne confirme pas"):
+                    if active:
+                        self.client.enroll_user(self.course, "learner")
+                    else:
+                        self.client.unenroll_user(self.course, "learner")
+                self.assertIs(post.call_args.kwargs["allow_redirects"], False)
 
     @patch("sis_common.lms_enrollments.requests.post")
     def test_unenrollment_updates_active_status_without_changing_the_mode(self, post):

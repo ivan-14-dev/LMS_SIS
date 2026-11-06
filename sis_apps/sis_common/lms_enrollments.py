@@ -19,8 +19,11 @@ def set_enrollment(client, course_key, username, *, active, mode=None):
         headers=client._headers(),
         timeout=client.timeout,
         verify=client.verify_ssl,
+        allow_redirects=False,
     )
     response.raise_for_status()
+    if response.status_code != 200:
+        raise ValueError("La réponse LMS ne confirme pas l'inscription demandée.")
     result = response.json()
     if (
         not isinstance(result, dict)
