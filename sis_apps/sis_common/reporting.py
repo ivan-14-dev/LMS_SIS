@@ -11,6 +11,12 @@ from rest_framework.exceptions import ValidationError
 from .academic_configuration import REPORT_EXPORT_FORMATS
 
 
+def _csv_cell(value):
+    if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
+        return f"'{value}"
+    return value
+
+
 def _has_any_permission(user, permissions):
     if not permissions:
         return True
@@ -117,14 +123,23 @@ def _csv_response(report, metadata, headers, rows):
     output = StringIO()
     writer = csv.writer(output)
     for label, value in metadata:
-        writer.writerow([label, value])
+        writer.writerow([_csv_cell(label), _csv_cell(value)])
     if metadata:
         writer.writerow([])
-    writer.writerow(headers)
-    writer.writerows(rows)
+    writer.writerow([_csv_cell(header) for header in headers])
+    for row in rows:
+        writer.writerow([_csv_cell(value) for value in row])
     response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{report["code"]}.csv"'
     return response
+
+
+def _write_xlsx_row(sheet, row_number, values):
+    for column, value in enumerate(values, start=1):
+        cell = sheet.cell(row=row_number, column=column, value=value)
+        if isinstance(value, str):
+            # openpyxl otherwise turns strings beginning with "=" into formulas.
+            cell.data_type = "s"
 
 
 def _xlsx_response(report, metadata, headers, rows):
@@ -138,17 +153,14 @@ def _xlsx_response(report, metadata, headers, rows):
     sheet.title = report.get("code", "report")[:31] or "report"
     current_row = 1
     for label, value in metadata:
-        sheet.cell(row=current_row, column=1, value=label)
-        sheet.cell(row=current_row, column=2, value=value)
+        _write_xlsx_row(sheet, current_row, (label, value))
         current_row += 1
     if metadata:
         current_row += 1
-    for index, header in enumerate(headers, start=1):
-        sheet.cell(row=current_row, column=index, value=header)
+    _write_xlsx_row(sheet, current_row, headers)
     current_row += 1
     for row in rows:
-        for index, value in enumerate(row, start=1):
-            sheet.cell(row=current_row, column=index, value=value)
+        _write_xlsx_row(sheet, current_row, row)
         current_row += 1
     stream = BytesIO()
     workbook.save(stream)
