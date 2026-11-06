@@ -8,7 +8,9 @@ import { patchApi, postApi } from '../../services/api';
 import { apiErrorMessage, fetchAllResourcePages, resourceUrl } from '../../services/resources';
 
 const can = (capabilities, permission) => Boolean(
-  capabilities?.permissions?.includes('*') || capabilities?.permissions?.includes(permission),
+  capabilities?.permissions?.includes('*')
+  || (capabilities?.permissions?.includes(permission)
+    && !Object.keys(capabilities?.attributes?.permission_scopes?.[permission] || {}).length),
 );
 const denied = error => [401, 403].includes(error?.response?.status);
 const ids = items => (Array.isArray(items) ? items.map(item => (typeof item === 'object' ? item.id : item)) : null);
@@ -256,7 +258,14 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
 
 InstitutionalGroupsEditor.propTypes = {
   variant: PropTypes.oneOf(['secondaire', 'superieur']).isRequired,
-  capabilities: PropTypes.shape({ permissions: PropTypes.arrayOf(PropTypes.string) }),
+  capabilities: PropTypes.shape({
+    permissions: PropTypes.arrayOf(PropTypes.string),
+    attributes: PropTypes.shape({
+      permission_scopes: PropTypes.objectOf(PropTypes.objectOf(
+        PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.string, PropTypes.number])),
+      )),
+    }),
+  }),
 };
 InstitutionalGroupsEditor.defaultProps = { capabilities: null };
 

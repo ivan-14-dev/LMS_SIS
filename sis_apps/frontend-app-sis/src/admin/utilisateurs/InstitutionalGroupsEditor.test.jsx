@@ -41,9 +41,9 @@ const allowed = [
   'auth.view_group', 'auth.add_group', 'auth.change_group',
   'utilisateurs.view_utilisateur', 'utilisateurs.change_utilisateur',
 ];
-const renderEditor = (grants = allowed) => render(
+const renderEditor = (grants = allowed, attributes = {}) => render(
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-    <InstitutionalGroupsEditor variant="secondaire" capabilities={{ permissions: grants }} />
+    <InstitutionalGroupsEditor variant="secondaire" capabilities={{ permissions: grants, attributes }} />
   </QueryClientProvider>,
 );
 const renderPage = (context) => render(
@@ -136,6 +136,35 @@ it('requires change_group even when the account permissions permit modifications
   expect(screen.getByText(/Affectation non autorisée/)).toBeVisible();
   expect(fetchAllResourcePages).not.toHaveBeenCalledWith(usersUrl);
   expect(postApi).not.toHaveBeenCalled();
+});
+
+it('does not offer group writes or assignments when group write grants are scoped', async () => {
+  renderEditor(allowed, {
+    permission_scopes: {
+      'auth.add_group': { etablissement: [1] },
+      'auth.change_group': { etablissement: [1] },
+    },
+  });
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  expect(screen.queryByRole('button', { name: 'Créer un groupe' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Enregistrer le groupe' })).not.toBeInTheDocument();
+  expect(screen.getByText('Modification non autorisée pour ce compte.')).toBeVisible();
+  expect(screen.getByText(/Affectation non autorisée/)).toBeVisible();
+  expect(fetchAllResourcePages).not.toHaveBeenCalledWith(usersUrl);
+});
+
+it('does not fetch groups when the group view grant is scoped', () => {
+  renderEditor(['auth.view_group'], { permission_scopes: { 'auth.view_group': { etablissement: [1] } } });
+  expect(screen.getByText(/Accès non autorisé : permission de consultation/)).toBeVisible();
+  expect(fetchAllResourcePages).not.toHaveBeenCalled();
+});
+
+it('keeps group editing available but prevents assignment when account write is scoped', async () => {
+  renderEditor(allowed, { permission_scopes: { 'utilisateurs.change_utilisateur': { etablissement: [1] } } });
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  expect(screen.getByRole('button', { name: 'Enregistrer le groupe' })).toBeVisible();
+  expect(screen.getByText(/Affectation non autorisée/)).toBeVisible();
+  expect(fetchAllResourcePages).not.toHaveBeenCalledWith(usersUrl);
 });
 
 it('does not fetch data for a user without group view permission', () => {
