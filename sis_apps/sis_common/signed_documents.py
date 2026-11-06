@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import logging
+import uuid
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.fernet import InvalidToken
@@ -14,10 +15,12 @@ from django.core.exceptions import ValidationError as ModelValidationError
 from django.db import transaction
 from django.db.models import Exists, Max, OuterRef, Q
 from django.http import HttpResponse
+from django_tenants.utils import get_public_schema_name
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
+from rest_framework.exceptions import APIException, ParseError, PermissionDenied, ValidationError
 from rest_framework.generics import get_object_or_404
+from rest_framework.permissions import AllowAny
 from rest_framework.request import clone_request
 from rest_framework.response import Response
 
@@ -26,12 +29,14 @@ from sis_common.complaints import user_label
 from sis_common.delegations import ActiveTenantAccess
 from sis_common.encryption import decrypt_value
 from sis_common.exam_files import hash_uploaded_file, validate_exam_copy
+from sis_common.official_documents import verify_official_archive
 from sis_common.signatures import USE, Signature, allowed, document_types, public_fingerprint, signing_mandate
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 Archive = apps.get_model("core.DocumentArchive")
 Revocation = apps.get_model("core.ArchiveRevocation")
 logger = logging.getLogger("apps.signatures")
+MAX_PUBLIC_VERIFICATION_PDF_BYTES = 10 * 1024 * 1024
 
 
 def canonical_manifest(value):
@@ -154,6 +159,56 @@ class SignedDocumentViewSet(viewsets.ReadOnlyModelViewSet):
             .select_related("signature__titulaire", "beneficiaire", "revocation")
             .defer("pdf")
         )
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="verification-publique",
+        permission_classes=[AllowAny],
+        authentication_classes=[],
+    )
+    def verification_publique(self, request):
+        """Check archive_id and a presented PDF; never return archive metadata."""
+
+        def result(valid=False):
+            response = Response({"valide": valid})
+            response["Cache-Control"] = "no-store"
+            return response
+
+        tenant = getattr(request, "tenant", None)
+        if (
+            tenant is None
+            or getattr(tenant, "pk", None) is None
+            or getattr(tenant, "schema_name", get_public_schema_name()) == get_public_schema_name()
+        ):
+            return result()
+        try:
+            content_length = int(request.META.get("CONTENT_LENGTH", ""))
+        except (ValueError, TypeError):
+            return result()
+        if (
+            content_length <= 0
+            or content_length > MAX_PUBLIC_VERIFICATION_PDF_BYTES + 65536
+            or request.content_type.split(";", 1)[0].strip().lower() != "multipart/form-data"
+        ):
+            return result()
+        try:
+            uploaded = request.FILES.get("pdf")
+            if uploaded is None or uploaded.size > MAX_PUBLIC_VERIFICATION_PDF_BYTES:
+                return result()
+            archive_id = uuid.UUID(str(request.data.get("archive_id")))
+        except (ParseError, ValueError, TypeError, AttributeError):
+            return result()
+        pdf = uploaded.read(MAX_PUBLIC_VERIFICATION_PDF_BYTES + 1)
+        if not pdf.startswith(b"%PDF-") or len(pdf) > MAX_PUBLIC_VERIFICATION_PDF_BYTES:
+            return result()
+        archive = (
+            Archive.objects.filter(pk=archive_id, etablissement_id=tenant.pk)
+            .select_related("signature", "revocation")
+            .defer("pdf")
+            .first()
+        )
+        return result(verify_official_archive(archive, pdf)["valide"])
 
     @action(detail=False, methods=["get"])
     def sources(self, request):

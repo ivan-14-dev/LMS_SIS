@@ -174,6 +174,36 @@ class SignatureArchiveTests(DocumentFixture):
             )
         assert self.archive_model.objects.count() == len(self.documents_by_type)
 
+    def test_public_verification_uses_presented_pdf_without_disclosing_archive(self):
+        self.approve()
+        archive_id = self.sign()
+        pdf = bytes(self.archive_model.objects.get(pk=archive_id).pdf)
+        url = f"{self.archives}verification-publique/"
+
+        def verify(content):
+            return self.client.post(
+                url,
+                {
+                    "archive_id": archive_id,
+                    "pdf": SimpleUploadedFile("document.pdf", content, content_type="application/pdf"),
+                },
+                format="multipart",
+            )
+
+        self.client.force_authenticate(user=None)
+        valid = verify(pdf)
+        assert valid.status_code == 200, valid.data
+        assert valid.data == {"valide": True}
+        assert valid["Cache-Control"] == "no-store"
+        assert verify(pdf + b" altered").data == {"valide": False}
+        self.client.force_authenticate(self.admin)
+        revoked = self.client.post(
+            f"{self.archives}{archive_id}/revoquer/", {"motif": "Document retiré"}, format="json"
+        )
+        assert revoked.status_code == 200, revoked.data
+        self.client.force_authenticate(user=None)
+        assert verify(pdf).data == {"valide": False}
+
     def test_mandate_is_required_revocable_and_does_not_change_signer_identity(self):
         self.approve()
         self.client.force_authenticate(self.operator)

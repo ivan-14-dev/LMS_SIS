@@ -1,9 +1,11 @@
 """Helpers for rendering and accessing institutional documents."""
 
+import hashlib
 from functools import wraps
 
 from django.http import HttpResponse
 from django.utils.html import escape
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 
 from sis_common.authorization import filter_queryset_by_scopes, request_has_business_access
@@ -88,6 +90,29 @@ def tenant_identity_rows(request, document_label, serial=None, issue_date=None):
         ("Date d'émission", issue_date or ""),
     ]
     return [(label, value) for label, value in rows if value not in (None, "")]
+
+
+def verify_official_archive(archive, pdf):
+    """Return only validity; callers must resolve the archive and supply the presented PDF."""
+
+    if archive is None or hasattr(archive, "revocation") or not isinstance(pdf, bytes):
+        return {"valide": False}
+    if not isinstance(archive.manifeste, dict) or any(
+        archive.manifeste.get(field) != value
+        for field, value in (
+            ("archive", str(archive.pk)),
+            ("version", archive.version),
+            ("etablissement", archive.etablissement_id),
+        )
+    ):
+        return {"valide": False}
+    from sis_common.signed_documents import check_integrity
+
+    try:
+        check_integrity(archive, hashlib.sha256(pdf).hexdigest())
+    except ValidationError:
+        return {"valide": False}
+    return {"valide": True}
 
 
 def render_official_pdf(filename, title, identity_rows, sections, footer_rows=None):
