@@ -2,11 +2,12 @@
 
 from rest_framework.routers import DefaultRouter
 
-from .api import FacturesViewSet, PaiementsViewSet, TypesFraisViewSet
+from .api import BudgetsPrevisionnelsViewSet, FacturesViewSet, PaiementsViewSet, TypesFraisViewSet
 
 app_name = "paiements_api"
 
 router = DefaultRouter()
+router.register("budgets-previsionnels", BudgetsPrevisionnelsViewSet, basename="budget-previsionnel")
 router.register("rubriques", TypesFraisViewSet, basename="rubrique-paiement")
 router.register("factures", FacturesViewSet, basename="facture")
 router.register("transactions", PaiementsViewSet, basename="paiement")

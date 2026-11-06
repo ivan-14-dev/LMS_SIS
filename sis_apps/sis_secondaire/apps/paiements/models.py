@@ -40,6 +40,34 @@ class TypeFrais(models.Model):
         return f"{self.libelle} ({self.montant}€)"
 
 
+class BudgetPrevisionnel(models.Model):
+    """Montant prévu pour un poste libre d'une année scolaire, sans suivi des dépenses."""
+
+    annee_scolaire = models.ForeignKey(
+        AnneeScolaire, on_delete=models.PROTECT, related_name="budgets_previsionnels"
+    )
+    code = models.CharField(max_length=50)
+    libelle = models.CharField(max_length=200)
+    montant_prevu = models.DecimalField(max_digits=12, decimal_places=2)
+    statut = models.CharField(
+        max_length=10,
+        choices=[("ouvert", "Ouvert"), ("cloture", "Clôturé")],
+        default="ouvert",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["annee_scolaire", "code"], name="secondaire_budget_year_code"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(montant_prevu__gt=0), name="secondaire_budget_positive"
+            ),
+        ]
+
+
 class Facture(models.Model):
     """Facture émise pour un élève."""
 

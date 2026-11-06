@@ -4,6 +4,7 @@ import uuid
 from pathlib import Path
 
 from apps.core.serializers import WorkflowEventSerializer
+from apps.etablissement.models import AnneeScolaire
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Sum
 from django.http import FileResponse
@@ -11,6 +12,7 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -20,8 +22,9 @@ from sis_common.authorization import has_business_permission_or_role, user_has_a
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
-from .models import Facture, Paiement, TypeFrais
+from .models import BudgetPrevisionnel, Facture, Paiement, TypeFrais
 from .serializers import (
+    BudgetPrevisionnelSerializer,
     FactureDetailSerializer,
     FactureListSerializer,
     PaiementCreateSerializer,
@@ -135,6 +138,81 @@ class IsFinanceManager(IsAuthenticated):
             configuration=getattr(request.tenant, "configuration_academique", {}),
             tenant_group_codes=("finance_manager_secondary",),
         )
+
+
+class IsBudgetManager(IsAuthenticated):
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        tenant = getattr(request, "tenant", None)
+        if not getattr(tenant, "pk", None):
+            return False
+        operation = "add" if view.action == "create" else (
+            "change" if view.action in ("partial_update", "cloturer") else "view"
+        )
+        return has_business_permission_or_role(
+            request.user,
+            f"paiements.{operation}_budgetprevisionnel",
+            ("direction", "comptable"),
+            configuration=getattr(tenant, "configuration_academique", {}),
+            tenant_group_codes=("finance_manager_secondary",),
+        )
+
+
+class BudgetsPrevisionnelsViewSet(viewsets.ModelViewSet):
+    """Enregistre seulement les prévisions par poste, sans écritures de dépenses."""
+
+    permission_classes = [IsBudgetManager]
+    serializer_class = BudgetPrevisionnelSerializer
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_queryset(self):
+        tenant = getattr(self.request, "tenant", None)
+        if not getattr(tenant, "pk", None):
+            return BudgetPrevisionnel.objects.none()
+        return BudgetPrevisionnel.objects.filter(
+            annee_scolaire__etablissement_id=tenant.pk
+        ).select_related("annee_scolaire").order_by("annee_scolaire_id", "code")
+
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            annee = AnneeScolaire.objects.select_for_update().get(
+                pk=serializer.validated_data["annee_scolaire"].pk,
+                etablissement_id=self.request.tenant.pk,
+            )
+            if annee.cloturee:
+                raise ValidationError({"annee_scolaire": "L'année scolaire est clôturée."})
+            serializer.save()
+
+    def partial_update(self, request, *args, **kwargs):
+        with transaction.atomic():
+            budget = self.get_object()
+            annee = AnneeScolaire.objects.select_for_update().get(
+                pk=budget.annee_scolaire_id,
+                etablissement_id=request.tenant.pk,
+            )
+            budget = self.get_queryset().select_for_update().get(pk=budget.pk)
+            if budget.statut == "cloture" or annee.cloturee:
+                return Response({"error": "Ce budget ou cette année scolaire est clôturé."}, status=409)
+            serializer = self.get_serializer(budget, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def cloturer(self, request, pk=None):
+        with transaction.atomic():
+            budget = self.get_object()
+            annee = AnneeScolaire.objects.select_for_update().get(
+                pk=budget.annee_scolaire_id,
+                etablissement_id=request.tenant.pk,
+            )
+            budget = self.get_queryset().select_for_update().get(pk=budget.pk)
+            if budget.statut == "cloture" or annee.cloturee:
+                return Response({"error": "Ce budget ou cette année scolaire est clôturé."}, status=409)
+            budget.statut = "cloture"
+            budget.save(update_fields=["statut", "updated_at"])
+        return Response(self.get_serializer(budget).data)
 
 
 class TypesFraisViewSet(viewsets.ModelViewSet):

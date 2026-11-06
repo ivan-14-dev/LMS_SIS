@@ -2,9 +2,48 @@
 
 from rest_framework import serializers
 
+from apps.etablissement.models import AnneeScolaire
 from sis_common.authorization import has_business_permission_or_role
 
-from .models import Facture, Paiement, TypeFrais
+from .models import BudgetPrevisionnel, Facture, Paiement, TypeFrais
+
+
+class BudgetPrevisionnelSerializer(serializers.ModelSerializer):
+    annee_scolaire = serializers.PrimaryKeyRelatedField(queryset=AnneeScolaire.objects.none())
+
+    class Meta:
+        model = BudgetPrevisionnel
+        fields = [
+            "id", "annee_scolaire", "code", "libelle", "montant_prevu",
+            "statut", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "statut", "created_at", "updated_at"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        tenant = getattr(self.context.get("request"), "tenant", None)
+        if tenant and tenant.pk:
+            self.fields["annee_scolaire"].queryset = AnneeScolaire.objects.filter(
+                etablissement_id=tenant.pk
+            )
+
+    def validate_montant_prevu(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Le montant prévu doit être positif.")
+        return value
+
+    def validate(self, attrs):
+        if self.instance:
+            if self.instance.statut == "cloture":
+                raise serializers.ValidationError("Un budget clôturé ne peut plus être modifié.")
+            if any(field in self.initial_data for field in ("annee_scolaire", "code", "statut")):
+                raise serializers.ValidationError("L'année, le code et le statut ne sont pas modifiables.")
+            annee = self.instance.annee_scolaire
+        else:
+            annee = attrs["annee_scolaire"]
+        if annee.cloturee:
+            raise serializers.ValidationError({"annee_scolaire": "L'année scolaire est clôturée."})
+        return attrs
 
 
 class TypeFraisSerializer(serializers.ModelSerializer):
