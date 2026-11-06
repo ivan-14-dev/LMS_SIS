@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-06T17:53:39+00:00",
+  "last_evidence_update_at": "2026-11-06T17:59:59+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -2789,10 +2789,25 @@
         "verification": "11 tests API core passent après correction avec source montée, puis 11/11 sur l'image reconstruite sans montage source; flake8 ciblé passe.",
         "limits": "Recherche limitée à formations/parcours universitaires, pas de recherche globale des apprenants, cours LMS, documents, factures et activités. L'image n'a pas remplacé les services partagés; aucun parcours navigateur, restauration ou essai à 500 vert."
       }]
+    },
+    {
+      "id": "EXEC-20261106-university-learner-search",
+      "evidence_cutoff_at": "2026-11-06T17:59:59+00:00",
+      "scope": "Recherche universitaire des apprenants par matricule et nom, sans autres données personnelles, sur la route académique existante.",
+      "f_lot_links": [{"id": "F23", "scope": "Une des cinq familles de 10.7 couverte dans une variante, avec frontières tenant/rôle/permission/scope; recherche globale multi-domaines encore incomplète.", "roadmap_status_unchanged": true}],
+      "campaigns": [{
+        "id": "university-learner-search",
+        "result": "bounded_student_search_increment_passed_requirement_partial",
+        "commit": "00f1755",
+        "image": "lms-sis:local-20261106-00f1755",
+        "verification": "13 tests core/API verts avec source montée puis 13/13 sur l'image reconstruite sans montage; comptes de deux universités, permission retirée, scope et accès personnel étudiant testés; flake8 ciblé vert.",
+        "limits": "Seule la recherche d'apprenants universitaires est ajoutée : ni cours LMS, documents, factures, activités, ni parcours navigateur, deux SIS ou restauration. Image jetable non déployée sur les services partagés; dernier essai à 500 toujours rouge."
+      }]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-06T17:53:39+00:00",
+    "as_of": "2026-11-06T17:59:59+00:00",
+    "university_learner_search_bounded": "Commit 00f1755 publié sur origin/main, image jetable local-20261106-00f1755 testée (13/13 core); 10.7 devient partial pour le seul apprenant universitaire, sans qualification globale ni déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
     "integration_admin_tenant_boundary": "SIS principal sur image integration-admin-tenant1 934fcba… : permission administrative et tenant/schéma contrôlés avant toutes les routes d'intégration concernées. Tests empaquetés52+50 verts, six services redémarrés et sains; snapshots antérieur dc4da52d et final1b26df04,58 snapshots/116 packs relus. Frontendd035, LMS access-ownership2 et fixture100b8 inchangés; dernier500 rouge, aucun500b8 exécuté/autorisé.",
     "manual_sync_tenant_boundary": "Incrément précédent manual-sync-tenant2 988ec9f… : refus 403 de l'administrateur étranger, 404 du compte et des sources de cours étrangères, dont ascendants année/niveau et semestre/maquette, avant appel distant. Tests empaquetés 29+43 verts et snapshotde0bd3eb/56-112 relu. Garde conservée dans l'image principale integration-admin-tenant1; frontendd035, LMS access-ownership2 et fixture100b8 inchangés.",
@@ -3421,8 +3436,8 @@
     "chapter10_features": 14,
     "chapter11_cycle_and_steps": 10,
     "counts_by_status": {
-      "partial": 70,
-      "absent": 21,
+      "partial": 71,
+      "absent": 20,
       "unverified": 2,
       "verified": 1,
       "external_credentials_blocked": 0
@@ -3433,7 +3448,7 @@
     "documentation_update_application_execution_count": 0,
     "imported_evidence_campaign_records": 120,
     "requirements_with_new_increment_evidence": 20,
-    "conclusion": "120 enregistrements documentaires historiques non sommés,20 exigences avec preuves ciblées,70 partial/21 absent/2 unverified/1 verified inchangés. La nouvelle recherche de formations/parcours universitaires est un sous-ensemble voisin de 10.7, non la recherche globale demandée : 10.7 reste absent. Les preuves historiques sur principal SIS b8/frontend d035, sauvegarde53/106 et fixture b8 qualifiée100HTTP/120s,p95 819ms restent bornées à leurs versions. LMS natif access-ownership2 et sauvegarde froide6f5e098d restent historiques. F07 demeure partiel; dernier500/13b rouge500timeouts/262indéterminés inchangé. Aucun nouveau500, promotion globale ou couverture100%."
+    "conclusion": "120 enregistrements documentaires historiques non sommés,20 exigences avec preuves ciblées,71 partial/20 absent/2 unverified/1 verified. La recherche universitaire couvre maintenant un des cinq types attendus par 10.7 (apprenant), mais non les cours LMS, documents, factures et activités : 10.7 devient partial, pas verified. Les preuves historiques sur principal SIS b8/frontend d035, sauvegarde53/106 et fixture b8 qualifiée100HTTP/120s,p95 819ms restent bornées à leurs versions. LMS natif access-ownership2 et sauvegarde froide6f5e098d restent historiques. F07 demeure partiel; dernier500/13b rouge500timeouts/262indéterminés inchangé. Aucun nouveau500, promotion globale ou couverture100%."
   },
   "requirements": [
     {
@@ -8491,7 +8506,7 @@
       ],
       "existing_scope": "La palette recherche des modules autorisés, non des apprenants/cours/documents/factures/activités. Recherche globale métier non identifiée.",
       "test_scope": "Tests source présents, non exécutés pendant cet inventaire.",
-      "status": "absent",
+      "status": "partial",
       "top_missing_pieces": [
         "Index/recherche multi-domaines tenant/rôle/objet avec filtres, pagination et liens sûrs.",
         "Mise à jour lors de suppression/révocation, fraîcheur et recherche sur documents autorisés."
@@ -8507,9 +8522,16 @@
           "result": "adjacent_catalog_search_component_passed_requirement_not_closed",
           "verified_scope": "Recherche GET de formations/parcours universitaires tenantées, permissionnées, paginées; une inscription administrative étudiante non validée n'autorise plus la lecture. Reproduction rouge avant correction puis 11/11 tests core verts sur image jetable a2e7f8e.",
           "remaining_scope": "Aucun des cinq types d'objet attendus par 10.7 (apprenant, cours LMS, document, facture, activité) n'est couvert par ce moteur. Aucun lien navigateur global, ni révocation documentaire, ni recette inter-SIS : classification absent et critères de clôture inchangés."
+        },
+        {
+          "update_id": "EXEC-20261106-university-learner-search",
+          "campaign_ids": ["university-learner-search"],
+          "result": "one_required_family_passed_requirement_partial",
+          "verified_scope": "Recherche HTTP d'apprenants universitaires par matricule/nom : retour minimal, refus d'utilisateur étranger, retrait de permission, scope par ID et lecture de son seul dossier par l'étudiant. 13/13 tests core verts dans l'image jetable 00f1755.",
+          "remaining_scope": "Les quatre autres types d'objet (cours LMS, documents, factures, activités) ainsi que la variante secondaire, les liens navigateur, la révocation des fichiers et la recette persistante ne sont pas prouvés. 10.7 n'est pas verified."
         }
       ],
-      "acceptance_execution_status": "adjacent_increment_passed_requirement_incomplete"
+      "acceptance_execution_status": "increments_passed_requirement_incomplete"
     },
     {
       "id": "10.8",

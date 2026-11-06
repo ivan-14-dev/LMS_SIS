@@ -9,7 +9,7 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**État après ajout :** 5 tâches en cours, 31 à démarrer, 3 bloquées ; 170 tâches
+**État historique au 5 novembre :** 5 tâches en cours, 31 à démarrer, 3 bloquées ; 170 tâches
 terminées dans la TODO, mais seulement **1 exigence vérifiée sur 94**
 (70 partielles, 21 absentes, 2 non vérifiées). Le dernier essai à 500
 connexions est rouge. Les cases ci-dessous désignent des **lots encore à
@@ -288,11 +288,24 @@ reproduit ce défaut sur l'image précédente ; le correctif `a2e7f8e` n'accepte
 plus que les inscriptions validées, y compris après refus ou annulation
 (11 tests core verts sur l'image reconstruite sans montage source, lint ciblé
 vert). Ce moteur ne couvre aucun des cinq types d'objets de la recherche
-globale demandée en **10.7** ; cette exigence reste *absente* dans la matrice.
-La nouvelle preuve est rattachée à 10.7 sans changer les 94 statuts.
+globale demandée en **10.7** ; à ce stade, cette exigence restait *absente*
+dans la matrice. La preuve a été rattachée à 10.7 sans changer les statuts.
 Cette image n'a pas remplacé le déploiement partagé ni passé une nouvelle
 restauration ou charge à 500 : **1/94 exigence vérifiée** reste le compteur
 de recette documentée, pas le pourcentage d'implémentation.
+
+**Extension de la recherche le même jour :** `00f1755` ajoute la recherche
+d'apprenants universitaires par matricule et nom sur la route académique
+existante, avec réponse minimale, droits de lecture, périmètre d'établissement,
+scopes et restriction de l'étudiant à sa seule fiche. Les tests vérifient
+aussi le retrait de permission et les identités étrangères (**13/13 tests
+core verts sur l'image jetable `lms-sis:local-20261106-00f1755` sans montage
+source**, lint ciblé vert). C'est désormais **un des cinq types** attendus
+par 10.7 : son statut passe d'*absent* à *partiel* (71 partielles,
+20 absentes, 2 non vérifiées et **1 vérifiée** sur 94). Les cours LMS,
+documents, factures et activités, la variante secondaire et le parcours
+navigateur restent ouverts. Aucune nouvelle charge à 500 ni restauration
+de cette image n'a été exécutée.
 
 ## Règle de clôture commune
 
@@ -576,7 +589,7 @@ plus nettes sont détaillées ici, avec les identifiants **du cahier initial**
 | 10.1 Mobile — absent | Installation Android **et** iOS, tâches apprenant/enseignant/parent réelles ; session/appareil révoqué ne révèle plus les données privées. |
 | 10.2 Hors ligne — absent | Cours téléchargé sous droit, travail préparé hors réseau puis synchronisé une fois ; conflit et accès révoqué/expiré bloquent les données privées. |
 | 10.5 Projets — absents | Équipe, jalons, livrables et évaluations individuelles/collectives ; autre équipe interdite en lecture et écriture. |
-| 10.7 Recherche globale — absente | Cinq types d'objets ouvrables par rôle autorisé ; aucun titre/extrait inaccessible pour autre rôle/tenant après révocation. |
+| 10.7 Recherche globale — partielle | Apprenant universitaire consultable sur recherche bornée ; restent cours, documents, factures et activités dans les deux SIS, puis cinq types ouvrables par rôle autorisé sans titre/extrait inaccessible après révocation. |
 | 10.9 Portail public — absent | Formations publiées, actualités et procédure consultables sans connexion ; candidature démarrée, brouillons et dossiers privés inaccessibles. |
 | 10.10 Signature — non vérifiée | Habilitation approuvée par tiers, signature, archive et notification ; auto-approbation, mandat révoqué et document altéré refusés. |
 | 11 Cycle candidat → alumni — non vérifié | Neuf étapes 11.1–11.9 sur un identifiant continu ; refus/doublons/clôtures/coupures et restauration isolée contrôlés, versions et preuves navigateur/API/BD conservées. |
