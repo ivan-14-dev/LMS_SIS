@@ -215,6 +215,17 @@ class WebhookHandler:
                     )
                     return True
 
+                evaluation = assessment.evaluation
+                if (
+                    not mapping.actif
+                    or not enrollment.is_active
+                    or not enrollment.course.actif
+                    or evaluation.periode.cloturee
+                    or evaluation.classe.annee_scolaire.cloturee
+                ):
+                    logger.info("Grade retained without SIS import: inactive access or closed period for %s", event_id)
+                    return True
+
                 if self.EdxGradeLog.objects.filter(
                     enrollment=enrollment,
                     subsection_id=subsection_id,
@@ -224,10 +235,20 @@ class WebhookHandler:
                     logger.info("Ignored out-of-order grade event %s", event_id)
                     return True
 
+                existing = self.Note.objects.select_for_update().filter(
+                    evaluation=evaluation, eleve=enrollment.eleve
+                ).first()
+                if existing and (
+                    existing.saisi_par_id is not None
+                    or existing.modifie_le is not None
+                    or not self.EdxGradeLog.objects.filter(note_sis=existing, imported_to_sis=True).exists()
+                ):
+                    logger.info("Grade retained without SIS import: staff-entered note for %s", event_id)
+                    return True
+
                 max_score_decimal = Decimal(str(max_score))
                 if max_score_decimal <= 0:
                     raise ValueError("max_score must be greater than zero")
-                evaluation = assessment.evaluation
                 value = (
                     Decimal(str(score)) * evaluation.bareme / max_score_decimal
                 ).quantize(Decimal("0.01"))
