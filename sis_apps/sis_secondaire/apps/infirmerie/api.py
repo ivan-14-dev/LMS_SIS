@@ -20,6 +20,13 @@ from .serializers import (
 )
 
 
+def _tenant_pupil_records(queryset, request):
+    tenant = getattr(request, "tenant", None)
+    if tenant is None:
+        return queryset.none()
+    return queryset.filter(eleve__etablissement_id=tenant.pk)
+
+
 class IsInfirmierOrReadRestricted(IsAuthenticated):
     """Permission: accès restreint pour l'infirmerie."""
 
@@ -44,7 +51,8 @@ class DossiersMedicauxViewSet(viewsets.ModelViewSet):
     search_fields = ["eleve__user__last_name", "eleve__matricule"]
 
     def get_queryset(self):
-        return DossierMedical.objects.select_related("eleve__user", "eleve__classe_actuelle")
+        queryset = DossierMedical.objects.select_related("eleve__user", "eleve__classe_actuelle")
+        return _tenant_pupil_records(queryset, self.request)
 
     @action(detail=True, methods=["get"])
     def visites(self, request, pk=None):
@@ -66,7 +74,8 @@ class VisitesInfirmerieViewSet(viewsets.ModelViewSet):
     ordering = ["-date", "-heure_arrivee"]
 
     def get_queryset(self):
-        return VisiteInfirmerie.objects.select_related("eleve__user", "eleve__classe_actuelle", "infirmier")
+        queryset = VisiteInfirmerie.objects.select_related("eleve__user", "eleve__classe_actuelle", "infirmier")
+        return _tenant_pupil_records(queryset, self.request)
 
     def get_serializer_class(self):
         if self.action == "list":
