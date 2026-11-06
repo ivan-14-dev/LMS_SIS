@@ -72,37 +72,61 @@ const PortailStaffAdmin = () => {
     secondaryActions.push({ label: 'Inscriptions', variant: 'secondary', onClick: () => navigate('/superieur/inscriptions') });
   }
 
-  const { data: teacherDashboard, isLoading: loadingTeacher, isError: teacherError } = useQuery({
+  const {
+    data: teacherDashboard, isLoading: loadingTeacher, isFetching: checkingTeacher, isError: teacherError,
+  } = useQuery({
     queryKey: ['superieur-portail-staff-teacher-dashboard'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/tableau_bord/`),
     enabled: enabled && viewMode === 'teacher',
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
-  const { data: notesASaisir = [], isLoading: loadingNotes, isError: notesError } = useQuery({
+  const {
+    data: notesASaisir = [], isLoading: loadingNotes, isFetching: checkingNotes, isError: notesError,
+  } = useQuery({
     queryKey: ['superieur-portail-staff-teacher-notes'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/notes_a_saisir/`),
     enabled: enabled && viewMode === 'teacher' && canViewNotes,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
 
-  const { data: registrarDashboard, isLoading: loadingRegistrar, isError: registrarError } = useQuery({
+  const {
+    data: registrarDashboard, isLoading: loadingRegistrar, isFetching: checkingRegistrar, isError: registrarError,
+  } = useQuery({
     queryKey: ['superieur-portail-staff-registrar-dashboard'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/tableau_bord/`),
     enabled: enabled && viewMode === 'registrar',
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
-  const { data: registrarAlerts = [], isLoading: loadingAlerts, isError: alertsError } = useQuery({
+  const {
+    data: registrarAlerts = [], isLoading: loadingAlerts, isFetching: checkingAlerts, isError: alertsError,
+  } = useQuery({
     queryKey: ['superieur-portail-staff-registrar-alerts'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/alertes/`),
     enabled: enabled && viewMode === 'registrar' && canViewStudents,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
 
-  const { data: leadershipDashboard, isLoading: loadingLeadership, isError: leadershipError } = useQuery({
+  const {
+    data: leadershipDashboard, isLoading: loadingLeadership, isFetching: checkingLeadership, isError: leadershipError,
+  } = useQuery({
     queryKey: ['superieur-portail-staff-leadership-dashboard'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/tableau_bord/`),
     enabled: enabled && viewMode === 'leadership',
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
-  const { data: formationStats = [], isLoading: loadingFormations, isError: formationsError } = useQuery({
+  const {
+    data: formationStats = [], isLoading: loadingFormations, isFetching: checkingFormations, isError: formationsError,
+  } = useQuery({
     queryKey: ['superieur-portail-staff-leadership-formations'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/staff/statistiques_formations/`),
     enabled: enabled && viewMode === 'leadership' && canViewFormations,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
 
   if (
@@ -114,6 +138,11 @@ const PortailStaffAdmin = () => {
     || loadingNotes
     || loadingAlerts
     || loadingFormations
+    || (enabled && (
+      (viewMode === 'teacher' && (checkingTeacher || checkingNotes))
+      || (viewMode === 'registrar' && (checkingRegistrar || checkingAlerts))
+      || (viewMode === 'leadership' && (checkingLeadership || checkingFormations))
+    ))
   ) {
     return <CircularProgress aria-label="Chargement du portail staff" />;
   }

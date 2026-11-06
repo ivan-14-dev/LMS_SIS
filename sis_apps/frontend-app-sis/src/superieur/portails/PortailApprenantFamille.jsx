@@ -21,19 +21,28 @@ const PortailApprenantFamille = () => {
   } = useCapabilities('superieur', { refetchOnMount: false });
   const isLearner = canEnterPortal(capabilities, 'learner');
 
-  const { data: dashboard, isLoading: loadingDashboard, error: dashboardError } = useQuery({
+  const {
+    data: dashboard, isLoading: loadingDashboard, isFetching: checkingDashboard, error: dashboardError,
+  } = useQuery({
     queryKey: ['superieur-portail-apprenant-dashboard'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/apprenant/tableau_bord/`),
     enabled: isLearner && !checkingCapabilities && !capabilitiesError,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
 
-  const { data: releves = [], isLoading: loadingReleves, error: relevesError } = useQuery({
+  const {
+    data: releves = [], isLoading: loadingReleves, isFetching: checkingReleves, error: relevesError,
+  } = useQuery({
     queryKey: ['superieur-portail-apprenant-releves'],
     queryFn: () => fetchApi(`${getSuperieurApiUrl()}/portail/apprenant/releves/`),
     enabled: isLearner && !checkingCapabilities && !capabilitiesError,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
 
-  if (loadingCapabilities || checkingCapabilities || loadingDashboard || loadingReleves) {
+  if (loadingCapabilities || checkingCapabilities || loadingDashboard || loadingReleves
+      || (isLearner && (checkingDashboard || checkingReleves))) {
     return <CircularProgress aria-label="Chargement du portail apprenant" />;
   }
 

@@ -57,25 +57,39 @@ const PortailStaffAdmin = () => {
   const canViewEvaluations = hasCapability(capabilities, 'notes.view_evaluation');
   const enabled = isStaffPortalCandidate && !checkingCapabilities && !capabilitiesError;
 
-  const { data: dashboard, isLoading: loadingDashboard, isError: dashboardError } = useQuery({
+  const {
+    data: dashboard, isLoading: loadingDashboard, isFetching: checkingDashboard, isError: dashboardError,
+  } = useQuery({
     queryKey: ['secondaire-portail-staff-dashboard'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/staff/tableau_bord/`),
     enabled,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
 
-  const { data: classes = [], isLoading: loadingClasses, isError: classesError } = useQuery({
+  const {
+    data: classes = [], isLoading: loadingClasses, isFetching: checkingClasses, isError: classesError,
+  } = useQuery({
     queryKey: ['secondaire-portail-staff-classes'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/staff/mes_classes/`),
     enabled: enabled && canViewClasses,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
 
-  const { data: absences = [], isLoading: loadingAbsences, isError: absencesError } = useQuery({
+  const {
+    data: absences = [], isLoading: loadingAbsences, isFetching: checkingAbsences, isError: absencesError,
+  } = useQuery({
     queryKey: ['secondaire-portail-staff-absences'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/staff/absences_a_saisir/`),
     enabled: enabled && canViewAbsences,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
 
-  if (loadingCapabilities || checkingCapabilities || loadingDashboard || loadingClasses || loadingAbsences) {
+  if (loadingCapabilities || checkingCapabilities || loadingDashboard || loadingClasses || loadingAbsences
+      || (enabled && (checkingDashboard || (canViewClasses && checkingClasses)
+        || (canViewAbsences && checkingAbsences)))) {
     return <CircularProgress aria-label="Chargement du portail staff" />;
   }
 

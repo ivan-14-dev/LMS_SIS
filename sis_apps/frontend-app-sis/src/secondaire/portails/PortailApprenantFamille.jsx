@@ -22,26 +22,39 @@ const PortailApprenantFamille = () => {
   const isEleve = canEnterPortal(capabilities, 'learner');
   const isParent = !isEleve && canEnterPortal(capabilities, 'parent');
 
-  const { data: eleveDashboard, isLoading: loadingEleve, error: eleveError } = useQuery({
+  const {
+    data: eleveDashboard, isLoading: loadingEleve, isFetching: checkingEleve, error: eleveError,
+  } = useQuery({
     queryKey: ['secondaire-portail-apprenant-eleve-dashboard'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/apprenant/tableau_bord/`),
     enabled: isEleve && !checkingCapabilities && !capabilitiesError,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
 
-  const { data: bulletins = [], error: bulletinsError, isLoading: loadingBulletins } = useQuery({
+  const {
+    data: bulletins = [], error: bulletinsError, isLoading: loadingBulletins, isFetching: checkingBulletins,
+  } = useQuery({
     queryKey: ['secondaire-portail-apprenant-eleve-bulletins'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/apprenant/bulletins/`),
     enabled: isEleve && !checkingCapabilities && !capabilitiesError,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
 
-  const { data: parentDashboard, isLoading: loadingParent, error: parentError } = useQuery({
+  const {
+    data: parentDashboard, isLoading: loadingParent, isFetching: checkingParent, error: parentError,
+  } = useQuery({
     queryKey: ['secondaire-portail-apprenant-parent-dashboard'],
     queryFn: () => fetchApi(`${getSecondaireApiUrl()}/portail/apprenant/tableau_bord/`),
     enabled: isParent && !checkingCapabilities && !capabilitiesError,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
   });
 
   if (loadingCapabilities || checkingCapabilities
-      || (isEleve && (loadingEleve || loadingBulletins)) || (isParent && loadingParent)) {
+      || (isEleve && (loadingEleve || checkingEleve || loadingBulletins || checkingBulletins))
+      || (isParent && (loadingParent || checkingParent))) {
     return <CircularProgress aria-label="Chargement du portail" />;
   }
 

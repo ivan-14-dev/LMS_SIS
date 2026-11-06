@@ -78,3 +78,38 @@ it('keeps learner and parent paths separate and disables revoked learner queries
   expect(screen.getByText(/réservé aux élèves et parents affiliés/)).toBeInTheDocument();
   expect(enabledQueries().slice(-3)).toEqual([false, false, false]);
 });
+
+it.each([
+  ['learner', 'secondaire-portail-apprenant-eleve-dashboard'],
+  ['learner', 'secondaire-portail-apprenant-eleve-bulletins'],
+  ['parent', 'secondaire-portail-apprenant-parent-dashboard'],
+])('hides cached %s records while %s is being revalidated', (kind, queryKey) => {
+  useCapabilities.mockReturnValue({ data: capability(kind), isLoading: false });
+  useQuery.mockImplementation(({ queryKey: key }) => ({
+    data: { statistiques: {} }, isLoading: false, isFetching: key[0] === queryKey,
+  }));
+  render(<LearnerPortal />);
+  expect(useQuery.mock.calls.find(([options]) => options.queryKey[0] === queryKey)[0])
+    .toEqual(expect.objectContaining({ refetchOnMount: 'always', refetchOnWindowFocus: 'always' }));
+  expect(screen.getByLabelText('Chargement du portail')).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /Mon espace (élève|famille)/ })).not.toBeInTheDocument();
+});
+
+it.each([
+  'secondaire-portail-staff-dashboard',
+  'secondaire-portail-staff-classes',
+  'secondaire-portail-staff-absences',
+])('hides cached staff records while %s is being revalidated', (queryKey) => {
+  useCapabilities.mockReturnValue({
+    data: capability('staff', ['classes.view_classe', 'presences.view_presence']),
+    isLoading: false,
+  });
+  useQuery.mockImplementation(({ queryKey: key }) => ({
+    data: { statistiques: {} }, isLoading: false, isFetching: key[0] === queryKey,
+  }));
+  render(<StaffPortal />);
+  expect(useQuery.mock.calls.find(([options]) => options.queryKey[0] === queryKey)[0])
+    .toEqual(expect.objectContaining({ refetchOnMount: 'always', refetchOnWindowFocus: 'always' }));
+  expect(screen.getByLabelText('Chargement du portail staff')).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Mon activité pédagogique' })).not.toBeInTheDocument();
+});

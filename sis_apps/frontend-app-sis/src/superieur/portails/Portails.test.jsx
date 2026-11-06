@@ -77,3 +77,37 @@ it('denies staff when capabilities cannot be loaded without requesting staff end
   expect(screen.getByText(/Impossible de vérifier/)).toBeInTheDocument();
   expect(enabledQueries()).toEqual([false, false, false, false, false, false]);
 });
+
+it.each([
+  'superieur-portail-apprenant-dashboard',
+  'superieur-portail-apprenant-releves',
+])('hides cached learner records while %s is being revalidated', (queryKey) => {
+  useCapabilities.mockReturnValue({ data: capability('learner') });
+  useQuery.mockImplementation(({ queryKey: key }) => ({
+    data: { statistiques: {} }, isLoading: false, isFetching: key[0] === queryKey,
+  }));
+  render(<LearnerPortal />);
+  expect(useQuery.mock.calls.find(([options]) => options.queryKey[0] === queryKey)[0])
+    .toEqual(expect.objectContaining({ refetchOnMount: 'always', refetchOnWindowFocus: 'always' }));
+  expect(screen.getByLabelText('Chargement du portail apprenant')).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Mon espace étudiant' })).not.toBeInTheDocument();
+});
+
+it.each([
+  ['notes.view_note', 'superieur-portail-staff-teacher-dashboard'],
+  ['notes.view_note', 'superieur-portail-staff-teacher-notes'],
+  ['etudiants.view_etudiant', 'superieur-portail-staff-registrar-dashboard'],
+  ['etudiants.view_etudiant', 'superieur-portail-staff-registrar-alerts'],
+  ['formations.view_formation', 'superieur-portail-staff-leadership-dashboard'],
+  ['formations.view_formation', 'superieur-portail-staff-leadership-formations'],
+])('hides cached staff records with %s while %s is being revalidated', (permission, queryKey) => {
+  useCapabilities.mockReturnValue({ data: capability('staff', [permission]) });
+  useQuery.mockImplementation(({ queryKey: key }) => ({
+    data: { statistiques: {} }, isLoading: false, isFetching: key[0] === queryKey,
+  }));
+  render(<StaffPortal />);
+  expect(useQuery.mock.calls.find(([options]) => options.queryKey[0] === queryKey)[0])
+    .toEqual(expect.objectContaining({ refetchOnMount: 'always', refetchOnWindowFocus: 'always' }));
+  expect(screen.getByLabelText('Chargement du portail staff')).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /Mon (activité pédagogique|espace administratif)/ })).not.toBeInTheDocument();
+});
