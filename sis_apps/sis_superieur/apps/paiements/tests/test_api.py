@@ -5,14 +5,15 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from apps.paiements.api import PaiementsViewSet
+from apps.paiements.api import FacturesViewSet, PaiementsViewSet
 from apps.paiements.models import FactureFrais, PaiementFrais
-from apps.paiements.serializers import PaiementCreateSerializer
+from apps.paiements.serializers import FactureFraisDetailSerializer, PaiementCreateSerializer
 from apps.paiements.services import PaymentConfirmationRejected, PaymentProviderUnavailable, confirm_card_payment
 from django.conf import settings
 from django.test import SimpleTestCase
 from django.urls import resolve
 from rest_framework.exceptions import ValidationError
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 
 class PaiementsAPITestCase(SimpleTestCase):
@@ -42,6 +43,38 @@ class PaiementsAPITestCase(SimpleTestCase):
 
         with self.assertRaisesMessage(ValidationError, "Vous ne pouvez pas payer cette facture"):
             serializer.validate({"facture": invoice, "montant": Decimal("10")})
+
+
+class InvoiceStateAPITests(SimpleTestCase):
+    def test_patch_cannot_forge_or_reopen_paid_invoice(self):
+        for original, attempted, paid in (
+            ("emise", "payee", Decimal("0.00")),
+            ("payee", "emise", Decimal("100.00")),
+        ):
+            with self.subTest(original=original, attempted=attempted):
+                facture = FactureFrais(statut=original, montant=Decimal("100.00"), montant_paye=paid)
+                facture.save = Mock()
+                request = APIRequestFactory().patch(
+                    "/api/v1/paiements/factures/5/", {"statut": attempted, "note": "Correction"}, format="json"
+                )
+                force_authenticate(request, user=SimpleNamespace(pk=1, is_authenticated=True))
+                with (
+                    patch("apps.paiements.api.IsComptabiliteOrReadOnly.has_permission", return_value=True),
+                    patch.object(FacturesViewSet, "get_throttles", return_value=[]),
+                    patch.object(FacturesViewSet, "get_object", return_value=facture),
+                    patch.object(
+                        FactureFraisDetailSerializer,
+                        "to_representation",
+                        side_effect=lambda obj: {"statut": obj.statut, "montant_paye": obj.montant_paye},
+                    ),
+                ):
+                    response = FacturesViewSet.as_view({"patch": "partial_update"})(request, pk=5)
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(facture.statut, original)
+                self.assertEqual(response.data["statut"], original)
+                self.assertEqual(facture.montant_paye, paid)
+                self.assertEqual(facture.note, "Correction")
 
 
 class CardConfirmationTests(SimpleTestCase):

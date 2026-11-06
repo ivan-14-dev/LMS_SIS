@@ -99,7 +99,7 @@ class FactureFraisDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "numero", "montant_paye", "created_at", "updated_at"]
+        read_only_fields = ["id", "numero", "montant_paye", "statut", "created_at", "updated_at"]
 
     def get_reste_a_payer(self, obj):
         return obj.montant - obj.montant_paye
