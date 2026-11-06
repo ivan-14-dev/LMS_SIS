@@ -243,6 +243,12 @@ def initialize(configuration, options):
         or not isinstance(institution.get("admin"), dict)
     ):
         raise ValueError("Institution JSON requires schema_name, domain, institution and admin.")
+    schema = institution["schema_name"]
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", schema) or schema == "public":
+        raise ValueError(
+            "schema_name must be a non-public lowercase PostgreSQL identifier: "
+            "use 1-63 letters, digits or underscores, starting with a letter."
+        )
     compose(configuration, "config", "--quiet")
     compose(configuration, "build", f"api-{options.variant}")
     compose(configuration, "up", "-d", "--wait", f"postgres-{options.variant}", "redis")

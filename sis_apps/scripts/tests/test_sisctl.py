@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from scripts import sisctl
 
@@ -112,6 +112,53 @@ class CardReferencePreflightTests(unittest.TestCase):
                                 {"SIS_MODE": "secondaire"},
                                 SimpleNamespace(variant="secondaire", institution=institution),
                             )
+
+
+class InitSchemaPreflightTests(unittest.TestCase):
+    def options(self, schema, variant):
+        institution = Mock(spec=Path)
+        institution.resolve.return_value = institution
+        institution.read_text.return_value = json.dumps({
+            "schema_name": schema,
+            "domain": "school.example.test",
+            "institution": {"nom": "School"},
+            "admin": {"username": "admin", "email": "admin@example.test"},
+        })
+        return SimpleNamespace(variant=variant, institution=institution)
+
+    def test_rejects_reserved_or_invalid_schema_before_effects_or_password_prompt(self):
+        for variant in ("secondaire", "superieur"):
+            for schema in ("public", "", "School_a", "school-a", "_school", "1school", "a" * 64, "school\n"):
+                with self.subTest(variant=variant, schema=schema):
+                    options = self.options(schema, variant)
+                    configuration = {"SIS_MODE": variant}
+                    with patch.object(sisctl, "compose") as compose, patch.object(
+                        sisctl, "preflight_card_references",
+                    ) as preflight, patch.object(sisctl.getpass, "getpass", return_value="unused") as prompt:
+                        with self.assertRaisesRegex(ValueError, "schema_name.*non-public.*lowercase"):
+                            sisctl.initialize(configuration, options)
+                        compose.assert_not_called()
+                        preflight.assert_not_called()
+                        prompt.assert_not_called()
+                    self.assertEqual(configuration, {"SIS_MODE": variant})
+
+    def test_accepts_valid_schema_boundaries_for_both_variants(self):
+        for variant in ("secondaire", "superieur"):
+            for schema in ("a", "school_1", "a" * 63):
+                with self.subTest(variant=variant, schema=schema):
+                    options = self.options(schema, variant)
+                    configuration = {"SIS_MODE": "dual"}
+                    with patch.object(sisctl, "compose") as compose, patch.object(
+                        sisctl, "preflight_card_references",
+                    ) as preflight, patch.object(sisctl.getpass, "getpass", return_value="test-only") as prompt:
+                        sisctl.initialize(configuration, options)
+                    preflight.assert_called_once_with({"SIS_MODE": variant})
+                    prompt.assert_called_once()
+                    self.assertEqual(compose.call_count, 5)
+                    bootstrap = compose.call_args_list[3]
+                    self.assertIn(f"api-{variant}", bootstrap.args)
+                    self.assertIn("bootstrap_institution", bootstrap.args)
+                    self.assertEqual(bootstrap.kwargs["input"], b"test-only\n")
 
 
 class ConfigureSafetyTests(unittest.TestCase):
