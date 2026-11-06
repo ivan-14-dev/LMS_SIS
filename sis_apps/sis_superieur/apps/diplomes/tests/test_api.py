@@ -182,6 +182,33 @@ class DiplomaIssuanceAPITestCase(TenantAPITestCase):
         cession.refresh_from_db()
         assert cession.diplome_id == self.diplome.pk
 
+    def test_signed_credential_cannot_change_its_issued_contents(self):
+        created = self.client.post(self.url, self.payload(), format="json")
+        assert created.status_code == 201, created.data
+        url = f"{self.url}{created.data['id']}/"
+        assert self.client.patch(url, {"mention": "Bien"}, format="json").status_code == 200
+        assert self.client.post(f"{url}signer/").status_code == 200
+
+        for change in (
+            {"mention": "Très bien"},
+            {"moyenne_finale": "18.00"},
+            {"pdf_path": "diplomes/remplacement.pdf"},
+        ):
+            response = self.client.patch(url, change, format="json")
+            assert response.status_code == 400, response.data
+
+        cession = CessionDiplome.objects.get(pk=created.data["id"])
+        assert cession.mention == "Bien"
+        assert cession.moyenne_finale is None
+        assert cession.pdf_path == "diplomes/en-attente.pdf"
+        assert self.client.get(f"{url}verifier/").data["mention"] == "Bien"
+
+        assert self.client.post(f"{url}revoquer/").status_code == 200
+        assert self.client.patch(url, {"mention": "Excellent"}, format="json").status_code == 400
+        cession.refresh_from_db()
+        assert cession.mention == "Bien"
+        assert cession.date_revocation is not None
+
     def test_self_declared_status_and_unfinalized_decisions_cannot_issue(self):
         self.enrollment.statut = "provisoire"
         self.enrollment.save(update_fields=["statut"])

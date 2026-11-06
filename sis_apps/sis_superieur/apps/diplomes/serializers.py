@@ -110,11 +110,11 @@ class CessionDiplomeDetailSerializer(serializers.ModelSerializer):
         identity_fields = ("etudiant", "diplome", "annee_universitaire", "date_obtention")
         if self.instance and self.instance.date_signature is not None:
             if any(
-                field in attrs and attrs[field] != getattr(self.instance, field)
-                for field in identity_fields
+                value != getattr(self.instance, field)
+                for field, value in attrs.items()
             ):
                 raise serializers.ValidationError(
-                    "Le titulaire et le diplôme d'une délivrance signée ne peuvent pas être modifiés."
+                    "Une délivrance signée ne peut pas être modifiée."
                 )
         if self.instance is None or any(field in attrs for field in identity_fields):
             values = {

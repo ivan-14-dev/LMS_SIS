@@ -18,4 +18,7 @@ en cache.
 La scolarité peut révoquer une délivrance signée via
 `POST /api/v1/diplomes/{id}/revoquer/` ; la signature et son horodatage restent
 conservés, mais la vérification et l'éligibilité alumni deviennent invalides.
+Avant signature, la scolarité peut corriger une délivrance ; après signature,
+ses données ne peuvent plus être modifiées par l'API CRUD, y compris après
+révocation. La révocation passe exclusivement par l'action dédiée.
 Ce consentement ne constitue pas un annuaire public ni un suivi d'emploi.
