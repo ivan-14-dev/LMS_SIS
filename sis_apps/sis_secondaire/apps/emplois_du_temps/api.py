@@ -1,25 +1,30 @@
 """API views for emplois_du_temps (ViewSets DRF) - SIS Secondaire."""
 
+from django.db import transaction
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from sis_common.authorization import request_has_business_access
+from sis_common.authorization import is_current_tenant_user, request_has_business_access
 from sis_common.hierarchy_attachments import PreserveOrganizationAttachmentsMixin
+
+from apps.salles.models import Salle
+from apps.salles.services import salle_indisponible_pour_creneau
 
 from .models import Contrainte, Creneau
 from .serializers import ContrainteSerializer, CreneauDetailSerializer, CreneauListSerializer
 
 
 class IsVieScolariteOrReadOnly(IsAuthenticated):
-    """Permission: vie scolaire pour écriture, authentifié pour lecture."""
+    """Lecture pour le tenant, écriture réservée à la vie scolaire."""
 
     def has_permission(self, request, view):
-        if not super().has_permission(request, view):
+        if not super().has_permission(request, view) or not is_current_tenant_user(request):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
@@ -49,7 +54,12 @@ class CreneauxViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSe
     ordering = ["jour", "heure_debut"]
 
     def get_queryset(self):
-        qs = Creneau.objects.select_related("classe", "matiere", "enseignant__user", "salle")
+        tenant = getattr(self.request, "tenant", None)
+        if tenant is None:
+            return Creneau.objects.none()
+        qs = Creneau.objects.filter(classe__etablissement=tenant).select_related(
+            "classe", "matiere", "enseignant__user", "salle"
+        )
         user = self.request.user
         # Un enseignant ne voit que ses créneaux par défaut (sauf liste complète)
         if not user.is_staff and getattr(user, "role", "") == "enseignant":
@@ -64,6 +74,32 @@ class CreneauxViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSe
         if self.action == "list":
             return CreneauListSerializer
         return CreneauDetailSerializer
+
+    def _save_if_room_is_available(self, serializer):
+        attrs = serializer.validated_data
+        creneau = Creneau()
+        for field in ("classe", "salle", "jour", "date_specifique", "actif"):
+            if field in attrs:
+                setattr(creneau, field, attrs[field])
+            elif serializer.instance is not None:
+                setattr(creneau, field, getattr(serializer.instance, field))
+        if creneau.salle_id and creneau.actif:
+            Salle.objects.select_for_update().get(
+                pk=creneau.salle_id, etablissement=self.request.tenant
+            )
+            if salle_indisponible_pour_creneau(creneau):
+                raise ValidationError(
+                    {"salle": "La salle est indisponible pendant ce créneau."}
+                )
+        serializer.save()
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        self._save_if_room_is_available(serializer)
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        self._save_if_room_is_available(serializer)
 
     @action(detail=False, methods=["get"])
     def par_classe(self, request):
@@ -151,10 +187,8 @@ class CreneauxViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSe
             .order_by("jour", "heure_debut")
         )
 
-        from apps.salles.models import Salle
-
         try:
-            salle = Salle.objects.get(pk=salle_id)
+            salle = Salle.objects.get(pk=salle_id, etablissement=request.tenant)
         except Salle.DoesNotExist:
             return Response({"error": "Salle non trouvée."}, status=404)
 

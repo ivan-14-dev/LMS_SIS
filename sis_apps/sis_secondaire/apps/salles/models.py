@@ -74,3 +74,29 @@ class Equipement(models.Model):
 
     def __str__(self):
         return f"{self.identifiant} — {self.nom}"
+
+
+class IndisponibiliteSalle(models.Model):
+    """Période de jours entiers pendant laquelle une salle ne peut être planifiée."""
+
+    salle = models.ForeignKey(
+        Salle, on_delete=models.CASCADE, related_name="indisponibilites"
+    )
+    date_debut = models.DateField()
+    date_fin = models.DateField()
+    motif = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["date_debut", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(date_fin__gte=models.F("date_debut")),
+                name="salles_indisponibilite_dates_valides",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["salle", "date_debut", "date_fin"],
+                name="salles_indisp_dates_idx",
+            )
+        ]

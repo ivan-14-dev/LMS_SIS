@@ -6,7 +6,7 @@ from sis_common.serializers import TenantBoundSerializerMixin
 
 from apps.etablissement.models import Etablissement
 
-from .models import Equipement, Salle
+from .models import Equipement, IndisponibiliteSalle, Salle
 
 
 class SalleListSerializer(serializers.ModelSerializer):
@@ -104,3 +104,31 @@ class EquipementSerializer(TenantBoundSerializerMixin, serializers.ModelSerializ
                     "Cet identifiant est déjà utilisé dans cet établissement."
                 )
         return value
+
+
+class IndisponibiliteSalleSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer):
+    """Jours entiers d'indisponibilité d'une salle du tenant courant."""
+
+    salle = serializers.PrimaryKeyRelatedField(queryset=Salle.objects.none())
+
+    class Meta:
+        model = IndisponibiliteSalle
+        fields = ["id", "salle", "date_debut", "date_fin", "motif"]
+        read_only_fields = ["id"]
+
+    def get_fields(self):
+        fields = super().get_fields()
+        tenant = getattr(self.context.get("request"), "tenant", None)
+        if tenant is not None:
+            fields["salle"].queryset = Salle.objects.filter(etablissement=tenant)
+        return fields
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        debut = attrs.get("date_debut", getattr(self.instance, "date_debut", None))
+        fin = attrs.get("date_fin", getattr(self.instance, "date_fin", None))
+        if debut and fin and fin < debut:
+            raise serializers.ValidationError(
+                {"date_fin": "La fin ne peut pas précéder le début."}
+            )
+        return attrs
