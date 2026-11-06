@@ -176,42 +176,36 @@ class CreneauxViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSe
         creneaux = self.get_queryset().filter(actif=True).select_related("classe", "enseignant", "salle")
 
         conflits = []
-        # Grouper par (jour, heure_debut, heure_fin)
         slots = defaultdict(list)
         for c in creneaux:
-            key = (c.jour, str(c.heure_debut), str(c.heure_fin))
-            slots[key].append(c)
+            year_id = c.classe.annee_scolaire_id
+            if c.enseignant_id:
+                slots[("enseignant_double", c.jour, year_id, c.enseignant_id)].append(c)
+            if c.salle_id:
+                slots[("salle_double", c.jour, year_id, c.salle_id)].append(c)
 
-        for (jour, debut, _fin), crens in slots.items():
-            # Vérifier conflits enseignant
-            enseignants = defaultdict(list)
-            for c in crens:
-                if c.enseignant_id:
-                    enseignants[c.enseignant_id].append(c)
-            for _ens_id, ens_crens in enseignants.items():
-                if len(ens_crens) > 1:
+        for (type_conflit, jour, _year_id, _resource_id), crens in slots.items():
+            crens.sort(key=lambda c: c.heure_debut)
+            for index, first in enumerate(crens):
+                for second in crens[index + 1 :]:
+                    if second.heure_debut >= first.heure_fin:
+                        break
+                    if first.heure_debut >= second.heure_fin:
+                        continue
+                    if first.semaine and second.semaine and first.semaine != second.semaine:
+                        continue
+                    if (
+                        first.date_specifique
+                        and second.date_specifique
+                        and first.date_specifique != second.date_specifique
+                    ):
+                        continue
                     conflits.append(
                         {
-                            "type": "enseignant_double",
+                            "type": type_conflit,
                             "jour": jour,
-                            "heure": debut,
-                            "creneaux": [c.id for c in ens_crens],
-                        }
-                    )
-
-            # Vérifier conflits salle
-            salles = defaultdict(list)
-            for c in crens:
-                if c.salle_id:
-                    salles[c.salle_id].append(c)
-            for _salle_id, salle_crens in salles.items():
-                if len(salle_crens) > 1:
-                    conflits.append(
-                        {
-                            "type": "salle_double",
-                            "jour": jour,
-                            "heure": debut,
-                            "creneaux": [c.id for c in salle_crens],
+                            "heure": str(second.heure_debut),
+                            "creneaux": [first.id, second.id],
                         }
                     )
 
