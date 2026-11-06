@@ -59,6 +59,7 @@ class CessionDiplomeListSerializer(serializers.ModelSerializer):
             "numero_serie",
             "pdf_path",
             "date_signature",
+            "date_revocation",
         ]
 
 
@@ -90,6 +91,7 @@ class CessionDiplomeDetailSerializer(serializers.ModelSerializer):
             "signe_par",
             "signe_par_nom",
             "date_signature",
+            "date_revocation",
             "qr_verification",
             "created_at",
         ]
@@ -98,6 +100,28 @@ class CessionDiplomeDetailSerializer(serializers.ModelSerializer):
             "numero_serie",
             "signe_par",
             "date_signature",
+            "date_revocation",
             "qr_verification",
             "created_at",
         ]
+
+
+class AlumniRevisionSerializer(serializers.Serializer):
+    revision = serializers.IntegerField(min_value=0)
+
+    def to_internal_value(self, data):
+        unknown = set(data) - set(self.fields)
+        if unknown:
+            raise serializers.ValidationError(
+                {field: "Champ non autorisé." for field in sorted(unknown)}
+            )
+        return super().to_internal_value(data)
+
+
+class AlumniOptInSerializer(AlumniRevisionSerializer):
+    consentement = serializers.BooleanField()
+
+    def validate_consentement(self, value):
+        if value is not True:
+            raise serializers.ValidationError("Un accord explicite est requis.")
+        return value

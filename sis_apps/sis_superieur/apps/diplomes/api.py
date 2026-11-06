@@ -3,9 +3,12 @@
 import uuid
 
 from apps.core.serializers import WorkflowEventSerializer
+from apps.etudiants.models import Etudiant
+from django.db import transaction
 from django.db.models import Count
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
@@ -16,8 +19,14 @@ from sis_common.document_policies import enforce_financial_clearance, get_action
 from sis_common.official_documents import render_official_pdf, tenant_identity_rows
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
-from .models import CessionDiplome, Diplome
-from .serializers import CessionDiplomeDetailSerializer, CessionDiplomeListSerializer, DiplomeSerializer
+from .models import CessionDiplome, ConsentementAlumni, Diplome
+from .serializers import (
+    AlumniOptInSerializer,
+    AlumniRevisionSerializer,
+    CessionDiplomeDetailSerializer,
+    CessionDiplomeListSerializer,
+    DiplomeSerializer,
+)
 
 
 def _diploma_notification_recipients(request, cession):
@@ -109,6 +118,9 @@ class CessionsDiplomesViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return CessionDiplome.objects.select_related(
             "etudiant__user", "diplome", "annee_universitaire", "signe_par"
+        ).filter(
+            etudiant__universite_id=getattr(self.request.tenant, "pk", None),
+            annee_universitaire__universite_id=getattr(self.request.tenant, "pk", None),
         )
 
     def get_serializer_class(self):
@@ -174,7 +186,7 @@ class CessionsDiplomesViewSet(viewsets.ModelViewSet):
         cession = self.get_object()
         return Response(
             {
-                "valide": cession.date_signature is not None,
+                "valide": cession.date_signature is not None and cession.date_revocation is None,
                 "etudiant": cession.etudiant.user.get_full_name(),
                 "diplome": cession.diplome.nom,
                 "date_obtention": cession.date_obtention,
@@ -183,10 +195,23 @@ class CessionsDiplomesViewSet(viewsets.ModelViewSet):
             }
         )
 
+    @action(detail=True, methods=["post"])
+    def revoquer(self, request, pk=None):
+        """Révoque une délivrance signée sans altérer sa signature."""
+        cession = self.get_object()
+        if cession.date_signature is None:
+            return Response({"detail": "Diplôme non signé."}, status=status.HTTP_400_BAD_REQUEST)
+        if cession.date_revocation is None:
+            cession.date_revocation = timezone.now()
+            cession.save(update_fields=["date_revocation"])
+        return Response({"detail": "Diplôme révoqué.", "id": cession.pk})
+
     @action(detail=True, methods=["get"])
     def pdf_officiel(self, request, pk=None):
         """Génère le PDF officiel du diplôme délivré."""
         cession = self.get_object()
+        if cession.date_revocation is not None:
+            return Response({"detail": "Diplôme révoqué."}, status=status.HTTP_409_CONFLICT)
         serialized = CessionDiplomeDetailSerializer(cession).data
         return render_official_pdf(
             f"diplome-{cession.id}.pdf",
@@ -220,3 +245,97 @@ class CessionsDiplomesViewSet(viewsets.ModelViewSet):
                 ("QR vérification", serialized.get("qr_verification")),
             ],
         )
+
+
+class AlumniTenantPermission(IsAuthenticated):
+    def has_permission(self, request, view):
+        tenant = getattr(request, "tenant", None)
+        return (
+            super().has_permission(request, view)
+            and request.user.is_active
+            and tenant is not None
+            and request.user.etablissement_id == tenant.pk
+        )
+
+
+class AlumniConsentViewSet(viewsets.ViewSet):
+    """Auto-service privé de consentement au suivi alumni."""
+
+    permission_classes = [AlumniTenantPermission]
+
+    def _student(self, request, *, lock=False):
+        students = Etudiant.objects.filter(
+            user=request.user,
+            universite_id=request.tenant.pk,
+        )
+        if lock:
+            students = students.select_for_update()
+        return students.first()
+
+    def _eligible(self, student, tenant):
+        return CessionDiplome.objects.filter(
+            etudiant=student,
+            annee_universitaire__universite_id=tenant.pk,
+            date_obtention__lte=timezone.localdate(),
+            date_signature__isnull=False,
+            date_revocation__isnull=True,
+        ).exclude(qr_verification="").exists()
+
+    def _response(self, consent, eligible):
+        response = Response({
+            "eligible": eligible,
+            "consentement_actif": bool(consent and consent.actif and eligible),
+            "revision": consent.revision if consent else 0,
+            "consenti_le": consent.consenti_le if consent else None,
+            "retire_le": consent.retire_le if consent else None,
+        })
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+    @action(detail=False, methods=["get", "post", "delete"], url_path="consentement")
+    def consentement(self, request):
+        """Accord explicite, retrait et lecture pour le seul titulaire."""
+        serializer = (
+            AlumniOptInSerializer(data=request.data)
+            if request.method == "POST"
+            else AlumniRevisionSerializer(data=request.data)
+        )
+        if request.method != "GET":
+            serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            student = self._student(request, lock=request.method != "GET")
+            if student is None:
+                return Response({"detail": "Profil étudiant indisponible."}, status=status.HTTP_403_FORBIDDEN)
+            consent = ConsentementAlumni.objects.filter(etudiant=student).first()
+            eligible = self._eligible(student, request.tenant)
+
+            if request.method == "GET":
+                return self._response(consent, eligible)
+
+            expected = serializer.validated_data["revision"]
+            if request.method == "POST":
+                if not eligible:
+                    return Response({"detail": "Aucun diplôme vérifié et valide."}, status=status.HTTP_403_FORBIDDEN)
+                if consent and consent.actif and expected == consent.revision - 1:
+                    return self._response(consent, eligible)
+                if expected != (consent.revision if consent else 0):
+                    return Response({"detail": "Révision de consentement obsolète."}, status=status.HTTP_409_CONFLICT)
+                if consent is None:
+                    consent = ConsentementAlumni(etudiant=student)
+                consent.actif = True
+                consent.revision += 1
+                consent.consenti_le = timezone.now()
+                consent.retire_le = None
+                consent.save()
+            else:
+                if consent and not consent.actif and expected == consent.revision - 1:
+                    return self._response(consent, eligible)
+                if expected != (consent.revision if consent else 0):
+                    return Response({"detail": "Révision de consentement obsolète."}, status=status.HTTP_409_CONFLICT)
+                if consent and consent.actif:
+                    consent.actif = False
+                    consent.revision += 1
+                    consent.retire_le = timezone.now()
+                    consent.save(update_fields=["actif", "revision", "retire_le"])
+            return self._response(consent, eligible)

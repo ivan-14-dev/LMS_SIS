@@ -67,6 +67,7 @@ class CessionDiplome(models.Model):
         related_name="diplomes_signes",
     )
     date_signature = models.DateTimeField(null=True, blank=True)
+    date_revocation = models.DateTimeField(null=True, blank=True)
     qr_verification = models.CharField(max_length=200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -77,3 +78,19 @@ class CessionDiplome(models.Model):
 
     def __str__(self):
         return f"{self.etudiant} - {self.diplome} ({self.mention})"
+
+
+class ConsentementAlumni(models.Model):
+    """Consentement privé de l'étudiant au suivi après diplomation."""
+
+    etudiant = models.OneToOneField(
+        Etudiant, on_delete=models.CASCADE, related_name="consentement_alumni"
+    )
+    actif = models.BooleanField(default=False)
+    revision = models.PositiveIntegerField(default=0)
+    consenti_le = models.DateTimeField(null=True, blank=True)
+    retire_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Consentement alumni"
+        verbose_name_plural = "Consentements alumni"
