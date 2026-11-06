@@ -107,3 +107,34 @@ class ExamensAPITestCase(TestCase):
             _ensure_entry_allowed(epreuve, "normal", {})
 
         assert "workflow" in context.value.detail
+
+    def test_validated_result_can_be_published_after_submission_deadline(self):
+        session = SimpleNamespace(
+            annee_scolaire_id=1,
+            cloturee=False,
+            annee_scolaire=SimpleNamespace(cloturee=False),
+        )
+        epreuve = SimpleNamespace(
+            session=session,
+            debut_soumission=None,
+            fin_soumission=timezone.now() - timedelta(minutes=5),
+        )
+        result = SimpleNamespace(epreuve=epreuve, type_resultat="normal", statut="validated")
+        request = SimpleNamespace(
+            user=SimpleNamespace(is_staff=True),
+            tenant=SimpleNamespace(configuration_academique={}),
+        )
+        view = ResultatsExamenViewSet()
+        with (
+            patch.object(view, "get_object", return_value=result),
+            patch.object(view, "get_serializer", return_value=SimpleNamespace(data={"statut": "published"})),
+            patch("apps.examens.api._set_result_status") as transition,
+        ):
+            response = ResultatsExamenViewSet.publier.__wrapped__(view, request, pk=1)
+            assert response.status_code == 200
+            transition.assert_called_once()
+
+            session.cloturee = True
+            with pytest.raises(ValidationError) as context:
+                ResultatsExamenViewSet.publier.__wrapped__(view, request, pk=1)
+            assert "workflow" in context.value.detail
