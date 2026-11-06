@@ -242,7 +242,11 @@ class OccupantsChambresViewSet(viewsets.ModelViewSet):
         if occupant.date_fin:
             return Response({"error": "Cette occupation est déjà terminée."}, status=400)
 
-        occupant.date_fin = timezone.now().date()
+        today = timezone.now().date()
+        if occupant.date_debut > today:
+            return Response({"error": "Cette occupation n'a pas encore commencé."}, status=400)
+
+        occupant.date_fin = today
         occupant.motif_fin = request.data.get("motif", "Libération")
         occupant.save(update_fields=["date_fin", "motif_fin"])
         return Response({"detail": "Chambre libérée.", "id": occupant.id})

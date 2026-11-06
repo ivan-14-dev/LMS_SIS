@@ -199,6 +199,44 @@ class RoomOccupationCapacityTestCase(TenantAPITestCase):
         room.refresh_from_db()
         assert room.capacite == 1
 
+    def test_liberer_does_not_end_future_reservation_or_free_its_capacity(self):
+        today = timezone.now().date()
+        start = today + timedelta(days=2)
+        end = start + timedelta(days=3)
+        reserved = self.client.post(
+            self.url, self.payload(self.pupils[0], start=str(start)), format="json"
+        )
+        assert reserved.status_code == 201, reserved.data
+        url = f"{self.url}{reserved.data['id']}/liberer/"
+
+        rejected = self.client.post(url, {"motif": "Départ"}, format="json")
+        assert rejected.status_code == 400, rejected.data
+        reservation = OccupantChambre.objects.get(pk=reserved.data["id"])
+        assert reservation.date_debut == start
+        assert reservation.date_fin is None
+        assert reservation.motif_fin == ""
+
+        conflicting = self.client.post(
+            self.url, self.payload(self.pupils[1], start=str(start), end=str(end)),
+            format="json",
+        )
+        assert conflicting.status_code == 400, conflicting.data
+        assert "chambre" in conflicting.data
+
+        current = self.client.post(
+            self.url,
+            self.payload(self.pupils[2], room=self.other_room, start=str(today - timedelta(days=1))),
+            format="json",
+        )
+        assert current.status_code == 201, current.data
+        released = self.client.post(
+            f"{self.url}{current.data['id']}/liberer/", {"motif": "Départ"}, format="json"
+        )
+        assert released.status_code == 200, released.data
+        active_stay = OccupantChambre.objects.get(pk=current.data["id"])
+        assert active_stay.date_fin == today
+        assert active_stay.motif_fin == "Départ"
+
     def test_foreign_tenant_occupancy_is_hidden_and_pupil_cannot_be_assigned(self):
         foreign = type(self.tenant)(schema_name="foreign_internat")
         self.setup_tenant(foreign)
