@@ -1,5 +1,6 @@
 """API views for cantine (ViewSets DRF) - SIS Secondaire."""
 
+from django.db import transaction
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -18,6 +19,13 @@ from .serializers import (
     PointageCantineSerializer,
     PresenceCantineSerializer,
 )
+
+
+def _tenant_presences(queryset, request):
+    tenant = getattr(request, "tenant", None)
+    if tenant is None:
+        return queryset.none()
+    return queryset.filter(eleve__etablissement_id=tenant.pk)
 
 
 class IsIntendanceOrReadOnly(IsAuthenticated):
@@ -73,7 +81,9 @@ class MenusViewSet(viewsets.ModelViewSet):
     def presences(self, request, pk=None):
         """Liste les présences pour ce menu."""
         menu = self.get_object()
-        presences = menu.presences.select_related("eleve__user").order_by("eleve__user__last_name")
+        presences = _tenant_presences(menu.presences, request).select_related("eleve__user").order_by(
+            "eleve__user__last_name"
+        )
         serializer = PresenceCantineSerializer(presences, many=True)
         return Response(serializer.data)
 
@@ -81,8 +91,9 @@ class MenusViewSet(viewsets.ModelViewSet):
     def statistiques(self, request, pk=None):
         """Statistiques du menu."""
         menu = self.get_object()
-        total = menu.presences.count()
-        presents = menu.presences.filter(present=True).count()
+        presences = _tenant_presences(menu.presences, request)
+        total = presences.count()
+        presents = presences.filter(present=True).count()
         return Response(
             {
                 "menu_id": menu.id,
@@ -130,7 +141,9 @@ class PresencesCantineViewSet(viewsets.ModelViewSet):
     ordering = ["-menu__date"]
 
     def get_queryset(self):
-        return PresenceCantine.objects.select_related("menu", "eleve__user")
+        return _tenant_presences(
+            PresenceCantine.objects.select_related("menu", "eleve__user"), self.request
+        )
 
     @action(detail=False, methods=["post"])
     def pointage_masse(self, request):
@@ -145,26 +158,27 @@ class PresencesCantineViewSet(viewsets.ModelViewSet):
             return Response({"error": "Menu non trouvé."}, status=404)
 
         pointages = request.data.get("pointages", [])
-        serializer = PointageCantineSerializer(data=pointages, many=True, context={"menu": menu})
+        serializer = PointageCantineSerializer(data=pointages, many=True, context={"menu": menu, "request": request})
         serializer.is_valid(raise_exception=True)
 
         created = 0
         updated = 0
         now = timezone.now().time()
 
-        for item in serializer.validated_data:
-            presence, was_created = PresenceCantine.objects.update_or_create(
-                menu=menu,
-                eleve_id=item["eleve_id"],
-                defaults={
-                    "present": item["present"],
-                    "heure_pointage": now if item["present"] else None,
-                },
-            )
-            if was_created:
-                created += 1
-            else:
-                updated += 1
+        with transaction.atomic():
+            for item in serializer.validated_data:
+                presence, was_created = PresenceCantine.objects.update_or_create(
+                    menu=menu,
+                    eleve_id=item["eleve_id"],
+                    defaults={
+                        "present": item["present"],
+                        "heure_pointage": now if item["present"] else None,
+                    },
+                )
+                if was_created:
+                    created += 1
+                else:
+                    updated += 1
 
         return Response(
             {

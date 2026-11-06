@@ -1,5 +1,6 @@
 """Serializers for cantine (SIS Secondaire)."""
 
+from apps.eleves.models import Eleve
 from django.db.models import Q
 from rest_framework import serializers
 
@@ -8,9 +9,12 @@ from sis_common.serializers import DateRangeSerializerMixin
 from .models import InscriptionCantine, Menu, PresenceCantine
 
 
-def _has_valid_inscription(eleve_id, menu):
+def _has_valid_inscription(eleve_id, menu, tenant):
+    if tenant is None:
+        return False
     return InscriptionCantine.objects.filter(
         eleve_id=eleve_id,
+        eleve__etablissement_id=tenant.pk,
         actif=True,
         date_debut__lte=menu.date,
     ).filter(Q(date_fin__isnull=True) | Q(date_fin__gte=menu.date)).exists()
@@ -102,7 +106,10 @@ class PresenceCantineSerializer(serializers.ModelSerializer):
         menu = attrs.get("menu", getattr(self.instance, "menu", None))
         eleve = attrs.get("eleve", getattr(self.instance, "eleve", None))
         present = attrs.get("present", getattr(self.instance, "present", True))
-        if present and menu and eleve and not _has_valid_inscription(eleve.pk, menu):
+        tenant = getattr(self.context.get("request"), "tenant", None)
+        if eleve is not None and (tenant is None or eleve.etablissement_id != tenant.pk):
+            raise serializers.ValidationError({"eleve": "Cet élève appartient à un autre établissement."})
+        if present and menu and eleve and not _has_valid_inscription(eleve.pk, menu, tenant):
             raise serializers.ValidationError({"eleve": "Aucune inscription cantine active à cette date."})
         return attrs
 
@@ -115,6 +122,11 @@ class PointageCantineSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
-        if attrs["present"] and not _has_valid_inscription(attrs["eleve_id"], self.context["menu"]):
+        tenant = getattr(self.context.get("request"), "tenant", None)
+        if tenant is None or not Eleve.objects.filter(
+            pk=attrs["eleve_id"], etablissement_id=tenant.pk
+        ).exists():
+            raise serializers.ValidationError({"eleve_id": "Cet élève appartient à un autre établissement."})
+        if attrs["present"] and not _has_valid_inscription(attrs["eleve_id"], self.context["menu"], tenant):
             raise serializers.ValidationError({"eleve_id": "Aucune inscription cantine active à cette date."})
         return attrs
