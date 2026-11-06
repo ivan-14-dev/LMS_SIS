@@ -115,6 +115,22 @@ le correctif Open edX reste non publié, les prestataires et le pilote réel
 ne sont pas qualifiés et le dernier essai à 500 reste rouge. **Matrice :
 1/94 vérifiée**, sans promotion sur la seule foi de ces suites.
 
+**Sixième vague du 6 novembre 2026 :** huit correctifs testés et poussés
+séparément encadrent les décisions sur les justificatifs d'absence, l'accès
+aux appréciations de bulletin, la capacité des salles, les conventions de
+stage initialement non signées, les affectations enseignantes dans les deux
+SIS, la signature des relevés universitaires et les candidatures de stage
+supérieur. Les deux autres examens de cette vague n'ont produit aucune
+modification qualifiée. L'image publiée
+`lms-sis:local-20261106-c10a736` passe `manage.py check` dans chaque
+variante et les suites backend complètes sur PostgreSQL/Redis jetables :
+**625 tests secondaire, 626 supérieur**. Les scripts et contrats frontend
+nécessaires à la collecte ont été montés en lecture seule. Aucun service
+partagé n'a été remplacé, le frontend inchangé n'a pas été retesté,
+le correctif Open edX demeure non qualifié, et les fournisseurs, parcours
+institutionnels et 500 connexions restent à valider. **Matrice : 1/94
+vérifiée**, sans promotion supplémentaire.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
