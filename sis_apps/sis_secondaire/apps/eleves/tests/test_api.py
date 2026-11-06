@@ -1,16 +1,18 @@
 """API tests for eleves."""
 
+import uuid
 from unittest.mock import patch
 
 from apps.classes.models import Classe, Matiere, ProgrammeMatiere
 from apps.eleves.models import AffectationMatiereIndividuelle, Eleve, Inscription
-from apps.etablissement.models import AnneeScolaire, Niveau
+from apps.etablissement.models import AnneeScolaire, Etablissement, Niveau
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.utilisateurs.models import Utilisateur
 from django.core.cache.backends.locmem import LocMemCache
 from django.test import SimpleTestCase
 from django.urls import resolve
 from django.utils import timezone
+from django_tenants.utils import schema_context
 from rest_framework.throttling import SimpleRateThrottle
 
 
@@ -21,6 +23,41 @@ class ElevesAPITestCase(SimpleTestCase):
 
         assert list_match.url_name == "matieres-individuelles"
         assert remove_match.url_name == "retirer-matiere-individuelle"
+
+
+class ForeignSchoolAccountAccessTestCase(TenantAPITestCase):
+    def test_foreign_superuser_cannot_read_or_write_school_pupils(self):
+        other = Etablissement(
+            schema_name=f"other_pupils_{uuid.uuid4().hex[:12]}",
+            nom="Autre établissement", type="college", adresse="1 rue des Tests",
+            code_postal="75000", ville="Paris", telephone="0100000000", email="other@example.test",
+        )
+        other.auto_create_schema = False
+        with schema_context("public"):
+            other.save()
+        local = Utilisateur.objects.create_superuser(
+            "local-school-admin", etablissement=self.tenant, role="super_admin",
+        )
+        foreign = Utilisateur.objects.create_superuser(
+            "foreign-school-admin", etablissement=other, role="super_admin",
+        )
+        pupil_user = Utilisateur.objects.create_user(
+            "local-pupil", etablissement=self.tenant, role="eleve",
+        )
+        pupil = Eleve.objects.create(
+            etablissement=self.tenant, user=pupil_user, matricule="FOREIGN-ACCESS-TEST",
+            date_naissance="2008-01-01", lieu_naissance="Paris", sexe="F",
+            date_inscription="2026-09-01",
+        )
+
+        self.client.force_authenticate(local)
+        for url in ("/api/v1/eleves/", f"/api/v1/eleves/{pupil.pk}/"):
+            assert self.client.get(url, secure=True).status_code == 200
+
+        self.client.force_authenticate(foreign)
+        for url in ("/api/v1/eleves/", f"/api/v1/eleves/{pupil.pk}/"):
+            assert self.client.get(url, secure=True).status_code == 403
+        assert self.client.post("/api/v1/eleves/", {}, format="json", secure=True).status_code == 403
 
 
 class EnrollmentCapacityTestCase(TenantAPITestCase):

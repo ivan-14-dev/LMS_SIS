@@ -17,7 +17,7 @@ from sis_common.admissions import (
     activate_school_enrollment,
     scoped_admissions,
 )
-from sis_common.authorization import request_has_business_access
+from sis_common.authorization import is_current_tenant_user, request_has_business_access
 from sis_common.learner_import import LearnerImportMixin
 from sis_common.workflow_tracking import record_workflow_event
 
@@ -50,7 +50,7 @@ class IsVieScolariteOrReadOnly(IsAuthenticated):
     """Permission: vie scolaire/direction pour écriture, authentifié pour lecture."""
 
     def has_permission(self, request, view):
-        if not super().has_permission(request, view):
+        if not super().has_permission(request, view) or not is_current_tenant_user(request):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
