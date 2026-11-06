@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from .models import Emprunt, Exemplaire, Livre
+from .models import Emprunt, Exemplaire, Livre, Reservation
 
 
 class LivreListSerializer(serializers.ModelSerializer):
@@ -31,8 +31,8 @@ class LivreListSerializer(serializers.ModelSerializer):
 
     def get_disponibles(self, obj):
         return (
-            obj.exemplaires.exclude(etat="perdu")
-            .exclude(emprunts__statut="en_cours")
+            obj.exemplaires.filter(etat__in=("neuf", "bon", "use"))
+            .exclude(emprunts__statut__in=("en_cours", "en_retard"))
             .count()
         )
 
@@ -91,7 +91,7 @@ class ExemplaireSerializer(serializers.ModelSerializer):
 
     def get_disponible(self, obj):
         return obj.etat in ("neuf", "bon", "use") and not obj.emprunts.filter(
-            statut="en_cours"
+            statut__in=("en_cours", "en_retard")
         ).exists()
 
 
@@ -138,3 +138,27 @@ class EmpruntSerializer(serializers.ModelSerializer):
         if today > obj.date_retour_prevue:
             return (today - obj.date_retour_prevue).days
         return 0
+
+
+class ReservationSerializer(serializers.ModelSerializer):
+    livre_titre = serializers.CharField(source="livre.titre", read_only=True)
+
+    class Meta:
+        model = Reservation
+        fields = [
+            "id", "livre", "livre_titre", "utilisateur", "date_reservation",
+            "statut", "emprunt",
+        ]
+        read_only_fields = ["id", "utilisateur", "date_reservation", "statut", "emprunt"]
+
+
+class ReservationFulfilSerializer(serializers.Serializer):
+    exemplaire = serializers.PrimaryKeyRelatedField(queryset=Exemplaire.objects.all())
+    date_retour_prevue = serializers.DateField()
+
+    def validate_date_retour_prevue(self, value):
+        from django.utils import timezone
+
+        if value <= timezone.localdate():
+            raise serializers.ValidationError("La date de retour doit être future.")
+        return value

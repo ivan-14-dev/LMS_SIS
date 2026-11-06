@@ -2,7 +2,7 @@
 
 from rest_framework.routers import DefaultRouter
 
-from .api import EmpruntsViewSet, ExemplairesViewSet, LivresViewSet
+from .api import EmpruntsViewSet, ExemplairesViewSet, LivresViewSet, ReservationsViewSet
 
 app_name = "bibliotheque_api"
 
@@ -10,5 +10,6 @@ router = DefaultRouter()
 router.register("livres", LivresViewSet, basename="livre")
 router.register("exemplaires", ExemplairesViewSet, basename="exemplaire")
 router.register("emprunts", EmpruntsViewSet, basename="emprunt")
+router.register("reservations", ReservationsViewSet, basename="reservation")
 
 urlpatterns = router.urls

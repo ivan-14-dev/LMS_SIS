@@ -98,12 +98,17 @@ class Reservation(models.Model):
         Utilisateur, on_delete=models.CASCADE, related_name="reservations_biblio"
     )
     date_reservation = models.DateTimeField(auto_now_add=True)
+    emprunt = models.OneToOneField(
+        Emprunt, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="reservation",
+    )
     statut = models.CharField(
         max_length=20,
         choices=[
             ("en_attente", "En attente"),
             ("disponible", "Disponible"),
             ("annulee", "Annulée"),
+            ("honoree", "Honorée"),
         ],
         default="en_attente",
     )
@@ -111,6 +116,13 @@ class Reservation(models.Model):
     class Meta:
         verbose_name = "Réservation"
         verbose_name_plural = "Réservations"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["livre", "utilisateur"],
+                condition=models.Q(statut__in=["en_attente", "disponible"]),
+                name="bibliotheque_unique_active_reservation",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.utilisateur} - {self.livre.titre}"

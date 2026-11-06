@@ -1,19 +1,36 @@
 """API views for bibliotheque (ViewSets DRF) - SIS Secondaire."""
 
-from django.db.models import Count, Q
+from django.db import transaction
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from sis_common.authorization import request_has_business_access
+from sis_common.authorization import is_current_tenant_user, request_has_business_access
 from sis_common.hierarchy_attachments import PreserveOrganizationAttachmentsMixin
 
-from .models import Emprunt, Exemplaire, Livre
-from .serializers import EmpruntSerializer, ExemplaireSerializer, LivreDetailSerializer, LivreListSerializer
+from .models import Emprunt, Exemplaire, Livre, Reservation
+from .serializers import (
+    EmpruntSerializer, ExemplaireSerializer, LivreDetailSerializer,
+    LivreListSerializer, ReservationFulfilSerializer, ReservationSerializer,
+)
+
+ACTIVE_LOANS = ("en_cours", "en_retard")
+ACTIVE_HOLDS = ("en_attente", "disponible")
+
+
+def _can_manage_library(request):
+    return request_has_business_access(
+        request,
+        "bibliotheque.change_livre",
+        ("bibliothecaire", "documentaliste", "cdi", "directeur"),
+        tenant_group_codes=("library_manager_secondary",),
+    )
 
 
 class IsBibliothecaireOrReadOnly(IsAuthenticated):
@@ -24,11 +41,15 @@ class IsBibliothecaireOrReadOnly(IsAuthenticated):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        return request_has_business_access(
-            request,
-            "bibliotheque.change_livre",
-            ("bibliothecaire", "documentaliste", "cdi", "directeur"),
-            tenant_group_codes=("library_manager_secondary",),
+        return _can_manage_library(request)
+
+
+class CanReserve(IsAuthenticated):
+    def has_permission(self, request, view):
+        return (
+            super().has_permission(request, view)
+            and is_current_tenant_user(request)
+            and (view.action != "fulfil" or _can_manage_library(request))
         )
 
 
@@ -61,17 +82,10 @@ class LivresViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSet)
     @action(detail=False, methods=["get"])
     def disponibles(self, request):
         """Liste les livres avec au moins un exemplaire disponible."""
-        livres = (
-            self.get_queryset()
-            .annotate(
-                nb_dispo=Count(
-                    "exemplaires",
-                    filter=Q(exemplaires__etat__in=["neuf", "bon", "use"])
-                    & ~Q(exemplaires__emprunts__statut="en_cours"),
-                )
-            )
-            .filter(nb_dispo__gt=0)
+        copies = Exemplaire.objects.filter(etat__in=["neuf", "bon", "use"]).exclude(
+            emprunts__statut__in=ACTIVE_LOANS
         )
+        livres = self.get_queryset().filter(exemplaires__in=copies).distinct()
         serializer = LivreListSerializer(livres, many=True)
         return Response(serializer.data)
 
@@ -101,6 +115,25 @@ class EmpruntsViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Emprunt.objects.select_related("exemplaire__livre", "emprunteur")
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        exemplaire = serializer.validated_data["exemplaire"]
+        Livre.objects.select_for_update().get(pk=exemplaire.livre_id)
+        exemplaire = Exemplaire.objects.select_for_update().get(pk=exemplaire.pk)
+        if Reservation.objects.filter(
+            livre_id=exemplaire.livre_id, statut__in=ACTIVE_HOLDS
+        ).exists():
+            raise ValidationError({"exemplaire": "Une réservation doit être honorée en premier."})
+        if Emprunt.objects.filter(
+            exemplaire=exemplaire, statut__in=ACTIVE_LOANS
+        ).exists():
+            raise ValidationError({"exemplaire": "Cet exemplaire est déjà emprunté."})
+        if exemplaire.etat not in ("neuf", "bon", "use"):
+            raise ValidationError({"exemplaire": "Cet exemplaire est indisponible."})
+        return super().create(request, *args, **kwargs)
 
     @action(detail=False, methods=["get"])
     def en_retard(self, request):
@@ -152,3 +185,96 @@ class EmpruntsViewSet(viewsets.ModelViewSet):
                 "nouvelle_date": emprunt.date_retour_prevue,
             }
         )
+
+
+class ReservationsViewSet(viewsets.GenericViewSet):
+    permission_classes = [CanReserve]
+    serializer_class = ReservationSerializer
+
+    def get_queryset(self):
+        queryset = Reservation.objects.filter(
+            utilisateur__etablissement_id=self.request.tenant.pk
+        ).select_related("livre")
+        if not _can_manage_library(self.request):
+            queryset = queryset.filter(utilisateur=self.request.user)
+        return queryset
+
+    def list(self, request):
+        return Response(self.get_serializer(self.get_queryset(), many=True).data)
+
+    def retrieve(self, request, pk=None):
+        return Response(self.get_serializer(self.get_object()).data)
+
+    @transaction.atomic
+    def create(self, request):
+        if request.user.etablissement_id != request.tenant.pk:
+            raise PermissionDenied("Un compte de l'établissement est requis.")
+        if any(field in request.data for field in ("utilisateur", "statut", "emprunt")):
+            raise ValidationError("Seul le livre peut être indiqué pour une réservation.")
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        livre = get_object_or_404(
+            Livre.objects.select_for_update(), pk=serializer.validated_data["livre"].pk
+        )
+        if Reservation.objects.filter(
+            livre=livre, utilisateur=request.user, statut__in=ACTIVE_HOLDS
+        ).exists():
+            raise ValidationError({"livre": "Vous avez déjà réservé ce livre."})
+        if Emprunt.objects.filter(
+            exemplaire__livre=livre, emprunteur=request.user, statut__in=ACTIVE_LOANS
+        ).exists():
+            raise ValidationError({"livre": "Vous empruntez déjà ce livre."})
+        reservation = Reservation.objects.create(livre=livre, utilisateur=request.user)
+        return Response(self.get_serializer(reservation).data, status=201)
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def cancel(self, request, pk=None):
+        reservation = self.get_object()
+        Livre.objects.select_for_update().get(pk=reservation.livre_id)
+        reservation = self.get_queryset().select_for_update(of=("self",)).get(pk=reservation.pk)
+        if reservation.statut not in ACTIVE_HOLDS:
+            raise ValidationError({"statut": "Cette réservation n'est plus active."})
+        reservation.statut = "annulee"
+        reservation.save(update_fields=["statut"])
+        return Response(self.get_serializer(reservation).data)
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def fulfil(self, request, pk=None):
+        reservation = self.get_object()
+        payload = ReservationFulfilSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        Livre.objects.select_for_update().get(pk=reservation.livre_id)
+        reservation = self.get_queryset().select_for_update(of=("self",)).get(pk=reservation.pk)
+        if reservation.statut not in ACTIVE_HOLDS:
+            raise ValidationError({"statut": "Cette réservation n'est plus active."})
+        first = Reservation.objects.filter(
+            livre_id=reservation.livre_id, statut__in=ACTIVE_HOLDS
+        ).order_by("date_reservation", "pk").first()
+        if first.pk != reservation.pk:
+            raise ValidationError({"statut": "Une réservation antérieure est prioritaire."})
+        exemplaire = payload.validated_data["exemplaire"]
+        if exemplaire.livre_id != reservation.livre_id:
+            raise ValidationError({"exemplaire": "L'exemplaire n'appartient pas à ce livre."})
+        exemplaire = Exemplaire.objects.select_for_update().get(pk=exemplaire.pk)
+        if exemplaire.etat not in ("neuf", "bon", "use") or Emprunt.objects.filter(
+            exemplaire=exemplaire, statut__in=ACTIVE_LOANS
+        ).exists():
+            raise ValidationError({"exemplaire": "Cet exemplaire est indisponible."})
+        if Emprunt.objects.filter(
+            exemplaire__livre_id=reservation.livre_id,
+            emprunteur=reservation.utilisateur,
+            statut__in=ACTIVE_LOANS,
+        ).exists():
+            raise ValidationError({"utilisateur": "Cet utilisateur emprunte déjà ce livre."})
+        emprunt = Emprunt.objects.create(
+            exemplaire=exemplaire,
+            emprunteur=reservation.utilisateur,
+            date_emprunt=timezone.localdate(),
+            date_retour_prevue=payload.validated_data["date_retour_prevue"],
+        )
+        reservation.emprunt = emprunt
+        reservation.statut = "honoree"
+        reservation.save(update_fields=["emprunt", "statut"])
+        return Response(self.get_serializer(reservation).data)
