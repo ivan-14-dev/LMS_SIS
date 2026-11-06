@@ -49,7 +49,7 @@ urlpatterns = [
         api.InscriptionsViewSet.as_view({"get": "historique"}),
         name="inscriptions-historique",
     ),
-    path("importer/", api.ElevesViewSet.as_view({"post": "importer"}), name="importer"),
+    path("importer/", api.ElevesViewSet.as_view({"get": "schema_import", "post": "importer"}), name="importer"),
     path(
         "modele-import/",
         api.ElevesViewSet.as_view({"get": "modele_import"}),

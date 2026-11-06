@@ -7,7 +7,7 @@ from . import api
 app_name = "etudiants_api"
 
 urlpatterns = [
-    path("importer/", api.EtudiantsViewSet.as_view({"post": "importer"}), name="importer"),
+    path("importer/", api.EtudiantsViewSet.as_view({"get": "schema_import", "post": "importer"}), name="importer"),
     path(
         "modele-import/",
         api.EtudiantsViewSet.as_view({"get": "modele_import"}),
