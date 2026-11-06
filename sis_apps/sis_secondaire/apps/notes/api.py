@@ -716,6 +716,13 @@ class BulletinsViewSet(viewsets.ModelViewSet):
     filterset_fields = ["eleve", "classe", "periode", "publie"]
     ordering = ["-periode__date_fin"]
 
+    @transaction.atomic
+    def perform_update(self, serializer):
+        bulletin = Bulletin.objects.select_for_update().get(pk=serializer.instance.pk)
+        if bulletin.publie:
+            raise serializers.ValidationError({"publie": "Un bulletin publié ne peut plus être modifié."})
+        serializer.save()
+
     def get_queryset(self):
         qs = (
             Bulletin.objects.filter(eleve__etablissement_id=self.request.tenant.pk)

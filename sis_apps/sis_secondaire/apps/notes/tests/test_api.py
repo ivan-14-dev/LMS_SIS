@@ -1,16 +1,22 @@
 """API integration-style tests for tenant-driven note exports."""
 
-from datetime import timedelta
+from datetime import date, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from apps.classes.models import Classe
+from apps.eleves.models import Eleve
+from apps.etablissement.models import AnneeScolaire, Niveau, Periode
+from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.notes.api import (
     BulletinsViewSet,
     EvaluationsViewSet,
     NotesViewSet,
     _ensure_secondary_continuous_assessment,
 )
+from apps.notes.models import Bulletin
+from apps.utilisateurs.models import Utilisateur
 from django.test import SimpleTestCase
 from django.urls import resolve
 from django.utils import timezone
@@ -198,3 +204,58 @@ class NotesAPITestCase(SimpleTestCase):
             _ensure_secondary_continuous_assessment(evaluation)
 
         assert "soumission" in context.value.detail
+
+
+class PublishedBulletinHTTPTestCase(TenantAPITestCase):
+    def test_published_outcome_cannot_be_edited_via_either_bulletin_route(self):
+        direction = Utilisateur.objects.create_user(
+            "notes-direction", role="direction", etablissement=self.tenant
+        )
+        student = Utilisateur.objects.create_user(
+            "notes-student", role="eleve", etablissement=self.tenant
+        )
+        year = AnneeScolaire.objects.create(
+            etablissement=self.tenant,
+            libelle="2026-2027",
+            date_debut=date(2026, 9, 1),
+            date_fin=date(2027, 6, 30),
+        )
+        period = Periode.objects.create(
+            annee_scolaire=year,
+            type="trimestre",
+            numero=1,
+            date_debut=date(2026, 9, 1),
+            date_fin=date(2027, 6, 30),
+        )
+        level = Niveau.objects.create(etablissement=self.tenant, code="6e", libelle="Sixième")
+        classroom = Classe.objects.create(
+            etablissement=self.tenant, annee_scolaire=year, niveau=level, nom="6e A"
+        )
+        pupil = Eleve.objects.create(
+            etablissement=self.tenant,
+            user=student,
+            matricule="NOTES-001",
+            date_naissance=date(2012, 1, 1),
+            lieu_naissance="Paris",
+            sexe="F",
+            date_inscription=date(2026, 9, 1),
+            classe_actuelle=classroom,
+        )
+        bulletin = Bulletin.objects.create(
+            eleve=pupil, classe=classroom, periode=period, decision="en attente"
+        )
+        self.client.force_authenticate(direction)
+        notes_url = f"/api/v1/notes/bulletins/{bulletin.pk}/"
+
+        draft_response = self.client.patch(notes_url, {"decision": "passage"}, format="json", secure=True)
+        assert draft_response.status_code == 200, draft_response.data
+        bulletin.publie = True
+        bulletin.date_publication = timezone.now()
+        bulletin.save(update_fields=["publie", "date_publication"])
+
+        for url in (notes_url, f"/api/v1/bulletins/{bulletin.pk}/"):
+            response = self.client.patch(url, {"decision": "redoublement"}, format="json", secure=True)
+            assert response.status_code == 400, response.data
+            bulletin.refresh_from_db()
+            assert bulletin.decision == "passage"
+            assert bulletin.publie is True
