@@ -8,7 +8,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from sis_common.authorization import request_has_business_access
+from sis_common.authorization import is_current_tenant_user, request_has_business_access
 
 from .models import ConventionStage, Entreprise, EvaluationStage, SuiviStage
 from .serializers import (
@@ -20,20 +20,44 @@ from .serializers import (
 )
 
 
+def can_manage_stages(request):
+    return request_has_business_access(
+        request,
+        "stages.change_conventionstage",
+        ("scolarite", "responsable_stages", "chef_travaux", "directeur"),
+        tenant_group_codes=("stage_manager_secondary",),
+    )
+
+
+def visible_conventions(request):
+    """Scope stage records to their school and the recorded pupil/supervisor relation."""
+    conventions = ConventionStage.objects.filter(
+        eleve__etablissement=request.tenant,
+        eleve__user__etablissement=request.tenant,
+        maitre_stage_etablissement__etablissement=request.tenant,
+    )
+    if not is_current_tenant_user(request):
+        return conventions.none()
+    if can_manage_stages(request):
+        return conventions
+    if request.user.role == "eleve":
+        return conventions.filter(eleve__user=request.user)
+    if request.user.role == "parent":
+        return conventions.none()
+    return conventions.filter(maitre_stage_etablissement=request.user)
+
+
 class IsScolariteOrReadOnly(IsAuthenticated):
     """Permission: scolarité ou responsable stages pour écriture."""
 
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
+        if not is_current_tenant_user(request):
+            return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        return request_has_business_access(
-            request,
-            "stages.change_conventionstage",
-            ("scolarite", "responsable_stages", "chef_travaux", "directeur"),
-            tenant_group_codes=("stage_manager_secondary",),
-        )
+        return can_manage_stages(request)
 
 
 class EntreprisesStageViewSet(viewsets.ModelViewSet):
@@ -47,7 +71,11 @@ class EntreprisesStageViewSet(viewsets.ModelViewSet):
     ordering = ["raison_sociale"]
 
     def get_queryset(self):
-        return Entreprise.objects.prefetch_related("conventions")
+        if can_manage_stages(self.request):
+            return Entreprise.objects.all()
+        return Entreprise.objects.filter(
+            pk__in=visible_conventions(self.request).values("entreprise_id")
+        ).prefetch_related("conventions")
 
 
 class ConventionsStageViewSet(viewsets.ModelViewSet):
@@ -60,7 +88,7 @@ class ConventionsStageViewSet(viewsets.ModelViewSet):
     ordering = ["-date_debut"]
 
     def get_queryset(self):
-        return ConventionStage.objects.select_related(
+        return visible_conventions(self.request).select_related(
             "eleve__user", "entreprise", "maitre_stage_etablissement"
         ).prefetch_related("suivis")
 
@@ -112,7 +140,9 @@ class SuivisStageViewSet(viewsets.ModelViewSet):
     ordering = ["-date"]
 
     def get_queryset(self):
-        return SuiviStage.objects.select_related("convention__eleve__user")
+        return SuiviStage.objects.filter(
+            convention__in=visible_conventions(self.request)
+        ).select_related("convention__eleve__user")
 
 
 class EvaluationsStageViewSet(viewsets.ModelViewSet):
@@ -125,7 +155,9 @@ class EvaluationsStageViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        return EvaluationStage.objects.select_related(
+        return EvaluationStage.objects.filter(
+            convention__in=visible_conventions(self.request)
+        ).select_related(
             "convention__eleve__user", "convention__entreprise"
         )
 

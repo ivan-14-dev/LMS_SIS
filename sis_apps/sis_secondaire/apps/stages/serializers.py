@@ -31,7 +31,12 @@ class EntrepriseSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def get_nb_conventions(self, obj):
-        return obj.conventions.count()
+        request = self.context.get("request")
+        if request is None:
+            return obj.conventions.count()
+        from .api import visible_conventions
+
+        return visible_conventions(request).filter(entreprise=obj).count()
 
 
 class ConventionStageListSerializer(serializers.ModelSerializer):
@@ -116,6 +121,28 @@ class ConventionStageDetailSerializer(serializers.ModelSerializer):
             )
         return statut
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        tenant_id = self.context["request"].tenant.pk
+        eleve = attrs.get("eleve", getattr(self.instance, "eleve", None))
+        maitre = attrs.get(
+            "maitre_stage_etablissement",
+            getattr(self.instance, "maitre_stage_etablissement", None),
+        )
+        if (
+            eleve is not None
+            and maitre is not None
+            and (
+                eleve.etablissement_id != tenant_id
+                or eleve.user.etablissement_id != tenant_id
+                or maitre.etablissement_id != tenant_id
+            )
+        ):
+            raise serializers.ValidationError(
+                "L'élève et le maître de stage doivent appartenir à l'établissement."
+            )
+        return attrs
+
     def get_suivis(self, obj):
         return SuiviStageSerializer(obj.suivis.all()[:5], many=True).data
 
@@ -138,6 +165,13 @@ class SuiviStageSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def validate_convention(self, convention):
+        from .api import visible_conventions
+
+        if not visible_conventions(self.context["request"]).filter(pk=convention.pk).exists():
+            raise serializers.ValidationError("Convention inaccessible.")
+        return convention
 
 
 class EvaluationStageSerializer(serializers.ModelSerializer):
@@ -166,3 +200,10 @@ class EvaluationStageSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def validate_convention(self, convention):
+        from .api import visible_conventions
+
+        if not visible_conventions(self.context["request"]).filter(pk=convention.pk).exists():
+            raise serializers.ValidationError("Convention inaccessible.")
+        return convention
