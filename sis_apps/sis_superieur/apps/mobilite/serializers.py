@@ -3,6 +3,25 @@
 from rest_framework import serializers
 
 from .models import AccordEtudes, CandidatureMobilite, ProgrammeMobilite
+from .services import (
+    annees_du_tenant,
+    candidatures_du_tenant,
+    etudiants_du_tenant,
+    formations_du_tenant,
+    programmes_du_tenant,
+)
+
+
+class TenantRelationsMixin:
+    tenant_relations = {}
+
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get("request")
+        tenant_id = getattr(getattr(request, "tenant", None), "pk", None)
+        for name, queryset_for_tenant in self.tenant_relations.items():
+            fields[name].queryset = queryset_for_tenant(tenant_id)
+        return fields
 
 
 class ProgrammeMobiliteListSerializer(serializers.ModelSerializer):
@@ -33,16 +52,26 @@ class ProgrammeMobiliteListSerializer(serializers.ModelSerializer):
         ]
 
     def get_nb_candidatures(self, obj):
-        return obj.candidatures.count()
+        request = self.context.get("request")
+        tenant_id = getattr(getattr(request, "tenant", None), "pk", None)
+        return candidatures_du_tenant(tenant_id).filter(programme=obj).count()
 
     def get_places_restantes(self, obj):
-        acceptees = obj.candidatures.filter(statut="acceptee").count()
+        request = self.context.get("request")
+        tenant_id = getattr(getattr(request, "tenant", None), "pk", None)
+        acceptees = candidatures_du_tenant(tenant_id).filter(
+            programme=obj, statut="acceptee"
+        ).count()
         return obj.nb_places - acceptees
 
 
-class ProgrammeMobiliteDetailSerializer(serializers.ModelSerializer):
+class ProgrammeMobiliteDetailSerializer(TenantRelationsMixin, serializers.ModelSerializer):
     """Serializer complet pour un programme."""
 
+    tenant_relations = {
+        "formation": formations_du_tenant,
+        "annee_universitaire": annees_du_tenant,
+    }
     type_display = serializers.CharField(source="get_type_display", read_only=True)
     formation_nom = serializers.CharField(source="formation.nom", read_only=True)
     annee_libelle = serializers.CharField(
@@ -106,9 +135,13 @@ class CandidatureMobiliteListSerializer(serializers.ModelSerializer):
         ]
 
 
-class CandidatureMobiliteDetailSerializer(serializers.ModelSerializer):
+class CandidatureMobiliteDetailSerializer(TenantRelationsMixin, serializers.ModelSerializer):
     """Serializer complet pour une candidature."""
 
+    tenant_relations = {
+        "etudiant": etudiants_du_tenant,
+        "programme": programmes_du_tenant,
+    }
     etudiant_matricule = serializers.CharField(
         source="etudiant.matricule", read_only=True
     )
@@ -154,9 +187,10 @@ class CandidatureMobiliteDetailSerializer(serializers.ModelSerializer):
         ]
 
 
-class AccordEtudesSerializer(serializers.ModelSerializer):
+class AccordEtudesSerializer(TenantRelationsMixin, serializers.ModelSerializer):
     """Serializer pour les accords d'études."""
 
+    tenant_relations = {"candidature": candidatures_du_tenant}
     etudiant_nom = serializers.CharField(
         source="candidature.etudiant.user.get_full_name", read_only=True
     )

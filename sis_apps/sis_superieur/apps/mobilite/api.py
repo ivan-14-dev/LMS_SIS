@@ -10,7 +10,6 @@ from rest_framework.response import Response
 
 from sis_common.authorization import request_has_business_access
 
-from .models import AccordEtudes, CandidatureMobilite, ProgrammeMobilite
 from .serializers import (
     AccordEtudesSerializer,
     CandidatureMobiliteDetailSerializer,
@@ -18,6 +17,11 @@ from .serializers import (
     ProgrammeMobiliteDetailSerializer,
     ProgrammeMobiliteListSerializer,
 )
+from .services import accords_du_tenant, candidatures_du_tenant, programmes_du_tenant
+
+
+def _tenant_id(request):
+    return getattr(getattr(request, "tenant", None), "pk", None)
 
 
 class IsRelationsInternationalesOrReadOnly(IsAuthenticated):
@@ -46,9 +50,9 @@ class ProgrammesMobiliteViewSet(viewsets.ModelViewSet):
     ordering = ["-date_limite_candidature"]
 
     def get_queryset(self):
-        return ProgrammeMobilite.objects.select_related(
+        return programmes_du_tenant(_tenant_id(self.request)).select_related(
             "formation", "annee_universitaire"
-        ).prefetch_related("candidatures")
+        )
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -62,16 +66,18 @@ class ProgrammesMobiliteViewSet(viewsets.ModelViewSet):
         programmes = self.get_queryset().filter(
             actif=True, date_limite_candidature__gte=today
         )
-        serializer = ProgrammeMobiliteListSerializer(programmes, many=True)
+        serializer = ProgrammeMobiliteListSerializer(
+            programmes, many=True, context=self.get_serializer_context()
+        )
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
     def candidatures(self, request, pk=None):
         """Liste les candidatures du programme."""
         programme = self.get_object()
-        candidatures = programme.candidatures.select_related("etudiant__user").order_by(
-            "-date_soumission"
-        )
+        candidatures = candidatures_du_tenant(_tenant_id(request)).filter(
+            programme=programme
+        ).select_related("etudiant__user").order_by("-date_soumission")
         serializer = CandidatureMobiliteListSerializer(candidatures, many=True)
         return Response(serializer.data)
 
@@ -85,7 +91,7 @@ class CandidaturesMobiliteViewSet(viewsets.ModelViewSet):
     ordering = ["-date_soumission"]
 
     def get_queryset(self):
-        return CandidatureMobilite.objects.select_related(
+        return candidatures_du_tenant(_tenant_id(self.request)).select_related(
             "etudiant__user", "programme", "decision_par"
         )
 
@@ -132,7 +138,7 @@ class AccordsEtudesViewSet(viewsets.ModelViewSet):
     filterset_fields = ["candidature", "statut"]
 
     def get_queryset(self):
-        return AccordEtudes.objects.select_related(
+        return accords_du_tenant(_tenant_id(self.request)).select_related(
             "candidature__etudiant__user", "candidature__programme"
         )
 
