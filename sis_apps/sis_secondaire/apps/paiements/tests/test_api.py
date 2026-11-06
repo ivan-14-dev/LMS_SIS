@@ -5,7 +5,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from apps.paiements.api import IsFinanceManager, PaiementsViewSet
+from apps.paiements.api import FacturesViewSet, IsFinanceManager, PaiementsViewSet
 from apps.paiements.models import Facture, Paiement
 from apps.paiements.serializers import PaiementCreateSerializer
 from apps.paiements.services import PaymentConfirmationRejected, PaymentProviderUnavailable, confirm_card_payment
@@ -52,6 +52,109 @@ class PaiementsAPITestCase(SimpleTestCase):
 
         with self.assertRaisesMessage(ValidationError, "Vous ne pouvez pas payer cette facture"):
             serializer.validate({"facture": invoice, "montant": Decimal("10")})
+
+
+class ConfirmedInvoiceBalanceTests(SimpleTestCase):
+    def test_balance_counts_only_validated_payments_and_shows_overpayment(self):
+        invoice = SimpleNamespace(montant=Decimal("100.00"), montant_paye=Decimal("99.00"), save=Mock())
+        view = FacturesViewSet()
+        view.get_object = Mock(return_value=invoice)
+        cases = (
+            ([], "0.00", "100.00"),
+            ([("valide", "30.00"), ("valide", "20.00"), ("en_attente", "90.00"),
+              ("echec", "90.00"), ("rejete", "90.00"), ("rembourse", "90.00")], "50.00", "50.00"),
+            ([("valide", "100.00"), ("rembourse", "20.00")], "100.00", "0.00"),
+            ([("valide", "120.00"), ("echec", "50.00")], "120.00", "-20.00"),
+            ([("rembourse", "100.00")], "0.00", "100.00"),
+        )
+        for rows, expected_total, expected_balance in cases:
+            with self.subTest(rows=rows), patch.object(Paiement, "objects") as payments:
+                # The fake aggregate uses the status filter supplied by the view, not the cached invoice total.
+                def aggregate_for(**filters):
+                    return SimpleNamespace(
+                        aggregate=lambda **kwargs: {
+                            "total": sum(
+                                (Decimal(amount) for status, amount in rows if status == filters["statut"]),
+                                Decimal("0.00"),
+                            ) if rows else None,
+                        },
+                    )
+
+                payments.filter.side_effect = aggregate_for
+                response = view.solde_confirme(SimpleNamespace())
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.data, {
+                    "montant_facture": Decimal("100.00"),
+                    "total_paiements_confirmes": Decimal(expected_total),
+                    "solde_confirme": Decimal(expected_balance),
+                })
+                payments.filter.assert_called_once_with(facture=invoice, statut="valide")
+                self.assertEqual(invoice.montant_paye, Decimal("99.00"))
+                invoice.save.assert_not_called()
+
+    def test_balance_route_is_read_only(self):
+        route = resolve("/api/v1/paiements/factures/5/solde-confirme/")
+        self.assertEqual(route.url_name, "facture-solde-confirme")
+        self.assertEqual(route.func.actions, {"get": "solde_confirme", "head": "solde_confirme"})
+
+    def test_balance_http_denies_other_tenants_and_unrelated_roles(self):
+        path = "/api/v1/paiements/factures/5/solde-confirme/"
+        endpoint = resolve(path).func
+        tenant = SimpleNamespace(pk=7, configuration_academique={})
+        with patch.object(FacturesViewSet, "get_throttles", return_value=[]):
+            for role, etablissement_id in (("comptable", 8), ("enseignant", 7)):
+                with self.subTest(role=role, etablissement_id=etablissement_id):
+                    request = APIRequestFactory().get(path)
+                    request.tenant = tenant
+                    user = SimpleNamespace(
+                        id=1, pk=1, role=role, etablissement_id=etablissement_id,
+                        is_authenticated=True, is_superuser=False, has_perm=lambda permission: False,
+                    )
+                    force_authenticate(request, user=user)
+                    self.assertEqual(endpoint(request, pk="5").status_code, 404)
+
+    def test_balance_queryset_restricts_tenant_and_role(self):
+        view = FacturesViewSet()
+        view.action = "solde_confirme"
+        manager = SimpleNamespace(
+            id=1, etablissement_id=7, role="comptable", is_authenticated=True,
+            is_superuser=False, has_perm=lambda permission: False,
+        )
+        view.request = SimpleNamespace(user=manager, tenant=SimpleNamespace(pk=7, configuration_academique={}))
+        with patch.object(Facture, "objects") as invoices:
+            queryset = invoices.select_related.return_value.prefetch_related.return_value
+            queryset.filter.return_value = queryset
+            self.assertIs(view.get_queryset(), queryset)
+            queryset.filter.assert_called_once_with(
+                eleve__etablissement_id=7, type_frais__annee_scolaire__etablissement_id=7,
+            )
+
+            for tenant, user_id in ((SimpleNamespace(pk=8, configuration_academique={}), 7),
+                                    (SimpleNamespace(pk=7, configuration_academique={}), 8),
+                                    (None, 7)):
+                with self.subTest(tenant=tenant, user_id=user_id):
+                    manager.etablissement_id = user_id
+                    view.request.tenant = tenant
+                    queryset.reset_mock()
+                    self.assertIs(view.get_queryset(), queryset.none.return_value)
+                    queryset.filter.assert_not_called()
+            manager.etablissement_id = 7
+            view.request.tenant = SimpleNamespace(pk=7, configuration_academique={})
+            manager.role = "eleve"
+            queryset.reset_mock()
+            self.assertIs(view.get_queryset(), queryset)
+            self.assertEqual(queryset.filter.call_count, 2)
+            queryset.filter.assert_any_call(eleve__user=manager)
+            manager.role = "parent"
+            queryset.reset_mock()
+            self.assertIs(view.get_queryset(), queryset.distinct.return_value)
+            queryset.filter.assert_any_call(
+                eleve__tuteurs_lies__tuteur__user=manager,
+                eleve__tuteurs_lies__autorise_acces_portail=True,
+            )
+            manager.role = "enseignant"
+            queryset.reset_mock()
+            self.assertIs(view.get_queryset(), queryset.none.return_value)
 
 
 class CardConfirmationTests(SimpleTestCase):

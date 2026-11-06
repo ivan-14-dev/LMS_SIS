@@ -1,6 +1,7 @@
 """API views for paiements (ViewSets DRF) - SIS Secondaire."""
 
 import uuid
+from decimal import Decimal
 from pathlib import Path
 
 from apps.core.serializers import WorkflowEventSerializer
@@ -243,6 +244,14 @@ class FacturesViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Facture.objects.select_related("eleve__user", "type_frais").prefetch_related("paiements")
         user = self.request.user
+        if self.action == "solde_confirme":
+            tenant = getattr(self.request, "tenant", None)
+            if not getattr(tenant, "pk", None) or getattr(user, "etablissement_id", None) != tenant.pk:
+                return queryset.none()
+            queryset = queryset.filter(
+                eleve__etablissement_id=tenant.pk,
+                type_frais__annee_scolaire__etablissement_id=tenant.pk,
+            )
         if IsFinanceManager().has_permission(self.request, self):
             return queryset
         if user_has_any_role(user, ("eleve",)):
@@ -258,6 +267,19 @@ class FacturesViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return FactureListSerializer
         return FactureDetailSerializer
+
+    @action(detail=True, methods=["get"], url_path="solde-confirme")
+    def solde_confirme(self, request, pk=None):
+        """Solde signé calculé uniquement sur les paiements validés, sans modifier la facture."""
+        facture = self.get_object()
+        total = Paiement.objects.filter(facture=facture, statut="valide").aggregate(
+            total=Sum("montant")
+        )["total"] or Decimal("0.00")
+        return Response({
+            "montant_facture": facture.montant,
+            "total_paiements_confirmes": total,
+            "solde_confirme": facture.montant - total,
+        })
 
     def perform_create(self, serializer):
         numero = f"FAC-{timezone.now().strftime('%Y%m')}-{uuid.uuid4().hex[:6].upper()}"
