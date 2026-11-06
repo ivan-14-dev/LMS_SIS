@@ -189,7 +189,7 @@ const App = () => (
 
             {/* Vie scolaire */}
             <Route path="presences" element={<PresencesPage />} />
-            <Route path="discipline" element={<DisciplinePage />} />
+            <Route path="discipline" element={<PermissionGuard type="secondaire" permission="discipline.view_incident"><DisciplinePage /></PermissionGuard>} />
             <Route path="emploi-du-temps" element={<EmploiDuTempsSecondairePage />} />
 
             {/* Services */}
