@@ -1,7 +1,15 @@
 """API tests for internat."""
 
+from datetime import timedelta
+
+from apps.eleves.models import Eleve
+from apps.integration.tests.tenant_test_case import TenantAPITestCase
+from apps.internat.models import BatimentInternat, Chambre, OccupantChambre
+from apps.utilisateurs.models import Utilisateur
 from django.test import SimpleTestCase
 from django.urls import resolve
+from django.utils import timezone
+from django_tenants.utils import schema_context
 
 
 class InternatAPITestCase(SimpleTestCase):
@@ -12,3 +20,168 @@ class InternatAPITestCase(SimpleTestCase):
         assert resolve("/api/v1/internat/chambres/").url_name == "chambre-list"
         assert resolve("/api/v1/internat/occupants-chambres/").url_name == "occupant-chambre-list"
         assert resolve("/api/v1/internat/etudes-surveillees/").url_name == "etude-surveillee-list"
+
+
+class RoomOccupationCapacityTestCase(TenantAPITestCase):
+    def setUp(self):
+        admin = Utilisateur.objects.create_superuser(
+            "internat-admin", role="super_admin", etablissement=self.tenant
+        )
+        self.client.force_authenticate(admin)
+        building = BatimentInternat.objects.create(nom="Bâtiment A")
+        self.room = Chambre.objects.create(batiment=building, numero="101", capacite=1)
+        self.other_room = Chambre.objects.create(batiment=building, numero="102", capacite=1)
+        self.pupils = []
+        for number in range(1, 5):
+            user = Utilisateur.objects.create_user(
+                f"internat-pupil-{number}", role="eleve", etablissement=self.tenant
+            )
+            self.pupils.append(
+                Eleve.objects.create(
+                    etablissement=self.tenant,
+                    user=user,
+                    matricule=f"INTERNAT-{number}",
+                    date_naissance="2010-01-01",
+                    lieu_naissance="Paris",
+                    sexe="F",
+                    date_inscription="2026-09-01",
+                )
+            )
+        self.url = "/api/v1/internat/occupants-chambres/"
+
+    def payload(self, pupil, room=None, start="2026-09-01", end=None):
+        return {
+            "chambre": (room or self.room).pk,
+            "eleve": pupil.pk,
+            "date_debut": start,
+            "date_fin": end,
+        }
+
+    def test_create_and_update_respect_capacity_on_inclusive_dates(self):
+        first = self.client.post(
+            self.url, self.payload(self.pupils[0], end="2026-09-10"), format="json"
+        )
+        assert first.status_code == 201, first.data
+
+        occupied = self.client.post(
+            self.url,
+            self.payload(self.pupils[1], start="2026-09-10", end="2026-09-12"),
+            format="json",
+        )
+        assert occupied.status_code == 400, occupied.data
+        assert "chambre" in occupied.data
+
+        later = self.client.post(
+            self.url,
+            self.payload(self.pupils[1], start="2026-09-11", end="2026-09-12"),
+            format="json",
+        )
+        assert later.status_code == 201, later.data
+        later_url = f"{self.url}{later.data['id']}/"
+        move_date = self.client.patch(later_url, {"date_debut": "2026-09-10"}, format="json")
+        assert move_date.status_code == 400, move_date.data
+        assert "chambre" in move_date.data
+        assert self.client.get(later_url).data["date_debut"] == "2026-09-11"
+
+        first_url = f"{self.url}{first.data['id']}/"
+        extend = self.client.patch(first_url, {"date_fin": None}, format="json")
+        assert extend.status_code == 400, extend.data
+        assert self.client.get(first_url).data["date_fin"] == "2026-09-10"
+
+        in_other_room = self.client.post(
+            self.url,
+            self.payload(self.pupils[2], room=self.other_room, start="2026-09-02"),
+            format="json",
+        )
+        assert in_other_room.status_code == 201, in_other_room.data
+        transfer_url = f"{self.url}{in_other_room.data['id']}/"
+        transfer = self.client.patch(transfer_url, {"chambre": self.room.pk}, format="json")
+        assert transfer.status_code == 400, transfer.data
+        assert self.client.get(transfer_url).data["chambre"] == self.other_room.pk
+        assert OccupantChambre.objects.filter(chambre=self.room).count() == 2
+
+    def test_capacity_counts_simultaneous_not_sequential_occupants(self):
+        room = Chambre.objects.create(batiment=self.room.batiment, numero="103", capacite=2)
+        for pupil, start, end in [
+            (self.pupils[0], "2026-09-01", "2026-09-03"),
+            (self.pupils[1], "2026-09-05", "2026-09-07"),
+        ]:
+            response = self.client.post(
+                self.url, self.payload(pupil, room=room, start=start, end=end), format="json"
+            )
+            assert response.status_code == 201, response.data
+        spanning = self.client.post(
+            self.url,
+            self.payload(self.pupils[2], room=room, start="2026-09-01", end="2026-09-07"),
+            format="json",
+        )
+        assert spanning.status_code == 201, spanning.data
+        extra = self.client.post(
+            self.url,
+            self.payload(self.pupils[3], room=room, start="2026-09-04", end="2026-09-05"),
+            format="json",
+        )
+        assert extra.status_code == 400, extra.data
+        assert "chambre" in extra.data
+
+    def test_room_capacity_cannot_be_reduced_below_existing_occupation(self):
+        room = Chambre.objects.create(batiment=self.room.batiment, numero="103", capacite=2)
+        today = timezone.localdate()
+        for pupil in self.pupils[:2]:
+            response = self.client.post(
+                self.url,
+                self.payload(pupil, room=room, start=str(today), end=str(today + timedelta(days=10))),
+                format="json",
+            )
+            assert response.status_code == 201, response.data
+        url = f"/api/v1/internat/chambres/{room.pk}/"
+        reduced = self.client.patch(url, {"capacite": 1}, format="json")
+        assert reduced.status_code == 400, reduced.data
+        assert "capacite" in reduced.data
+        assert self.client.get(url).data["capacite"] == 2
+
+    def test_room_capacity_can_be_reduced_after_stays_have_ended(self):
+        room = Chambre.objects.create(batiment=self.room.batiment, numero="103", capacite=2)
+        end = timezone.localdate() - timedelta(days=1)
+        for pupil in self.pupils[:2]:
+            response = self.client.post(
+                self.url,
+                self.payload(pupil, room=room, start=str(end - timedelta(days=2)), end=str(end)),
+                format="json",
+            )
+            assert response.status_code == 201, response.data
+
+        updated = self.client.patch(f"/api/v1/internat/chambres/{room.pk}/", {"capacite": 1}, format="json")
+        assert updated.status_code == 200, updated.data
+        room.refresh_from_db()
+        assert room.capacite == 1
+
+    def test_create_and_update_reject_foreign_tenant_pupil(self):
+        foreign = type(self.tenant)(schema_name="foreign_internat")
+        self.setup_tenant(foreign)
+        foreign.auto_create_schema = False
+        with schema_context("public"):
+            foreign.save()
+        user = Utilisateur.objects.create_user(
+            "foreign-internat-pupil", role="eleve", etablissement=foreign
+        )
+        pupil = Eleve.objects.create(
+            etablissement=foreign,
+            user=user,
+            matricule="FOREIGN-INTERNAT",
+            date_naissance="2010-01-01",
+            lieu_naissance="Paris",
+            sexe="F",
+            date_inscription="2026-09-01",
+        )
+        rejected = self.client.post(self.url, self.payload(pupil), format="json")
+        assert rejected.status_code == 400, rejected.data
+        assert "eleve" in rejected.data
+
+        valid = self.client.post(self.url, self.payload(self.pupils[0]), format="json")
+        assert valid.status_code == 201, valid.data
+        detail_url = f"{self.url}{valid.data['id']}/"
+        rejected = self.client.patch(detail_url, {"eleve": pupil.pk}, format="json")
+        assert rejected.status_code == 400, rejected.data
+        assert "eleve" in rejected.data
+        assert self.client.get(detail_url).data["eleve"] == self.pupils[0].pk

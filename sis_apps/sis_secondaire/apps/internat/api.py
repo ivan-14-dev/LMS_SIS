@@ -1,10 +1,12 @@
 """API views for internat (ViewSets DRF) - SIS Secondaire."""
 
+from django.db import transaction
 from django.db.models import Count, F, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -19,6 +21,34 @@ from .serializers import (
     EtudeSurveilleeSerializer,
     OccupantChambreSerializer,
 )
+
+
+def _peak_room_occupation(room, start=None, end=None, exclude=None, from_date=None):
+    occupants = OccupantChambre.objects.filter(chambre=room)
+    if exclude is not None:
+        occupants = occupants.exclude(pk=exclude)
+    if from_date is not None:
+        occupants = occupants.filter(Q(date_fin__isnull=True) | Q(date_fin__gte=from_date))
+    if start is not None:
+        occupants = occupants.filter(Q(date_fin__isnull=True) | Q(date_fin__gte=start))
+        if end is not None:
+            occupants = occupants.filter(date_debut__lte=end)
+
+    intervals = list(occupants.values_list("date_debut", "date_fin"))
+    if start is not None:
+        intervals.append((start, end))
+    events = []
+    for begins, finishes in intervals:
+        events.append((begins, 1))
+        if finishes is not None:
+            events.append((finishes, -1))
+    # A stay ending on a date still occupies that date.
+    events.sort(key=lambda event: (event[0], -event[1]))
+    current = peak = 0
+    for _, change in events:
+        current += change
+        peak = max(peak, current)
+    return peak
 
 
 class IsVieScolariteOrReadOnly(IsAuthenticated):
@@ -95,7 +125,22 @@ class ChambresViewSet(viewsets.ModelViewSet):
     ordering = ["batiment", "etage", "numero"]
 
     def get_queryset(self):
-        return Chambre.objects.select_related("batiment")
+        queryset = Chambre.objects.select_related("batiment")
+        if self.action in ("update", "partial_update"):
+            return queryset.select_for_update(of=("self",))
+        return queryset
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        capacity = serializer.validated_data.get("capacite", serializer.instance.capacite)
+        if capacity < serializer.instance.capacite and _peak_room_occupation(
+            serializer.instance, from_date=timezone.localdate()
+        ) > capacity:
+            raise ValidationError({"capacite": "La capacité est inférieure aux occupations prévues."})
+        serializer.save()
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -145,7 +190,38 @@ class OccupantsChambresViewSet(viewsets.ModelViewSet):
     ordering = ["-date_debut"]
 
     def get_queryset(self):
-        return OccupantChambre.objects.select_related("chambre__batiment", "eleve__user", "eleve__classe_actuelle")
+        queryset = OccupantChambre.objects.select_related(
+            "chambre__batiment", "eleve__user", "eleve__classe_actuelle"
+        )
+        if self.action in ("update", "partial_update"):
+            return queryset.select_for_update(of=("self",))
+        return queryset
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    def _check_capacity(self, serializer):
+        attrs = serializer.validated_data
+        existing = serializer.instance
+        room = attrs.get("chambre", existing.chambre if existing else None)
+        start = attrs.get("date_debut", existing.date_debut if existing else None)
+        end = attrs.get("date_fin", existing.date_fin if existing else None)
+        room = Chambre.objects.select_for_update().get(pk=room.pk)
+        if _peak_room_occupation(room, start, end, exclude=existing.pk if existing else None) > room.capacite:
+            raise ValidationError({"chambre": "La chambre est complète pendant cette période."})
+
+    def perform_create(self, serializer):
+        self._check_capacity(serializer)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        self._check_capacity(serializer)
+        serializer.save()
 
     @action(detail=True, methods=["post"])
     def liberer(self, request, pk=None):
