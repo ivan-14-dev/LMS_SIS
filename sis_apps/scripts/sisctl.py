@@ -151,7 +151,14 @@ def configure(options):
     keys = jwks.get("keys") if isinstance(jwks, dict) else None
     if not isinstance(keys, list) or not keys:
         raise ValueError("Provide the LMS public signing JWKS, containing at least one key.")
-    if any(not isinstance(key, dict) or "d" in key or key.get("kty") != "RSA" for key in keys):
+    private_fields = {"d", "p", "q", "dp", "dq", "qi", "oth"}
+    if any(
+        not isinstance(key, dict)
+        or key.get("kty") != "RSA"
+        or private_fields.intersection(key)
+        or not all(isinstance(key.get(field), str) and key[field] for field in ("n", "e"))
+        for key in keys
+    ):
         raise ValueError("Only public RSA signing keys belong in the SIS JWKS.")
     oauth_secret = getpass.getpass("LMS OAuth client secret: ")
     if not oauth_secret:

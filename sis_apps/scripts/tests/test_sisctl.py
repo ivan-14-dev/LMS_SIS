@@ -87,5 +87,52 @@ class CardReferencePreflightTests(unittest.TestCase):
         self.assertFalse(any(call[0] == "run" for call in calls))
 
 
+class ConfigureJWKSTests(unittest.TestCase):
+    def options(self, directory, keys):
+        jwks = Path(directory) / "public-jwks.json"
+        jwks.write_text(json.dumps({"keys": keys}), encoding="utf-8")
+        return SimpleNamespace(
+            env_file=Path(directory) / ".env",
+            domain="school.example",
+            local=False,
+            lms_url="https://lms.school.example",
+            cms_url="https://studio.school.example",
+            jwks=jwks,
+            mode="secondaire",
+            auth_mode="lms",
+            oauth_client_id="sis-test",
+            issuer=None,
+            audience="openedx",
+        )
+
+    def test_refuses_private_rsa_material_and_incomplete_public_keys_before_prompting(self):
+        public = {"kty": "RSA", "n": "AQAB", "e": "AQAB"}
+        with tempfile.TemporaryDirectory() as directory:
+            for field in ("d", "p", "q", "dp", "dq", "qi", "oth"):
+                with self.subTest(field=field):
+                    options = self.options(directory, [{**public, field: "private"}])
+                    with patch.object(sisctl.getpass, "getpass", side_effect=AssertionError("Must not prompt")):
+                        with self.assertRaisesRegex(ValueError, "Only public RSA"):
+                            sisctl.configure(options)
+                    self.assertFalse(options.env_file.exists())
+            for field in ("n", "e"):
+                with self.subTest(missing=field):
+                    options = self.options(directory, [{key: value for key, value in public.items() if key != field}])
+                    with patch.object(sisctl.getpass, "getpass", side_effect=AssertionError("Must not prompt")):
+                        with self.assertRaisesRegex(ValueError, "Only public RSA"):
+                            sisctl.configure(options)
+                    self.assertFalse(options.env_file.exists())
+
+    def test_accepts_public_rsa_jwks_without_private_fields(self):
+        public = {"kty": "RSA", "kid": "sis-signing", "n": "AQAB", "e": "AQAB"}
+        with tempfile.TemporaryDirectory() as directory:
+            options = self.options(directory, [public])
+            with patch.object(sisctl.getpass, "getpass", return_value="throwaway-test-only"):
+                sisctl.configure(options)
+            saved = sisctl.read_configuration(options.env_file)
+            self.assertEqual(json.loads(saved["EDX_JWT_PUBLIC_SIGNING_JWK_SET"]), {"keys": [public]})
+            self.assertEqual(options.env_file.stat().st_mode & 0o777, 0o600)
+
+
 if __name__ == "__main__":
     unittest.main()

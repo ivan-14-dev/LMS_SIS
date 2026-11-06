@@ -69,6 +69,9 @@ constitue pas une qualification du SSO navigateur.
 Le secret OAuth est demandé sans affichage. Les autres secrets sont générés
 aléatoirement dans `.env`, avec des permissions `0600`. Une configuration
 existante n'est jamais écrasée.
+Le JWKS fourni doit contenir les paramètres publics RSA `n` et `e` ;
+l'installateur refuse tout composant de clé privée avant de demander le secret
+OAuth ou de créer `.env`.
 Utilisez le secret généré par Open edX, sur une seule ligne, sans apostrophe
 ni `$` initial ; l'installateur refuse ces formes plutôt que de produire une
 valeur interprétée différemment par les lecteurs de `.env`.
