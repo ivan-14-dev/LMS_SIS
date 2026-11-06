@@ -5,15 +5,20 @@ from unittest.mock import patch
 
 import pyotp
 import pytest
+from apps.utilisateurs.models import Utilisateur
 from apps.utilisateurs.token_views import MFATokenObtainPairSerializer
 from django.conf import settings
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.test import RequestFactory, override_settings
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
+from sis_common.account_recovery import confirm_password_reset
 from sis_common.local_authentication import (
     TENANT_CLAIM,
     TenantJWTAuthentication,
@@ -21,6 +26,26 @@ from sis_common.local_authentication import (
     TenantTokenBlacklistSerializer,
     TenantTokenRefreshSerializer,
 )
+
+
+def test_reset_token_issued_before_deactivation_cannot_change_password():
+    user = Utilisateur(pk=42, username="inactive-test", email="inactive@test.invalid", is_active=True)
+    user.set_password("old-password")
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    generator = PasswordResetTokenGenerator()
+    token = generator.make_token(user)
+    user.is_active = False
+    assert generator.check_token(user, token)
+
+    with (
+        patch.object(Utilisateur.objects, "get", return_value=user),
+        patch.object(user, "save") as save,
+        patch("sis_common.account_recovery.revoke_all_sessions") as revoke,
+    ):
+        assert not confirm_password_reset(Utilisateur, uid, token, "new-password")
+    save.assert_not_called()
+    revoke.assert_not_called()
+    assert user.check_password("old-password")
 
 
 @pytest.fixture

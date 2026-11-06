@@ -9,11 +9,11 @@ ici à une API DRF stateless :
    email contenant un lien ``{FRONTEND_URL}/reset-password/{uid}/{token}/``.
    Par conception, la fonction ne révèle jamais si l'email existe ou non :
    l'appelant doit toujours renvoyer la même réponse générique.
-2. ``confirm_password_reset`` valide le couple ``(uid, token)`` et, si
-   valide, définit le nouveau mot de passe puis révoque toutes les sessions
-   actives de l'utilisateur (voir ``sis_common.session_security``), afin
-   qu'un éventuel attaquant ayant compromis l'ancien mot de passe perde
-   immédiatement l'accès.
+2. ``confirm_password_reset`` valide le couple ``(uid, token)`` et vérifie
+   que le compte est toujours actif. Si oui, elle définit le nouveau mot de
+   passe puis révoque toutes les sessions actives de l'utilisateur (voir
+   ``sis_common.session_security``), afin qu'un éventuel attaquant ayant
+   compromis l'ancien mot de passe perde immédiatement l'accès.
 
 Le générateur de jeton intègre le mot de passe courant et ``last_login``
 dans son hash : un jeton devient donc automatiquement invalide dès qu'il a
@@ -87,7 +87,7 @@ def confirm_password_reset(user_model, uidb64: str, token: str, new_password: st
     except (TypeError, ValueError, OverflowError, user_model.DoesNotExist):
         return False
 
-    if not _token_generator.check_token(user, token):
+    if not user.is_active or not _token_generator.check_token(user, token):
         return False
 
     user.set_password(new_password)
