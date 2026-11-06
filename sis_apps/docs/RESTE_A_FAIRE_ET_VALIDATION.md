@@ -95,6 +95,26 @@ publié. **La matrice demeure à 1/94 vérifiée** : ni parcours réels
 institutionnels, ni fournisseurs externes, ni campagne à 500 connexions
 verte ne sont démontrés par ces tests.
 
+**Cinquième vague du 6 novembre 2026 :** dix autres incréments testés puis
+poussés séparément protègent la validation d'un paiement sur facture annulée,
+les champs de signature des diplômes, la disponibilité des exemplaires de
+bibliothèque scolaire, les incidents déjà sanctionnés ou classés, la
+publication des résultats validés après la fenêtre de saisie dans les deux
+SIS, les prêts universitaires renouvelés, le statut comptable des factures
+universitaires, la capacité des clubs et les transitions des mémoires. Pour
+les examens, la clôture des périodes reste opposable ; la soutenance d'un
+mémoire ne peut pas être déclarée par simple modification de son statut,
+mais le circuit de jury réel reste à construire et à prouver. L'image
+`lms-sis:local-20261106-491f7ae` passe `manage.py check` dans les deux
+variantes et les régressions complètes sur PostgreSQL/Redis jetables
+(**617 tests secondaire et 617 supérieur**). Le lint des fichiers Python
+modifiés passe avec la règle du Makefile. Les scripts et contrats frontend
+nécessaires à la collecte ont été montés en lecture seule ; le frontend
+inchangé n'a pas été retesté. Aucun service partagé n'a été remplacé,
+le correctif Open edX reste non publié, les prestataires et le pilote réel
+ne sont pas qualifiés et le dernier essai à 500 reste rouge. **Matrice :
+1/94 vérifiée**, sans promotion sur la seule foi de ces suites.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
