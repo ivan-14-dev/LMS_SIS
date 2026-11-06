@@ -330,6 +330,19 @@ class InscriptionsAdminViewSet(ReenrollmentMixin, AcademicLifecycleMixin, viewse
             )
         inscription.statut = "validee"
         inscription.save(update_fields=["statut", "updated_at"])
+        etudiant = Etudiant.objects.select_for_update().get(pk=inscription.etudiant_id)
+        current_year = etudiant.annee_universitaire_actuelle
+        year = inscription.annee_universitaire
+        if current_year is None or current_year.pk == year.pk or current_year.date_debut < year.date_debut:
+            fields = []
+            if etudiant.annee_universitaire_actuelle_id != year.pk:
+                etudiant.annee_universitaire_actuelle = year
+                fields.append("annee_universitaire_actuelle")
+            if etudiant.statut == "pre_inscrit":
+                etudiant.statut = "inscrit"
+                fields.append("statut")
+            if fields:
+                etudiant.save(update_fields=[*fields, "updated_at"])
         record_workflow_event(
             request,
             inscription,

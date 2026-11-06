@@ -1,10 +1,12 @@
 """API tests for etudiants."""
 
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 from apps.etudiants.api import EtudiantsViewSet, InscriptionsAdminViewSet, IsScolariteOrReadOnly
+from apps.etudiants.models import InscriptionAdministrative
 from apps.etudiants.serializers import InscriptionAdministrativeSerializer
 from apps.utilisateurs.models import Utilisateur
 from django.test import SimpleTestCase
@@ -121,6 +123,53 @@ class EtudiantsReadAccessTestCase(GradeEntryFixture):
         assert own.data["results"][0]["id"] == self.learners[0].pk
 
 
+class InscriptionValidationConsistencyTestCase(GradeEntryFixture):
+    def test_validation_activates_student_status_and_current_year(self):
+        student = self.learners[2]
+        inscription = InscriptionAdministrative.objects.create(
+            etudiant=student,
+            annee_universitaire=self.year,
+            formation=self.formation,
+            date_inscription=self.today,
+        )
+        assert student.statut == "pre_inscrit"
+        assert student.annee_universitaire_actuelle_id is None
+
+        response = self.client.post(f"/api/v1/inscriptions/{inscription.pk}/valider/", {}, format="json")
+
+        assert response.status_code == 200, response.data
+        student.refresh_from_db()
+        assert student.statut == "inscrit"
+        assert student.annee_universitaire_actuelle_id == self.year.pk
+
+    def test_validation_of_older_year_preserves_newer_year_and_suspension(self):
+        student = self.learners[2]
+        self.enroll(student)
+        student.statut = "suspendu"
+        student.annee_universitaire_actuelle = self.year
+        student.save(update_fields=["statut", "annee_universitaire_actuelle"])
+        previous_year = self.create(
+            self.year_model,
+            universite=self.tenant,
+            libelle="previous",
+            date_debut=self.year.date_debut.replace(year=self.year.date_debut.year - 1),
+            date_fin=self.year.date_fin.replace(year=self.year.date_fin.year - 1),
+        )
+        inscription = InscriptionAdministrative.objects.create(
+            etudiant=student,
+            annee_universitaire=previous_year,
+            formation=self.formation,
+            date_inscription=previous_year.date_debut,
+        )
+
+        response = self.client.post(f"/api/v1/inscriptions/{inscription.pk}/valider/", {}, format="json")
+
+        assert response.status_code == 200, response.data
+        student.refresh_from_db()
+        assert student.statut == "suspendu"
+        assert student.annee_universitaire_actuelle_id == self.year.pk
+
+
 class EtudiantsActionsTestCase(SimpleTestCase):
     def _view_with_etudiant(self, etudiant):
         view = EtudiantsViewSet()
@@ -210,17 +259,32 @@ class InscriptionsAdminWorkflowTestCase(SimpleTestCase):
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         inscription.save.assert_not_called()
 
+    @patch("apps.etudiants.api.Etudiant.objects")
     @patch("apps.etudiants.api.record_workflow_event")
-    def test_valider_transitions_provisoire_to_validee(self, mock_event):
+    def test_valider_transitions_provisoire_to_validee(self, mock_event, mock_etudiants):
         inscription = self._inscription(statut="provisoire")
+        inscription.annee_universitaire = SimpleNamespace(pk=1, date_debut=date(2026, 1, 1))
+        etudiant = SimpleNamespace(
+            annee_universitaire_actuelle=None,
+            annee_universitaire_actuelle_id=None,
+            statut="pre_inscrit",
+            save=MagicMock(),
+        )
+        mock_etudiants.select_for_update.return_value.get.return_value = etudiant
         view = self._view_with_inscription(inscription)
         request = SimpleNamespace(user=SimpleNamespace(is_authenticated=True))
 
-        response = view.valider(request, pk=1)
+        with patch("apps.etudiants.api.ensure_academic_open"):
+            response = view.valider(request, pk=1)
 
         assert response.status_code == 200
         assert inscription.statut == "validee"
         inscription.save.assert_called_once_with(update_fields=["statut", "updated_at"])
+        assert etudiant.statut == "inscrit"
+        assert etudiant.annee_universitaire_actuelle == inscription.annee_universitaire
+        etudiant.save.assert_called_once_with(
+            update_fields=["annee_universitaire_actuelle", "statut", "updated_at"]
+        )
         mock_event.assert_called_once()
 
     @patch("apps.etudiants.api.record_workflow_event")
