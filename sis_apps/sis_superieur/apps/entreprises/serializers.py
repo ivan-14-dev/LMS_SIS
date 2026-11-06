@@ -114,5 +114,18 @@ class ContactEntrepriseSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
+    def validate(self, attrs):
+        entreprise = attrs.get("entreprise")
+        if (
+            self.instance is not None
+            and entreprise is not None
+            and entreprise.pk != self.instance.entreprise_id
+            and self.instance.stages_encadres.exclude(entreprise=entreprise).exists()
+        ):
+            raise serializers.ValidationError(
+                {"entreprise": "Ce contact encadre une convention rattachée à une autre entreprise."}
+            )
+        return attrs
+
     def get_nom_complet(self, obj):
         return f"{obj.prenom} {obj.nom}"
