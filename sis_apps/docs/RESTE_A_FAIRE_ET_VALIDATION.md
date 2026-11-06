@@ -281,6 +281,19 @@ les parcours complets navigateur/Open edX/prestataires, une recette
 institutionnelle ou la tenue à 500 connexions ; le dernier essai autorisé
 à 500 demeure rouge. **Matrice : 1/94 exigence vérifiée**, sans promotion.
 
+**Contrôle ciblé du 6 novembre 2026 après la onzième vague :** la recherche
+universitaire de formations/parcours permettait à un étudiant de retrouver
+une formation liée à une inscription administrative provisoire. Le test HTTP
+reproduit ce défaut sur l'image précédente ; le correctif `a2e7f8e` n'accepte
+plus que les inscriptions validées, y compris après refus ou annulation
+(11 tests core verts sur l'image reconstruite sans montage source, lint ciblé
+vert). Ce moteur ne couvre aucun des cinq types d'objets de la recherche
+globale demandée en **10.7** ; cette exigence reste *absente* dans la matrice.
+La nouvelle preuve est rattachée à 10.7 sans changer les 94 statuts.
+Cette image n'a pas remplacé le déploiement partagé ni passé une nouvelle
+restauration ou charge à 500 : **1/94 exigence vérifiée** reste le compteur
+de recette documentée, pas le pourcentage d'implémentation.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de

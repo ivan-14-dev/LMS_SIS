@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-05T18:56:54+00:00",
+  "last_evidence_update_at": "2026-11-06T17:53:39+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -2774,10 +2774,26 @@
         "preservation": "Snapshot froid antérieur dc4da52d puis snapshot final après redémarrage1b26df04;58 snapshots et116 packs intégralement relus sans erreur. Aucune écriture de recette sur comptes ou cours réels.",
         "limits": "F02/F07 et la recette des94 exigences restent ouverts; pas de preuve d'isolation de toutes les autres API ni de capacité500. Aucun nouveau500 exécuté ou autorisé."
       }]
+    },
+    {
+      "id": "EXEC-20261106-university-academic-search-enrollment",
+      "evidence_cutoff_at": "2026-11-06T17:53:39+00:00",
+      "scope": "Recherche universitaire bornée aux formations et parcours : une inscription administrative provisoire, refusée ou annulée n'autorise plus l'étudiant à découvrir ces ressources.",
+      "f_lot_links": [{"id": "F23", "scope": "Sous-ensemble recherche académique uniquement; les cinq familles de la recherche globale ne sont pas couvertes.", "roadmap_status_unchanged": true}],
+      "campaigns": [{
+        "id": "university-academic-search-enrollment",
+        "result": "bounded_student_enrollment_search_guard_verified",
+        "commit": "a2e7f8e",
+        "image": "lms-sis:local-20261106-a2e7f8e",
+        "baseline": "Sur l'image précédente avec uniquement le test monté, une inscription provisoire rendait visible une formation dans la recherche étudiante (1 test rouge).",
+        "verification": "11 tests API core passent après correction avec source montée, puis 11/11 sur l'image reconstruite sans montage source; flake8 ciblé passe.",
+        "limits": "Recherche limitée à formations/parcours universitaires, pas de recherche globale des apprenants, cours LMS, documents, factures et activités. L'image n'a pas remplacé les services partagés; aucun parcours navigateur, restauration ou essai à 500 vert."
+      }]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-05T18:56:54+00:00",
+    "as_of": "2026-11-06T17:53:39+00:00",
+    "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
     "integration_admin_tenant_boundary": "SIS principal sur image integration-admin-tenant1 934fcba… : permission administrative et tenant/schéma contrôlés avant toutes les routes d'intégration concernées. Tests empaquetés52+50 verts, six services redémarrés et sains; snapshots antérieur dc4da52d et final1b26df04,58 snapshots/116 packs relus. Frontendd035, LMS access-ownership2 et fixture100b8 inchangés; dernier500 rouge, aucun500b8 exécuté/autorisé.",
     "manual_sync_tenant_boundary": "Incrément précédent manual-sync-tenant2 988ec9f… : refus 403 de l'administrateur étranger, 404 du compte et des sources de cours étrangères, dont ascendants année/niveau et semestre/maquette, avant appel distant. Tests empaquetés 29+43 verts et snapshotde0bd3eb/56-112 relu. Garde conservée dans l'image principale integration-admin-tenant1; frontendd035, LMS access-ownership2 et fixture100b8 inchangés.",
     "native_access_ownership": "LMS/CMS/workers sur image locale access-ownership2 d59d36c… : les inscriptions audit actives ou inactives préexistantes sans ManagedAccess initialisé ne sont pas adoptées;10 tests natifs empaquetés verts, snapshot froid final6f5e098d et14/31 packs relus, empreintes protégées conservées et parcours navigateur Studio/score1/1/déconnexions sur l'image finale après redémarrage. SIS principal integration-admin-tenant1, frontendd035 et fixture100b8; F07 et94 exigences toujours ouverts selon leurs statuts.",
@@ -3416,8 +3432,8 @@
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
     "imported_evidence_campaign_records": 120,
-    "requirements_with_new_increment_evidence": 19,
-    "conclusion": "120 enregistrements documentaires non sommés,19 exigences avec preuves,70 partial/21 absent/2 unverified/1 verified inchangés. Principal SIS b8/frontend d035/design et sauvegarde53/106 inchangés; fixture b8 qualifiée100HTTP/120s,0échec,p95 819ms, sans extrapolation. Nouveau LMS natif access-ownership2 livré,10 tests empaquetés verts, sauvegarde froide6f5e098d vérifiée14/31, empreintes et score1/1 préservés après redémarrage. F07 demeure partiel; dernier500/13b rouge500timeouts/262indéterminés inchangé. Aucun500/b8, promotion globale ou couverture100%."
+    "requirements_with_new_increment_evidence": 20,
+    "conclusion": "120 enregistrements documentaires historiques non sommés,20 exigences avec preuves ciblées,70 partial/21 absent/2 unverified/1 verified inchangés. La nouvelle recherche de formations/parcours universitaires est un sous-ensemble voisin de 10.7, non la recherche globale demandée : 10.7 reste absent. Les preuves historiques sur principal SIS b8/frontend d035, sauvegarde53/106 et fixture b8 qualifiée100HTTP/120s,p95 819ms restent bornées à leurs versions. LMS natif access-ownership2 et sauvegarde froide6f5e098d restent historiques. F07 demeure partiel; dernier500/13b rouge500timeouts/262indéterminés inchangé. Aucun nouveau500, promotion globale ou couverture100%."
   },
   "requirements": [
     {
@@ -8484,8 +8500,16 @@
         "Rechercher les cinq types d'objet demandés depuis un compte autorisé et ouvrir leur détail.",
         "Même requête avec autre rôle/tenant après révocation: aucun titre, extrait ou compte inaccessible ne doit apparaître."
       ],
-      "execution_evidence": [],
-      "acceptance_execution_status": "not_run"
+      "execution_evidence": [
+        {
+          "update_id": "EXEC-20261106-university-academic-search-enrollment",
+          "campaign_ids": ["university-academic-search-enrollment"],
+          "result": "adjacent_catalog_search_component_passed_requirement_not_closed",
+          "verified_scope": "Recherche GET de formations/parcours universitaires tenantées, permissionnées, paginées; une inscription administrative étudiante non validée n'autorise plus la lecture. Reproduction rouge avant correction puis 11/11 tests core verts sur image jetable a2e7f8e.",
+          "remaining_scope": "Aucun des cinq types d'objet attendus par 10.7 (apprenant, cours LMS, document, facture, activité) n'est couvert par ce moteur. Aucun lien navigateur global, ni révocation documentaire, ni recette inter-SIS : classification absent et critères de clôture inchangés."
+        }
+      ],
+      "acceptance_execution_status": "adjacent_increment_passed_requirement_incomplete"
     },
     {
       "id": "10.8",
