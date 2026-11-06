@@ -2,7 +2,8 @@
 
 import uuid
 
-from apps.etablissement.models import Universite
+from apps.etablissement.models import AnneeUniversitaire, Universite
+from apps.etudiants.models import Etudiant, InscriptionAdministrative
 from apps.formations.models import Formation, Parcours
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.structure.models import Departement, Faculte
@@ -134,6 +135,54 @@ class AcademicSearchAPITests(TenantAPITestCase):
         assert response.status_code == 200, response.data
         assert [row["id"] for row in response.data["results"]] == [self.own.pk]
         assert orphan.pk not in [row["id"] for row in response.data["results"]]
+
+    def test_student_search_requires_validated_enrollment(self):
+        student = Utilisateur.objects.create_user(
+            "student_search", etablissement=self.tenant, role="etudiant"
+        )
+        student.user_permissions.add(
+            Permission.objects.get(content_type__app_label="formations", codename="view_formation"),
+            Permission.objects.get(content_type__app_label="formations", codename="view_parcours"),
+        )
+        profile = Etudiant.objects.create(
+            universite=self.tenant, user=student, matricule="SEARCH-001",
+            date_naissance="2003-01-01", lieu_naissance="Paris", sexe="F",
+            adresse="1 rue des Tests", code_postal="75000", ville="Paris", telephone="0100000000",
+        )
+        current_year = AnneeUniversitaire.objects.create(
+            universite=self.tenant, libelle="2025-2026", date_debut="2025-09-01", date_fin="2026-06-30",
+        )
+        prior_year = AnneeUniversitaire.objects.create(
+            universite=self.tenant, libelle="2024-2025", date_debut="2024-09-01", date_fin="2025-06-30",
+        )
+        enrollment = InscriptionAdministrative.objects.create(
+            etudiant=profile, formation=self.own, annee_universitaire=current_year,
+            date_inscription="2025-09-01", statut="provisoire",
+        )
+        other_formation = Formation.objects.create(
+            code="PHY-OLD", nom="Physique ancienne", type="licence", departement=self.own_department,
+        )
+        InscriptionAdministrative.objects.create(
+            etudiant=profile, formation=other_formation, annee_universitaire=prior_year,
+            date_inscription="2024-09-01", statut="validee",
+        )
+        self.client.force_authenticate(student)
+
+        for state, expected in (
+            ("provisoire", []), ("refusee", []), ("annulee", []),
+            ("validee", [self.own.pk]),
+        ):
+            enrollment.statut = state
+            enrollment.save(update_fields=["statut"])
+            result = self.client.get(self.url, {"ressource": "formations", "q": "appliquée"})
+            track_result = self.client.get(self.url, {"ressource": "parcours", "q": "nucléaire"})
+            assert result.status_code == track_result.status_code == 200
+            assert [row["id"] for row in result.data["results"]] == expected
+            assert [row["id"] for row in track_result.data["results"]] == (
+                [self.own_track.pk] if state == "validee" else []
+            )
+        historical = self.client.get(self.url, {"ressource": "formations", "q": "ancienne"})
+        assert [row["id"] for row in historical.data["results"]] == [other_formation.pk]
 
     def test_invalid_queries_and_unauthenticated_access(self):
         for params in (

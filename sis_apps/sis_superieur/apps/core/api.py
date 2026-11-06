@@ -99,9 +99,10 @@ class AcademicSearchView(generics.ListAPIView):
         if self.request.user.role in ("etudiant", "doctorant") and not self.request.user.is_superuser:
             from apps.etudiants.models import InscriptionAdministrative
 
-            enrolled = InscriptionAdministrative.objects.filter(etudiant__user=self.request.user).values(
-                "formation_id"
-            )
+            enrolled = InscriptionAdministrative.objects.filter(
+                etudiant__user=self.request.user,
+                statut="validee",
+            ).values("formation_id")
             queryset = queryset.filter(**{f"{prefix}pk__in": enrolled})
         return queryset.filter(Q(code__icontains=term) | Q(nom__icontains=term)).order_by("pk").values(
             "id", "code", "nom"
