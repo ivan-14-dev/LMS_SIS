@@ -1,11 +1,13 @@
 """API tests for core."""
 
 import uuid
+from decimal import Decimal
 
 from apps.etablissement.models import AnneeUniversitaire, Universite
 from apps.etudiants.models import Etudiant, InscriptionAdministrative
 from apps.formations.models import Formation, Parcours
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
+from apps.paiements.models import FactureFrais, TypeFraisInscription
 from apps.structure.models import Departement, Faculte
 from apps.utilisateurs.models import Utilisateur
 from django.contrib.auth.models import Permission
@@ -263,3 +265,201 @@ class AcademicSearchAPITests(TenantAPITestCase):
         assert first.data["count"] == second.data["count"] == 51
         assert len(first.data["results"]) == 50
         assert len(second.data["results"]) == 1
+
+
+class InvoiceSearchAPITests(TenantAPITestCase):
+    url = "/api/v1/core/recherche-academique/"
+    finance_url = "/api/v1/paiements/factures/"
+
+    def setUp(self):
+        self.other = Universite(schema_name=f"invoice_search_{uuid.uuid4().hex[:12]}")
+        self.setup_tenant(self.other)
+        self.other.auto_create_schema = False
+        with schema_context("public"):
+            self.other.save()
+        self.student_user, self.student = self._learner("owner", self.tenant)
+        self.peer_user, self.peer = self._learner("peer", self.tenant)
+        self.foreign_user, foreign_student = self._learner("foreign", self.other)
+        self.manager = Utilisateur.objects.create_user(
+            "invoice-search-manager", role="comptable", etablissement=self.tenant
+        )
+        self.rubric = self._rubric(self.tenant)
+        self.foreign_rubric = self._rubric(self.other)
+        self.own = self._invoice(self.student, "SRCH-OWN")
+        self.peer_invoice = self._invoice(self.peer, "SRCH-PEER")
+        self.foreign_student_invoice = self._invoice(foreign_student, "SRCH-FOREIGN-STUDENT")
+        self.foreign_rubric_invoice = self._invoice(self.student, "SRCH-FOREIGN-RUBRIC", self.foreign_rubric)
+        self.invoices = [self.own, self.peer_invoice, self.foreign_student_invoice, self.foreign_rubric_invoice]
+
+    def _learner(self, name, tenant):
+        user = Utilisateur.objects.create_user(
+            f"invoice-search-{name}", role="etudiant", etablissement=tenant, last_name="PrivateSurname"
+        )
+        student = Etudiant.objects.create(
+            universite=tenant, user=user, matricule=f"PRIVATE-{name}",
+            date_naissance="2003-01-01", lieu_naissance="Paris", sexe="F",
+        )
+        return user, student
+
+    def _rubric(self, tenant):
+        year = AnneeUniversitaire.objects.create(
+            universite=tenant, libelle="Invoice search", date_debut="2025-09-01", date_fin="2026-06-30"
+        )
+        return TypeFraisInscription.objects.create(
+            annee_universitaire=year, code="SEARCH", libelle="PrivateRubric", montant=Decimal("100.00")
+        )
+
+    def _invoice(self, student, numero, rubric=None):
+        return FactureFrais.objects.create(
+            etudiant=student, type_frais=rubric or self.rubric, numero=numero,
+            date_emission="2025-09-01", date_echeance="2025-10-01", montant=Decimal("100.00"),
+            note="PrivateNote", pdf_path="private/invoice.pdf", qr_paiement="PrivatePaymentIdentifier",
+        )
+
+    def _assert_visibility(self, user, expected):
+        # A new request must not reuse Django's permission cache after revocation.
+        self.client.force_authenticate(Utilisateur.objects.get(pk=user.pk))
+        search = self.client.get(self.url, {"ressource": "factures", "q": "srch-"})
+        finance = self.client.get(self.finance_url, {"search": "srch-"})
+        assert search.status_code == finance.status_code == 200
+        assert search.data["count"] == finance.data["count"] == len(expected)
+        assert search.data["results"] == [
+            {"id": invoice.pk, "code": invoice.numero, "nom": f"Facture {invoice.numero}"}
+            for invoice in sorted(expected, key=lambda invoice: invoice.pk)
+        ]
+        expected_ids = {invoice.pk for invoice in expected}
+        assert {row["id"] for row in finance.data["results"]} == expected_ids
+        for invoice in self.invoices:
+            balance = self.client.get(f"{self.finance_url}{invoice.pk}/solde/")
+            assert balance.status_code == (200 if invoice.pk in expected_ids else 404), balance.data
+            if invoice.pk not in expected_ids:
+                assert invoice.numero not in str(search.data)
+                assert invoice.numero not in str(finance.data)
+        return search
+
+    def test_owner_search_matches_finance_without_exposing_other_identifiers(self):
+        self._assert_visibility(self.student_user, [self.own])
+        own = self.client.get(self.url, {"ressource": "factures", "q": " srch-own "})
+        assert own.status_code == 200
+        assert own.data["results"] == [
+            {"id": self.own.pk, "code": self.own.numero, "nom": f"Facture {self.own.numero}"}
+        ]
+        for term in (
+            self.peer_invoice.numero, self.student.matricule, "PrivateSurname", "PrivateRubric",
+            "PrivateNote", "PrivatePaymentIdentifier",
+        ):
+            with self.subTest(term=term):
+                result = self.client.get(self.url, {"ressource": "factures", "q": term})
+                assert result.status_code == 200
+                assert result.data["count"] == 0
+                assert result.data["results"] == []
+
+    def test_student_and_doctoral_finance_grants_never_expand_personal_access(self):
+        self.student_user.user_permissions.add(
+            Permission.objects.get(content_type__app_label="paiements", codename="change_paiementfrais")
+        )
+        self._assert_visibility(self.student_user, [self.own])
+        self.student_user.role = "doctorant"
+        self.student_user.is_superuser = True
+        self.student_user.save(update_fields=["role", "is_superuser"])
+        self._assert_visibility(self.student_user, [self.own])
+
+    def test_local_finance_role_and_explicit_permission_keep_the_same_access(self):
+        self._assert_visibility(self.manager, [self.own, self.peer_invoice])
+        staff = Utilisateur.objects.create_user(
+            "invoice-search-staff", role="enseignant", etablissement=self.tenant, is_staff=True
+        )
+        staff.user_permissions.add(
+            Permission.objects.get(content_type__app_label="paiements", codename="view_facturefrais")
+        )
+        self._assert_visibility(staff, [])
+        permission = Permission.objects.get(content_type__app_label="paiements", codename="change_paiementfrais")
+        staff.user_permissions.add(permission)
+        self._assert_visibility(staff, [self.own, self.peer_invoice])
+        staff.user_permissions.remove(permission)
+        self._assert_visibility(staff, [])
+
+    def test_revoked_finance_or_learner_role_cannot_use_a_stale_profile(self):
+        for user, expected in (
+            (self.manager, [self.own, self.peer_invoice]), (self.student_user, [self.own]),
+        ):
+            with self.subTest(role=user.role):
+                self._assert_visibility(user, expected)
+                user.role = "enseignant"
+                user.save(update_fields=["role"])
+                self._assert_visibility(user, [])
+
+    def test_parent_is_denied_even_with_superuser_and_learner_profile(self):
+        self.student_user.role = "parent"
+        self.student_user.is_superuser = True
+        self.student_user.save(update_fields=["role", "is_superuser"])
+        self._assert_visibility(self.student_user, [])
+
+    def test_foreign_or_inactive_finance_actor_cannot_discover_invoice_identifiers(self):
+        self.foreign_user.role = "comptable"
+        self.foreign_user.is_superuser = True
+        self.foreign_user.save(update_fields=["role", "is_superuser"])
+        self.manager.is_active = False
+        self.manager.save(update_fields=["is_active"])
+        for user in (self.foreign_user, self.manager):
+            with self.subTest(user=user.username):
+                self.client.force_authenticate(user)
+                search = self.client.get(self.url, {"ressource": "factures", "q": "SRCH-"})
+                finance = self.client.get(self.finance_url, {"search": "SRCH-"})
+                assert search.status_code == 403
+                assert finance.status_code == 200
+                assert finance.data["count"] == 0
+                assert finance.data["results"] == []
+                for invoice in self.invoices:
+                    assert invoice.numero not in str(search.data)
+                    assert self.client.get(f"{self.finance_url}{invoice.pk}/solde/").status_code == 404
+
+    def test_invoice_read_scopes_only_narrow_finance_and_personal_access(self):
+        for constraints, expected in (
+            ({"etudiants": [self.peer.pk]}, [self.peer_invoice]),
+            ({"factures": [self.own.pk]}, [self.own]),
+            ({"rubriques": [self.foreign_rubric.pk]}, []),
+            ({"annees": []}, []),
+            ({"etudiants": "all"}, []),
+            ({"unsupported": [self.own.pk]}, []),
+        ):
+            with self.subTest(constraints=constraints):
+                self.manager.attributs_acces = {
+                    "permission_scopes": {"paiements.view_facturefrais": constraints}
+                }
+                self.manager.save(update_fields=["attributs_acces"])
+                self._assert_visibility(self.manager, expected)
+        self.student_user.attributs_acces = {
+            "permission_scopes": {"paiements.view_facturefrais": {"etudiants": [self.peer.pk]}}
+        }
+        self.student_user.save(update_fields=["attributs_acces"])
+        self._assert_visibility(self.student_user, [])
+
+    def test_finance_permission_scopes_cannot_be_bypassed_by_legacy_role(self):
+        self.manager.attributs_acces = {
+            "permission_scopes": {"paiements.change_paiementfrais": {"etudiants": [self.student.pk]}}
+        }
+        self.manager.save(update_fields=["attributs_acces"])
+        self._assert_visibility(self.manager, [self.own])
+        self.manager.user_permissions.add(
+            Permission.objects.get(content_type__app_label="paiements", codename="change_paiementfrais")
+        )
+        # The authoritative finance permission requires context for a scoped grant.
+        self._assert_visibility(self.manager, [])
+
+    def test_invoice_search_keeps_query_validation_and_bounded_pagination(self):
+        self.client.force_authenticate(self.student_user)
+        for term in ("", "a", "x" * 101, "SRCH-\n"):
+            assert self.client.get(self.url, {"ressource": "factures", "q": term}).status_code == 400
+        FactureFrais.objects.bulk_create([
+            FactureFrais(
+                etudiant=self.student, type_frais=self.rubric, numero=f"SRCH-PAGE-{index:02}",
+                date_emission="2025-09-01", date_echeance="2025-10-01", montant=Decimal("100.00"),
+            )
+            for index in range(51)
+        ])
+        for params, length in (({}, 20), ({"page_size": "999"}, 50), ({"page_size": "999", "page": "2"}, 1)):
+            result = self.client.get(self.url, {"ressource": "factures", "q": "srch-page", **params})
+            assert result.status_code == 200
+            assert result.data["count"] == 51
+            assert len(result.data["results"]) == length

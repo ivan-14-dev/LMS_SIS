@@ -17,7 +17,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.academic_configuration import resolve_financial_workflow, workflow_transition_allowed
-from sis_common.authorization import has_business_permission_or_role
+from sis_common.authorization import filter_queryset_by_scopes, has_business_permission_or_role
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
@@ -135,6 +135,44 @@ class IsFinanceManager(IsAuthenticated):
         )
 
 
+def visible_invoices(request):
+    """Share the balance endpoint's tenant/owner policy across invoice reads.
+
+    Invoice read scopes can only narrow access. Scoped finance grants still
+    require the existing finance authorization check; they never grant access
+    through the legacy-role fallback.
+    """
+    tenant_id = getattr(getattr(request, "tenant", None), "pk", None)
+    user = request.user
+    queryset = FactureFrais.objects.select_related("etudiant__user", "type_frais").filter(
+        etudiant__universite_id=tenant_id,
+        type_frais__annee_universitaire__universite_id=tenant_id,
+    )
+    if (
+        tenant_id is None
+        or not user.is_authenticated
+        or not user.is_active
+        or user.etablissement_id != tenant_id
+    ):
+        return queryset.none()
+
+    scope_fields = {
+        "factures": "pk",
+        "etudiants": "etudiant_id",
+        "rubriques": "type_frais_id",
+        "annees": "type_frais__annee_universitaire_id",
+    }
+    if user.role in ("etudiant", "doctorant"):
+        queryset = queryset.filter(etudiant__user_id=user.pk)
+    elif user.role == "parent" or not IsFinanceManager().has_permission(request, None):
+        return queryset.none()
+    else:
+        queryset = filter_queryset_by_scopes(
+            queryset, user, "paiements.change_paiementfrais", scope_fields
+        )
+    return filter_queryset_by_scopes(queryset, user, "paiements.view_facturefrais", scope_fields)
+
+
 class TypesFraisViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour types de frais."""
 
@@ -161,28 +199,7 @@ class FacturesViewSet(viewsets.ModelViewSet):
     ordering = ["-date_emission"]
 
     def get_queryset(self):
-        qs = FactureFrais.objects.select_related("etudiant__user", "type_frais")
-        user = self.request.user
-        if self.action == "solde":
-            tenant_id = getattr(self.request.tenant, "pk", None)
-            qs = qs.filter(
-                etudiant__universite_id=tenant_id,
-                type_frais__annee_universitaire__universite_id=tenant_id,
-            )
-            if getattr(user, "etablissement_id", None) != tenant_id:
-                return qs.none()
-            if getattr(user, "role", None) in ("etudiant", "doctorant"):
-                return qs.filter(etudiant__user_id=user.pk)
-            if getattr(user, "role", None) == "parent":
-                return qs.none()
-            if IsFinanceManager().has_permission(self.request, self):
-                return qs
-            return qs.none()
-        if IsFinanceManager().has_permission(self.request, self):
-            return qs
-        if hasattr(user, "etudiant_profile"):
-            return qs.filter(etudiant__user=user)
-        return qs.none()
+        return visible_invoices(self.request)
 
     def get_serializer_class(self):
         if self.action == "list":

@@ -4,6 +4,7 @@ from apps.core.models import WorkflowEvent, WorkflowNotification
 from apps.core.serializers import WorkflowNotificationSerializer
 from apps.etudiants.models import Etudiant
 from apps.formations.models import Formation, Parcours
+from apps.paiements.api import visible_invoices
 from django.db.models import Count, F, Q, Value
 from django.db.models.functions import Concat
 from rest_framework import generics, mixins, permissions, response, serializers, status, viewsets
@@ -54,12 +55,14 @@ class AcademicSearchPagination(SISPagination):
 
 
 class AcademicSearchView(generics.ListAPIView):
-    """Recherche GET ?ressource=formations|parcours|etudiants&q=terme.
+    """Recherche GET ?ressource=formations|parcours|etudiants|factures&q=terme.
 
     Chaque requête porte sur un seul modèle, et ne renvoie que id, code et nom.
     Pagination : 20 résultats par défaut, au plus 50 via page_size.
     Les formations sans rattachement sont propres au schéma du tenant courant.
     Les étudiants restent soumis au même périmètre que leur fiche.
+    Les factures sont recherchées par numéro dans le périmètre de l'API finance,
+    sans exposer l'identité de l'étudiant ni les montants.
     """
 
     permission_classes = [ActiveTenantAccess]
@@ -69,8 +72,8 @@ class AcademicSearchView(generics.ListAPIView):
 
     def get_queryset(self):
         resource = self.request.query_params.get("ressource")
-        if resource not in ("formations", "parcours", "etudiants"):
-            raise ValidationError({"ressource": "Choisissez formations, parcours ou etudiants."})
+        if resource not in ("formations", "parcours", "etudiants", "factures"):
+            raise ValidationError({"ressource": "Choisissez formations, parcours, etudiants ou factures."})
         raw_term = self.request.query_params.get("q", "")
         term = raw_term.strip()
         if (
@@ -79,6 +82,12 @@ class AcademicSearchView(generics.ListAPIView):
             or any(ord(char) < 32 or ord(char) == 127 for char in raw_term)
         ):
             raise ValidationError({"q": "Saisissez entre 2 et 100 caractères, sans caractères de contrôle."})
+
+        if resource == "factures":
+            return visible_invoices(self.request).filter(numero__icontains=term).annotate(
+                code=F("numero"),
+                nom=Concat(Value("Facture "), "numero"),
+            ).order_by("pk").values("id", "code", "nom")
 
         model = {"formations": Formation, "parcours": Parcours, "etudiants": Etudiant}[resource]
         permission = f"{model._meta.app_label}.view_{model._meta.model_name}"

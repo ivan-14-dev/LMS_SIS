@@ -186,6 +186,17 @@ class ConfirmedInvoiceBalanceTests(TenantAPITestCase):
         self.assertEqual(response.data["montant_confirme"], Decimal("25.00"))
         self.assertEqual(response.data["reste_a_payer"], Decimal("75.00"))
 
+    def test_current_tenant_owner_and_finance_manager_keep_list_and_detail_access(self):
+        for actor in (self.student_user, self.manager):
+            with self.subTest(actor=actor.username):
+                self.client.force_authenticate(actor)
+                listing = self.client.get("/api/v1/paiements/factures/")
+                self.assertEqual(listing.status_code, 200, listing.data)
+                self.assertEqual([row["id"] for row in listing.data["results"]], [self.invoice.pk])
+                detail = self.client.get(f"/api/v1/paiements/factures/{self.invoice.pk}/")
+                self.assertEqual(detail.status_code, 200, detail.data)
+                self.assertEqual(detail.data["id"], self.invoice.pk)
+
     def test_unrelated_student_parent_and_foreign_university_are_denied(self):
         other_user = Utilisateur.objects.create_user("balance-other", role="etudiant", etablissement=self.tenant)
         parent = Utilisateur.objects.create_user("balance-parent", role="parent", etablissement=self.tenant)
@@ -219,19 +230,25 @@ class ConfirmedInvoiceBalanceTests(TenantAPITestCase):
             sexe="F",
         )
         foreign_student_invoice = self._invoice(foreign_student, self.rubric, "BAL-FOREIGN-2")
-        for actor, url in (
-            (other_user, self.url),
-            (parent, self.url),
-            (foreign_manager, self.url),
-            (self.manager, f"/api/v1/paiements/factures/{foreign_invoice.pk}/solde/"),
-            (self.student_user, f"/api/v1/paiements/factures/{foreign_invoice.pk}/solde/"),
-            (self.manager, f"/api/v1/paiements/factures/{foreign_student_invoice.pk}/solde/"),
-            (foreign_student_user, f"/api/v1/paiements/factures/{foreign_student_invoice.pk}/solde/"),
+        for actor, invoice in (
+            (other_user, self.invoice),
+            (parent, self.invoice),
+            (foreign_manager, self.invoice),
+            (self.manager, foreign_invoice),
+            (self.student_user, foreign_invoice),
+            (self.manager, foreign_student_invoice),
+            (foreign_student_user, foreign_student_invoice),
         ):
-            with self.subTest(actor=actor.username, url=url):
+            with self.subTest(actor=actor.username, invoice=invoice.numero):
                 self.client.force_authenticate(actor)
-                response = self.client.get(url)
-                self.assertEqual(response.status_code, 404, response.data)
+                for suffix in ("", "solde/"):
+                    response = self.client.get(f"/api/v1/paiements/factures/{invoice.pk}/{suffix}")
+                    self.assertEqual(response.status_code, 404, response.data)
+                listing = self.client.get("/api/v1/paiements/factures/", {"search": invoice.numero})
+                self.assertEqual(listing.status_code, 200, listing.data)
+                self.assertEqual(listing.data["count"], 0)
+                self.assertEqual(listing.data["results"], [])
+                self.assertNotIn(invoice.numero, str(listing.data))
         self.assertEqual(connection.schema_name, self.tenant.schema_name)
 
     def test_repeated_balance_reads_never_credit_or_create_payments(self):
