@@ -19,6 +19,27 @@ Dans le cours Open edX :
 Les enregistrements et leur durée de conservation doivent être configurés sur
 le serveur BigBlueButton selon la politique de l'établissement.
 
+## Reprise d'un provisionnement de cours Studio
+
+Le service de provisionnement doit conserver sa permission
+`sis_provisioning.provision_courses`, l'autorisation de créer des cours dans
+l'organisation et les droits d'auteur sur le cours concerné. Ces droits sont
+distincts des permissions du compte dans le SIS.
+
+Après une interruption de création, rejouer la même requête sur
+`/api/sis/v1/courses/<course_key>/` ne doit pas réattribuer des droits Studio
+révoqués. Si le cours existe mais que son initialisation est inachevée, la
+reprise vérifie de nouveau les droits d'auteur avant toute réinitialisation ;
+leur absence entraîne un refus HTTP 403.
+
+L'opérateur doit vérifier le compte de service, le cours et la décision
+d'habilitation. Si la reprise est autorisée, il rétablit explicitement les
+droits nécessaires dans Studio avant de rejouer la requête. Si la révocation
+est intentionnelle, conserver le refus. Ne pas supprimer le cours, modifier
+son marqueur de propriété ou forcer `ManagedCourse.initialized` pour contourner
+ce contrôle. La liaison explicite d'un cours historique est un autre parcours,
+pas un moyen de terminer cette initialisation.
+
 ## Notes détaillées Open edX
 
 Activer le signal dans la configuration LMS :

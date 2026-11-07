@@ -207,6 +207,8 @@ class CourseView(APIView):
             check_course(course, binding)
             if not binding.initialized:
                 if not created:
+                    if not has_studio_write_access(manager, key):
+                        raise PermissionDenied("The service no longer has course authoring access.")
                     resume_initialization(course, manager)
                 binding.initialized = True
             elif not has_studio_write_access(manager, key):

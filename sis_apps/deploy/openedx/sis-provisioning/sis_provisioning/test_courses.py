@@ -90,6 +90,23 @@ class CourseProvisioningTests(TestCase):
         self.create.assert_called_once()
         self.resume.assert_called_once()
 
+    def test_unfinished_course_replay_does_not_restore_revoked_authoring_rights(self):
+        def interrupted(*args):
+            self.create_course(*args)
+            raise RuntimeError("interrupted after MongoDB creation")
+
+        self.create.side_effect = interrupted
+        with self.assertRaisesRegex(RuntimeError, "MongoDB"):
+            self.client.post(self.url, self.payload, format="json")
+        self.authoring_rights.return_value = False
+
+        response = self.client.post(self.url, self.payload, format="json")
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(ManagedCourse.objects.get(course_id=str(self.key)).initialized)
+        self.create.assert_called_once()
+        self.resume.assert_not_called()
+        self.store.update_item.assert_not_called()
+
     def test_existing_unmanaged_course_is_not_adopted(self):
         self.courses[str(self.key)] = SimpleNamespace(id=self.key, display_name="Existing")
         response = self.client.post(self.url, self.payload, format="json")
