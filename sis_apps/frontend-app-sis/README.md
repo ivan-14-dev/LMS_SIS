@@ -123,6 +123,37 @@ du frontend : elle est accessible au navigateur.
 - Une erreur d'authentification ou d'API ne provoque jamais un basculement automatique
   vers les données simulées.
 
+### Recherche de dossiers
+
+La palette existante (bouton « Rechercher », `Ctrl+K` / `⌘K`) conserve la
+navigation **Modules** et propose un onglet **Dossiers**. Les types proposés
+dépendent des capacités du compte et de son contexte SIS :
+
+- secondaire : élèves et factures ;
+- supérieur : étudiants, formations, parcours, factures, relevés, transcripts
+  et attestations.
+
+Chaque recherche interroge `core/recherche-academique/` pour un seul type
+(`ressource`), avec un terme `q` de 2 à 100 caractères sans caractère de contrôle.
+Les factures et documents sont recherchés par numéro ; les pages contiennent
+20 résultats. Les contrôles de périmètre restent appliqués par le serveur,
+y compris à l’ouverture de la fiche. Un refus HTTP 403 est affiché explicitement.
+Les factures, parcours et documents disposent de fiches de consultation utilisant
+leurs endpoints de détail natifs ; les élèves, étudiants et formations réutilisent
+leurs fiches existantes.
+
+Les résultats de recherche et les nouvelles fiches ne sont conservés ni dans le
+cache React Query ni dans le stockage du navigateur. Les requêtes sont annulées
+et leurs réponses tardives ignorées après fermeture, changement de recherche,
+de compte, d’établissement ou de capacités.
+
+Les relevés, transcripts et attestations sont les documents sources officiels :
+leur validation administrative ne constitue pas une signature numérique vérifiable.
+La recherche ne couvre pas les archives signées ni les diplômes délivrés.
+Le type backend `cours` est volontairement absent de la palette : il exige un
+administrateur LMS du tenant et n’a pas encore de destination de détail adressable.
+Une formation n’est pas un cours LMS. Les activités LMS ne sont pas couvertes.
+
 ### Limites actuelles du parcours d'inscription
 
 L'activation du client réel ne suffit **pas** à rendre l'inscription opérationnelle :

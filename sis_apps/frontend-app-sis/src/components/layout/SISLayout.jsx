@@ -39,6 +39,9 @@ const Workspace = ({ type, variant }) => {
     queryKey: ['profile', profileUrl], queryFn: () => fetchApi(`${profileUrl}me/`),
   });
   const allowedCapabilities = capabilities.isError ? undefined : capabilities.data;
+  const searchContext = !capabilities.isFetching && !capabilities.isError
+    && !profile.isFetching && !profile.isError && profile.data?.id
+    ? JSON.stringify([profileUrl, profile.data.id, profile.data.etablissement, allowedCapabilities]) : null;
   const allSections = getNavigation(variant, variant, allowedCapabilities, location.search);
   const preferences = useWorkspacePreferences(profile.data?.id
     ? `${profileUrl}:${profile.data.etablissement}:${profile.data.id}` : null);
@@ -124,6 +127,9 @@ const Workspace = ({ type, variant }) => {
               sections={allSections}
               preferences={preferences}
               brand={profile.data?.branding?.primary_color}
+              variant={variant}
+              capabilities={allowedCapabilities}
+              searchContext={searchContext}
             />
             <label className="sis-context-select" htmlFor="sis-context">
               <span>Contexte SIS</span>
@@ -205,6 +211,7 @@ const Workspace = ({ type, variant }) => {
                   favorites,
                   profile: profile.data,
                   capabilities: capabilities.isError ? undefined : capabilities.data,
+                  searchContext,
                   loading: capabilities.isLoading,
                   error: capabilities.error,
                 }}

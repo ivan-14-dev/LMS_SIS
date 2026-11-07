@@ -27,6 +27,7 @@ import InscriptionsPage from './superieur/inscriptions/InscriptionsPage';
 import NotesPage from './superieur/notes/NotesPage';
 import ExamensPage from './superieur/examens/ExamensPage';
 import ExamManagement from './components/common/ExamManagement';
+import SearchRecordDetail from './components/common/SearchRecordDetail';
 import BoursesPage from './superieur/bourses/BoursesPage';
 import EmploiDuTempsPage from './superieur/emploi-du-temps/EmploiDuTempsPage';
 import EnseignantsPage from './superieur/enseignants/EnseignantsPage';
@@ -96,6 +97,9 @@ const App = () => (
             <Route path="archives" element={<ArchivedDocuments variant="superieur" />} />
             <Route path="missions" element={<AccessDelegationsPage variant="superieur" />} />
             <Route path="documents" element={<DocumentsPage variant="superieur" />} />
+            <Route path="documents/:documentType/:id" element={<SearchRecordDetail />} />
+            <Route path="factures/:id" element={<SearchRecordDetail resource="factures" />} />
+            <Route path="parcours/:id" element={<SearchRecordDetail resource="parcours" />} />
             <Route path="reclamations" element={<ComplaintsPage variant="superieur" />} />
             <Route path="compte" element={<AccountPage variant="superieur" />} />
             <Route index element={<DashboardSuperieur />} />
@@ -163,6 +167,7 @@ const App = () => (
             <Route path="archives" element={<ArchivedDocuments variant="secondaire" />} />
             <Route path="missions" element={<AccessDelegationsPage variant="secondaire" />} />
             <Route path="documents" element={<DocumentsPage variant="secondaire" />} />
+            <Route path="factures/:id" element={<SearchRecordDetail resource="factures" />} />
             <Route path="reclamations" element={<ComplaintsPage variant="secondaire" />} />
             <Route path="compte" element={<AccountPage variant="secondaire" />} />
             <Route index element={<DashboardSecondaire />} />

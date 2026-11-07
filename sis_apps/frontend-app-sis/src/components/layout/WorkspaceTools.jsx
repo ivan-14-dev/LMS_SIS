@@ -3,20 +3,25 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton,
-  List, ListItem, ListItemButton, ListItemText, MenuItem, Stack, TextField, Tooltip, Typography,
+  List, ListItem, ListItemButton, ListItemText, MenuItem, Stack, Tab, Tabs, TextField, Tooltip, Typography,
 } from '@mui/material';
 import {
   Search, Star, StarBorder, Tune, DarkModeOutlined, LightModeOutlined,
 } from '@mui/icons-material';
 import { filterNavigation } from './navigation';
 import { designTokens } from '../../theme/tokens';
+import AcademicSearch from './AcademicSearch';
+import { academicSearchResources } from '../../services/academicSearch';
 
 export const navigationKey = item => item.path.split('?')[0];
 
-const WorkspaceTools = ({ sections, preferences, brand }) => {
+const WorkspaceTools = ({
+  sections, preferences, brand, variant, capabilities, searchContext,
+}) => {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(false);
   const [query, setQuery] = useState('');
+  const [mode, setMode] = useState('modules');
   const trigger = useRef(null);
   const list = useRef(null);
   const colors = designTokens(preferences.theme, brand);
@@ -27,6 +32,7 @@ const WorkspaceTools = ({ sections, preferences, brand }) => {
         event.preventDefault();
         trigger.current?.focus();
         setQuery('');
+        setMode('modules');
         setOpen(true);
       }
     };
@@ -51,11 +57,12 @@ const WorkspaceTools = ({ sections, preferences, brand }) => {
     links[next].focus();
   };
   const visible = filterNavigation(sections, query);
+  const resources = academicSearchResources(variant, capabilities);
   return (
     <>
-      <Tooltip title="Rechercher un module (Ctrl+K / ⌘K)">
-        <Button className="sis-search-trigger" ref={trigger} aria-label="Ouvrir la palette de navigation" aria-keyshortcuts="Control+k Meta+k" onClick={() => { setQuery(''); setOpen(true); }}>
-          <Search /><span>Rechercher un module</span><kbd>Ctrl K</kbd>
+      <Tooltip title="Rechercher un module ou un dossier (Ctrl+K / ⌘K)">
+        <Button className="sis-search-trigger" ref={trigger} aria-label="Ouvrir la palette de navigation" aria-keyshortcuts="Control+k Meta+k" onClick={() => { setQuery(''); setMode('modules'); setOpen(true); }}>
+          <Search /><span>Rechercher</span><kbd>Ctrl K</kbd>
         </Button>
       </Tooltip>
       <Tooltip title="Préférences d’affichage">
@@ -74,47 +81,66 @@ const WorkspaceTools = ({ sections, preferences, brand }) => {
         </IconButton>
       </Tooltip>
       <Dialog open={open} onClose={close} fullWidth aria-labelledby="sis-command-title">
-        <DialogTitle id="sis-command-title">Aller à un module</DialogTitle>
-        <DialogContent onKeyDown={moveFocus}>
-          <TextField
-            autoFocus
-            fullWidth
-            label="Rechercher dans les modules autorisés"
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-            helperText="Flèches pour parcourir, Entrée pour ouvrir, Tab pour les favoris, Échap pour fermer."
-          />
-          <Typography variant="body2" sx={{ mt: 2 }}>Navigation uniquement : aucune recherche dans les dossiers personnels.</Typography>
-          <Box ref={list}>
-            {visible.map(section => (
-              <Box key={section.title} component="section" aria-label={section.title}>
-                <Typography component="h3" variant="subtitle2" sx={{ mt: 2 }}>{section.title}</Typography>
-                <List disablePadding>
-                  {section.items.map(item => (
-                    <ListItem
-                      key={item.path}
-                      disablePadding
-                      secondaryAction={(
-                        <IconButton
-                          aria-label={`${favorite(item) ? 'Retirer' : 'Ajouter'} ${item.label} ${favorite(item) ? 'des' : 'aux'} favoris`}
-                          aria-pressed={favorite(item)}
-                          disabled={!preferences.ready}
-                          onClick={() => toggle(item)}
-                        >
-                          {favorite(item) ? <Star color="primary" /> : <StarBorder />}
-                        </IconButton>
+        <DialogTitle id="sis-command-title">{mode === 'records' ? 'Recherche de dossiers' : 'Aller à un module'}</DialogTitle>
+        <DialogContent onKeyDown={mode === 'modules' ? moveFocus : undefined}>
+          {variant && (
+            <Tabs value={mode} onChange={(_, value) => setMode(value)} aria-label="Portée de la recherche" sx={{ mb: 2 }}>
+              <Tab value="modules" label="Modules" /><Tab value="records" label="Dossiers" />
+            </Tabs>
+          )}
+          {mode === 'records' && open && variant && (
+            searchContext ? (
+              <AcademicSearch
+                key={searchContext}
+                variant={variant}
+                resources={resources}
+                onNavigate={close}
+              />
+            ) : <Alert severity="info">Vérification de vos accès avant la recherche…</Alert>
+          )}
+          {mode === 'modules' && (
+            <>
+              <TextField
+                autoFocus
+                fullWidth
+                label="Rechercher dans les modules autorisés"
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+                helperText="Flèches pour parcourir, Entrée pour ouvrir, Tab pour les favoris, Échap pour fermer."
+              />
+              <Typography variant="body2" sx={{ mt: 2 }}>Navigation uniquement : aucune recherche dans les dossiers personnels.</Typography>
+              <Box ref={list}>
+                {visible.map(section => (
+                  <Box key={section.title} component="section" aria-label={section.title}>
+                    <Typography component="h3" variant="subtitle2" sx={{ mt: 2 }}>{section.title}</Typography>
+                    <List disablePadding>
+                      {section.items.map(item => (
+                        <ListItem
+                          key={item.path}
+                          disablePadding
+                          secondaryAction={(
+                            <IconButton
+                              aria-label={`${favorite(item) ? 'Retirer' : 'Ajouter'} ${item.label} ${favorite(item) ? 'des' : 'aux'} favoris`}
+                              aria-pressed={favorite(item)}
+                              disabled={!preferences.ready}
+                              onClick={() => toggle(item)}
+                            >
+                              {favorite(item) ? <Star color="primary" /> : <StarBorder />}
+                            </IconButton>
                       )}
-                    >
-                      <ListItemButton component={Link} to={item.path} onClick={close} sx={{ mr: 6 }}>
-                        <ListItemText primary={item.label} />
-                      </ListItemButton>
-                    </ListItem>
-                  ))}
-                </List>
+                        >
+                          <ListItemButton component={Link} to={item.path} onClick={close} sx={{ mr: 6 }}>
+                            <ListItemText primary={item.label} />
+                          </ListItemButton>
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                ))}
               </Box>
-            ))}
-          </Box>
-          {!visible.length && <Typography role="status" sx={{ mt: 2 }}>Aucun module autorisé ne correspond.</Typography>}
+              {!visible.length && <Typography role="status" sx={{ mt: 2 }}>Aucun module autorisé ne correspond.</Typography>}
+            </>
+          )}
         </DialogContent>
         <DialogActions><Button onClick={close}>Fermer la palette</Button></DialogActions>
       </Dialog>
@@ -177,6 +203,14 @@ WorkspaceTools.propTypes = {
     error: PropTypes.string.isRequired,
   }).isRequired,
   brand: PropTypes.string,
+  variant: PropTypes.oneOf(['secondaire', 'superieur']),
+  capabilities: PropTypes.shape({
+    role: PropTypes.string,
+    permissions: PropTypes.arrayOf(PropTypes.string),
+  }),
+  searchContext: PropTypes.string,
 };
-WorkspaceTools.defaultProps = { brand: undefined };
+WorkspaceTools.defaultProps = {
+  brand: undefined, variant: undefined, capabilities: undefined, searchContext: null,
+};
 export default WorkspaceTools;

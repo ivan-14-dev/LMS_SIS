@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  fireEvent, render, screen, waitFor, within,
+  act, fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -17,8 +17,13 @@ import {
 } from './navigation';
 import SchoolLearnerPortal from '../../secondaire/portails/PortailApprenantFamille';
 import UniversityLearnerPortal from '../../superieur/portails/PortailApprenantFamille';
+import SearchRecordDetail from '../common/SearchRecordDetail';
 
 jest.mock('@edx/frontend-platform', () => ({ getConfig: jest.fn() }));
+// Load the real icons on demand rather than the entire icon catalogue in this suite.
+jest.mock('@mui/icons-material', () => new Proxy({ __esModule: true }, {
+  get: (target, name) => (name === '__esModule' ? true : jest.requireActual(`@mui/icons-material/${name}`).default),
+}));
 jest.mock('@mui/material', () => ({ ...jest.requireActual('@mui/material'), useMediaQuery: jest.fn() }));
 jest.mock('../auth/LocalSessionGate', () => jest.fn(({ children }) => children));
 jest.mock('../../services/api', () => ({
@@ -123,8 +128,9 @@ it('reports a failed institutional logo and allows a replacement image to load',
   expect(screen.queryByRole('status')).not.toBeInTheDocument();
 });
 
-const renderWorkspace = (path = '/secondaire') => render(
-  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })}>
+const workspaceClient = () => new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
+const renderWorkspace = (path = '/secondaire', client = workspaceClient()) => render(
+  <QueryClientProvider client={client}>
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         {['secondaire', 'superieur'].map(variant => (
@@ -132,6 +138,9 @@ const renderWorkspace = (path = '/secondaire') => render(
             <Route index element={<WorkspaceHome />} />
             <Route path="classes" element={<h1>Gestion des classes</h1>} />
             <Route path="eleves" element={<h1>Dossiers élèves</h1>} />
+            <Route path="factures/:id" element={<SearchRecordDetail resource="factures" />} />
+            <Route path="documents/:documentType/:id" element={<SearchRecordDetail />} />
+            <Route path="parcours/:id" element={<SearchRecordDetail resource="parcours" />} />
             <Route path="compte" element={<h1>Sécurité du compte</h1>} />
             <Route path="portail-apprenant" element={variant === 'secondaire' ? <SchoolLearnerPortal /> : <UniversityLearnerPortal />} />
           </Route>
@@ -494,4 +503,208 @@ it('keeps the active group and its sibling pages visible on a direct URL', async
   expect(local.getByRole('link', { name: 'Classes' })).toHaveAttribute('aria-current', 'page');
   fireEvent.click(local.getByRole('link', { name: 'Élèves' }));
   expect(await screen.findByRole('heading', { name: 'Dossiers élèves' })).toBeVisible();
+});
+
+describe('authorized record search', () => {
+  const palette = (props = {}) => (
+    <MemoryRouter>
+      <WorkspaceTools
+        sections={[]}
+        preferences={{
+          theme: 'light', favorites: [], update: jest.fn(), ready: true, error: '',
+        }}
+        variant="secondaire"
+        capabilities={{ role: 'super_admin', permissions: ['*'] }}
+        searchContext="tenant:1:account:1"
+        {...props}
+      />
+    </MemoryRouter>
+  );
+  const openRecords = async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir la palette de navigation' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Dossiers', exact: true }));
+  };
+  const selectType = (name) => {
+    fireEvent.mouseDown(screen.getByLabelText('Type de dossier'));
+    fireEvent.click(screen.getByRole('option', { name, exact: true }));
+  };
+  const submit = (value = 'REF') => {
+    fireEvent.change(screen.getByLabelText('Rechercher un dossier'), { target: { value } });
+    fireEvent.click(screen.getByRole('button', { name: 'Rechercher les dossiers' }));
+  };
+
+  it.each([
+    ['secondaire', 'Élèves', 'eleves', '/secondaire/eleves/17'],
+    ['secondaire', 'Factures', 'factures', '/secondaire/factures/17'],
+    ['superieur', 'Étudiants', 'etudiants', '/superieur/etudiants/17'],
+    ['superieur', 'Factures', 'factures', '/superieur/factures/17'],
+    ['superieur', 'Formations', 'formations', '/superieur/formations/17'],
+    ['superieur', 'Parcours', 'parcours', '/superieur/parcours/17'],
+    ['superieur', 'Relevés de notes', 'releves', '/superieur/documents/releves/17'],
+    ['superieur', 'Transcripts', 'transcripts', '/superieur/documents/transcripts/17'],
+    ['superieur', 'Attestations', 'attestations', '/superieur/documents/attestations/17'],
+  ])('opens %s %s at the actual entity destination', async (variant, label, resource, path) => {
+    fetchApi.mockResolvedValue({ count: 1, next: null, results: [{ id: 17, code: 'REF-17', nom: 'Dossier attendu' }] });
+    render(palette({ variant }));
+    await openRecords();
+    selectType(label);
+    submit('  REF  ');
+    expect(await screen.findByRole('link', { name: 'Dossier attendu REF-17' })).toHaveAttribute('href', path);
+    const url = new URL(fetchApi.mock.calls[0][0]);
+    expect(url.hostname).toBe(`${variant}.example.test`);
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      ressource: resource, q: 'REF', page: '1', page_size: '20',
+    });
+    expect(localStorage.length).toBe(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Fermer la palette' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await openRecords();
+    expect(screen.queryByText('Dossier attendu')).not.toBeInTheDocument();
+  });
+
+  it('validates minimum, maximum and control characters without a request', async () => {
+    fetchApi.mockResolvedValue({ count: 0, results: [] });
+    render(palette());
+    await openRecords();
+    ['a', ' '.repeat(2), 'a'.repeat(101), 'ab\u007f', 'ab\u0085'].forEach(value => {
+      fireEvent.change(screen.getByLabelText('Rechercher un dossier'), { target: { value } });
+      expect(screen.getByRole('button', { name: 'Rechercher les dossiers' })).toBeDisabled();
+    });
+    expect(fetchApi).not.toHaveBeenCalled();
+    submit('a'.repeat(100));
+    expect(await screen.findByText('Aucun dossier autorisé ne correspond.')).toBeVisible();
+    submit('ab');
+    await waitFor(() => expect(fetchApi).toHaveBeenCalledTimes(2));
+  });
+
+  it('paginates within the current endpoint and clears prior results on type changes', async () => {
+    fetchApi.mockImplementation(async url => {
+      const page = Number(new URL(url).searchParams.get('page'));
+      return {
+        count: 21,
+        next: page === 1 ? 'https://untrusted.example/records?page=2' : null,
+        results: [{ id: page, code: `REF-${page}`, nom: `Dossier page ${page}` }],
+      };
+    });
+    render(palette());
+    await openRecords();
+    submit();
+    expect(await screen.findByText('Dossier page 1')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Résultats précédents' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Résultats suivants' }));
+    expect(await screen.findByText('Dossier page 2')).toBeVisible();
+    expect(screen.queryByText('Dossier page 1')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Résultats suivants' })).toBeDisabled();
+    expect(fetchApi.mock.calls.every(([url]) => url.startsWith('https://secondaire.example.test/api/v1/core/'))).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Résultats précédents' }));
+    expect(await screen.findByText('Dossier page 1')).toBeVisible();
+    selectType('Factures');
+    expect(screen.queryByText('Dossier page 1')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Résultats suivants' })).not.toBeInTheDocument();
+  });
+
+  it('distinguishes permission denial from a successful empty search and retries', async () => {
+    fetchApi.mockRejectedValueOnce({ response: { status: 403, data: { detail: 'Non autorisé' } } })
+      .mockResolvedValueOnce({ count: 0, results: [] });
+    render(palette());
+    await openRecords();
+    submit();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Accès refusé (403)');
+    expect(screen.queryByText('Aucun dossier autorisé ne correspond.')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Réessayer la recherche' }));
+    expect(await screen.findByText('Aucun dossier autorisé ne correspond.')).toBeVisible();
+  });
+
+  it('discards records and in-flight responses when context or capabilities change', async () => {
+    let resolve;
+    fetchApi.mockResolvedValueOnce({ count: 1, results: [{ id: 1, code: 'REF', nom: 'Ancien dossier' }] })
+      .mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    const view = render(palette());
+    await openRecords();
+    submit();
+    expect(await screen.findByText('Ancien dossier')).toBeVisible();
+    view.rerender(palette({ searchContext: 'tenant:2:account:1' }));
+    expect(screen.queryByText('Ancien dossier')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Rechercher un dossier')).toHaveValue('');
+    submit();
+    await waitFor(() => expect(fetchApi).toHaveBeenCalledTimes(2));
+    const { signal } = fetchApi.mock.calls[1][1];
+    view.rerender(palette({
+      searchContext: 'tenant:2:account:1:revoked',
+      capabilities: { role: 'custom', permissions: [] },
+    }));
+    expect(signal.aborted).toBe(true);
+    await act(async () => resolve({ count: 1, results: [{ id: 2, code: 'REF', nom: 'Réponse tardive' }] }));
+    expect(screen.queryByText('Réponse tardive')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Aucune recherche de dossiers autorisée');
+    expect(localStorage.length).toBe(0);
+  });
+
+  it('lets authorized families search invoices without administrative learner access', async () => {
+    render(palette({ capabilities: portalRole('parent') }));
+    await openRecords();
+    fireEvent.mouseDown(screen.getByLabelText('Type de dossier'));
+    expect(screen.getByRole('option', { name: 'Factures' })).toBeVisible();
+    expect(screen.queryByRole('option', { name: 'Élèves' })).not.toBeInTheDocument();
+  });
+
+  it('does not present a formation as an LMS course or expose an unimplemented course destination', async () => {
+    render(palette({ variant: 'superieur' }));
+    await openRecords();
+    fireEvent.mouseDown(screen.getByLabelText('Type de dossier'));
+    expect(screen.getByRole('option', { name: 'Formations' })).toBeVisible();
+    expect(screen.queryByRole('option', { name: /cours lms/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /^cours$/i })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['secondaire', '/factures/17', '/paiements/factures/17/', 'Facture'],
+    ['superieur', '/factures/17', '/paiements/factures/17/', 'Facture'],
+    ['superieur', '/documents/releves/17', '/releves/17/', 'Relevé de notes'],
+    ['superieur', '/documents/transcripts/17', '/releves/transcripts/17/', 'Transcript'],
+    ['superieur', '/documents/attestations/17', '/releves/attestations/17/', 'Attestation'],
+    ['superieur', '/parcours/17', '/formations/parcours/17/', 'Parcours'],
+  ])('loads the authorized %s %s detail without sharing its result in cache', async (variant, route, endpoint, heading) => {
+    const defaultFetch = fetchApi.getMockImplementation();
+    fetchApi.mockImplementation((url, options) => (
+      url.endsWith(endpoint) ? Promise.resolve({
+        id: 17, numero: 'REF-17', numero_serie: 'REF-17', nom: 'Parcours réel', montant: '125.00',
+      }) : defaultFetch(url, options)
+    ));
+    const client = workspaceClient();
+    renderWorkspace(`/${variant}${route}`, client);
+    expect(await screen.findByRole('heading', { name: heading, exact: true })).toBeVisible();
+    expect(fetchApi.mock.calls.some(([url]) => url === `https://${variant}.example.test/api/v1${endpoint}`)).toBe(true);
+    expect(client.getQueryCache().getAll().some(query => query.state.data?.numero === 'REF-17')).toBe(false);
+  });
+
+  it('keeps denied entity details explicit rather than showing a stale result', async () => {
+    const defaultFetch = fetchApi.getMockImplementation();
+    fetchApi.mockImplementation((url, options) => (
+      url.endsWith('/paiements/factures/17/')
+        ? Promise.reject(Object.assign(new Error('Hors périmètre'), {
+          response: { status: 403, data: { detail: 'Hors périmètre' } },
+        }))
+        : defaultFetch(url, options)
+    ));
+    renderWorkspace('/secondaire/factures/17');
+    expect(await screen.findByText('Accès refusé (403) : vous ne pouvez pas consulter ce dossier.')).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Facture', exact: true })).not.toBeInTheDocument();
+  });
+
+  it('immediately removes an opened detail after its read capability is revoked', async () => {
+    const defaultFetch = fetchApi.getMockImplementation();
+    fetchApi.mockImplementation((url, options) => (
+      url.endsWith('/paiements/factures/17/')
+        ? Promise.resolve({ id: 17, numero: 'FACTURE-CONFIDENTIELLE', montant: '125.00' })
+        : defaultFetch(url, options)
+    ));
+    const client = workspaceClient();
+    renderWorkspace('/secondaire/factures/17', client);
+    expect(await screen.findByRole('heading', { name: 'Facture', exact: true })).toBeVisible();
+    act(() => client.setQueryData(['capabilities', 'secondaire'], { role: 'custom', permissions: [] }));
+    expect(await screen.findByText('Vous n’avez pas accès à ce type de dossier dans ce contexte.')).toBeVisible();
+    expect(screen.queryByText('FACTURE-CONFIDENTIELLE')).not.toBeInTheDocument();
+    expect(screen.queryByText('125.00')).not.toBeInTheDocument();
+  });
 });
