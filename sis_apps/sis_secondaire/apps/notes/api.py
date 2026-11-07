@@ -11,6 +11,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -735,6 +736,66 @@ class NotesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
         )
 
 
+def visible_bulletins(request):
+    """Source unique pour liste, fiche, PDF et recherche des bulletins.
+
+    Les familles ne voient que les bulletins publiés de leurs élèves autorisés.
+    Un enseignant est limité aux classes dont son compte est professeur principal,
+    sans confondre la clé du compte avec celle de son profil Personnel.
+    """
+    if not DocumentTenantPermission().has_permission(request, None) or not is_current_tenant_user(request):
+        raise PermissionDenied(DocumentTenantPermission.message)
+    tenant_id = request.tenant.pk
+    queryset = (
+        Bulletin.objects.filter(
+            Q(classe__etablissement_id=tenant_id) | Q(classe__etablissement__isnull=True),
+            Q(eleve__user__etablissement_id=tenant_id) | Q(eleve__user__etablissement__isnull=True),
+            eleve__etablissement_id=tenant_id,
+            classe__annee_scolaire__etablissement_id=tenant_id,
+            classe__niveau__etablissement_id=tenant_id,
+            periode__annee_scolaire__etablissement_id=tenant_id,
+        )
+        .select_related("eleve__user", "classe", "periode")
+        .annotate(
+            nb_matieres_individualisees=Count(
+                "eleve__affectations_matiere_individuelles",
+                filter=Q(
+                    eleve__affectations_matiere_individuelles__annee_scolaire_id=F("classe__annee_scolaire_id")
+                ),
+                distinct=True,
+            )
+        )
+    )
+    user = request.user
+    queryset = filter_queryset_by_scopes(
+        queryset,
+        user,
+        "notes.view_bulletin",
+        {"classes": "classe_id", "annees": "classe__annee_scolaire_id", "periodes": "periode_id"},
+    )
+    if user.role == "eleve" and not user.is_superuser:
+        return queryset.filter(eleve__user=user, publie=True)
+    if user.role == "parent" or hasattr(user, "tuteur_profile"):
+        return queryset.filter(
+            eleve__tuteurs_lies__tuteur__user=user,
+            eleve__tuteurs_lies__tuteur__etablissement_id=tenant_id,
+            eleve__tuteurs_lies__autorise_acces_portail=True,
+            publie=True,
+        ).distinct()
+    if not user.is_superuser and user_has_any_role(user, ("enseignant",)):
+        return queryset.filter(classe__prof_principal=user)
+    if not (
+        user.has_perm("notes.view_bulletin")
+        or request_has_business_access(
+            request,
+            "notes.view_bulletin",
+            ("direction", "responsable_pedagogique", "vie_scolaire"),
+        )
+    ):
+        raise PermissionDenied("La consultation des bulletins exige un rôle ou une permission de lecture autorisé.")
+    return queryset
+
+
 class BulletinsViewSet(viewsets.ModelViewSet):
     """ViewSet CRUD pour bulletins."""
 
@@ -780,50 +841,7 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         bulletin.delete()
 
     def get_queryset(self):
-        qs = (
-            Bulletin.objects.filter(eleve__etablissement_id=self.request.tenant.pk)
-            .select_related("eleve__user", "classe", "periode")
-            .annotate(
-                nb_matieres_individualisees=Count(
-                    "eleve__affectations_matiere_individuelles",
-                    filter=Q(
-                        eleve__affectations_matiere_individuelles__annee_scolaire_id=F("classe__annee_scolaire_id")
-                    ),
-                    distinct=True,
-                )
-            )
-        )
-        user = self.request.user
-        qs = filter_queryset_by_scopes(
-            qs,
-            user,
-            "notes.view_bulletin",
-            {
-                "classes": "classe_id",
-                "annees": "classe__annee_scolaire_id",
-                "periodes": "periode_id",
-            },
-        )
-        if user.role == "eleve" and not user.is_superuser:
-            return qs.filter(eleve__user=user, publie=True)
-        if user.role == "parent" or hasattr(user, "tuteur_profile"):
-            return qs.filter(
-                eleve__tuteurs_lies__tuteur__user=user,
-                eleve__tuteurs_lies__autorise_acces_portail=True,
-                publie=True,
-            ).distinct()
-        if not user.is_superuser and user_has_any_role(user, ("enseignant",)) and hasattr(user, "personnel_profile"):
-            return qs.filter(classe__prof_principal=user.personnel_profile)
-        if not (
-            user.has_perm("notes.view_bulletin")
-            or request_has_business_access(
-                self.request,
-                "notes.view_bulletin",
-                ("direction", "responsable_pedagogique", "vie_scolaire"),
-            )
-        ):
-            return qs.none()
-        return qs
+        return visible_bulletins(self.request)
 
     def get_serializer_class(self):
         if self.action == "list":

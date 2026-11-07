@@ -10,21 +10,27 @@ Endpoints :
 - POST /sync/grade/         : pousse une note vers LMS
 - POST /sync/certificate/   : délivre un certificat
 - GET  /health/             : santé LMS + CMS
+- GET  /mappings/courses/   : cours LMS visibles par l'administrateur courant
+- GET  /mappings/courses/<id>/ : détail en lecture seule, id du mapping SIS
 """
 
 import hashlib
 import logging
 
 from django.conf import settings
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from sis_common.authorization import filter_queryset_by_scopes
 from sis_common.lms_access_api import synchronize_access
 from sis_common.lms_outbox import outbox_queryset, request_outbox_processing
 from sis_common.lms_publication_api import course_publication
@@ -229,14 +235,43 @@ def user_mappings(request):
     return _paginated_response(request, queryset, EdxUserMappingSerializer)
 
 
+def visible_course_mappings(request):
+    """Même accès administrateur LMS pour la liste, le détail et la recherche.
+
+    Les mappings inactifs restent visibles. Les rattachements facultatifs
+    hérités sont locaux au schéma ; les années et niveaux doivent être locaux.
+    Les périmètres view_edxcoursemapping ne peuvent que restreindre cet accès.
+    """
+    if not IsCurrentLmsTenantAdmin().has_permission(request, None):
+        raise PermissionDenied()
+    tenant_id = request.tenant.pk
+    queryset = EdxCourseMapping.objects.filter(
+        Q(matiere__etablissement_id=tenant_id) | Q(matiere__etablissement__isnull=True),
+        Q(classe__etablissement_id=tenant_id) | Q(classe__etablissement__isnull=True),
+        classe__annee_scolaire__etablissement_id=tenant_id,
+        classe__niveau__etablissement_id=tenant_id,
+    )
+    return filter_queryset_by_scopes(
+        queryset,
+        request.user,
+        "integration.view_edxcoursemapping",
+        {"cours": "pk", "classes": "classe_id", "matieres": "matiere_id", "annees": "classe__annee_scolaire_id"},
+    ).select_related("matiere", "classe").order_by("course_name", "pk")
+
+
 @api_view(["GET"])
 @permission_classes([IsCurrentLmsTenantAdmin])
 def course_mappings(request):
     """Liste paginée des correspondances entre cours SIS et Open edX."""
-    queryset = EdxCourseMapping.objects.select_related("matiere", "classe").order_by(
-        "course_name"
-    )
-    return _paginated_response(request, queryset, EdxCourseMappingSerializer)
+    return _paginated_response(request, visible_course_mappings(request), EdxCourseMappingSerializer)
+
+
+@api_view(["GET"])
+@permission_classes([IsCurrentLmsTenantAdmin])
+def course_mapping_detail(request, mapping_id):
+    """Détail d'un mapping visible, sans synchronisation ni appel LMS."""
+    mapping = get_object_or_404(visible_course_mappings(request), pk=mapping_id)
+    return Response(EdxCourseMappingSerializer(mapping).data)
 
 
 @api_view(["GET"])

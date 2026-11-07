@@ -5,9 +5,10 @@ import unicodedata
 from apps.core.models import WorkflowEvent, WorkflowNotification
 from apps.core.serializers import WorkflowNotificationSerializer
 from apps.eleves.api import visible_learners
+from apps.integration.api import visible_course_mappings
 from apps.paiements.api import visible_invoices
-from django.db.models import Count, F, Q, Value
-from django.db.models.functions import Concat
+from django.db.models import CharField, Count, F, Q, Value
+from django.db.models.functions import Cast, Concat
 from rest_framework import generics, mixins, permissions, response, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -56,13 +57,22 @@ class AcademicSearchPagination(SISPagination):
 
 
 class AcademicSearchView(generics.ListAPIView):
-    """Recherche GET ?ressource=eleves|factures&q=terme, sans accès anonyme.
+    """Recherche GET ?ressource=eleves|factures|cours|bulletins&q=terme.
 
     Terme de 2 à 100 caractères, sans caractères de contrôle.
     Résultats id/code/nom, paginés par 20 (page_size plafonné à 50).
     Les élèves exigent eleves.view_eleve et le périmètre de leur API.
     Les factures reprennent le périmètre finance, par numéro uniquement,
     sans exposer l'identité de l'élève ni les montants.
+    Les cours sont les EdxCourseMapping, recherchés par course_id/course_name,
+    avec le même accès administrateur LMS et les mêmes périmètres que leur liste.
+    Les mappings inactifs sont inclus ; id est la PK du mapping, code la clé LMS,
+    nom le course_name. Le détail est GET /integration/mappings/courses/<id>/.
+    Les matières, classes, activités LMS et bulletins ne sont pas des cours.
+    Les bulletins utilisent le périmètre de leur PDF officiel, publication et
+    accès parent/professeur principal compris. Recherche sur la référence
+    existante du PDF BUL-<id>, pas sur un numéro métier persistant ni sur l'élève.
+    code = BUL-<id>, nom = Bulletin BUL-<id> ; ni notes, ni identité, ni fichier.
     """
 
     permission_classes = [ActiveTenantAccess]
@@ -72,8 +82,8 @@ class AcademicSearchView(generics.ListAPIView):
 
     def get_queryset(self):
         resource = self.request.query_params.get("ressource")
-        if resource not in ("eleves", "factures"):
-            raise ValidationError({"ressource": "Choisissez eleves ou factures."})
+        if resource not in ("eleves", "factures", "cours", "bulletins"):
+            raise ValidationError({"ressource": "Choisissez eleves, factures, cours ou bulletins."})
         raw_term = self.request.query_params.get("q", "")
         term = raw_term.strip()
         if (
@@ -87,6 +97,21 @@ class AcademicSearchView(generics.ListAPIView):
             return visible_invoices(self.request).filter(numero__icontains=term).annotate(
                 code=F("numero"),
                 nom=Concat(Value("Facture "), "numero"),
+            ).order_by("pk").values("id", "code", "nom")
+
+        if resource == "cours":
+            return visible_course_mappings(self.request).filter(
+                Q(course_id__icontains=term) | Q(course_name__icontains=term)
+            ).annotate(code=F("course_id"), nom=F("course_name")).order_by("pk").values("id", "code", "nom")
+
+        if resource == "bulletins":
+            from sis_common.signed_documents import source_view
+
+            view, _, _ = source_view(self.request, "notes.bulletin")
+            return view.get_queryset().annotate(
+                code=Concat(Value("BUL-"), Cast("pk", output_field=CharField())),
+            ).filter(code__icontains=term).annotate(
+                nom=Concat(Value("Bulletin "), "code"),
             ).order_by("pk").values("id", "code", "nom")
 
         if not self.request.user.has_perm("eleves.view_eleve"):

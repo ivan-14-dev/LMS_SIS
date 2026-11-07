@@ -2,9 +2,10 @@
 
 import uuid
 
-from apps.classes.models import Classe
+from apps.classes.models import Classe, Matiere
 from apps.eleves.models import Eleve, EleveTuteur, Tuteur
 from apps.etablissement.models import AnneeScolaire, Etablissement, Niveau
+from apps.integration.models import EdxCourseMapping
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.paiements.models import Facture, TypeFrais
 from apps.utilisateurs.models import Utilisateur
@@ -355,3 +356,215 @@ class AcademicSearchAPITests(TenantAPITestCase):
         assert first.data["results"][0]["id"] == self.owner.pk
         assert second.data["results"][0]["id"] == self.peer.pk
         assert second.data["next"] is None
+
+
+@override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
+class AcademicCourseSearchAPITests(TenantAPITestCase):
+    url = "/api/v1/core/recherche-academique/"
+    courses_url = "/api/v1/integration/mappings/courses/"
+
+    def setUp(self):
+        self.other = Etablissement(schema_name=f"school_courses_{uuid.uuid4().hex[:12]}")
+        self.setup_tenant(self.other)
+        self.other.auto_create_schema = False
+        with schema_context("public"):
+            self.other.save()
+        self.staff = Utilisateur.objects.create_user(
+            "course-search-staff", role="enseignant", etablissement=self.tenant, is_staff=True
+        )
+        self.year = AnneeScolaire.objects.create(
+            etablissement=self.tenant, libelle="2026-2027", date_debut="2026-09-01", date_fin="2027-08-31"
+        )
+        self.foreign_year = AnneeScolaire.objects.create(
+            etablissement=self.other, libelle="2026-2027", date_debut="2026-09-01", date_fin="2027-08-31"
+        )
+        self.level = Niveau.objects.create(etablissement=self.tenant, code="6e", libelle="Sixième")
+        self.foreign_level = Niveau.objects.create(etablissement=self.other, code="6e", libelle="Sixième")
+        self.classroom = self._classroom("PrivateClass")
+        self.subject = Matiere.objects.create(
+            etablissement=self.tenant, code="PRIVATE", nom="PrivateSubject"
+        )
+        self.active = self._mapping("ACTIVE", self.classroom)
+        self.inactive = self._mapping("INACTIVE", self._classroom("SecondClass"), actif=False)
+        legacy_class = self._classroom("LegacyClass", etablissement=None)
+        legacy_subject = Matiere.objects.create(etablissement=None, code="LEGACY", nom="LegacySubject")
+        self.legacy = self._mapping("LEGACY", legacy_class, matiere=legacy_subject)
+        foreign_subject = Matiere.objects.create(etablissement=self.other, code="FOREIGN", nom="ForeignSubject")
+        self.foreign_mappings = [
+            self._mapping("FOREIGN-SUBJECT", self.classroom, matiere=foreign_subject),
+            self._mapping("FOREIGN-CLASS", self._classroom("ForeignClass", etablissement=self.other)),
+            self._mapping("FOREIGN-YEAR", self._classroom("ForeignYear", annee_scolaire=self.foreign_year)),
+            self._mapping("FOREIGN-LEVEL", self._classroom("ForeignLevel", niveau=self.foreign_level)),
+        ]
+        self.visible = [self.active, self.inactive, self.legacy]
+        self.mappings = self.visible + self.foreign_mappings
+
+    def _classroom(self, name, **overrides):
+        return Classe.objects.create(**{
+            "etablissement": self.tenant, "annee_scolaire": self.year,
+            "niveau": self.level, "nom": name, **overrides,
+        })
+
+    def _mapping(self, code, classroom, **overrides):
+        return EdxCourseMapping.objects.create(**{
+            "matiere": self.subject, "classe": classroom,
+            "course_id": f"course-v1:SEARCH+{code}+2026", "course_name": f"Search course {code}",
+            **overrides,
+        })
+
+    def _authenticate(self, user):
+        self.client.force_authenticate(Utilisateur.objects.get(pk=user.pk))
+
+    def _search(self, term="search", **params):
+        return self.client.get(self.url, {"ressource": "cours", "q": term, **params}, secure=True)
+
+    def _assert_courses(self, user, expected):
+        self._authenticate(user)
+        search = self._search()
+        listing = self.client.get(self.courses_url, secure=True)
+        assert search.status_code == listing.status_code == 200
+        assert search.data["count"] == listing.data["count"] == len(expected)
+        assert search.data["results"] == [
+            {"id": mapping.pk, "code": mapping.course_id, "nom": mapping.course_name}
+            for mapping in sorted(expected, key=lambda mapping: mapping.pk)
+        ]
+        expected_ids = {mapping.pk for mapping in expected}
+        assert {row["id"] for row in listing.data["results"]} == expected_ids
+        for mapping in self.mappings:
+            detail = self.client.get(f"{self.courses_url}{mapping.pk}/", secure=True)
+            assert detail.status_code == (200 if mapping.pk in expected_ids else 404), detail.data
+            if mapping.pk in expected_ids:
+                assert detail.data == next(row for row in listing.data["results"] if row["id"] == mapping.pk)
+            else:
+                assert mapping.course_id not in str(search.data)
+                assert mapping.course_name not in str(detail.data)
+
+    def test_course_search_list_and_detail_share_tenant_boundaries_and_minimal_results(self):
+        self._assert_courses(self.staff, self.visible)
+        for term in (f" {self.active.course_id.lower()} ", f" {self.active.course_name.upper()} "):
+            result = self._search(term)
+            assert result.status_code == 200
+            assert result.data["results"] == [
+                {"id": self.active.pk, "code": self.active.course_id, "nom": self.active.course_name}
+            ]
+        self._classroom("UnmappedNeedle")
+        Matiere.objects.create(etablissement=self.tenant, code="UNMAPPED", nom="UnmappedNeedle")
+        for term in ("PrivateClass", "PrivateSubject", "UnmappedNeedle", "FOREIGN-"):
+            assert self._search(term).data["count"] == 0
+
+    def test_course_admin_access_is_required_and_revocable_not_granted_by_model_permission(self):
+        self._assert_courses(self.staff, self.visible)
+        self.staff.user_permissions.add(
+            Permission.objects.get(content_type__app_label="integration", codename="view_edxcoursemapping")
+        )
+        self.staff.is_staff = False
+        self.staff.save(update_fields=["is_staff"])
+        for role in ("enseignant", "direction", "eleve", "parent"):
+            self.staff.role = role
+            self.staff.save(update_fields=["role"])
+            self._authenticate(self.staff)
+            assert self._search().status_code == 403
+            assert self.client.get(self.courses_url, secure=True).status_code == 403
+            assert self.client.get(f"{self.courses_url}{self.active.pk}/", secure=True).status_code == 403
+        self.staff.is_staff = True
+        self.staff.save(update_fields=["is_staff"])
+        self._assert_courses(self.staff, self.visible)
+
+    def test_course_read_scopes_only_narrow_existing_administrator_access(self):
+        for constraints, expected in (
+            ({"cours": [self.active.pk]}, [self.active]),
+            ({"classes": [self.inactive.classe_id]}, [self.inactive]),
+            ({"matieres": [self.legacy.matiere_id]}, [self.legacy]),
+            ({"annees": [self.year.pk]}, self.visible),
+            ({"annees": [self.foreign_year.pk]}, []),
+            ({"cours": [self.active.pk], "classes": [self.inactive.classe_id]}, []),
+            ({"cours": []}, []),
+            ({"cours": "all"}, []),
+            ({"unsupported": [self.active.pk]}, []),
+        ):
+            with self.subTest(constraints=constraints):
+                self.staff.attributs_acces = {
+                    "permission_scopes": {"integration.view_edxcoursemapping": constraints}
+                }
+                self.staff.save(update_fields=["attributs_acces"])
+                self._assert_courses(self.staff, expected)
+
+    def test_current_superuser_cannot_bypass_foreign_course_relations(self):
+        self.staff.is_superuser = True
+        self.staff.attributs_acces = {"permission_scopes": {"integration.view_edxcoursemapping": {"cours": []}}}
+        self.staff.save(update_fields=["is_superuser", "attributs_acces"])
+        self._assert_courses(self.staff, self.visible)
+
+    def test_foreign_superuser_inactive_and_anonymous_cannot_read_courses(self):
+        foreign = Utilisateur.objects.create_user(
+            "course-search-foreign", etablissement=self.other, is_staff=True, is_superuser=True
+        )
+        self.staff.is_active = False
+        self.staff.save(update_fields=["is_active"])
+        for user in (foreign, self.staff, None):
+            if user:
+                self._authenticate(user)
+            else:
+                self.client.force_authenticate(user=None)
+            for result in (
+                self._search(),
+                self.client.get(self.courses_url, secure=True),
+                self.client.get(f"{self.courses_url}{self.active.pk}/", secure=True),
+            ):
+                assert result.status_code in ((403,) if user else (401, 403))
+                assert self.active.course_id not in str(result.data)
+                assert self.active.course_name not in str(result.data)
+
+    def test_existing_unattached_staff_listing_access_is_preserved(self):
+        self.staff.etablissement = None
+        self.staff.save(update_fields=["etablissement"])
+        self._authenticate(self.staff)
+        listing = self.client.get(self.courses_url, secure=True)
+        assert listing.status_code == 200
+        assert listing.data["count"] == len(self.visible)
+        assert self.client.get(f"{self.courses_url}{self.active.pk}/", secure=True).status_code == 200
+        assert self._search().status_code == 403
+
+    def test_courses_reject_invalid_queries_and_detail_is_read_only(self):
+        self._authenticate(self.staff)
+        for term in ("", " ", "a", "x" * 101, " " * 99 + "ab", "ab\n", "a\tb", "ab\x00", "ab\x7f", "ab\x85"):
+            with self.subTest(term=term):
+                result = self._search(term)
+                assert result.status_code == 400
+                assert "q" in result.data
+        for term in ("ab", "x" * 100):
+            assert self._search(term).status_code == 200
+        assert self.client.get(self.url, {"ressource": "cours"}, secure=True).status_code == 400
+        for resource in ("classes", "matieres", "documents", "cours,eleves"):
+            result = self.client.get(self.url, {"ressource": resource, "q": "search"}, secure=True)
+            assert result.status_code == 400
+        detail_url = f"{self.courses_url}{self.active.pk}/"
+        for method in ("post", "put", "patch", "delete"):
+            assert getattr(self.client, method)(detail_url, {}, format="json", secure=True).status_code == 405
+        assert self.client.get(f"{self.courses_url}0/", secure=True).status_code == 404
+
+    def test_course_pagination_has_stable_pages_default_twenty_and_maximum_fifty(self):
+        for index in range(48):
+            subject = Matiere.objects.create(
+                etablissement=self.tenant, code=f"PAGE-{index}", nom=f"Page {index}"
+            )
+            self._mapping(f"PAGE-{index:02}", self.classroom, matiere=subject)
+        self._authenticate(self.staff)
+        first = self._search()
+        second = self.client.get(first.data["next"], secure=True)
+        assert first.status_code == second.status_code == 200
+        assert set(first.data) == {"count", "next", "previous", "results"}
+        assert first.data["count"] == second.data["count"] == 51
+        assert len(first.data["results"]) == len(second.data["results"]) == 20
+        assert first.data["previous"] is None
+        assert second.data["previous"] is not None
+        assert not {row["id"] for row in first.data["results"]} & {
+            row["id"] for row in second.data["results"]
+        }
+        capped = self._search(page_size=999)
+        last = self.client.get(capped.data["next"], secure=True)
+        assert capped.status_code == last.status_code == 200
+        assert len(capped.data["results"]) == 50
+        assert len(last.data["results"]) == 1
+        assert last.data["next"] is None
+        assert last.data["previous"] is not None
