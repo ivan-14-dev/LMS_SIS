@@ -6,6 +6,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { patchApi, postApi } from '../../services/api';
 import { apiErrorMessage, fetchAllResourcePages, resourceUrl } from '../../services/resources';
+import GroupAuditHistory from './GroupAuditHistory';
 
 const can = (capabilities, permission) => Boolean(
   capabilities?.permissions?.includes('*')
@@ -30,6 +31,7 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
   const canView = can(capabilities, 'auth.view_group');
   const canAdd = can(capabilities, 'auth.add_group');
   const canChange = can(capabilities, 'auth.change_group');
+  const canAudit = can(capabilities, 'core.view_workflowevent');
   const canAssign = canChange && can(capabilities, 'utilisateurs.change_utilisateur')
     && can(capabilities, 'utilisateurs.view_utilisateur');
   const scopedPermissions = Object.keys(capabilities?.attributes?.permission_scopes || {});
@@ -72,6 +74,7 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
     ),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['institutional-group-users', usersUrl] });
+      await client.invalidateQueries({ queryKey: ['institutional-group-history', groupsUrl, selectedId] });
       setNotice('Affectation du compte enregistrée.');
     },
   });
@@ -82,6 +85,7 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
     ),
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['institutional-group-users', usersUrl] });
+      await client.invalidateQueries({ queryKey: ['institutional-group-history', groupsUrl, selectedId] });
       setBatchIds([]);
       setNotice('Affectation en lot enregistrée.');
     },
@@ -327,6 +331,9 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
                 </>
               )}
             </Box>
+          )}
+          {canAudit && group && (
+            <GroupAuditHistory key={group.id} variant={variant} groupId={group.id} />
           )}
         </Box>
       )}

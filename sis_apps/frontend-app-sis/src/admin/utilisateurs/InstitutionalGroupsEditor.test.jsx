@@ -7,7 +7,7 @@ import {
   MemoryRouter, Outlet, Route, Routes,
 } from 'react-router-dom';
 import { patchApi, postApi } from '../../services/api';
-import { fetchAllResourcePages } from '../../services/resources';
+import { fetchAllResourcePages, fetchResourcePage } from '../../services/resources';
 import InstitutionalGroupsEditor from './InstitutionalGroupsEditor';
 import UtilisateursPage from './UtilisateursPage';
 
@@ -17,6 +17,7 @@ jest.mock('../../services/api', () => ({
 jest.mock('../../services/resources', () => ({
   resourceUrl: (_variant, resource) => `https://sis.example/api/v1/${resource}/`,
   fetchAllResourcePages: jest.fn(),
+  fetchResourcePage: jest.fn(),
   getEnabledVariants: () => ['secondaire'],
   apiErrorMessage: error => error?.response?.data?.detail || error?.message || 'Échec.',
 }));
@@ -27,6 +28,7 @@ jest.mock('../../components/common/ResourceManager', () => function ResourceMana
 const groupsUrl = 'https://sis.example/api/v1/utilisateurs/groupes/';
 const permissionsUrl = 'https://sis.example/api/v1/utilisateurs/permissions/';
 const usersUrl = 'https://sis.example/api/v1/utilisateurs/comptes/';
+const historyUrl = 'https://sis.example/api/v1/core/workflow-events/';
 const permissions = [
   {
     id: 11, app_label: 'notes', codename: 'view_note', name: 'Voir les notes',
@@ -60,6 +62,10 @@ const renderPage = (context) => render(
 
 beforeEach(() => {
   jest.clearAllMocks();
+  fetchResourcePage.mockReset();
+  fetchResourcePage.mockResolvedValue({
+    count: 0, results: [], next: null, previous: null,
+  });
   groups = [{ id: 7, name: 'Équipe examens', permissions: [11] }];
   users = [{
     id: 5, username: 'jane', full_name: 'Jane Doe', groups: [3],
@@ -124,6 +130,116 @@ it('adds and removes a user through the group assignment endpoints without PATCH
   await waitFor(() => expect(postApi).toHaveBeenLastCalledWith(`${groupsUrl}7/unassign/`, { user_id: 5 }));
   expect(users[0].groups).toEqual([3]);
   expect(patchApi).not.toHaveBeenCalled();
+});
+
+it('reads paginated audit snapshots for the selected group and resets on group changes', async () => {
+  groups.push({ id: 8, name: 'Autre équipe', permissions: [] });
+  const created = {
+    id: 91,
+    title: 'Création de groupe',
+    actor_nom: 'Auditeur local',
+    action: 'group_created',
+    created_at: '2026-11-07T10:00:00Z',
+    object_repr: 'Lecteurs',
+    metadata: {
+      before: null, after: { name: 'Lecteurs', permissions: [{ id: 11, code: 'notes.view_note' }] },
+    },
+  };
+  const assigned = {
+    ...created,
+    id: 92,
+    title: 'Affectation de groupe',
+    action: 'assign_many',
+    metadata: { user_ids: [5, 6], added_user_ids: [] },
+  };
+  fetchResourcePage.mockImplementation(async (_url, params) => ({
+    count: 2,
+    next: params.page === 1 ? '?page=2' : null,
+    results: [params.page === 1 ? created : assigned],
+  }));
+  renderEditor([...allowed, 'core.view_workflowevent']);
+  expect(fetchResourcePage).not.toHaveBeenCalled();
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  await screen.findByRole('heading', { name: 'Création de groupe' });
+  expect(fetchResourcePage).toHaveBeenLastCalledWith(historyUrl, {
+    app_label: 'auth', model: 'group', object_id: 7, page: 1,
+  }, expect.objectContaining({ signal: expect.anything() }));
+  fireEvent.click(screen.getByText('Voir les changements'));
+  expect(screen.getByText('Avant : Groupe absent')).toBeVisible();
+  expect(screen.getByText('Après : Lecteurs — notes.view_note')).toBeVisible();
+  expect(screen.getByText(/Auditeur local/)).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Historique suivant' }));
+  await screen.findByRole('heading', { name: 'Affectation de groupe' });
+  expect(screen.queryByRole('heading', { name: 'Création de groupe' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText('Voir les changements'));
+  expect(screen.getByText('Comptes demandés : 5, 6')).toBeVisible();
+  expect(screen.getByText('Ajouts effectifs : Aucun')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Historique suivant' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Autre équipe' }));
+  await screen.findByRole('heading', { name: 'Création de groupe' });
+  expect(fetchResourcePage).toHaveBeenLastCalledWith(historyUrl, {
+    app_label: 'auth', model: 'group', object_id: 8, page: 1,
+  }, expect.anything());
+});
+
+it.each([
+  [allowed, {}],
+  [[...allowed, 'core.view_workflowevent'], { permission_scopes: { 'core.view_workflowevent': { groupes: [7] } } }],
+])('does not request audit data without an unrestricted audit permission (%j)', async (grants, attributes) => {
+  renderEditor(grants, attributes);
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  expect(screen.queryByRole('region', { name: 'Historique des habilitations' })).not.toBeInTheDocument();
+  expect(fetchResourcePage).not.toHaveBeenCalled();
+});
+
+it('refreshes history after membership changes and hides its data on a server refusal', async () => {
+  renderEditor([...allowed, 'core.view_workflowevent']);
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  await screen.findByText('Aucun événement enregistré pour ce groupe.');
+  fetchResourcePage.mockResolvedValue({
+    count: 1,
+    next: null,
+    results: [{
+      id: 93,
+      title: 'Affectation auditée',
+      actor_nom: 'Auditeur local',
+      action: 'assign',
+      created_at: '2026-11-07T10:00:00Z',
+      object_repr: 'Équipe examens',
+      metadata: { user_id: 5, added_user_ids: [5] },
+    }],
+  });
+  fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Compte' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Jane Doe (jane)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Ajouter au groupe' }));
+  await screen.findByRole('heading', { name: 'Affectation auditée' });
+  expect(fetchResourcePage).toHaveBeenCalledTimes(2);
+  fireEvent.click(screen.getByText('Voir les changements'));
+  expect(screen.getByText('Ajouts effectifs : 5')).toBeVisible();
+  fetchResourcePage.mockRejectedValueOnce({ response: { status: 403 } });
+  fireEvent.click(screen.getByRole('button', { name: 'Actualiser l’historique' }));
+  await screen.findByText('Historique non autorisé.');
+  expect(screen.queryByText(/Auditeur local/)).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Affectation auditée' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+  await screen.findByRole('heading', { name: 'Affectation auditée' });
+});
+
+it('removes the audit panel and its cache when audit permission is withdrawn', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const tree = grants => (
+    <QueryClientProvider client={client}>
+      <InstitutionalGroupsEditor variant="secondaire" capabilities={{ permissions: grants }} />
+    </QueryClientProvider>
+  );
+  const view = render(tree([...allowed, 'core.view_workflowevent']));
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  await screen.findByText('Aucun événement enregistré pour ce groupe.');
+  expect(client.getQueriesData({ queryKey: ['institutional-group-history'] })).toHaveLength(1);
+  view.rerender(tree(allowed));
+  expect(screen.queryByRole('region', { name: 'Historique des habilitations' })).not.toBeInTheDocument();
+  await waitFor(() => expect(client.getQueriesData({ queryKey: ['institutional-group-history'] })).toHaveLength(0));
+  expect(fetchResourcePage).toHaveBeenCalledTimes(1);
 });
 
 const selectBatch = async () => {

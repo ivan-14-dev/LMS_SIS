@@ -144,6 +144,22 @@ identifiants réellement ajoutés ou retirés. Les autres groupes sont préserv�
 L'interface conserve la sélection après une erreur et interdit de changer le
 groupe de destination pendant la requête.
 
+La création, la modification, la suppression par API et les affectations
+individuelles sont également journalisées dans leur transaction. L'historique
+conserve auteur, tenant, requête, nom et permissions avant/après ; une suppression
+ne supprime pas ses événements. Ces traces ne couvrent pas les modifications
+faites hors de ces API.
+
+Pour un groupe sélectionné, les comptes disposant aussi de
+`core.view_workflowevent` sans restriction peuvent consulter l'historique paginé,
+ouvrir les changements et voir les comptes réellement ajoutés/retirés. Un rejeu
+sans changement affiche « Aucun ». L'historique est actualisé après affectation,
+n'est pas conservé dans le cache après fermeture du panneau et disparaît si
+l'autorisation est retirée ou si le serveur refuse sa lecture. Les groupes
+supprimés restent consultables dans le journal global via
+`core/workflow-events/?app_label=auth&model=group&object_id={id}` ; la console ne
+propose toujours pas leur suppression ni leur désactivation.
+
 ### Recherche de dossiers
 
 La palette existante (bouton « Rechercher », `Ctrl+K` / `⌘K`) conserve la

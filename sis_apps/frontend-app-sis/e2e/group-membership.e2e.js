@@ -52,7 +52,7 @@ async function postBatch(page, apiOrigin, groupId, ids) {
 }
 
 for (const variant of variants) {
-  test(`${variant}: real group duplication, atomic batches and learner denial`, async ({
+  test(`${variant}: real group audit, duplication, atomic batches and learner denial`, async ({
     page, browser,
   }) => {
     // Disposable grade fixture extended with two account IDs/usernames and an unrelated group.
@@ -96,6 +96,21 @@ for (const variant of variants) {
     await page.getByRole('button', { name: 'Retirer la sélection du groupe', exact: true }).click();
     await expect(page.getByText('Affectation en lot enregistrée.', { exact: true })).toBeVisible();
     expect(await accountGroups()).toEqual(before);
+    const history = page.getByRole('region', { name: 'Historique des habilitations' });
+    await expect(history.getByText('Page 1 · 3 événements', { exact: true })).toBeVisible();
+    const creation = history.locator('.MuiPaper-root').filter({
+      has: page.getByRole('heading', { name: 'Création de groupe', exact: true }),
+    });
+    await creation.getByText('Voir les changements', { exact: true }).click();
+    await expect(creation.getByText('Avant : Groupe absent', { exact: true })).toBeVisible();
+    await expect(creation.getByText(`Après : ${name} — utilisateurs.view_utilisateur`, { exact: true })).toBeVisible();
+    const auditPath = `core/workflow-events/?app_label=auth&model=group&object_id=${source.id}`;
+    const audit = await api(auditPath);
+    expect(audit.count).toBe(3);
+    expect(audit.results.map(event => event.action)).toEqual(['unassign_many', 'assign_many', 'group_created']);
+    expect(audit.results.every(event => event.object_id === String(source.id) && event.actor_nom)).toBe(true);
+    expect(audit.results[0].metadata.removed_user_ids).toEqual(fixture.groupUserIds.slice().sort((a, b) => a - b));
+    expect(audit.results[1].metadata.added_user_ids).toEqual(fixture.groupUserIds.slice().sort((a, b) => a - b));
 
     const context = await browser.newContext({ baseURL: process.env.SIS_E2E_URL });
     try {
@@ -103,6 +118,9 @@ for (const variant of variants) {
       await login(learnerPage, variant, fixture.learnerUsername, credentials.password);
       const denied = await postBatch(learnerPage, apiOrigin, copy.id, fixture.groupUserIds);
       expect(denied.status(), await denied.text()).toBe(403);
+      const auditDenied = await learnerPage.request.get(`${apiOrigin}/api/v1/${auditPath}`);
+      expect(auditDenied.status(), await auditDenied.text()).toBe(403);
+      expect(await auditDenied.text()).not.toContain(name);
       expect(await accountGroups()).toEqual(before);
     } finally {
       await context.close();

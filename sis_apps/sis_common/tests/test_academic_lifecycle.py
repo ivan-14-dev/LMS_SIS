@@ -589,11 +589,21 @@ class AcademicLifecycleTests(GradeEntryFixture):
             self.classe.pk if self.secondary else self.formation.pk
         )
 
-    def test_workflow_actor_dates_apply_to_list_summary_and_export(self):
+    def test_workflow_object_actor_dates_apply_to_list_summary_and_export(self):
         Event = apps.get_model("core.WorkflowEvent")
-        common = {"tenant_id": self.tenant.pk, "app_label": "etablissement", "model": "annee", "action": "cloture"}
+        common = {
+            "tenant_id": self.tenant.pk,
+            "app_label": "etablissement",
+            "model": "annee",
+            "action": "cloture",
+            "object_id": "7",
+        }
+        self.admin.first_name = self.admin.last_name = ""
+        self.admin.save(update_fields=["first_name", "last_name"])
         wanted = Event.objects.create(actor=self.admin, title="MATCH-AUDIT", **common)
         Event.objects.create(actor=self.teacher, title="OTHER-ACTOR", **common)
+        Event.objects.create(actor=self.admin, title="OTHER-OBJECT", **{**common, "object_id": "8"})
+        Event.objects.create(actor=self.admin, title="OTHER-TENANT", **{**common, "tenant_id": self.tenant.pk + 1000})
         old = Event.objects.create(actor=self.admin, title="OLD-AUDIT", **common)
         Event.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=3))
         Event.objects.create(
@@ -605,10 +615,12 @@ class AcademicLifecycleTests(GradeEntryFixture):
             "date_debut": self.today.isoformat(),
             "date_fin": self.today.isoformat(),
             "action": "cloture",
+            "object_id": "7",
         }
         response = self.client.get(url, params)
         assert response.status_code == 200, response.data
         assert [row["id"] for row in response.data["results"]] == [wanted.pk]
+        assert response.data["results"][0]["actor_nom"] == self.admin.username
         assert self.client.get(f"{url}bilan/", params).data == [{"groupe": "cloture", "nombre": 1}]
         self.tenant.configuration_academique["reports"] = [
             {
@@ -625,9 +637,12 @@ class AcademicLifecycleTests(GradeEntryFixture):
         assert response.status_code == 200, getattr(response, "data", None)
         text = response.content.decode()
         assert "MATCH-AUDIT" in text
-        assert all(value not in text for value in ("OTHER-ACTOR", "OLD-AUDIT", "PRIVATE-AUDIT"))
+        assert all(
+            value not in text for value in ("OTHER-ACTOR", "OTHER-OBJECT", "OTHER-TENANT", "OLD-AUDIT", "PRIVATE-AUDIT")
+        )
         for invalid in (
             {"actor": "oops"},
+            {"object_id": "x" * 65},
             {"date_debut": "2026-02-31"},
             {"date_debut": "2026-02-02", "date_fin": "2026-01-01"},
         ):
@@ -637,6 +652,22 @@ class AcademicLifecycleTests(GradeEntryFixture):
                 self.client.post(f"{url}exporter/", {"report": "audit", "filters": invalid}, format="json").status_code
                 == 400
             )
+
+    def test_workflow_object_history_requires_audit_permission_after_revocation(self):
+        User = apps.get_model("utilisateurs.Utilisateur")
+        Permission = apps.get_model("auth.Permission")
+        reader = User.objects.create_user("group-reader", etablissement=self.tenant)
+        reader.user_permissions.add(Permission.objects.get(content_type__app_label="auth", codename="view_group"))
+        url = "/api/v1/core/workflow-events/?app_label=auth&model=group&object_id=7"
+        self.client.force_authenticate(reader)
+        assert self.client.get(url).status_code == 403
+        audit_permission = Permission.objects.get(content_type__app_label="core", codename="view_workflowevent")
+        reader.user_permissions.add(audit_permission)
+        self.client.force_authenticate(User.objects.get(pk=reader.pk))
+        assert self.client.get(url).status_code == 200
+        reader.user_permissions.remove(audit_permission)
+        self.client.force_authenticate(User.objects.get(pk=reader.pk))
+        assert self.client.get(url).status_code == 403
 
     def test_enrollment_filter_does_not_mix_students(self):
         if self.secondary:

@@ -68,7 +68,7 @@ class WorkflowEventSerializer(serializers.ModelSerializer):
         ]
 
     def get_actor_nom(self, obj):
-        return obj.actor.get_full_name() if obj.actor else ""
+        return (obj.actor.get_full_name() or obj.actor.get_username()) if obj.actor else ""
 
 
 class WorkflowNotificationSerializer(serializers.ModelSerializer):

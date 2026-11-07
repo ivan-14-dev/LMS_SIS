@@ -15,6 +15,7 @@ EVENT_FILTERS = {
     "action": "action",
     "app_label": "app_label",
     "model": "model",
+    "object_id": "object_id",
     "actor": "actor_id",
     "date_debut": "created_at__date__gte",
     "date_fin": "created_at__date__lte",
@@ -25,6 +26,7 @@ class EventFiltersSerializer(serializers.Serializer):
     action = serializers.CharField(required=False)
     app_label = serializers.CharField(required=False)
     model = serializers.CharField(required=False)
+    object_id = serializers.CharField(max_length=64, required=False)
     actor = serializers.IntegerField(min_value=1, required=False)
     date_debut = serializers.DateField(required=False)
     date_fin = serializers.DateField(required=False)
