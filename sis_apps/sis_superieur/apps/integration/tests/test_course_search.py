@@ -1,4 +1,4 @@
-"""The native LMS management list and typed course search share visibility."""
+"""The native LMS mapping list, detail and typed course search share visibility."""
 
 import uuid
 from types import SimpleNamespace
@@ -7,12 +7,13 @@ from unittest.mock import patch
 from apps.core.api import AcademicSearchView
 from apps.etablissement.models import AnneeUniversitaire, Semestre, Universite
 from apps.formations.models import Formation, MaquetteFormation
-from apps.integration.api import course_mappings
+from apps.integration.api import course_mapping_detail, course_mappings
 from apps.integration.models import EdxCourseMapping, OutboxEvent
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.ue_ecue.models import ECUE, UE
 from apps.utilisateurs.models import Utilisateur
 from django.contrib.auth.models import Permission
+from django.urls import resolve
 from django_tenants.utils import schema_context
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -87,14 +88,19 @@ class CourseSearchAPITests(TenantAPITestCase):
             for mapping in sorted(expected, key=lambda mapping: mapping.pk)
         ]
         for mapping in self.courses:
+            detail = self.client.get(f"{self.mappings_url}{mapping.pk}/")
+            assert detail.status_code == (200 if mapping in expected else 404), detail.data
             if mapping not in expected:
-                for result in (native, search):
+                for result in (native, search, detail):
                     assert mapping.course_id not in str(result.data)
                     assert mapping.course_name not in str(result.data)
+            else:
+                assert detail.data == next(row for row in native.data["results"] if row["id"] == mapping.pk)
         assert "Private ECUE title" not in str(search.data)
 
     def _assert_denied(self):
-        for result in self._responses():
+        details = [self.client.get(f"{self.mappings_url}{mapping.pk}/") for mapping in self.courses]
+        for result in (*self._responses(), *details):
             assert result.status_code in (401, 403)
             assert "results" not in result.data
             for mapping in self.courses:
@@ -109,8 +115,14 @@ class CourseSearchAPITests(TenantAPITestCase):
             "apps.integration.api.get_edx_client"
         ) as remote:
             self._assert_parity([self.own, self.inactive])
-            for url in (self.mappings_url, self.search_url):
+            detail_url = f"{self.mappings_url}{self.own.pk}/"
+            assert resolve(detail_url).url_name == "course-mapping-detail"
+            for url in (self.mappings_url, self.search_url, detail_url):
                 assert self.client.post(url, {}, format="json").status_code == 405
+            for method in ("put", "patch", "delete"):
+                assert getattr(self.client, method)(detail_url, {}, format="json").status_code == 405
+            missing = self.client.get(f"{self.mappings_url}{max(mapping.pk for mapping in self.courses) + 1}/")
+            assert missing.status_code == 404
             service.assert_not_called()
             remote.assert_not_called()
         assert list(EdxCourseMapping.objects.order_by("pk").values()) == before
@@ -164,25 +176,27 @@ class CourseSearchAPITests(TenantAPITestCase):
             SimpleNamespace(pk=self.tenant.pk, schema_name="different_schema"),
             SimpleNamespace(pk=self.tenant.pk + 100, schema_name=self.tenant.schema_name),
         ):
-            for url, view in (
-                (self.mappings_url, course_mappings),
-                (self.search_url, AcademicSearchView.as_view(throttle_classes=[])),
+            for url, view, kwargs in (
+                (self.mappings_url, course_mappings, {}),
+                (self.search_url, AcademicSearchView.as_view(throttle_classes=[]), {}),
+                (f"{self.mappings_url}{self.own.pk}/", course_mapping_detail, {"mapping_id": self.own.pk}),
             ):
                 request = factory.get(url, {"ressource": "cours", "q": "quantum"})
                 request.tenant = tenant
                 force_authenticate(request, self.admin)
-                result = view(request)
+                result = view(request, **kwargs)
                 assert result.status_code == 403
                 assert "Quantum" not in str(result.data)
         with schema_context("public"):
-            for url, view in (
-                (self.mappings_url, course_mappings),
-                (self.search_url, AcademicSearchView.as_view(throttle_classes=[])),
+            for url, view, kwargs in (
+                (self.mappings_url, course_mappings, {}),
+                (self.search_url, AcademicSearchView.as_view(throttle_classes=[]), {}),
+                (f"{self.mappings_url}{self.own.pk}/", course_mapping_detail, {"mapping_id": self.own.pk}),
             ):
                 request = factory.get(url, {"ressource": "cours", "q": "quantum"})
                 request.tenant = self.tenant
                 force_authenticate(request, self.admin)
-                assert view(request).status_code == 403
+                assert view(request, **kwargs).status_code == 403
 
     def test_native_legacy_unbound_admin_access_is_preserved_but_core_requires_membership(self):
         self.admin.etablissement = None
@@ -192,6 +206,90 @@ class CourseSearchAPITests(TenantAPITestCase):
         assert native.data["count"] == 2
         assert search.status_code == 403
         assert "Quantum" not in str(search.data)
+        assert self.client.get(f"{self.mappings_url}{self.own.pk}/").status_code == 200
+        assert self.client.get(f"{self.mappings_url}{self.foreign[0].pk}/").status_code == 404
+        self.admin.attributs_acces = {
+            "permission_scopes": {"integration.view_edxcoursemapping": {"cours": []}}
+        }
+        self.admin.save(update_fields=["attributs_acces"])
+        self.client.force_authenticate(Utilisateur.objects.get(pk=self.admin.pk))
+        assert self.client.get(self.mappings_url).data["count"] == 0
+        assert self.client.get(f"{self.mappings_url}{self.own.pk}/").status_code == 404
+        assert self.client.get(self.search_url, {"ressource": "cours", "q": "quantum"}).status_code == 403
+
+    def test_scopes_narrow_list_search_and_detail_with_intersection_and_unknown_scope_denial(self):
+        for constraints, expected in (
+            ({"cours": [self.own.pk]}, [self.own]),
+            ({"ecues": [self.inactive.ecue_id]}, [self.inactive]),
+            ({"formations": [self.local_ue.maquette.formation_id]}, [self.own, self.inactive]),
+            ({"annees": [self.local_ue.semestre.annee_universitaire_id]}, [self.own, self.inactive]),
+            ({"cours": [self.own.pk], "ecues": [self.inactive.ecue_id]}, []),
+            ({"cours": [self.foreign[0].pk]}, []),
+            ({"cours": []}, []),
+            ({"ecues": "all"}, []),
+            ({"unknown": [self.own.pk]}, []),
+        ):
+            with self.subTest(constraints=constraints):
+                self.admin.attributs_acces = {
+                    "permission_scopes": {"integration.view_edxcoursemapping": constraints}
+                }
+                self.admin.save(update_fields=["attributs_acces"])
+                self.client.force_authenticate(Utilisateur.objects.get(pk=self.admin.pk))
+                self._assert_parity(expected)
+
+    def test_scope_revocation_rechecks_detail_without_model_permission_granting_admin_access(self):
+        permission = Permission.objects.get(content_type__app_label="integration", codename="view_edxcoursemapping")
+        self.admin.attributs_acces = {
+            "permission_scopes": {"integration.view_edxcoursemapping": {"cours": [self.own.pk]}}
+        }
+        self.admin.save(update_fields=["attributs_acces"])
+        for granted in (True, False):
+            if granted:
+                self.admin.user_permissions.add(permission)
+            else:
+                self.admin.user_permissions.remove(permission)
+            self.client.force_authenticate(Utilisateur.objects.get(pk=self.admin.pk))
+            self._assert_parity([self.own])
+        self.admin.attributs_acces = {
+            "permission_scopes": {"integration.view_edxcoursemapping": {"cours": []}}
+        }
+        self.admin.save(update_fields=["attributs_acces"])
+        self.client.force_authenticate(Utilisateur.objects.get(pk=self.admin.pk))
+        self._assert_parity([])
+        self.admin.user_permissions.add(permission)
+        self.admin.is_staff = False
+        self.admin.save(update_fields=["is_staff"])
+        self.client.force_authenticate(Utilisateur.objects.get(pk=self.admin.pk))
+        self._assert_denied()
+
+    def test_year_scope_must_cover_both_local_curriculum_and_semester_years(self):
+        year = AnneeUniversitaire.objects.create(
+            universite=self.tenant, libelle="2024-2025", date_debut="2024-09-01", date_fin="2025-06-30"
+        )
+        semester = Semestre.objects.create(
+            annee_universitaire=year, numero=1, type="impair", date_debut="2024-09-01", date_fin="2025-01-31"
+        )
+        old_maquette = MaquetteFormation.objects.create(
+            formation=self.local_ue.maquette.formation, annee_universitaire=year
+        )
+        mixed_year = self._unit("OLD-YEAR", old_maquette, self.local_ue.semestre)
+        mixed_semester = self._unit("OLD-SEMESTER", self.local_ue.maquette, semester)
+        mixed_courses = [
+            self._course("OLD-YEAR", mixed_year, "Quantum old curriculum"),
+            self._course("OLD-SEMESTER", mixed_semester, "Quantum old semester"),
+        ]
+        self.courses.extend(mixed_courses)
+        for allowed, expected in (
+            ([self.local_ue.semestre.annee_universitaire_id], [self.own, self.inactive]),
+            ([year.pk], []),
+            ([year.pk, self.local_ue.semestre.annee_universitaire_id], [self.own, self.inactive, *mixed_courses]),
+        ):
+            self.admin.attributs_acces = {
+                "permission_scopes": {"integration.view_edxcoursemapping": {"annees": allowed}}
+            }
+            self.admin.save(update_fields=["attributs_acces"])
+            self.client.force_authenticate(Utilisateur.objects.get(pk=self.admin.pk))
+            self._assert_parity(expected)
 
     def test_native_ordering_and_pagination_remain_unchanged(self):
         with patch.object(PageNumberPagination, "page_size", 1):

@@ -16,6 +16,7 @@ urlpatterns = [
     path("mappings/users/", api.user_mappings, name="user-mappings"),
     path("mappings/users/candidates/", user_candidates, name="user-candidates"),
     path("mappings/courses/", api.course_mappings, name="course-mappings"),
+    path("mappings/courses/<int:mapping_id>/", api.course_mapping_detail, name="course-mapping-detail"),
     path("outbox/", api.outbox_events, name="outbox-events"),
     path("outbox/process/", api.process_outbox, name="process-outbox"),
     path("sync/user/<int:user_id>/", api.sync_user, name="sync-user"),

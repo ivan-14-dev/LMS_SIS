@@ -10,11 +10,13 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.generics import get_object_or_404
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from sis_common.authorization import filter_queryset_by_scopes
 from sis_common.lms_access_api import synchronize_access
 from sis_common.lms_outbox import outbox_queryset, request_outbox_processing
 from sis_common.lms_publication_api import course_publication
@@ -211,13 +213,29 @@ def visible_course_mappings(request):
 
     Les deux années de l'ECUE doivent être locales, comme pour sync_course :
     un ancien rattachement inter-tenant ne doit pas divulguer le nom du cours.
+    Les périmètres integration.view_edxcoursemapping (cours, ecues, formations,
+    annees) ne font que restreindre l'accès administrateur existant, y compris
+    son accès historique sans rattachement. annees doit couvrir le semestre
+    et la maquette. La liste, la recherche et le détail partagent ce queryset.
     """
     if not IsCurrentLmsTenantAdmin().has_permission(request, None):
         raise PermissionDenied()
-    return EdxCourseMapping.objects.filter(
+    queryset = EdxCourseMapping.objects.filter(
         ecue__ue__semestre__annee_universitaire__universite_id=request.tenant.pk,
         ecue__ue__maquette__annee_universitaire__universite_id=request.tenant.pk,
-    ).select_related("ecue").order_by("course_name")
+    )
+    scope_fields = {"cours": "pk", "ecues": "ecue_id", "formations": "ecue__ue__maquette__formation_id"}
+    for year_field in (
+        "ecue__ue__semestre__annee_universitaire_id",
+        "ecue__ue__maquette__annee_universitaire_id",
+    ):
+        queryset = filter_queryset_by_scopes(
+            queryset,
+            request.user,
+            "integration.view_edxcoursemapping",
+            {**scope_fields, "annees": year_field},
+        )
+    return queryset.select_related("ecue").order_by("course_name")
 
 
 @api_view(["GET"])
@@ -225,6 +243,14 @@ def visible_course_mappings(request):
 def course_mappings(request):
     """Liste paginée des correspondances entre cours SIS et Open edX."""
     return _paginated_response(request, visible_course_mappings(request), EdxCourseMappingSerializer)
+
+
+@api_view(["GET"])
+@permission_classes([IsCurrentLmsTenantAdmin])
+def course_mapping_detail(request, mapping_id):
+    """Détail d'un mapping visible, sans synchronisation ni appel LMS."""
+    mapping = get_object_or_404(visible_course_mappings(request), pk=mapping_id)
+    return Response(EdxCourseMappingSerializer(mapping).data)
 
 
 @api_view(["GET"])

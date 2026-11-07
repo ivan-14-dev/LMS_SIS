@@ -11,9 +11,11 @@ from django.db.models.functions import Concat
 from rest_framework import generics, mixins, permissions, response, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.request import clone_request
 
 from sis_common.authorization import filter_queryset_by_scopes, has_business_permission_or_role
 from sis_common.delegations import ActiveTenantAccess
+from sis_common.lms_tenants import current_lms_tenant
 from sis_common.notification_channels import (
     notification_matches_delivery_filters,
     summarize_notification_deliveries,
@@ -47,7 +49,41 @@ DOCUMENT_SEARCH_RESOURCES = {
     "transcripts": ("releves.transcript", "numero_serie", "Transcript"),
     "attestations": ("releves.attestation", "numero", "Attestation"),
 }
-ACADEMIC_SEARCH_RESOURCES = ("formations", "parcours", "etudiants", "factures", "cours", *DOCUMENT_SEARCH_RESOURCES)
+ACADEMIC_SEARCH_RESOURCES = (
+    "formations", "parcours", "etudiants", "factures", "cours", "evaluations_lms", *DOCUMENT_SEARCH_RESOURCES,
+)
+
+
+def visible_mapped_evaluations(request):
+    """Narrow the authoritative evaluations queryset to current, local LMS mappings."""
+    from apps.notes.api import EvaluationsViewSet
+
+    tenant = current_lms_tenant(request)
+    if (
+        request.user.role in ("etudiant", "doctorant", "parent")
+        or not request.user.has_perm("notes.view_evaluation")
+    ):
+        raise PermissionDenied("La recherche des évaluations LMS exige la permission de lecture des évaluations.")
+    read_request = clone_request(request, "GET")
+    view = EvaluationsViewSet(request=read_request, action="list", kwargs={}, format_kwarg=None)
+    view.check_permissions(read_request)
+    queryset = view.get_queryset()
+    if queryset.query.is_empty():
+        raise PermissionDenied("La consultation des évaluations n'est pas autorisée dans ce périmètre.")
+    formation = "ecue__ue__maquette__formation__"
+    return queryset.filter(
+        Q(**{f"{formation}departement__isnull": True})
+        | Q(**{f"{formation}departement__faculte__universite_id": tenant.pk}),
+        Q(**{f"{formation}ecole_doctorale__isnull": True})
+        | Q(**{f"{formation}ecole_doctorale__universite_id": tenant.pk}),
+        semestre__annee_universitaire__universite_id=tenant.pk,
+        ecue__ue__maquette__annee_universitaire__universite_id=tenant.pk,
+        ecue__ue__semestre__annee_universitaire__universite_id=tenant.pk,
+        enseignant__etablissement_id=tenant.pk,
+        edx_assessment__actif=True,
+        edx_assessment__course__actif=True,
+        edx_assessment__course__ecue_id=F("ecue_id"),
+    ).exclude(edx_assessment__subsection_id="").exclude(edx_assessment__course__course_id="")
 
 
 class AcademicSearchResultSerializer(serializers.Serializer):
@@ -64,7 +100,8 @@ class AcademicSearchPagination(SISPagination):
 class AcademicSearchView(generics.ListAPIView):
     """Recherche GET ?ressource=type&q=terme.
 
-    Types : formations, parcours, etudiants, factures, cours, releves, transcripts, attestations.
+    Types : formations, parcours, etudiants, factures, cours, evaluations_lms,
+    releves, transcripts, attestations.
     Chaque requête porte sur un seul modèle, et ne renvoie que id, code et nom.
     Pagination : 20 résultats par défaut, au plus 50 via page_size.
     Les formations sans rattachement sont propres au schéma du tenant courant.
@@ -75,12 +112,22 @@ class AcademicSearchView(generics.ListAPIView):
     réservés au même accès administrateur LMS que la liste des mappings.
     Leur id est celui du mapping, leur code la clé LMS et leur nom le course_name.
     Les mappings inactifs restent consultables par ces administrateurs.
+    Le détail GET /api/v1/integration/mappings/courses/{id}/ partage les mêmes
+    restrictions integration.view_edxcoursemapping que la liste et la recherche.
+    evaluations_lms désigne uniquement les évaluations SIS reliées à une sous-section
+    LMS par un mapping actif et cohérent vers un cours actif du tenant. La permission
+    notes.view_evaluation est requise, en plus du queryset de l'API notes et de ses
+    périmètres ; les apprenants et parents ne disposent pas ici d'un accès personnel.
+    Recherche par titre ou identifiant de sous-section ; id est celui de l'évaluation,
+    code l'identifiant de sous-section, nom le titre SIS. La cible de détail est
+    GET /api/v1/notes/evaluations/{id}/, avec les permissions courantes de cette API.
+    Ni description, notes, identité d'apprenant, ni URL LMS ne sont renvoyées.
     Les trois types de documents sont recherchés par numéro dans le périmètre
     courant de leur PDF officiel, y compris les restrictions de validation,
     de propriétaire et les périmètres métier. Le nom est le type et le numéro,
     jamais l'identité du bénéficiaire, les notes ou le chemin du fichier.
     Ce périmètre ne couvre ni les archives signées ni les diplômes délivrés,
-    ni les activités LMS ; une formation n'est pas un cours LMS.
+    ni le catalogue natif de toutes les activités LMS ; une formation n'est pas un cours LMS.
     """
 
     permission_classes = [ActiveTenantAccess]
@@ -111,6 +158,13 @@ class AcademicSearchView(generics.ListAPIView):
             return visible_course_mappings(self.request).filter(
                 Q(course_id__icontains=term) | Q(course_name__icontains=term)
             ).annotate(code=F("course_id"), nom=F("course_name")).order_by("pk").values("id", "code", "nom")
+
+        if resource == "evaluations_lms":
+            return visible_mapped_evaluations(self.request).filter(
+                Q(titre__icontains=term) | Q(edx_assessment__subsection_id__icontains=term)
+            ).annotate(code=F("edx_assessment__subsection_id"), nom=F("titre")).order_by("pk").values(
+                "id", "code", "nom"
+            )
 
         if resource in DOCUMENT_SEARCH_RESOURCES:
             from sis_common.signed_documents import source_view
