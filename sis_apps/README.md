@@ -286,7 +286,8 @@ La recherche porte uniquement sur `course_name` ou `course_id`, avec un terme de
 Seuls les cours actifs accessibles **à la fois** au demandeur et au responsable
 sont candidats. Une intersection vide renvoie 200 avec une collection vide.
 
-L'accès cours réutilise, **sans le modifier**, `visible_course_mappings` de chaque
+Pour les comptes **staff**, l'accès cours réutilise, **sans le modifier**,
+`visible_course_mappings` de chaque
 `apps.integration.api` : frontière administrateur LMS existante (`is_staff`),
 contexte tenant et scopes `integration.view_edxcoursemapping`. Ce parcours ajoute
 localement l'exigence de cette permission explicite pour chacun des deux comptes :
@@ -296,13 +297,36 @@ staff ou rôle enseignant seul ne suffit pas. Les scopes reconnus sont `cours`,
 Les contraintes de tenant existantes sont conservées : classe/niveau/année et
 matière au secondaire ; années de semestre **et** de maquette au supérieur.
 
-**Limite enseignant vérifiée :** les portails `apps.portail.api._TenantTeacherPortal`
-et `apps.portail_enseignant.api` exposent des affectations classe/matière ou
-UE/ECUE/année, pas un droit de lecture des `EdxCourseMapping`. Ces affectations ne
-sont donc pas transformées en accès administrateur LMS. Le présent incrément ne
-couvre pas le choix d'un mapping par un enseignant non staff ; il reste pleinement
-capable de gérer ses projets **non rattachés** avec ses permissions/scopes projets.
-Aucun compte n'est promu et les endpoints cours historiques ne changent pas.
+**Enseignant non staff, uniquement dans les projets :** la permission explicite
+`integration.view_edxcoursemapping` et les permissions/scopes projets restent
+indispensables. Le helper existant
+`apps.portail.api._TenantTeacherPortal._affectations_queryset` fournit les
+affectations locales, sans appeler d'action HTTP ni modifier les portails.
+Le compte doit avoir son profil personnel/enseignant réel et
+le rôle accepté par ce portail (`enseignant` ; aussi `chercheur` au supérieur).
+Un rôle, une qualification matière ou une fonction de professeur principal seuls
+ne constituent jamais une affectation.
+
+Au secondaire, **une même affectation** doit relier le profil, la classe M2M,
+la matière et l'année de la classe ; classe, matière, niveau et année sont
+explicitement rattachés au tenant. Au supérieur, une affectation ECUE ne couvre
+que cet ECUE ; une affectation UE **sans ECUE** couvre les ECUE de cette UE.
+L'année d'affectation doit correspondre aux années de semestre **et** de maquette,
+et la chaîne formation/département/faculté doit appartenir à l'université courante.
+Une UE explicite contradictoire avec l'ECUE est refusée. Une formation sans
+département local n'est donc pas éligible pour un non-staff, contrairement au
+contrat administratif historique. Aucune condition de date courante ou d'année
+« en cours » n'est inventée.
+
+Ces affectations ne font qu'intersecter les mappings actifs avec les scopes cours
+décrits ci-dessus ; elles n'accordent aucun accès administrateur LMS, inscription,
+provisioning ni droit aux notes. Le demandeur et le responsable sont chacun
+évalués selon leurs propres droits (y compris les couples staff/non-staff).
+Le retrait d'affectation ou un contexte devenu incompatible masque aussi les
+anciens instantanés pour le lecteur concerné, sans les réécrire, et interdit de
+conserver le rattachement dans une nouvelle configuration. Les projets non rattachés et les opérations
+indépendantes du cours ne changent pas. Aucun compte n'est promu ; les portails
+et les endpoints administratifs de mappings ne sont pas élargis.
 
 La réponse projet ajoute `cours` : `null` si non rattaché ;
 `{id,nom,contexte,disponible:true}` si le lecteur possède encore l'accès au cours ;

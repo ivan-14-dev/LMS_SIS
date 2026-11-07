@@ -1,6 +1,7 @@
 """Mounted project/course commands on real tenant SQL tables, for both SIS variants."""
 
 from copy import deepcopy
+from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from django.db import transaction
 from django.db.models.deletion import ProtectedError
 from django_tenants.utils import schema_context
 
+from sis_common.project_courses import visible_project_courses
 from sis_common.tests.test_projects import BASE, ProjectFixture
 
 MANAGE = "core.gerer_projet_pedagogique"
@@ -71,6 +73,46 @@ class ProjectCourseTests(ProjectFixture):
         return EdxCourseMapping.objects.create(
             **context, course_id=f"course-v1:SIS+PROJECT-{code}+sis", course_name=f"Cours projet {code}", actif=active
         )
+
+    def assign_teacher(self, user, course, *, whole_unit=False):
+        user.is_staff = False
+        user.save(update_fields=["is_staff"])
+        if settings.SIS_VARIANT == "secondaire":
+            from apps.enseignants.models import AffectationEnseignant, Personnel
+
+            teacher, _ = Personnel.objects.get_or_create(
+                user=user,
+                defaults={"matricule": f"PROJECT-{user.pk}", "date_embauche": course.classe.annee_scolaire.date_debut},
+            )
+            assignment = AffectationEnseignant.objects.create(
+                enseignant=teacher, matiere=course.matiere, annee_scolaire=course.classe.annee_scolaire
+            )
+            assignment.classes.add(course.classe)
+        else:
+            from apps.enseignants.models import AffectationEnseignement, EnseignantChercheur
+            from apps.structure.models import Departement, Faculte
+
+            teacher, _ = EnseignantChercheur.objects.get_or_create(user=user, defaults={"specialite": "Projets"})
+            formation = course.ecue.ue.maquette.formation
+            if formation.departement_id is None:
+                faculty = Faculte.objects.create(
+                    universite=course.ecue.ue.maquette.annee_universitaire.universite,
+                    code=f"PRJ-{formation.pk}",
+                    nom="Faculté projets",
+                )
+                formation.departement = Departement.objects.create(
+                    faculte=faculty, code=f"PRJ-{formation.pk}", nom="Département projets"
+                )
+                formation.save(update_fields=["departement"])
+            assignment = AffectationEnseignement.objects.create(
+                enseignant=teacher,
+                ue=course.ecue.ue if whole_unit else None,
+                ecue=None if whole_unit else course.ecue,
+                annee_universitaire=course.ecue.ue.semestre.annee_universitaire,
+                type_enseignement="CM",
+                heures=12,
+            )
+        return assignment
 
     def scopes(self, user, **permissions):
         user.attributs_acces = {"permission_scopes": permissions}
@@ -481,3 +523,221 @@ class ProjectCourseTests(ProjectFixture):
         )
         self.toggle(False)
         assert self.search().status_code == 403
+
+    def test_nonstaff_assigned_teacher_can_bind_without_expanding_portal_admin_or_lms_access(self):
+        self.assign_teacher(self.manager, self.course)
+        self.scopes(
+            self.manager,
+            **{MANAGE: {"responsable_id": [self.manager.pk]}, READ: self.current_course_scope()},
+        )
+        self.manager.user_permissions.remove(self.course_permission)
+        self.login(self.manager)
+        portal = "/api/v1/portail/staff/tableau_bord/"
+        before_portal = self.client.get(portal)
+        assert before_portal.status_code == 200, before_portal.data
+        self.manager.user_permissions.add(self.course_permission)
+        models = [EdxCourseMapping, EdxEnrollment, EdxAccessIntent, OutboxEvent, Note]
+        before = [list(model.objects.order_by("pk").values()) for model in models]
+        with (
+            patch("apps.integration.api.get_edx_client") as remote,
+            patch("apps.integration.api.SyncService") as service,
+        ):
+            assert [row["id"] for row in self.search().data["results"]] == [self.course.pk]
+            assert self.create_bound().status_code == 201
+            assert self.create_bound(course=self.alternative).status_code == 400
+            assert self.client.get("/api/v1/integration/mappings/courses/").status_code == 403
+            assert self.client.get(f"/api/v1/integration/mappings/courses/{self.course.pk}/").status_code == 403
+            remote.assert_not_called()
+            service.assert_not_called()
+        assert self.client.get(portal).data == before_portal.data
+        assert [list(model.objects.order_by("pk").values()) for model in models] == before
+        self.manager.refresh_from_db()
+        assert not self.manager.is_staff and not self.manager.is_superuser
+
+    def test_nonstaff_actor_and_owner_require_their_own_assignments_and_permissions(self):
+        actor_assignment = self.assign_teacher(self.manager, self.course)
+        self.assign_teacher(self.staff, self.alternative)
+        self.scopes(self.manager, **{MANAGE: {"responsable_id": [self.staff.pk]}})
+        self.scopes(self.staff, **{MANAGE: {"responsable_id": [self.staff.pk]}})
+        assert self.search(owner=self.staff).data["results"] == []
+        assert self.create_bound(owner=self.staff).status_code == 400
+        owner_assignment = self.assign_teacher(self.staff, self.course)
+        assert [row["id"] for row in self.search(owner=self.staff).data["results"]] == [self.course.pk]
+        assert self.create_bound(owner=self.staff).status_code == 201
+        for account in (self.manager, self.staff):
+            account.user_permissions.remove(self.course_permission)
+            assert self.search(owner=self.staff).data["results"] == []
+            assert self.mutate("configurer/", titre="Refus permission").status_code == 400
+            account.user_permissions.add(self.course_permission)
+        actor_assignment.delete()
+        assert self.search(owner=self.staff).data["results"] == []
+        assert self.mutate("configurer/", titre="Refus affectation acteur").status_code == 400
+        self.assign_teacher(self.manager, self.course)
+        owner_assignment.delete()
+        assert self.search(owner=self.staff).data["results"] == []
+        assert self.mutate("configurer/", titre="Refus affectation responsable").status_code == 400
+        assert self.mutate("configurer/", cours=None).status_code == 200
+        self.assign_teacher(self.staff, self.course)
+        self.staff.user_permissions.remove(
+            Permission.objects.get(content_type__app_label="core", codename="gerer_projet_pedagogique")
+        )
+        assert self.create_bound(owner=self.staff).status_code == 400
+
+    def test_staff_manager_does_not_promote_teacher_owner_and_reassignment_revalidates_course(self):
+        self.assign_teacher(self.staff, self.course)
+        assert self.manager.is_staff
+        assert [row["id"] for row in self.search(owner=self.staff).data["results"]] == [self.course.pk]
+        assert self.create_bound(owner=self.staff, course=self.alternative).status_code == 400
+        assert self.create_bound().status_code == 201
+        assert self.mutate("configurer/", responsable=self.staff.pk).status_code == 200
+        assert self.mutate("configurer/", cours=self.alternative.pk).status_code == 400
+        # Reverse the pair: a staff owner still cannot enlarge the nonstaff actor's assignments.
+        self.assign_teacher(self.manager, self.course)
+        self.staff.is_staff = True
+        self.staff.save(update_fields=["is_staff"])
+        assert [row["id"] for row in self.search(owner=self.staff).data["results"]] == [self.course.pk]
+        assert self.mutate("configurer/", cours=self.alternative.pk).status_code == 400
+        assert self.mutate("configurer/", cours=None).status_code == 200
+
+    def test_nonstaff_revocation_hides_old_snapshots_without_rewriting_them_or_blocking_deliveries(self):
+        assignment = self.assign_teacher(self.manager, self.course)
+        self.prepare()
+        assert self.mutate("configurer/", cours=self.course.pk).status_code == 200
+        assert self.upload().status_code == 201
+        persisted = list(self.events().values())
+        if settings.SIS_VARIANT == "secondaire":
+            assignment.classes.remove(self.course.classe)
+        else:
+            assignment.delete()
+        assert self.search().data["results"] == []
+        assert self.client.get(self.url()).data["cours"] == {"disponible": False}
+        assert self.mutate("configurer/", titre="Refus retrait affectation").status_code == 400
+        history = self.client.get(self.url("historique/"))
+        assert history.status_code == 200, history.data
+        assert self.course.course_name not in str(history.data)
+        for event in history.data["results"]:
+            if event["metadata"].get("cours") is not None:
+                assert event["metadata"]["cours"] == {"disponible": False}
+        assert list(self.events().values()) == persisted
+        assert PedagogicalProject.objects.get(pk=self.project["id"]).cours_id == self.course.pk
+        assert self.upload().status_code == 201
+        assert self.mutate("configurer/", cours=None).status_code == 200
+
+    def test_nonstaff_context_move_requires_new_assignment_and_keeps_old_history_hidden(self):
+        assignment = self.assign_teacher(self.manager, self.course)
+        assert self.create_bound().status_code == 201
+        persisted = list(self.events().values())
+        self.move_course_context("year" if settings.SIS_VARIANT == "secondaire" else "both_years")
+        assert self.search().data["results"] == []
+        assignment.delete()
+        self.assign_teacher(self.manager, self.course)
+        assert [row["id"] for row in self.search().data["results"]] == [self.course.pk]
+        assert self.client.get(self.url()).data["cours"]["disponible"] is True
+        history = self.client.get(self.url("historique/"))
+        assert history.data["results"][0]["metadata"]["cours"] == {"disponible": False}
+        assert list(self.events().values()) == persisted
+
+    def test_nonstaff_malformed_or_excluding_scopes_never_fall_back_to_assignments(self):
+        self.assign_teacher(self.manager, self.course)
+        assert self.create_bound().status_code == 201
+        valid = self.current_course_scope()
+        denied = [
+            {"permission_scopes": {READ: scope}}
+            for scope in ({"inconnu": [1]}, {"cours": "all"}, {"cours": [True]}, {"cours": ["1"]}, [])
+        ]
+        denied += [{"permission_scopes": {READ: {**valid, key: []}}} for key in valid]
+        persisted = list(self.events().values())
+        for attributes in denied:
+            with self.subTest(attributes=attributes):
+                self.manager.attributs_acces = attributes
+                self.manager.save(update_fields=["attributs_acces"])
+                assert self.search().data["results"] == []
+                assert self.mutate("configurer/", titre="Refus périmètre").status_code == 400
+                assert self.client.get(self.url()).data["cours"] == {"disponible": False}
+                assert self.course.course_name not in str(self.client.get(self.url("historique/")).data)
+        assert list(self.events().values()) == persisted
+        for attributes in ([], "invalid", {"permission_scopes": []}, {"permission_scopes": None}):
+            self.manager.attributs_acces = attributes
+            assert not visible_project_courses(SimpleNamespace(tenant=self.tenant), self.manager).exists()
+
+    def test_nonstaff_assignment_must_match_exact_teaching_context_not_just_role_or_qualification(self):
+        assignment = self.assign_teacher(self.manager, self.course)
+        assert self.create_bound().status_code == 201
+        if settings.SIS_VARIANT == "secondaire":
+            from apps.enseignants.models import MatiereEnseignee
+
+            MatiereEnseignee.objects.create(enseignant=assignment.enseignant, matiere=self.course.matiere)
+            self.course.classe.prof_principal = self.manager
+            self.course.classe.save(update_fields=["prof_principal"])
+            assignment.matiere = self.alternative.matiere
+            assignment.save(update_fields=["matiere"])
+            other = self.assign_teacher(self.manager, self.alternative)
+            other.matiere = self.course.matiere
+            other.save(update_fields=["matiere"])
+        else:
+            # A conflicting explicit UE must not turn an ECUE assignment into a UE grant.
+            assignment.ue = self.alternative.ecue.ue
+            assignment.save(update_fields=["ue"])
+        assert self.search().data["results"] == []
+        assert self.mutate("configurer/", titre="Refus affectation incohérente").status_code == 400
+        assignment.delete()
+        assert self.search().data["results"] == []
+        assert self.client.get(self.url()).data["cours"] == {"disponible": False}
+        assert self.mutate("configurer/", cours=None).status_code == 200
+
+    def test_nonstaff_inactive_foreign_and_mixed_contexts_stay_closed_even_with_assignments(self):
+        self.assign_teacher(self.manager, self.course)
+        assert self.create_bound().status_code == 201
+        other = type(self.tenant)(schema_name=f"project_teacher_{uuid4().hex[:12]}")
+        self.setup_tenant(other)
+        other.auto_create_schema = False
+        with schema_context("public"):
+            other.save()
+        foreign = self.make_course("FOREIGN-TEACHER", other)
+        self.assign_teacher(self.manager, foreign)
+        inactive = self.make_course("INACTIVE-TEACHER", self.tenant, active=False)
+        self.assign_teacher(self.manager, inactive)
+        mixed = self.make_course("MIXED-TEACHER", self.tenant)
+        self.assign_teacher(self.manager, mixed)
+        if settings.SIS_VARIANT == "secondaire":
+            mixed.classe.niveau = foreign.classe.niveau
+            mixed.classe.save(update_fields=["niveau"])
+        else:
+            mixed.ecue.ue.maquette.annee_universitaire = foreign.ecue.ue.maquette.annee_universitaire
+            mixed.ecue.ue.maquette.save(update_fields=["annee_universitaire"])
+        assert [row["id"] for row in self.search().data["results"]] == [self.course.pk]
+        persisted = list(self.events().values())
+        for course in (foreign, inactive, mixed):
+            assert self.create_bound(course=course).status_code == 400
+        assert list(self.events().values()) == persisted
+        self.manager.is_active = False
+        self.manager.save(update_fields=["is_active"])
+        assert self.search().status_code == 403
+        self.manager.is_active = True
+        self.manager.role = "personnel_administratif"
+        self.manager.save(update_fields=["role", "is_active"])
+        assert self.search().data["results"] == []
+        self.manager.role = "enseignant"
+        self.manager.etablissement = other
+        self.manager.save(update_fields=["role", "etablissement"])
+        assert self.search().status_code == 403
+
+    def test_university_ue_only_assignment_includes_its_ecues_but_ecue_assignment_does_not(self):
+        if settings.SIS_VARIANT != "superieur":
+            self.skipTest("UE/ECUE contract is specific to the university variant")
+        from apps.ue_ecue.models import ECUE
+
+        assignment = self.assign_teacher(self.manager, self.course)
+        sibling = ECUE.objects.create(ue=self.course.ecue.ue, code="SIBLING", nom="ECUE sœur", credits_ects=3)
+        mapping = EdxCourseMapping.objects.create(
+            ecue=sibling, course_id="course-v1:SIS+PROJECT-SIBLING+sis", course_name="Cours projet sœur", actif=True
+        )
+        assert [row["id"] for row in self.search().data["results"]] == [self.course.pk]
+        assert self.create_bound(course=mapping).status_code == 400
+        assignment.delete()
+        self.assign_teacher(self.manager, self.course, whole_unit=True)
+        assert {row["id"] for row in self.search().data["results"]} == {self.course.pk, mapping.pk}
+        assert self.create_bound(course=mapping).status_code == 201
+        self.scopes(self.manager, **{READ: {"ecues": [self.course.ecue_id]}})
+        assert [row["id"] for row in self.search().data["results"]] == [self.course.pk]
+        assert self.mutate("configurer/", titre="Refus scope ECUE").status_code == 400

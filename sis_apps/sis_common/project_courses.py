@@ -5,8 +5,11 @@ import json
 from types import SimpleNamespace
 
 from django.apps import apps
+from django.db.models import Exists, F, OuterRef, Q
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
+from sis_common.authorization import filter_queryset_by_scopes
+from sis_common.lms_tenants import current_lms_tenant
 from sis_common.pagination import SISPagination
 
 COURSE_PERMISSION = "integration.view_edxcoursemapping"
@@ -19,15 +22,17 @@ class ProjectCoursePagination(SISPagination):
 
 
 def visible_project_courses(request, user):
-    # Keep the native LMS course boundary, including its staff prerequisite.
-    # Unlike that legacy API, a project reference also requires an explicit grant.
     from apps.integration.api import visible_course_mappings
     from apps.integration.models import EdxCourseMapping
 
     empty = EdxCourseMapping.objects.none()
     if not user.is_active or user.etablissement_id != request.tenant.pk or not user.has_perm(COURSE_PERMISSION):
         return empty
-    scopes = (user.attributs_acces or {}).get("permission_scopes", {}).get(COURSE_PERMISSION, {})
+    attributes = user.attributs_acces
+    if attributes is None:
+        attributes = {}
+    permission_scopes = attributes.get("permission_scopes", {}) if isinstance(attributes, dict) else None
+    scopes = permission_scopes.get(COURSE_PERMISSION, {}) if isinstance(permission_scopes, dict) else None
     keys = (
         {"cours", "classes", "matieres", "annees"}
         if apps.is_installed("apps.classes")
@@ -41,10 +46,66 @@ def visible_project_courses(request, user):
         )
     ):
         return empty
+    context = SimpleNamespace(tenant=request.tenant, user=user)
     try:
-        return visible_course_mappings(SimpleNamespace(tenant=request.tenant, user=user)).filter(actif=True)
+        if user.is_staff:
+            # Preserve the administrative boundary; teacher assignments cannot extend it.
+            return visible_course_mappings(context).filter(actif=True)
+        current_lms_tenant(context)
+        return _assigned_project_courses(context)
     except PermissionDenied:
         return empty
+
+
+def _assigned_project_courses(request):
+    from apps.integration.models import EdxCourseMapping
+    from apps.portail.api import _TenantTeacherPortal
+
+    user, tenant_id = request.user, request.tenant.pk
+    secondary = apps.is_installed("apps.classes")
+    roles = ("enseignant",) if secondary else ("enseignant", "chercheur")
+    profile_model = apps.get_model("enseignants", "Personnel" if secondary else "EnseignantChercheur")
+    teacher = profile_model.objects.filter(user_id=user.pk, user__etablissement_id=tenant_id).first()
+    if user.role not in roles or teacher is None:
+        return EdxCourseMapping.objects.none()
+    # Reuse only the portal's local queryset; never delegate an endpoint or promote the user.
+    portal = _TenantTeacherPortal()
+    portal.request = request
+    assignments = portal._affectations_queryset(teacher)
+    if secondary:
+        # Match the same assignment's class, subject AND year, not separate grants.
+        assignments = assignments.filter(
+            classes__pk=OuterRef("classe_id"),
+            matiere_id=OuterRef("matiere_id"),
+            annee_scolaire_id=OuterRef("classe__annee_scolaire_id"),
+        )
+        courses = EdxCourseMapping.objects.filter(
+            actif=True,
+            classe__etablissement_id=tenant_id,
+            classe__niveau__etablissement_id=tenant_id,
+            classe__annee_scolaire__etablissement_id=tenant_id,
+            matiere__etablissement_id=tenant_id,
+        )
+        scope_fields = {"cours": "pk", "classes": "classe_id", "matieres": "matiere_id"}
+        years = ("classe__annee_scolaire_id",)
+    else:
+        # An ECUE assignment never grants its siblings; a UE-only assignment does.
+        assignments = assignments.filter(
+            Q(ecue_id=OuterRef("ecue_id")) | Q(ecue__isnull=True, ue_id=OuterRef("ecue__ue_id")),
+            Q(ue__isnull=True) | Q(ecue__isnull=True) | Q(ue_id=F("ecue__ue_id")),
+            annee_universitaire_id=OuterRef("ecue__ue__maquette__annee_universitaire_id"),
+        )
+        courses = EdxCourseMapping.objects.filter(
+            actif=True,
+            ecue__ue__semestre__annee_universitaire__universite_id=tenant_id,
+            ecue__ue__maquette__annee_universitaire__universite_id=tenant_id,
+        )
+        scope_fields = {"cours": "pk", "ecues": "ecue_id", "formations": "ecue__ue__maquette__formation_id"}
+        years = ("ecue__ue__semestre__annee_universitaire_id", "ecue__ue__maquette__annee_universitaire_id")
+    courses = courses.filter(Exists(assignments))
+    for year in years:
+        courses = filter_queryset_by_scopes(courses, user, COURSE_PERMISSION, {**scope_fields, "annees": year})
+    return courses.select_related(*(("classe", "matiere") if secondary else ("ecue",))).order_by("course_name", "pk")
 
 
 def selectable_project_courses(request, owner):
