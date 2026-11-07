@@ -24,7 +24,7 @@ export const academicSearchResources = (variant, capabilities, lmsAdmin = false)
   if (lmsAdmin && !personal) {
     resources.push({ value: 'cours', label: 'Cours LMS' });
   }
-  if (variant === 'superieur' && !personal && hasCapability(capabilities, 'notes.view_evaluation')) {
+  if (!personal && hasCapability(capabilities, 'notes.view_evaluation')) {
     resources.push({ value: 'evaluations_lms', label: 'Évaluations reliées au LMS' });
   }
   const financePermission = variant === 'secondaire' ? 'paiement' : 'paiementfrais';

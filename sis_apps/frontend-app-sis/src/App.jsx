@@ -172,6 +172,7 @@ const App = () => (
             <Route path="factures/:id" element={<SearchRecordDetail resource="factures" />} />
             <Route path="cours/:id" element={<SearchRecordDetail resource="cours" />} />
             <Route path="reclamations" element={<ComplaintsPage variant="secondaire" />} />
+            <Route path="evaluations_lms/:id" element={<SearchRecordDetail resource="evaluations_lms" />} />
             <Route path="compte" element={<AccountPage variant="secondaire" />} />
             <Route index element={<DashboardSecondaire />} />
 

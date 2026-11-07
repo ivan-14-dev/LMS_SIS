@@ -12,9 +12,11 @@ from django.db.models.functions import Cast, Concat
 from rest_framework import generics, mixins, permissions, response, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.request import clone_request
 
 from sis_common.authorization import has_business_permission_or_role
 from sis_common.delegations import ActiveTenantAccess
+from sis_common.lms_tenants import current_lms_tenant
 from sis_common.notification_channels import (
     notification_matches_delivery_filters,
     summarize_notification_deliveries,
@@ -45,6 +47,38 @@ EVENT_REPORT_GROUPS = {
 }
 
 
+def visible_mapped_evaluations(request):
+    """Narrow the authoritative evaluations queryset to coherent local LMS mappings."""
+    from apps.notes.api import EvaluationsViewSet
+
+    tenant = current_lms_tenant(request)
+    if (
+        not tenant.actif
+        or request.user.role in ("eleve", "parent")
+        or not request.user.has_perm("notes.view_evaluation")
+    ):
+        raise PermissionDenied("La recherche des évaluations LMS exige la permission de lecture des évaluations.")
+    read_request = clone_request(request, "GET")
+    view = EvaluationsViewSet(request=read_request, action="list", kwargs={}, format_kwarg=None)
+    view.check_permissions(read_request)
+    queryset = view.get_queryset()
+    if queryset.query.is_empty():
+        raise PermissionDenied("La consultation des évaluations n'est pas autorisée dans ce périmètre.")
+    return queryset.filter(
+        classe__etablissement_id=tenant.pk,
+        classe__annee_scolaire__etablissement_id=tenant.pk,
+        classe__niveau__etablissement_id=tenant.pk,
+        matiere__etablissement_id=tenant.pk,
+        periode__annee_scolaire__etablissement_id=tenant.pk,
+        periode__annee_scolaire_id=F("classe__annee_scolaire_id"),
+        enseignant__user__etablissement_id=tenant.pk,
+        edx_assessment__actif=True,
+        edx_assessment__course__actif=True,
+        edx_assessment__course__matiere_id=F("matiere_id"),
+        edx_assessment__course__classe_id=F("classe_id"),
+    ).exclude(edx_assessment__subsection_id="").exclude(edx_assessment__course__course_id="")
+
+
 class AcademicSearchResultSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     code = serializers.CharField()
@@ -57,7 +91,7 @@ class AcademicSearchPagination(SISPagination):
 
 
 class AcademicSearchView(generics.ListAPIView):
-    """Recherche GET ?ressource=eleves|factures|cours|bulletins&q=terme.
+    """Recherche GET ?ressource=eleves|factures|cours|evaluations_lms|bulletins&q=terme.
 
     Terme de 2 à 100 caractères, sans caractères de contrôle.
     Résultats id/code/nom, paginés par 20 (page_size plafonné à 50).
@@ -69,6 +103,15 @@ class AcademicSearchView(generics.ListAPIView):
     Les mappings inactifs sont inclus ; id est la PK du mapping, code la clé LMS,
     nom le course_name. Le détail est GET /integration/mappings/courses/<id>/.
     Les matières, classes, activités LMS et bulletins ne sont pas des cours.
+    evaluations_lms désigne uniquement les évaluations SIS reliées à une sous-section
+    LMS par un mapping actif vers un cours actif de même matière/classe. Les années,
+    période, niveau et enseignant doivent être cohérents avec le tenant actif.
+    notes.view_evaluation est requis en plus des permissions et du queryset de l'API
+    notes, y compris les périmètres et l'attribution à l'enseignant (Personnel).
+    Aucun accès personnel apprenant/parent ni catalogue natif d'activités LMS.
+    Recherche par titre ou subsection_id ; id = évaluation, code = subsection_id,
+    nom = titre SIS. Détail natif : GET /api/v1/notes/evaluations/{id}/.
+    Ni description, notes, identité d'élève, ni URL LMS ne sont renvoyées.
     Les bulletins utilisent le périmètre de leur PDF officiel, publication et
     accès parent/professeur principal compris. Recherche sur la référence
     existante du PDF BUL-<id>, pas sur un numéro métier persistant ni sur l'élève.
@@ -82,8 +125,8 @@ class AcademicSearchView(generics.ListAPIView):
 
     def get_queryset(self):
         resource = self.request.query_params.get("ressource")
-        if resource not in ("eleves", "factures", "cours", "bulletins"):
-            raise ValidationError({"ressource": "Choisissez eleves, factures, cours ou bulletins."})
+        if resource not in ("eleves", "factures", "cours", "evaluations_lms", "bulletins"):
+            raise ValidationError({"ressource": "Choisissez eleves, factures, cours, evaluations_lms ou bulletins."})
         raw_term = self.request.query_params.get("q", "")
         term = raw_term.strip()
         if (
@@ -103,6 +146,13 @@ class AcademicSearchView(generics.ListAPIView):
             return visible_course_mappings(self.request).filter(
                 Q(course_id__icontains=term) | Q(course_name__icontains=term)
             ).annotate(code=F("course_id"), nom=F("course_name")).order_by("pk").values("id", "code", "nom")
+
+        if resource == "evaluations_lms":
+            return visible_mapped_evaluations(self.request).filter(
+                Q(titre__icontains=term) | Q(edx_assessment__subsection_id__icontains=term)
+            ).annotate(code=F("edx_assessment__subsection_id"), nom=F("titre")).order_by("pk").values(
+                "id", "code", "nom"
+            )
 
         if resource == "bulletins":
             from sis_common.signed_documents import source_view

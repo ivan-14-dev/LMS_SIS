@@ -134,7 +134,7 @@ dépendent des capacités du compte et de son contexte SIS :
   et attestations.
 
 Les administrateurs LMS voient aussi les vrais cours mappés dans chaque SIS.
-Le supérieur expose les évaluations SIS reliées à une sous-section LMS active
+Les deux SIS exposent les évaluations reliées à une sous-section LMS active
 aux comptes habilités ; ce n'est pas le catalogue de toutes les activités LMS.
 
 Chaque recherche interroge `core/recherche-academique/` pour un seul type
@@ -158,8 +158,7 @@ Les cours ouvrent le détail du mapping SIS, sans synchronisation ni accès
 implicite au contenu distant. Le statut administratif LMS reste distinct des
 permissions métier. Les bulletins sont recherchés par leur référence PDF
 existante `BUL-<id>`, pas par un numéro métier nouvellement attribué.
-Une formation n’est pas un cours LMS ; les autres activités LMS et les
-évaluations LMS secondaires ne sont pas couvertes.
+Une formation n’est pas un cours LMS ; les autres activités LMS ne sont pas couvertes.
 
 ### Limites actuelles du parcours d'inscription
 

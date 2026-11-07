@@ -552,6 +552,7 @@ describe('authorized record search', () => {
     ['secondaire', 'Cours LMS', 'cours', '/secondaire/cours/17'],
     ['superieur', 'Cours LMS', 'cours', '/superieur/cours/17'],
     ['superieur', 'Évaluations reliées au LMS', 'evaluations_lms', '/superieur/evaluations_lms/17'],
+    ['secondaire', 'Évaluations reliées au LMS', 'evaluations_lms', '/secondaire/evaluations_lms/17'],
   ])('opens %s %s at the actual entity destination', async (variant, label, resource, path) => {
     fetchApi.mockResolvedValue({ count: 1, next: null, results: [{ id: 17, code: 'REF-17', nom: 'Dossier attendu' }] });
     render(palette({ variant }));
@@ -655,6 +656,7 @@ describe('authorized record search', () => {
     await openRecords();
     fireEvent.mouseDown(screen.getByLabelText('Type de dossier'));
     expect(screen.getByRole('option', { name: 'Factures' })).toBeVisible();
+    expect(screen.getByRole('option', { name: 'Bulletins' })).toBeVisible();
     expect(screen.queryByRole('option', { name: 'Élèves' })).not.toBeInTheDocument();
   });
 
@@ -667,8 +669,10 @@ describe('authorized record search', () => {
     expect(screen.queryByRole('option', { name: /^cours$/i })).not.toBeInTheDocument();
   });
 
-  it('does not present mapped evaluations as learner-accessible LMS content', async () => {
-    render(palette({ variant: 'superieur', capabilities: portalRole('etudiant', ['*']) }));
+  it.each([
+    ['superieur', 'etudiant'], ['secondaire', 'eleve'], ['secondaire', 'parent'],
+  ])('does not present mapped evaluations as personal LMS content for %s %s', async (variant, role) => {
+    render(palette({ variant, capabilities: portalRole(role, ['*']) }));
     await openRecords();
     fireEvent.mouseDown(screen.getByLabelText('Type de dossier'));
     expect(screen.queryByRole('option', { name: 'Évaluations reliées au LMS' })).not.toBeInTheDocument();
@@ -685,6 +689,7 @@ describe('authorized record search', () => {
     ['secondaire', '/cours/17', '/integration/mappings/courses/17/', 'Cours LMS'],
     ['superieur', '/cours/17', '/integration/mappings/courses/17/', 'Cours LMS'],
     ['superieur', '/evaluations_lms/17', '/notes/evaluations/17/', 'Évaluation reliée au LMS'],
+    ['secondaire', '/evaluations_lms/17', '/notes/evaluations/17/', 'Évaluation reliée au LMS'],
     ['secondaire', '/bulletins/17', '/notes/bulletins/17/', 'Bulletin'],
   ])('loads the authorized %s %s detail without sharing its result in cache', async (variant, route, endpoint, heading) => {
     const defaultFetch = fetchApi.getMockImplementation();

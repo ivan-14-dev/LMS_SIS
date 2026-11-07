@@ -22,6 +22,7 @@ for (const variant of variants) {
   test(`${variant}: authorized typed search opens real academic and financial details`, async ({ page }) => {
     // Extend the disposable grade fixture with invoiceId/Number/Prefix (25 matching invoices),
     // documentId/Number for an attestation, bulletinId for a school bulletin and courseMappingId.
+    // Learner paths require learnerUsername (same synthetic password) and peerInvoiceId/Number.
     // No records are created by this test.
     const { fixture, credentials } = loadGradeFixture(variant);
     expect(Number.isInteger(fixture.invoiceId)).toBe(true);
@@ -68,14 +69,14 @@ for (const variant of variants) {
     await expect(page.getByRole('heading', { name: 'Cours LMS', exact: true })).toBeVisible();
     await expect(page.locator('dd').filter({ hasText: fixture.courseId })).toBeVisible();
 
-    if (variant === 'superieur') {
-      dialog = await openSearch(page, 'Évaluations reliées au LMS', fixture.evaluationTitle);
-      const evaluationLink = dialog.getByRole('link').filter({ hasText: fixture.evaluationTitle });
-      await expect(evaluationLink).toHaveAttribute('href', `/${variant}/evaluations_lms/${fixture.evaluationId}`);
-      await evaluationLink.click();
-      await expect(page.getByRole('heading', { name: 'Évaluation reliée au LMS', exact: true })).toBeVisible();
-      await expect(page.locator('dd').filter({ hasText: fixture.evaluationTitle })).toBeVisible();
+    dialog = await openSearch(page, 'Évaluations reliées au LMS', fixture.evaluationTitle);
+    const evaluationLink = dialog.getByRole('link').filter({ hasText: fixture.evaluationTitle });
+    await expect(evaluationLink).toHaveAttribute('href', `/${variant}/evaluations_lms/${fixture.evaluationId}`);
+    await evaluationLink.click();
+    await expect(page.getByRole('heading', { name: 'Évaluation reliée au LMS', exact: true })).toBeVisible();
+    await expect(page.locator('dd').filter({ hasText: fixture.evaluationTitle })).toBeVisible();
 
+    if (variant === 'superieur') {
       expect(Number.isInteger(fixture.documentId)).toBe(true);
       expect(typeof fixture.documentNumber).toBe('string');
       dialog = await openSearch(page, 'Attestations', fixture.documentNumber);
@@ -95,5 +96,46 @@ for (const variant of variants) {
       await expect(page.locator('dd').filter({ hasText: fixture.learnerMatricule })).toBeVisible();
       await expect(page.getByText(/La validation administrative n’est pas une signature numérique vérifiable/)).toBeVisible();
     }
+  });
+
+  test(`${variant}: learner search excludes administrative types and other learners' invoices`, async ({ page }) => {
+    const { fixture, credentials, apiOrigin } = loadGradeFixture(variant);
+    expect(typeof fixture.learnerUsername).toBe('string');
+    expect(Number.isInteger(fixture.peerInvoiceId)).toBe(true);
+    expect(typeof fixture.peerInvoiceNumber).toBe('string');
+    // The disposable learner fixture uses the same synthetic password as the staff fixture.
+    await respectApiRateLimit(page);
+    await page.goto(`/${variant}`);
+    await page.getByRole('textbox', { name: 'Identifiant', exact: true }).fill(fixture.learnerUsername);
+    await page.getByLabel(/^Mot de passe/).fill(credentials.password);
+    await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
+    await expect(page.locator('.sis-layout')).toBeVisible();
+    let dialog = await openSearch(page, 'Factures', fixture.invoiceNumber);
+    const invoiceLink = dialog.getByRole('link').filter({ hasText: fixture.invoiceNumber });
+    await expect(invoiceLink).toHaveAttribute('href', `/${variant}/factures/${fixture.invoiceId}`);
+    await invoiceLink.click();
+    await expect(page.locator('dd').filter({ hasText: fixture.invoiceNumber })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Ouvrir la palette de navigation' }).click();
+    await page.getByRole('tab', { name: 'Dossiers', exact: true }).click();
+    dialog = page.getByRole('dialog');
+    await dialog.getByRole('combobox', { name: 'Type de dossier' }).click();
+    await expect(page.getByRole('option', { name: 'Cours LMS', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('option', { name: 'Évaluations reliées au LMS', exact: true })).toHaveCount(0);
+    await page.getByRole('option', { name: 'Factures', exact: true }).click();
+    await dialog.getByRole('textbox', { name: 'Rechercher un dossier' }).fill(fixture.peerInvoiceNumber);
+    await dialog.getByRole('button', { name: 'Rechercher les dossiers', exact: true }).click();
+    await expect(dialog.getByText('Aucun dossier autorisé ne correspond.', { exact: true })).toBeVisible();
+
+    const rejected = await page.evaluate(async (url) => {
+      const response = await fetch(url, { credentials: 'include' });
+      return { status: response.status, text: await response.text() };
+    }, `${apiOrigin}/api/v1/paiements/factures/${fixture.peerInvoiceId}/`);
+    expect(rejected.status, rejected.text).toBe(404);
+    expect(rejected.text).not.toContain(fixture.peerInvoiceNumber);
+    await dialog.getByRole('button', { name: 'Fermer la palette' }).click();
+    await page.goto(`/${variant}/evaluations_lms/${fixture.evaluationId}`);
+    await expect(page.getByText('Vous n’avez pas accès à ce type de dossier dans ce contexte.')).toBeVisible();
+    await expect(page.locator('dd')).toHaveCount(0);
   });
 }

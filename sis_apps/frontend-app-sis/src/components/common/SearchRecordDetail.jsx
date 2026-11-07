@@ -31,6 +31,7 @@ const definitions = {
     endpoint: 'notes/evaluations',
     fields: [
       ['Titre', 'titre'], ['Description', 'description'], ['ECUE', 'ecue_nom'],
+      ['Matière', 'matiere_nom'], ['Classe', 'classe_nom'], ['Période', 'periode_libelle'],
       ['Semestre', 'semestre_libelle'], ['Modalité', 'modalite_display'],
       ['Date', 'date'], ['Barème', 'bareme'], ['Fin de soumission', 'fin_soumission'],
     ],
