@@ -9,13 +9,14 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 20:57:43 UTC** :
-vagues 15 à 30 publiées et qualifiées dans leurs périmètres bornés ;
-**vague30 publiée en `bddabf7`, vérifié égal à `HEAD` et `origin/main` sur main**.
+**Dernier cutoff documentaire : 7 novembre 2026 à 21:36:13.951849 UTC** :
+vagues 15 à 31 publiées et qualifiées dans leurs périmètres bornés ;
+**vague31 publiée en `605aab7`, vérifié égal à `HEAD` et `origin/main` sur main**,
+comparaison distante attestée par le rapport parent.
 Le passage autorisé de **10.5 d'absente à partielle** appartient à la
 vague25. **Promotion30 explicitement autorisée : seule10.5, partielle→vérifiée** :
 **2 vérifiées, 71 partielles, 19 absentes et 2 non vérifiées sur 94**.
-Les 93 autres statuts et les chiffres historiques restent inchangés.
+La vague31 ne promeut aucun statut ; les chiffres historiques restent inchangés.
 Le blocage de qualification Studio a été levé
 vers 07:30 UTC : le correctif est publié, avec une preuve ciblée limitée
 décrite en vague 19, **sans clôture de F07**. Après les lots et parcours
@@ -51,6 +52,14 @@ Les trois conditions communes alors pendantes ont maintenant leurs preuves ;
 aucune réception prestataire/production n'est ajoutée aux critères10.5.
 Les concurrences exactes offre/sélection et affectation/rattachement ne sont
 pas qualifiées ; pas de jeton client de révision d'offre.
+La vague31 corrige la recherche identique en page1 : nouvel appel du hook privé,
+purge des anciennes données pendant GET. Chromium final des deux SIS prouve
+**200 puis403 sur la même URL, même formulaire/session après retrait réel du droit**,
+sans ancien résultat/lien/compte ni navigation/reconnexion/refresh des capacités.
+**10.7 reste partielle** : cette preuve porte sur les apprenants, pas sur une
+recette complète cinq types/autre rôle/autre tenant. Le catalogue LMS natif
+exhaustif n'est pas une obligation de la source920. Qualification32 en cours,
+aucun résultat32 importé. Les restaurations/MFA30 ne sont pas requalifiés31.
 **Le 100 % n'est pas atteint.**
 Les bilans datés antérieurs conservent leurs cutoffs, blocages et rouges.
 
@@ -1769,6 +1778,98 @@ sans inventer de nouvelle condition10.5. Objectifs ≠ acquis ; autres exigences
 et F-lots restent ouverts,100 % non atteint, aucun lot31 qualifié.
 Charge500 non relancée, dernier rouge **500 timeouts/262 écritures indéterminées**
 inchangé. Cet import n'a lancé aucun runtime/Docker/agent ni commit/push.
+
+**Vague 31, publiée et qualifiée au cutoff du 7 novembre 2026 à
+21:36:13.951849 UTC :** cutoff `qualified_at` de
+`wave31-parent-qualification.json`, source de vérité parent vérifiée.
+`605aab74482094c6b963c30d1efbffcaa77564a5` égale `HEAD` et `origin/main`
+sur main propre avant import ; comparaison distante attestée par le parent.
+**Aucune promotion : 2 vérifiées,71 partielles,19 absentes,2 non vérifiées**,
+`external_credentials_blocked=0` conservé. Les48 anciens updates sont
+strictement inchangés ; les94 IDs/statuts/critères/sources/F-lots et93 autres
+objets exigences, dont10.5 clôturée30, sont intacts. Pour10.7, seul un élément
+`execution_evidence` est ajouté, sans réécriture des lacunes historiques.
+
+**Correctif publié borné :** seulement `AcademicSearch.jsx` et
+`Workspace.test.jsx`,39 insertions/1 suppression. Une soumission du même terme
+en page1 appelle explicitement `retry` du hook privé existant ; les anciennes
+données sont purgées pendant GET. Les autres saisies/pages gardent leur
+comportement antérieur. **Workspace81/81 en213,342 s**, puis **2 ciblés finaux
+en20,273 s et79 NON sélectionnés** après correction de l'objet `Error` pour
+ESLint ; lint final vert attesté parent. **Pas83 tests distincts**, ni suite
+frontend intégrale. Le log ESLint final vide n'est pas une preuve autonome.
+
+**Nouveau bundle31** construit en69,462 s, trois avertissements de taille.
+Le rapport de provenance rapproche171 sources/configurations avec `git show`,
+dont2 modifiées, et23 fichiers dist. Les empreintes des **23 anciens assets
+HTTP bundle28 et23 nouveaux assets HTTP bundle31** sont prouvées par le parent,
+sans déduire un total de fichiers uniques. Backend30 réutilisé :
+`sha256:171bbb3077963155a8970e655118137250904159375fcf3ecd8dab935f1c15e6`.
+**Aucun nouveau code/build backend, test backend ou migration31.**
+
+**Témoin rouge produit valable sur ancien bundle28 :**
+`wave31-red-secondaire-recheck` observe deux clics mais un seul GET200,
+permission effectivement retirée et ancien résultat encore visible.
+Le grant est restauré après contrôle ; ce rouge n'est pas un succès produit.
+**Finales Chromium `wave31-green-{secondaire,superieur}-final` :**
+même formulaire/type/terme/page1/session/URL ; GET200, retrait réel de la
+permission puis nouveau GET identique403. Aucun ancien résultat, lien ou
+compte affiché après refus ; aucun changement de navigation, reconnexion
+ou refresh des capacités entre les recherches. Grant restauré dans les deux SIS.
+Les deux finales utilisent le même harness stabilisé, sans réponse réseau simulée.
+
+**Préservation bornée :** clones31 des restaurations30, bases exactes
+`sis_wave31_browser_secondaire` et `sis_wave31_browser_superieur`, settings31
+et schéma contrôlés. Un nouveau compte `wave31-search-reader` par clone,
+non staff/non superutilisateur, uniquement `eleves.view_eleve` ou
+`etudiants.view_etudiant` et scope de la cible `grade-learner-0`.
+Empreintes des lignes brutes de toutes les tables protégées autour de chaque
+transaction seed/revoke/restore et comparaison des séquences : anciens comptes,
+MFA, droits, public, tenantB et données métier préservés.
+Le vrai login peut légitimement modifier sessions, logs et `last_login`
+du nouveau compte : pas d'affirmation d'absence de toute écriture.
+**Pas nouvelle preuve de restauration, recréation, volume ou déchiffrement MFA31.**
+API/nginx31 arrêtés/supprimés selon parent ; PostgreSQL/Redis privés conservés.
+Aucune modification de l'installation partagée.
+
+**Incidents conservés sans maquillage :** premier Jest512Mo en OOM ;
+à1024Mo, contamination `mockOnce`, corrigée par `mockReset`, puis rouge isolé
+un GET au lieu de deux. ESLint rejetait la promesse avec objet non `Error` ;
+correction puis deux tests finaux et lint verts. Premier navigateur rouge :
+sélecteur MUI `exact:true` incompatible avec le nom accessible incluant
+la valeur sélectionnée, remplacé selon le précédent e2e. Deux essais
+universitaires échouent au compteur de requêtes `auth/session` du document
+abandonné par le reload normal du login. Le correcteur parent suit maintenant
+le document courant : requêtes de l'ancien document explicitement retirées
+et événements consignés **uniquement lors d'une navigation AVANT première
+recherche**. Après premier résultat, navigation interdite et comptage jamais
+réinitialisé ; le reçu final supérieur consigne un GET `auth/session` retiré,
+le secondaire aucun. Aucun changement produit ni contournement pour ces
+incidents de harness ; leurs rouges ne deviennent pas des succès produit.
+Premier contrôle de publication : assertion de format du résumé Jest ciblé
+corrigée pour accepter79 skipped, sans modification des résultats.
+
+**54 artefacts indexés et hachés** : les53 empreintes du rapport vérifiées ici,
+plus le rapport parent lui-même. Traces/captures synthétiques, zéro HAR réseau
+et zéro source dans les traces selon le rapport ; aucune archive privée ni
+credential indexé. Le générateur `wave31-parent-qualification.py` est référencé,
+**non réexécuté** après l'import. Quatre campagnes documentaires nouvelles :
+Workspace/lint, build/provenance HTTP, navigateur rouge/finales, préparation
+et préservation. **49 updates,186 campagnes non sommées,25 exigences avec preuves** ;
+`application_execution_count=null`, sans total dédupliqué inventé.
+
+**10.7 reste partielle.** Source `paste-1793818759374.txt:920` : retrouver
+apprenant, cours, document, facture ou activité selon permissions ; cinq types
+et détails autorisés, même requête avec autre rôle/tenant après révocation sans
+nom/titre, extrait ou compte inaccessible. La preuve31 n'établit que la
+fraîcheur d'une recherche identique d'apprenant et la révocation directe réelle.
+Les formulations historiques sur le catalogue LMS natif sont conservées à
+leurs cutoffs, **sans en faire une obligation exhaustive de10.7** ni inventer
+de nouvelle gate. Qualification A/B complète32 en cours, aucun résultat32 importé.
+Aucun F-lot clos, pilote institutionnel, déploiement partagé ou100 %.
+Charge500 non relancée, rouge historique **500 timeouts/262 écritures
+indéterminées** conservé. Cet import documentaire n'a exécuté aucun test
+applicatif, Docker, SQL, service, agent, commit ou push.
 
 ## Règle de clôture commune
 
