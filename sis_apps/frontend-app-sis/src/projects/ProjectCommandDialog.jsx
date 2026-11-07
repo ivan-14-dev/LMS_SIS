@@ -8,8 +8,9 @@ import {
 import { postApi } from '../services/api';
 import { apiErrorMessage } from '../services/resources';
 import ProjectCandidates from './ProjectCandidates';
+import ProjectCourseCandidates from './ProjectCourseCandidates';
 import {
-  isDenied, milestoneType, projectType, rules, selectProps, teamType,
+  bindingLabel, isDenied, milestoneType, projectType, rules, selectProps, teamType,
 } from './projectUi';
 
 const titles = {
@@ -39,6 +40,9 @@ const ProjectCommandDialog = ({
     note_groupe: '',
   });
   const [responsable, setResponsable] = useState(null);
+  const [course, setCourse] = useState(null);
+  const [courseChanged, setCourseChanged] = useState(false);
+  const [choosingCourse, setChoosingCourse] = useState(kind === 'create');
   const [evaluateurs, setEvaluateurs] = useState([]);
   const [replaceEvaluators, setReplaceEvaluators] = useState(false);
   const [members, setMembers] = useState(
@@ -98,6 +102,7 @@ const ProjectCommandDialog = ({
           mode: values.mode,
           responsable: responsable.id,
           evaluateurs: evaluateurs.map(user => user.id),
+          ...(course ? { cours: course.id } : {}),
         };
         break;
       case 'configure':
@@ -108,6 +113,7 @@ const ProjectCommandDialog = ({
           description: values.description,
           ...(responsable ? { responsable: responsable.id } : {}),
           ...(replaceEvaluators ? { evaluateurs: evaluateurs.map(user => user.id) } : {}),
+          ...(courseChanged ? { cours: course?.id || null } : {}),
         };
         break;
       case 'team':
@@ -187,6 +193,7 @@ const ProjectCommandDialog = ({
   const updateContribution = (id, name, value) => setContributions(previous => ({
     ...previous, [id]: { ...previous[id], [name]: value },
   }));
+  const courseChangeLabel = course ? `Nouveau choix : ${course.nom}` : 'Retrait du rattachement à confirmer.';
   return (
     <Dialog open fullWidth maxWidth="sm" onClose={busy ? undefined : onClose} disableEscapeKeyDown={busy}>
       <Box component="form" onSubmit={submit}>
@@ -214,6 +221,37 @@ const ProjectCommandDialog = ({
                   disabled={busy}
                   required={kind === 'create'}
                 />
+                {kind === 'configure' && (
+                  <>
+                    <Typography>{courseChanged ? courseChangeLabel : bindingLabel(project.cours)}</Typography>
+                    <Stack direction="row" spacing={1}>
+                      <Button disabled={busy} onClick={() => setChoosingCourse(true)}>Choisir un cours</Button>
+                      <Button
+                        disabled={busy}
+                        onClick={() => { setCourse(null); setCourseChanged(true); setChoosingCourse(false); }}
+                      >
+                        Retirer le rattachement
+                      </Button>
+                    </Stack>
+                  </>
+                )}
+                {choosingCourse && (
+                  <ProjectCourseCandidates
+                    key={`course-${responsable?.id || project?.responsable || 'no-owner'}`}
+                    url={url}
+                    projectId={project?.id}
+                    ownerId={responsable?.id || project?.responsable}
+                    value={course}
+                    onChange={selected => { setCourse(selected); setCourseChanged(true); }}
+                    onDenied={onDenied}
+                    disabled={busy}
+                  />
+                )}
+                <Alert severity="info">
+                  Le serveur revérifie les accès au cours et la compatibilité du responsable à chaque configuration.
+                  Un cours révoqué doit être remplacé ou explicitement retiré pour configurer le projet.
+                  Les équipes, contributions et preuves restent inchangées.
+                </Alert>
                 {kind === 'configure' && (
                   <FormControlLabel
                     control={(

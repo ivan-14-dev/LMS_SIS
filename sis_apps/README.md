@@ -217,11 +217,12 @@ PUT, PATCH et DELETE. Aucune suppression de preuve ni remplacement de fichier.
 
 | Route relative | Méthode et corps |
 | --- | --- |
-| `/` | GET, filtres `q` (titre), `mode=individuel\|collectif` ; POST `{titre,description?,mode,responsable,evaluateurs?:[compteId]}` |
+| `/` | GET, filtres `q` (titre), `mode=individuel\|collectif` ; POST `{titre,description?,mode,responsable,evaluateurs?:[compteId],cours?:mappingId\|null}` |
 | `{projet}/` | GET |
 | `capacites/` | GET → `{can_create,permissions}` |
 | `candidats/` | GET `?type=membre\|responsable\|evaluateur&q=terme[&projet=uuid\|&responsable=compteId]` → `{results:[{id,nom}]}` (20 maximum, recherche de 2 à 100 caractères) |
-| `{projet}/configurer/` | POST `{version,titre?,description?,responsable?,evaluateurs?:[compteId]}` ; mode non modifiable |
+| `cours-candidats/` | GET `?q=terme&responsable=compteId[&projet=uuid]&page=1&page_size=20` → `{count,next,previous,results:[{id,nom,contexte}]}` |
+| `{projet}/configurer/` | POST `{version,titre?,description?,responsable?,evaluateurs?:[compteId],cours?:mappingId\|null}` ; mode non modifiable |
 | `{projet}/jalons/` | GET ; POST `{version,titre,consignes?,ordre,echeance,bareme}` |
 | `{projet}/equipes/` | GET ; POST `{version,nom,membres:[compteId]}` |
 | `{projet}/equipes/{equipe}/membres/` | POST `{version,membres:[compteId]}` (remplacement atomique des membres actifs) |
@@ -266,6 +267,95 @@ de vérifier le contexte du futur projet (par défaut : compte connecté). Les
 est refusé, pas remplacé par le compte connecté. `projet` et `responsable` sont
 mutuellement exclusifs : une fois le projet créé, utiliser uniquement `projet`.
 
+#### Rattachement optionnel à un cours existant
+
+`cours` est une FK nullable **PROTECT** vers `integration.EdxCourseMapping`, dans
+les deux SIS. Son identifiant est la **PK entière locale**, jamais une clé externe
+LMS libre. À la création, omission ou `null` signifie non rattaché ; en configuration,
+omission conserve la relation et `null` demande son retrait explicite. Aucun mapping,
+cours, accès, inscription ou équipe n'est créé/modifié par ce rattachement.
+Un mapping local n'est **pas une preuve de provisioning distant**.
+
+Le sélecteur vérifie la gestion dans le contexte du responsable choisi ; avec
+`projet`, il vérifie aussi la gestion du projet existant. Contrairement au sélecteur
+de personnes, il accepte `projet` **et** `responsable`, pour préparer une réaffectation.
+Sans `projet`, `responsable` est obligatoire ; avec `projet`, son responsable actuel
+est utilisé par défaut. Aucun droit d'annuaire global ni gestion globale n'est requis.
+La recherche porte uniquement sur `course_name` ou `course_id`, avec un terme de
+2 à 100 caractères sans contrôle, pages de 20 et `page_size` plafonné à 50.
+Seuls les cours actifs accessibles **à la fois** au demandeur et au responsable
+sont candidats. Une intersection vide renvoie 200 avec une collection vide.
+
+L'accès cours réutilise, **sans le modifier**, `visible_course_mappings` de chaque
+`apps.integration.api` : frontière administrateur LMS existante (`is_staff`),
+contexte tenant et scopes `integration.view_edxcoursemapping`. Ce parcours ajoute
+localement l'exigence de cette permission explicite pour chacun des deux comptes :
+staff ou rôle enseignant seul ne suffit pas. Les scopes reconnus sont `cours`,
+`classes`, `matieres`, `annees` au secondaire et `cours`, `ecues`, `formations`,
+`annees` au supérieur (listes d'entiers ; scopes inconnus/malformés fermés).
+Les contraintes de tenant existantes sont conservées : classe/niveau/année et
+matière au secondaire ; années de semestre **et** de maquette au supérieur.
+
+**Limite enseignant vérifiée :** les portails `apps.portail.api._TenantTeacherPortal`
+et `apps.portail_enseignant.api` exposent des affectations classe/matière ou
+UE/ECUE/année, pas un droit de lecture des `EdxCourseMapping`. Ces affectations ne
+sont donc pas transformées en accès administrateur LMS. Le présent incrément ne
+couvre pas le choix d'un mapping par un enseignant non staff ; il reste pleinement
+capable de gérer ses projets **non rattachés** avec ses permissions/scopes projets.
+Aucun compte n'est promu et les endpoints cours historiques ne changent pas.
+
+La réponse projet ajoute `cours` : `null` si non rattaché ;
+`{id,nom,contexte,disponible:true}` si le lecteur possède encore l'accès au cours ;
+`{disponible:false}` sinon, **sans identifiant ni nom ni contexte masqué**.
+`contexte` vaut `{classe:{id,nom},matiere:{id,nom}}` au secondaire et
+`{ecue:{id,code,nom}}` au supérieur. Il ne contient aucune URL distante.
+Un apprenant/membre de projet n'obtient aucun accès cours par cette relation ;
+inversement, l'accès cours n'accorde aucun accès projet ni équipe.
+
+Chaque création/configuration valide l'intersection des accès sous transaction,
+avec verrou projet (configuration) et verrou mapping. Un changement de responsable
+revérifie le cours conservé. Un cours absent, étranger, hors scope ou inactif est
+refusé par **400 générique**, sans métadonnées étrangères, modification ni audit de
+succès ; un contexte responsable hors permission est refusé selon les règles projets
+400/403/404. Une version périmée produit **409 avant toute mutation**.
+
+Après désactivation du mapping ou retrait de l'accès cours de l'un des deux agents,
+toute nouvelle configuration qui le conserverait est refusée : il faut rétablir les
+droits, choisir un cours compatible ou le retirer **explicitement**. Cela ne supprime
+ni le rattachement historique ni l'accès projet indépendant. Dépôts, équipes, jalons
+et évaluations restent des opérations projets autonomes, soumises aux contrôles
+existants, sans opération sur le cours. Les preuves peuvent toujours être consultées
+selon leurs droits projets. Le module désactivé ferme aussi le sélecteur.
+
+L'audit existant conserve les instantanés `metadata.cours`, `metadata.avant.cours`
+et la `metadata.version` du projet. Les événements de dépôt/évaluation/publication
+reprennent l'instantané du dernier rattachement confirmé, sans recalculer les
+contributions ou notes. Un retrait ne réécrit pas ces preuves. Leur API historique
+masque les instantanés si le lecteur n'a plus accès au mapping actif ou si son
+contexte académique a changé ; les preuves persistées ne sont pas effacées.
+Chaque nouvel instantané d'audit porte une empreinte **interne**
+`_scope_fingerprint: {version: 1, sha256: "<64 caractères hexadécimaux>"}`.
+Le SHA-256 est calculé sur un objet JSON canonique UTF-8 (clés triées, séparateurs
+`,` et `:`, `ensure_ascii=true`) de dimensions explicites :
+
+- secondaire : `variant`, `cours_id`, `matiere_id`, `matiere_etablissement_id`,
+  `classe_id`, `classe_etablissement_id`, `niveau_id`, `niveau_etablissement_id`,
+  `annee_scolaire_id`, `annee_etablissement_id` ;
+- supérieur : `variant`, `cours_id`, `ecue_id`, `ue_id`, `maquette_id`,
+  `formation_id`, `maquette_annee_id`, `maquette_universite_id`, `semestre_id`,
+  `semestre_annee_id`, `semestre_universite_id`.
+
+La lecture exige l'accès cours actuel **et** l'égalité exacte de l'empreinte
+versionnée avec le contexte courant. Un ECUE conservant son identifiant mais
+déplacé vers une autre UE/formation/année ne divulgue donc pas ses anciens libellés.
+Les noms et codes descriptifs ne participent pas à l'empreinte : un simple renommage
+dans le même contexte laisse les libellés historiques légitimes visibles.
+Un instantané ancien sans empreinte, inconnu ou malformé est masqué, sans
+reconstitution supposée ni réécriture des preuves. Seuls les champs publics
+`id`, `nom`, `contexte`, `disponible` sont restitués : jamais l'empreinte ni un
+champ interne arbitraire, y compris dans `metadata.avant.cours`. Le sélecteur
+utilise un résumé public distinct ; il n'expose aucune empreinte.
+
 Un apprenant peut appartenir à **une seule équipe active par projet**. Un projet
 individuel peut avoir plusieurs équipes, chacune créée avec exactement une personne
 et limitée ensuite à une personne active. Une équipe vidée par retrait conserve ses
@@ -297,11 +387,12 @@ et un verrou de projet ; les versions périmées sont refusées.
 
 Erreurs : **400** champs, bornes ou comptes incompatibles ; **403** habilitation
 insuffisante/module désactivé ; **404** objet, équipe ou relation hors périmètre ;
-**409** version de projet périmée. L'API ne rattache pas encore les projets aux
-cours/classes/ECUE ni aux compétences. Ces évaluations pédagogiques ne sont
+**409** version de projet périmée. Le rattachement local cours/contexte ci-dessus
+ne rattache pas les projets aux compétences. Ces évaluations pédagogiques ne sont
 **jamais des notes officielles SIS** : aucun transfert automatique, validation
-officielle ou synchronisation LMS n'est réalisé par ce module. Ces rattachements
-restent à réaliser pour compléter l'exigence 10.5.
+officielle ou nouvel appel/synchronisation LMS n'est réalisé par ce module.
+Compétences, résultats officiels et articulation LMS restent distincts :
+l'exigence 10.5 n'est **pas déclarée terminée**.
 
 L'interface est disponible dans « Pédagogie → Projets pédagogiques »
 (`/secondaire/projets` ou `/superieur/projets`) après activation du module.
@@ -310,6 +401,10 @@ organisation aux gestionnaires, dépôt privé aux membres et publication explic
 aux évaluateurs habilités. Un conflit de version conserve les saisies et demande
 un rechargement puis une nouvelle confirmation ; aucune commande n'est rejouée
 automatiquement. L'historique administratif reste consultable par API.
+Création/configuration proposent le sélecteur de cours scoped et paginé ; le détail
+distingue un projet non rattaché d'un rattachement devenu indisponible. Le retrait
+est explicite et versionné. Un conflit conserve aussi le cours et le responsable
+saisis ; un refus d'accès évince les données privées, y compris les candidats cours.
 
 ## Conformité
 

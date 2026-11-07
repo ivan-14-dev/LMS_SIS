@@ -10,7 +10,7 @@ import { apiErrorMessage, fetchAllResourcePages } from '../services/resources';
 import ProjectCommandDialog from './ProjectCommandDialog';
 import ProjectTeamPanel from './ProjectTeamPanel';
 import {
-  dateLabel, isDenied, queryOptions, rules, selectProps,
+  bindingLabel, dateLabel, isDenied, queryOptions, rules, selectProps,
 } from './projectUi';
 
 const milestoneColumns = [
@@ -93,6 +93,7 @@ const ProjectDetail = ({
       <Button sx={{ alignSelf: 'flex-start' }} onClick={onBack} disabled={locked}>Retour aux projets</Button>
       <PageHeader title={project.titre} subtitle={`Projet ${project.mode} · Version ${project.version}`} />
       <Typography sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{project.description}</Typography>
+      <Typography sx={{ overflowWrap: 'anywhere' }}>{bindingLabel(project.cours)}</Typography>
       <Alert severity="info">{rules}</Alert>
       {notice && <Alert severity="success">{notice}</Alert>}
       {detail.isFetching && <Alert severity="info">Actualisation du projet…</Alert>}

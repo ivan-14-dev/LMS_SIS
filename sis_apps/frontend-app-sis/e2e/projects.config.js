@@ -5,7 +5,7 @@ const base = require('../playwright.config');
 module.exports = defineConfig({
   ...base,
   testDir: __dirname,
-  testMatch: 'projects.e2e.js',
+  testMatch: ['projects.e2e.js', 'project-courses.e2e.js'],
   projects: [{ name: 'learning-projects' }],
   outputDir: path.join(__dirname, '../test-results/projects'),
   timeout: 300000,

@@ -38,6 +38,7 @@ let evaluations;
 let deliveries;
 let modules;
 let canCreate;
+let courses;
 let getFailure;
 let postHandler;
 let pendingResolve;
@@ -76,6 +77,11 @@ beforeEach(() => {
   canCreate = true;
   getFailure = null;
   pendingResolve = null;
+  courses = ['A', 'B'].map((code, index) => ({
+    id: 101 + index,
+    nom: `Cours projet ${code}`,
+    contexte: { ecue: { id: 201 + index, code, nom: `ECUE ${code}` } },
+  }));
   project = {
     id: projectId,
     titre: 'Projet énergie',
@@ -83,6 +89,7 @@ beforeEach(() => {
     mode: 'collectif',
     responsable: 91,
     evaluateurs: [92],
+    cours: null,
     cree_par: 91,
     version: 1,
     created_at: '2026-11-01T10:00:00Z',
@@ -128,6 +135,19 @@ beforeEach(() => {
         data = { role: 'custom-role', permissions: [], modules };
       } else if (pathname === `${basePath}capacites/`) {
         data = { can_create: canCreate, permissions: ['core.gerer_projet_pedagogique', 'core.evaluer_projet_pedagogique'] };
+      } else if (pathname === `${basePath}cours-candidats/`) {
+        expect(searchParams.get('q').length).toBeGreaterThanOrEqual(2);
+        expect(searchParams.get('q').length).toBeLessThanOrEqual(100);
+        expect(['91', '93']).toContain(searchParams.get('responsable'));
+        expect(searchParams.get('page_size')).toBe('20');
+        if (searchParams.has('projet')) { expect(searchParams.get('projet')).toBe(projectId); }
+        const currentPage = Number(searchParams.get('page'));
+        data = {
+          count: courses.length,
+          next: currentPage < courses.length ? 'https://superieur.test/next-page' : null,
+          previous: currentPage > 1 ? 'https://superieur.test/previous-page' : null,
+          results: courses.slice(currentPage - 1, currentPage),
+        };
       } else if (pathname === `${basePath}candidats/`) {
         expect(['responsable', 'evaluateur', 'membre']).toContain(searchParams.get('type'));
         expect(searchParams.get('q').length).toBeGreaterThanOrEqual(2);
@@ -141,7 +161,7 @@ beforeEach(() => {
           expect(searchParams.has('responsable')).toBe(false);
         }
         const users = {
-          responsable: [{ id: 91, nom: 'Responsable habilité' }],
+          responsable: [{ id: 91, nom: 'Responsable habilité' }, { id: 93, nom: 'Autre responsable habilité' }],
           evaluateur: [{ id: 92, nom: 'Évaluatrice habilitée' }],
           membre: [{ id: 11, nom: 'Alice Martin' }, { id: 12, nom: 'Bob Durand' }],
         };
@@ -200,6 +220,140 @@ it.each(['secondaire', 'superieur'])('creates a real %s project using scoped nam
   expect(http.post).toHaveBeenCalledTimes(1);
   expect(http.post.mock.calls[0][0]).toBe(`https://${variant}.test${basePath}`);
   expect(http.get.mock.calls.some(([url]) => url.includes('/utilisateurs/') && !url.includes('/capabilities/'))).toBe(false);
+});
+
+it.each(['secondaire', 'superieur'])('selects a paginated existing course at %s project creation', async variant => {
+  if (variant === 'secondaire') {
+    courses = courses.map(course => ({
+      ...course,
+      contexte: { classe: { id: 41, nom: 'Classe 6A' }, matiere: { id: 42, nom: 'Mathématiques' } },
+    }));
+  }
+  postHandler = async (path, payload) => {
+    expect(path).toBe(basePath);
+    expect(payload).toEqual({
+      titre: 'Avec cours', description: '', mode: 'collectif', responsable: 91, evaluateurs: [], cours: 102,
+    });
+    project = { ...project, ...payload, cours: { ...courses[1], disponible: true } };
+    return project;
+  };
+  renderPage(variant, false);
+  fireEvent.click(await screen.findByRole('button', { name: 'Nouveau projet' }));
+  change(/^Titre du projet/, 'Avec cours');
+  expect(screen.getByLabelText('Cours existant (facultatif)')).toBeDisabled();
+  await choose(/^Responsable/, 'Re', 'Responsable habilité');
+  change('Cours existant (facultatif)', 'cours');
+  expect(await screen.findByRole('option', { name: /Cours projet A/ }, { timeout: 5000 })).toHaveTextContent(
+    variant === 'secondaire' ? 'Classe 6A / Mathématiques' : 'ECUE A — ECUE A',
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Cours suivants' }));
+  await waitFor(() => expect(http.get.mock.calls.some(([url]) => (
+    url.includes('cours-candidats/') && new URL(url).searchParams.get('page') === '2'
+  ))).toBe(true));
+  fireEvent.keyDown(screen.getByLabelText('Cours existant (facultatif)'), { key: 'ArrowDown' });
+  fireEvent.click(await screen.findByRole('option', { name: /Cours projet B/ }, { timeout: 5000 }));
+  expect(screen.getByRole('button', { name: 'Cours suivants' })).toBeDisabled();
+  save();
+  expect(await screen.findByText(/Cours rattaché : Cours projet B/)).toBeInTheDocument();
+  expect(http.post).toHaveBeenCalledTimes(1);
+  expect(http.get.mock.calls.some(([url]) => url.includes('/integration/') || url.includes('recherche-academique'))).toBe(false);
+});
+
+it('preserves selected course and owner through a 409 and sends only the reconfirmed version', async () => {
+  let first = true;
+  postHandler = async (path, payload) => {
+    expect(path).toBe(`${detailPath}configurer/`);
+    expect(payload).toEqual({
+      version: first ? 1 : 7, titre: 'Projet énergie', description: 'Description privée', responsable: 93, cours: 101,
+    });
+    if (first) { first = false; throw failure(409); }
+    project = {
+      ...project, ...payload, version: 8, cours: { ...courses[0], disponible: true },
+    };
+    return project;
+  };
+  renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Configurer le projet' }));
+  await choose('Nouveau responsable (facultatif)', 'Autre', 'Autre responsable habilité');
+  fireEvent.click(screen.getByRole('button', { name: 'Choisir un cours' }));
+  await choose('Cours existant (facultatif)', 'cours', /Cours projet A/);
+  const search = http.get.mock.calls.find(([url]) => url.includes('cours-candidats/'));
+  expect(new URL(search[0]).searchParams.get('responsable')).toBe('93');
+  expect(new URL(search[0]).searchParams.get('projet')).toBe(projectId);
+  save();
+  expect(await screen.findByText(/Refus serveur 409/)).toBeInTheDocument();
+  expect(screen.getByLabelText('Cours existant (facultatif)')).toHaveValue('Cours projet A · ECUE A — ECUE A');
+  expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+  project = { ...project, version: 7 };
+  fireEvent.click(screen.getByRole('button', { name: 'Recharger le projet sans effacer les saisies' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeEnabled());
+  expect(screen.getByLabelText('Cours existant (facultatif)')).toHaveValue('Cours projet A · ECUE A — ECUE A');
+  expect(http.post).toHaveBeenCalledTimes(1);
+  save();
+  await waitSaved();
+  expect(http.post).toHaveBeenCalledTimes(2);
+});
+
+it('distinguishes an unavailable binding from no binding and clears it only by an explicit versioned command', async () => {
+  project = { ...project, cours: { disponible: false } };
+  postHandler = async (path, payload) => {
+    expect(path).toBe(`${detailPath}configurer/`);
+    expect(payload).toEqual({
+      version: 1, titre: 'Projet énergie', description: 'Description privée', cours: null,
+    });
+    project = { ...project, cours: null, version: 2 };
+    return project;
+  };
+  renderPage();
+  expect(await screen.findByText(/Rattachement conservé — cours indisponible/)).toBeInTheDocument();
+  expect(screen.queryByText('Aucun cours rattaché.')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Configurer le projet' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Retirer le rattachement' }));
+  expect(screen.getByText('Retrait du rattachement à confirmer.')).toBeInTheDocument();
+  expect(http.post).not.toHaveBeenCalled();
+  save();
+  await waitSaved();
+  expect(screen.getByText('Aucun cours rattaché.')).toBeInTheDocument();
+});
+
+it('keeps an incompatible course draft after 400 without claiming success or falling back to a catalogue', async () => {
+  postHandler = async () => { throw failure(400); };
+  renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Configurer le projet' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Choisir un cours' }));
+  await choose('Cours existant (facultatif)', 'cours', /Cours projet A/);
+  save();
+  expect(await screen.findByText(/Refus serveur 400/)).toBeInTheDocument();
+  expect(screen.getByLabelText('Cours existant (facultatif)')).toHaveValue('Cours projet A · ECUE A — ECUE A');
+  expect(screen.queryByText('Enregistrement confirmé par le serveur.')).not.toBeInTheDocument();
+  expect(http.post).toHaveBeenCalledTimes(1);
+});
+
+it.each([403, 404])('purges private course choices and the project on selector HTTP %s', async status => {
+  const { client } = renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Configurer le projet' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Choisir un cours' }));
+  await choose('Cours existant (facultatif)', 'cours', /Cours projet A/);
+  getFailure = path => { if (path === `${basePath}cours-candidats/`) { throw failure(status); } };
+  change('Cours existant (facultatif)', 'nouveau');
+  expect(await screen.findByText(/Accès aux projets refusé/, {}, { timeout: 5000 })).toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.queryByText(/Cours projet A/)).not.toBeInTheDocument();
+  await waitFor(() => expect(client.getQueriesData({ queryKey: ['projects'] })).toEqual([]));
+  expect(http.post).not.toHaveBeenCalled();
+});
+
+it('removes course candidate cache on unmount and never searches before a bounded term', async () => {
+  const { client, unmount } = renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Configurer le projet' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Choisir un cours' }));
+  change('Cours existant (facultatif)', 'c');
+  await act(async () => new Promise(resolve => { setTimeout(resolve, 300); }));
+  expect(http.get.mock.calls.some(([url]) => url.includes('cours-candidats/'))).toBe(false);
+  await choose('Cours existant (facultatif)', 'cours', /Cours projet A/);
+  expect(client.getQueriesData({ queryKey: ['projects'] }).length).toBeGreaterThan(0);
+  unmount();
+  await waitFor(() => expect(client.getQueriesData({ queryKey: ['projects'] })).toEqual([]));
 });
 
 it('searches on the server and distinguishes an empty selection from a failed list', async () => {

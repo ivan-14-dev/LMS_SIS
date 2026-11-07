@@ -7,6 +7,7 @@ from django.apps import apps
 from rest_framework import serializers
 
 from sis_common.exam_files import validate_exam_copy
+from sis_common.project_courses import course_snapshot, readable_course_snapshot
 
 Project = apps.get_model("core", "PedagogicalProject")
 Team = apps.get_model("core", "ProjectTeam")
@@ -34,6 +35,7 @@ class ProjectCreateCommand(CommandSerializer):
     description = serializers.CharField(max_length=10000, allow_blank=True, required=False, default="")
     mode = serializers.ChoiceField(choices=Project.MODES)
     responsable = serializers.IntegerField(min_value=1)
+    cours = serializers.IntegerField(min_value=1, allow_null=True, required=False, default=None)
     evaluateurs = serializers.ListField(
         child=serializers.IntegerField(min_value=1), max_length=50, required=False, default=list
     )
@@ -43,6 +45,7 @@ class ProjectConfigureCommand(VersionCommand):
     titre = serializers.CharField(max_length=200, required=False)
     description = serializers.CharField(max_length=10000, allow_blank=True, required=False)
     responsable = serializers.IntegerField(min_value=1, required=False)
+    cours = serializers.IntegerField(min_value=1, allow_null=True, required=False)
     evaluateurs = serializers.ListField(child=serializers.IntegerField(min_value=1), max_length=50, required=False)
 
 
@@ -84,6 +87,7 @@ class EvaluationCommand(VersionCommand):
 class ProjectSerializer(serializers.ModelSerializer):
     actions = serializers.SerializerMethodField()
     evaluateurs = serializers.SerializerMethodField()
+    cours = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -94,6 +98,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             "mode",
             "responsable",
             "evaluateurs",
+            "cours",
             "cree_par",
             "version",
             "created_at",
@@ -101,6 +106,9 @@ class ProjectSerializer(serializers.ModelSerializer):
             "actions",
         ]
         read_only_fields = fields
+
+    def get_cours(self, obj):
+        return readable_course_snapshot(self.context["request"], course_snapshot(obj.cours))
 
     def get_evaluateurs(self, obj):
         return list(

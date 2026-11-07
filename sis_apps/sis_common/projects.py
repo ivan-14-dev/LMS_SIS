@@ -21,6 +21,14 @@ from sis_common.authorization import filter_queryset_by_scopes, has_business_per
 from sis_common.exam_files import hash_uploaded_file
 from sis_common.module_registry import require_module
 from sis_common.pagination import SISPagination
+from sis_common.project_courses import (
+    ProjectCoursePagination,
+    course_snapshot,
+    course_summary,
+    readable_course_snapshot,
+    selectable_project_courses,
+    validate_project_course,
+)
 from sis_common.project_serializers import (
     DeliveryCommand,
     DeliverySerializer,
@@ -239,9 +247,17 @@ class ProjectViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         return get_object_or_404(project.jalons, pk=milestone_id)
 
     def event(self, project, action_name, **metadata):
+        metadata.setdefault("cours", self.binding_evidence(project))
+        metadata["version"] = project.version
         record_workflow_event(
             self.request, project, f"projet_{action_name}", "Suivi de projet pédagogique", metadata=metadata
         )
+
+    def binding_evidence(self, project):
+        event = (
+            workflow_history_queryset(project).filter(action__in=["projet_creation", "projet_configuration"]).first()
+        )
+        return event.metadata.get("cours") if event else None
 
     def updated(self, project, action_name, **metadata):
         project.version += 1
@@ -332,15 +348,54 @@ class ProjectViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
                 break
         return Response({"results": result})
 
+    @action(detail=False, methods=["get"], url_path="cours-candidats")
+    def cours_candidats(self, request):
+        project = None
+        if "projet" in request.query_params:
+            try:
+                project_id = UUID(request.query_params["projet"])
+            except ValueError:
+                raise ValidationError({"projet": "Identifiant de projet invalide."})
+            project = get_object_or_404(self.get_queryset(), pk=project_id)
+            self.require_manager(project)
+        try:
+            owner_id = int(request.query_params.get("responsable", project.responsable_id if project else ""))
+        except (TypeError, ValueError):
+            raise ValidationError({"responsable": "Un identifiant de responsable positif est requis."})
+        if owner_id < 1:
+            raise ValidationError({"responsable": "Un identifiant de responsable positif est requis."})
+        if project is None:
+            owner = self.creation_owner(owner_id)
+        else:
+            owner, _ = self.validate_delegation(project, owner_id, [])
+        raw_term = request.query_params.get("q", "")
+        term = raw_term.strip()
+        if (
+            not 2 <= len(term) <= 100
+            or len(raw_term) > 100
+            or any(unicodedata.category(char).startswith("C") for char in raw_term)
+        ):
+            raise ValidationError({"q": "Saisissez entre 2 et 100 caractères, sans caractères de contrôle."})
+        queryset = (
+            selectable_project_courses(request, owner)
+            .filter(Q(course_name__icontains=term) | Q(course_id__icontains=term))
+            .order_by("course_name", "pk")
+        )
+        paginator = ProjectCoursePagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        return paginator.get_paginated_response([course_summary(course) for course in page])
+
     @transaction.atomic
     def create(self, request):
         values = self.command(ProjectCreateCommand)
         owner_id = values.pop("responsable")
         self.creation_owner(owner_id)
         evaluator_ids = values.pop("evaluateurs")
+        course_id = values.pop("cours")
         project = Project(etablissement=request.tenant, cree_par=request.user, responsable_id=owner_id, **values)
         owner, evaluators = self.validate_delegation(project, owner_id, evaluator_ids)
         project.responsable = owner
+        project.cours = validate_project_course(request, owner, course_id)
         project.save()
         project.evaluateurs.set(evaluators)
         self.event(
@@ -351,6 +406,7 @@ class ProjectViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
             mode=project.mode,
             titre=project.titre,
             description=project.description,
+            cours=course_snapshot(project.cours),
         )
         return Response(self.get_serializer(project).data, status=201)
 
@@ -364,18 +420,30 @@ class ProjectViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
             raise ValidationError({"detail": "Indiquez au moins un changement."})
         owner_id = values.pop("responsable", project.responsable_id)
         evaluator_ids = values.pop("evaluateurs", list(project.evaluateurs.values_list("pk", flat=True)))
+        course_id = values.pop("cours", project.cours_id)
         owner, evaluators = self.validate_delegation(project, owner_id, evaluator_ids)
+        course = validate_project_course(request, owner, course_id)
         before = {
             "responsable": project.responsable_id,
             "evaluateurs": list(project.evaluateurs.values_list("pk", flat=True)),
             "titre": project.titre,
             "description": project.description,
+            "cours": self.binding_evidence(project),
         }
         project.responsable = owner
+        project.cours = course
         for field, value in values.items():
             setattr(project, field, value)
         project.evaluateurs.set(evaluators)
-        self.updated(project, "configuration", avant=before, responsable=owner.pk, evaluateurs=evaluator_ids, **values)
+        self.updated(
+            project,
+            "configuration",
+            avant=before,
+            responsable=owner.pk,
+            evaluateurs=evaluator_ids,
+            cours=course_snapshot(course),
+            **values,
+        )
         return Response(self.get_serializer(project).data)
 
     @action(detail=True, methods=["get", "post"])
@@ -628,8 +696,19 @@ class ProjectViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
                 "acteur": item.actor_id,
                 "action": item.action,
                 "created_at": item.created_at,
-                "metadata": item.metadata,
+                "metadata": self.readable_evidence(item.metadata),
             }
             for item in (page if page is not None else rows)
         ]
         return self.get_paginated_response(data) if page is not None else Response(data)
+
+    def readable_evidence(self, metadata):
+        result = dict(metadata)
+        if "cours" in result:
+            result["cours"] = readable_course_snapshot(self.request, result["cours"])
+        if "cours" in result.get("avant", {}):
+            result["avant"] = {
+                **result["avant"],
+                "cours": readable_course_snapshot(self.request, result["avant"]["cours"]),
+            }
+        return result

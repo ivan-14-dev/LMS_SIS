@@ -24,6 +24,9 @@ class PedagogicalProjectBase(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="projets_pedagogiques"
     )
     evaluateurs = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name="projets_a_evaluer", blank=True)
+    cours = models.ForeignKey(
+        "integration.EdxCourseMapping", on_delete=models.PROTECT, related_name="projets", null=True, blank=True
+    )
     cree_par = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
     version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
