@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-07T19:20:43+00:00",
+  "last_evidence_update_at": "2026-11-07T20:05:28+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -4211,10 +4211,549 @@
         "LectureETécritureautreéquipeinterdites. Limites du programme et des autres F-lots, pas critères supplémentaires de10.5 : pasrecettemultirôlesinstitutionnelle/restaurationglobale/piloteprestataire/production/déploiementpartagé.",
         "63artefactshachés,dixreçusHTTPconcordants,huitPythoncommit/imageidentiques ;charge500rougeinchangée500timeouts/262écrituresindéterminées,IAM/F07/F09ouverts,aucunlotultérieurqualifié."
       ]
+    },
+    {
+      "id": "EXEC-20261107-wave29-published-individual-project-cycle",
+      "evidence_cutoff_at": "2026-11-07T20:05:28+00:00",
+      "qualification_status": "bounded_functional_cycles_passed_code_published_common_closure_pending",
+      "scope": "Vague29 publiée : cycle individuel complet désormais qualifié, collectif/cours réellement rejoués, séparation gestion/évaluation humaine, livrables privés et refus interéquipes en lecture ET écriture. Tests/harness seulement ;10.5 reste partial pour les conditions communes préexistantes, sans nouvelle obligation métier.",
+      "provenance": "Main propre avant import, HEAD=origin/main=0bb4766 vérifié localement, comparaison distante attestée parent. Provenance publiée20:01:26UTC ; neuf Python du commit comparés aux hashes source/image.50 artefacts utiles lus puis hachés, dont log ESLint vide non probant seul et trace rouge inspectée uniquement pour états réseau/chargement. Aucun fichier credentials/env lu ou dupliqué, aucun test/service/agent/broadcast/commit/push pour cet import.",
+      "code_commit": "0bb4766275f74ea1ba0a563ee4608f1b7c606dea",
+      "published_commits": [
+        "0bb4766"
+      ],
+      "publication": {
+        "head_equals_origin_main": true,
+        "branch": "main",
+        "commit_at": "2026-11-07T21:01:12+01:00",
+        "remote_comparison": "attested_by_parent_and_published_provenance",
+        "changed_code_files": 5,
+        "changed_scope": "tests_and_harness_only",
+        "product_migration_or_product_ui_changed": false
+      },
+      "count_policy": "Cinq campagnes documentaires : backend/provenance, Jest/qualité/bundle réutilisé, individuels navigateur, régressions cours/collectif navigateur, fixtures/persistance/conditions communes.17tests par SIS seulement test_projects.py ;34Jest recheck non additionnés aux20/14 du premier run ni aux40 de28.1individuel+2régressions réellement joués par SIS, six reçus navigateur/six HTTP, pas six cas par SIS. Pas intégrales29 ni réattribution SQL cours/compétences28 ou anciens enseignants/compétences navigateur.",
+      "qualification_environment": {
+        "backend_image": "lms-sis:local-20261107-0bb4766",
+        "backend_image_digest": "sha256:ee2a9bc8a4a6f77e65805f190ab01bee4a179f4978866a5fc4520121419cf2c0",
+        "published_python_files_matching_image_report": 9,
+        "standard_dockerfile": true,
+        "backend_application_source_overlay": false,
+        "browser_mounts": "private_wave29_data_volume_and_read_only_synthetic_settings_only",
+        "frontend": "qualified_wave28_bundle_reused_no_new_wave29_build",
+        "frontend_inputs_unchanged_parent_attestation": 171,
+        "frontend_non_env_inputs_hash_checked_here": 170,
+        "frontend_env_files_deliberately_not_read": 1,
+        "unchanged_bundle_files_hash_checked_here": 23,
+        "full_backend_suites_claimed": false,
+        "fixture_databases": [
+          "sis_wave29_browser_secondaire",
+          "sis_wave29_browser_superieur"
+        ],
+        "fixture_origin": "wave28_databases_and_volumes_cloned_at_rest_parent_attestation",
+        "real_tenant_schemas_per_variant": 1,
+        "fixture_scope": "remove_only_teacher28_evaluation_permission_and_scope_add_distinct_evaluator29_preserve_other_prior_rows",
+        "api_nginx_helpers_stopped": "normal_stops_attested_by_parent",
+        "postgres_redis": "historical_private_services_retained",
+        "shared_service_modified_or_institutional_deployment": false,
+        "isolated_backup_restore_claimed": false
+      },
+      "f_lot_links": [
+        {
+          "id": "F08",
+          "scope": "Cours local/objectifs existants conservés, aucune opération LMS distante ajoutée.",
+          "roadmap_status_unchanged": true
+        },
+        {
+          "id": "F18",
+          "scope": "Évaluation de projet distincte des notes officielles/acquisition ; aucune nouvelle obligation10.5.",
+          "roadmap_status_unchanged": true
+        },
+        {
+          "id": "F25",
+          "scope": "Cycles fonctionnels individuels/collectifs bornés qualifiés ; conditions communes multi-établissements/restauration/comparaison encore non démontrées.",
+          "roadmap_status_unchanged": true
+        }
+      ],
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "published-provenance": {
+          "path": "wave29-published-source-provenance.json",
+          "sha256": "4cc266c2b774f824b107fa0bc4bd4ad3283f62d90d96d9ec3358d80fac9c67f9",
+          "source_lines": [1, 78]
+        },
+        "frontend-base-provenance": {
+          "path": "wave29-frontend-base-provenance.json",
+          "sha256": "abf1c90aec814ec602fd647d2fcbadf6fb49bdf7a5a057d7f0778ed40a62b303",
+          "source_lines": [1, 205]
+        },
+        "acceptance-scope": {
+          "path": "wave29-project-acceptance-scope.json",
+          "sha256": "b64b1cb68725b3d1cbb3be1ae52ab9ae0a5d15fefa4bfcf068866952855ad001",
+          "source_lines": [1, 49]
+        },
+        "parent-incidents": {
+          "path": "wave29-parent-harness-incidents.json",
+          "sha256": "a1d7f698f86be72a98cb0b936e4fe4b36b4b12eccedfbac101292a5b6097d916",
+          "source_lines": [1, 43]
+        },
+        "school-standard-first-red": {
+          "path": "wave29-secondaire-standard.log",
+          "sha256": "a66805b2ba724b5899729fb3131ad9da35bbee2d1ca658a3ac21e1caae6b2d43",
+          "source_lines": [1, 106]
+        },
+        "school-standard": {
+          "path": "wave29-secondaire-standard-recheck.log",
+          "sha256": "e419eb428aeba55126d8eb2b8fbbbd11d6b9f777099315f4c0e56899cd5b25e1",
+          "source_lines": [1, 13]
+        },
+        "university-standard": {
+          "path": "wave29-superieur-standard-recheck.log",
+          "sha256": "71fcd90e50dcf52d16d6cbdb8ba08565f3d3307d77f4bafb5bb3b7f9c696169d",
+          "source_lines": [1, 13]
+        },
+        "python-quality": {
+          "path": "wave29-parent-python-quality-recheck.log",
+          "sha256": "b9cf511501d306d2bd8355ccb165c8ddc0a6fdd62d7c72c4a7b1795cf8934c8c",
+          "source_lines": [1, 2]
+        },
+        "eslint-quality": {
+          "path": "wave29-parent-eslint.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "byte_count": 0,
+          "content_status": "empty_file_not_standalone_success_proof"
+        },
+        "author-delivery": {
+          "path": "wave29-author-delivery.json",
+          "sha256": "f6d0795706ee1471676e993eb20b6f09ce7e3052bcd6dd0b74232cda1402ee3d",
+          "source_lines": [1, 115]
+        },
+        "author-jest-first-red": {
+          "path": "wave29-author-jest.log",
+          "sha256": "089ef1729ef17bfaba421db09e121af5e0adf837e05c91ce5882cd2d0f07a8fb",
+          "source_lines": [1, 408]
+        },
+        "author-jest-recheck": {
+          "path": "wave29-author-jest-30s.log",
+          "sha256": "a8b208496df5212bd1c18135c52a974674cdb427e052783364159cdf9378364a",
+          "source_lines": [1, 186]
+        },
+        "pdf-helper-check": {
+          "path": "wave29-author-harness-check.log",
+          "sha256": "44b95e2f64ee2c9fcfa378ada77b2b152428d874e17c39a1e9ceead55e395c39",
+          "source_lines": [1, 2]
+        },
+        "school-fixture-first-red": {
+          "path": "wave29-browser-fixture-secondaire.log",
+          "sha256": "d2e8921574184b3166ba262f019c886ee9c70676c77b7f17fe4ae360ae622f48",
+          "source_lines": [1, 21]
+        },
+        "school-individual-first-red": {
+          "path": "wave29-browser-individuals-secondaire.log",
+          "sha256": "56fbda8cc4e5fcf1934ff273e73e2edf347f41af3093a9e865334798b7cd7fd2",
+          "source_lines": [1, 42]
+        },
+        "individual-restart-checker": {
+          "path": "wave29-individual-after-restart.cjs",
+          "sha256": "511009ed0c8cf44aff23c4590dbe21fc23d8b7747662bad1bba06a32c4af413c",
+          "source_lines": [1, 157]
+        },
+        "unchanged-course-restart-checker": {
+          "path": "wave26-course-after-restart.cjs",
+          "sha256": "a9092e3f71f22f236938034f06a6c35a8e64412dd3bc16da4bb8ce8634929104",
+          "source_lines": [1, 62]
+        },
+        "unchanged-project-restart-checker": {
+          "path": "wave25-projects-after-restart.cjs",
+          "sha256": "5045786e279151f732ae09a630428c5bdee089785065a8dbf49e2a1dcd1819b6",
+          "source_lines": [1, 88]
+        },
+        "fixture-script": {
+          "path": "wave29-browser-fixture.py",
+          "sha256": "0454fa93df3109654a257f11ab37dd5da1c8ad8438e7f11731c996b26c92143c",
+          "source_lines": [1, 412]
+        },
+        "school-fixture-log": {
+          "path": "wave29-browser-fixture-secondaire-recheck.log",
+          "sha256": "daaedd2568a22d1d6fe36787018069cb186d9158de7c34745390ce6f45398366",
+          "source_lines": [1, 3]
+        },
+        "school-fixture-json": {
+          "path": "wave29-browser-fixture-secondaire.json",
+          "sha256": "16224f73d108405115fade80dd648ba41c0ba1ee511289b59f1dcf39d56fbacc",
+          "source_lines": [1, 414]
+        },
+        "school-individual-browser": {
+          "path": "wave29-browser-individuals-secondaire-recheck.log",
+          "sha256": "c648c020fb327dc251c38ecab7bf1c2ddfa124d8504743d9f29aa2e3726c69d3",
+          "source_lines": [1, 6]
+        },
+        "school-projects-browser": {
+          "path": "wave29-browser-projects-secondaire.log",
+          "sha256": "4fd4487747bdd93501f304c0f94ad68151d9b4890efcd32875f6a085995495da",
+          "source_lines": [1, 7]
+        },
+        "school-before-restart": {
+          "path": "wave29-secondaire-before-restart.json",
+          "sha256": "8c1a3b9887c16ad8a07e0e40d033274b1814e238ca4e7afb9cdfd9319693062a",
+          "source_lines": [1, 1]
+        },
+        "school-after-restart": {
+          "path": "wave29-secondaire-after-restart.json",
+          "sha256": "53ab4ec4791628964f89fe0ab8661f0cf2dd0a2028513ac8594d70f27d8216a3",
+          "source_lines": [1, 1]
+        },
+        "school-individual-persistence": {
+          "path": "wave29-individual-secondaire-persistence.json",
+          "sha256": "221e248569e51bff29bf23dde112b420caf693c09561eca9b5f380065a1d643b",
+          "source_lines": [1, 1]
+        },
+        "school-course-persistence": {
+          "path": "wave29-course-secondaire-persistence.json",
+          "sha256": "81173519049e2c83f058205ecc573e3a09d4de5db4d199090e1449c04129f8a9",
+          "source_lines": [1, 1]
+        },
+        "school-project-persistence": {
+          "path": "wave29-projects-secondaire-persistence.json",
+          "sha256": "a7daefe89e9e6dcbcd061a0d157ab888f6065ba5f316c59cc3c2fec41e21167e",
+          "source_lines": [1, 1]
+        },
+        "school-individual-last-run": {
+          "path": "wave29-browser-individuals-secondaire-recheck/.last-run.json",
+          "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903",
+          "source_lines": [1, 4]
+        },
+        "school-projects-last-run": {
+          "path": "wave29-browser-projects-secondaire/.last-run.json",
+          "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903",
+          "source_lines": [1, 4]
+        },
+        "school-individual-receipt": {
+          "path": "wave29-browser-individuals-secondaire-recheck/project-individuals.e2e.js-3fd69-ion-by-a-distinct-evaluator-learning-projects/individual-project-receipt.json",
+          "sha256": "f8c5fd2cd8a61cf3aac39e8bc97ceb00b4fc39115ecc3533c37816afe7bf06a3",
+          "source_lines": [1, 49]
+        },
+        "school-course-receipt": {
+          "path": "wave29-browser-projects-secondaire/project-courses.e2e.js-sec-1ae79-removal-and-private-context-learning-projects/project-course-receipt.json",
+          "sha256": "0a3433a48b0f3c352dff0ecea33dff63d062b0307784192c9d2b6ae761916f04",
+          "source_lines": [1, 21]
+        },
+        "school-project-receipt": {
+          "path": "wave29-browser-projects-secondaire/projects.e2e.js-secondaire-1b969-tion-and-module-restoration-learning-projects/project-receipt.json",
+          "sha256": "f260d41e7be9ccd0a20d952d2e93b111fdd02a0b84283c24e30fce508fc88f44",
+          "source_lines": [1, 12]
+        },
+        "university-fixture-log": {
+          "path": "wave29-browser-fixture-superieur-recheck.log",
+          "sha256": "579a7c8b66f75c267b93d44ca93423423ad7b4f3b58443e8d5cd1652cead3fa5",
+          "source_lines": [1, 3]
+        },
+        "university-fixture-json": {
+          "path": "wave29-browser-fixture-superieur.json",
+          "sha256": "775596ab20a0180ea72d4d32e4bcd698a6ec820e5704256a89f89ec9bca7ef05",
+          "source_lines": [1, 403]
+        },
+        "university-individual-browser": {
+          "path": "wave29-browser-individuals-superieur.log",
+          "sha256": "e52f70d3e361a3382c57fce94aeb11b26a058d0f23b37805b48a03d618b8bf84",
+          "source_lines": [1, 6]
+        },
+        "university-projects-browser": {
+          "path": "wave29-browser-projects-superieur.log",
+          "sha256": "ed0472e2a1ab838560074415648f1de9663d53dd1ddc1794b425719edf77603e",
+          "source_lines": [1, 7]
+        },
+        "university-before-restart": {
+          "path": "wave29-superieur-before-restart.json",
+          "sha256": "994fb126cc754f8f7b6409d89bccbe9573004639dba5a2694fdd4652785d238f",
+          "source_lines": [1, 1]
+        },
+        "university-after-restart": {
+          "path": "wave29-superieur-after-restart.json",
+          "sha256": "8d4cfe64791b433412e8c19024ceb1fef0e074edf8b57bd7222b27ff43cd68b9",
+          "source_lines": [1, 1]
+        },
+        "university-individual-persistence": {
+          "path": "wave29-individual-superieur-persistence.json",
+          "sha256": "1950c913346ae91292e20da34b1de00b49ea4890014a0cfdd0ecc4910b0812d2",
+          "source_lines": [1, 1]
+        },
+        "university-course-persistence": {
+          "path": "wave29-course-superieur-persistence.json",
+          "sha256": "eda1a1614aeecf60e7ab5e362e6ba750b9b825a2ee67c0f53dc118e27bf74021",
+          "source_lines": [1, 1]
+        },
+        "university-project-persistence": {
+          "path": "wave29-projects-superieur-persistence.json",
+          "sha256": "2b35a97be1c3844b52b7fbfae4131db9db4f84e3ad344a9a6217d37ce5770d1f",
+          "source_lines": [1, 1]
+        },
+        "university-individual-last-run": {
+          "path": "wave29-browser-individuals-superieur/.last-run.json",
+          "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903",
+          "source_lines": [1, 4]
+        },
+        "university-projects-last-run": {
+          "path": "wave29-browser-projects-superieur/.last-run.json",
+          "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903",
+          "source_lines": [1, 4]
+        },
+        "university-individual-receipt": {
+          "path": "wave29-browser-individuals-superieur/project-individuals.e2e.js-b27d6-ion-by-a-distinct-evaluator-learning-projects/individual-project-receipt.json",
+          "sha256": "1e68fc14e50ce369d70918a891dee89874f36b2ce394e2345b089765d840e0d0",
+          "source_lines": [1, 46]
+        },
+        "university-course-receipt": {
+          "path": "wave29-browser-projects-superieur/project-courses.e2e.js-sup-b55fe-removal-and-private-context-learning-projects/project-course-receipt.json",
+          "sha256": "32875725fafb367c07725ac150114f9a62378c71b169b6718e5e3a6cd8732e25",
+          "source_lines": [1, 18]
+        },
+        "university-project-receipt": {
+          "path": "wave29-browser-projects-superieur/projects.e2e.js-superieur--78e5a-tion-and-module-restoration-learning-projects/project-receipt.json",
+          "sha256": "e34ffa6bef2e1cd4b7cdb3b8914ed8726c34a053606a5c05fba3fc4bf9e87df1",
+          "source_lines": [1, 12]
+        },
+        "school-individual-first-last-run": {
+          "path": "wave29-browser-individuals-secondaire/.last-run.json",
+          "sha256": "db6c36a6f2a9ba7391f1fbffaab8ef533d4c734526d6feaefd3ef5c698002cd6",
+          "source_lines": [1, 6]
+        },
+        "school-individual-first-error": {
+          "path": "wave29-browser-individuals-secondaire/project-individuals.e2e.js-3fd69-ion-by-a-distinct-evaluator-learning-projects/error-context.md",
+          "sha256": "4d5812852dc7f297aa324b6b9785eef12b0e2cf9c1f69152d0fdf4f5dfbadcf2",
+          "source_lines": [1, 289]
+        },
+        "school-individual-first-trace": {
+          "path": "wave29-browser-individuals-secondaire/project-individuals.e2e.js-3fd69-ion-by-a-distinct-evaluator-learning-projects/trace.zip",
+          "sha256": "93430a5c958b16d8daa7a89e523c5fe09b99f1a74e96b3825fdb9a2b2d885a2d",
+          "byte_count": 20488450,
+          "content_type": "application/zip",
+          "inspection_scope": "trace_network_statuses_and_loading_context_only_no_credentials_exported"
+        }
+      },
+      "campaigns": [
+        {
+          "id": "wave29-individual-cycle-targeted-backend",
+          "result": "initial_school_test_assertion_failure_preserved_final_17_per_variant_passed",
+          "commit": "0bb4766",
+          "artifact_refs": [
+            "published-provenance",
+            "school-standard-first-red",
+            "school-standard",
+            "university-standard",
+            "python-quality",
+            "parent-incidents"
+          ],
+          "source_refs": [
+            "sis_apps/sis_common/tests/test_projects.py:454",
+            "sis_apps/sis_common/tests/test_projects.py:703",
+            "sis_apps/sis_common/tests/test_projects.py:719"
+          ],
+          "counts": {
+            "school_initial": {
+              "tests_failed": 1,
+              "tests_passed": 16,
+              "duration_seconds": 107.02
+            },
+            "school_final": {
+              "tests_passed": 17,
+              "duration_seconds": 104.81
+            },
+            "university_final": {
+              "tests_passed": 17,
+              "duration_seconds": 126.05
+            },
+            "published_python_files_matching_image_report": 9
+          },
+          "verification": "Cycle individuel complet : un membre/équipe, second membre400 atomique, jalon, deux PDF/révisions/SHA distincts, téléchargements, autre équipe GET/POST404 avant accès au contenu, gestionnaire brouillon/publication403, évaluateur distinct sans gestion, brouillon caché puis publication humaine/contribution Alice seule. Version/historique inchangés après refus ; lignes officielles Note/Evaluation comparées inchangées.",
+          "initial_failure": "Image1075f2dfb0c8103d3d48d93ab9db274b39f11850721972bf9f5784b4e9c4c02d : UUID natif response.data comparé à string de même valeur ; seul test normalisé str(delivery['jalon']), pas serializer/produit. Image finale reconstruiteee2a9bc. Supérieur initial non exécuté après échec secondaire.",
+          "checks": {
+            "django_check_errors": 0,
+            "migration_drift_detected": false,
+            "known_warning": "guardian.W001"
+          },
+          "quality": "Parent Python qualité verte ; Black deux fichiers inchangés, succès outils silencieux attesté sans inventer leur sortie.",
+          "limits": "Uniquement test_projects.py, pas intégrales29 ni réattribution SQL cours/compétences28. Autre objet établissement avec auto_create_schema=False, pas deuxième schéma réellement peuplé."
+        },
+        {
+          "id": "wave29-author-jest-recheck-and-unchanged-frontend",
+          "result": "fourteen_initial_timeouts_preserved_34_passed_at_30s_wave28_bundle_reused",
+          "commit": "0bb4766",
+          "artifact_refs": [
+            "author-delivery",
+            "author-jest-first-red",
+            "author-jest-recheck",
+            "pdf-helper-check",
+            "eslint-quality",
+            "frontend-base-provenance",
+            "published-provenance"
+          ],
+          "source_refs": [
+            "sis_apps/frontend-app-sis/src/projects/ProjectsPage.test.jsx",
+            "sis_apps/frontend-app-sis/e2e/project-helpers.js",
+            "sis_apps/frontend-app-sis/e2e/projects.e2e.js",
+            "sis_apps/frontend-app-sis/e2e/project-individuals.e2e.js",
+            "sis_apps/frontend-app-sis/e2e/project-individuals.config.js"
+          ],
+          "counts": {
+            "author_initial": {
+              "tests_passed": 20,
+              "tests_failed": 14,
+              "test_timeout_ms": 5000,
+              "duration_seconds": 196.279
+            },
+            "author_recheck": {
+              "tests_passed": 34,
+              "suites_passed": 1,
+              "test_timeout_ms": 30000,
+              "duration_seconds": 196.127
+            },
+            "unchanged_frontend_inputs_parent_attestation": 171,
+            "unchanged_bundle_files": 23
+          },
+          "verification": "Aucun produit/test UI changé ; seule relance --testTimeout=30000.34recouvrants, ne pas sommer au premier20/14 ou aux40de28. HelperPDF extrait, défaut identique par octets selon check auteur ; deux payloads individuels distincts.171inputs+23bundle28 inchangés selon parent ;170inputs non-env et23bundle revérifiés ici par hash, env volontairement exclu.",
+          "quality": "ESLint parent vert attesté, log vide non preuve autonome d'exit0 ; dépréciations Jest connues conservées.",
+          "limits": "Aucun nouveau build frontend29 ; livrable auteur initial avant qualification parent, discovery/scénarios listés non assimilés à exécutions. Pas frontend intégral, premiers14rouges non effacés."
+        },
+        {
+          "id": "wave29-real-individual-browser-cycle",
+          "result": "initial_school_loading_timeout_preserved_then_one_complete_real_case_per_variant_passed",
+          "commit": "0bb4766",
+          "artifact_refs": [
+            "school-individual-first-red",
+            "school-individual-first-last-run",
+            "school-individual-first-error",
+            "school-individual-first-trace",
+            "school-individual-browser",
+            "university-individual-browser",
+            "school-individual-last-run",
+            "university-individual-last-run",
+            "school-individual-receipt",
+            "university-individual-receipt",
+            "parent-incidents"
+          ],
+          "source_refs": [
+            "sis_apps/frontend-app-sis/e2e/project-individuals.e2e.js:20",
+            "sis_apps/frontend-app-sis/e2e/project-individuals.config.js",
+            "sis_apps/frontend-app-sis/e2e/project-helpers.js"
+          ],
+          "counts": {
+            "school_initial_cases_failed": 1,
+            "school_initial_case_duration_seconds": 55.6,
+            "school_final_cases_passed": 1,
+            "school_final_rounded_duration_minutes": 2.0,
+            "university_final_cases_passed": 1,
+            "university_final_rounded_duration_minutes": 2.1
+          },
+          "verification": "Gestionnaireteacher28nonstaff sans évaluer ; évaluateur29distinctnonstaff uniquement évaluer scoped responsable. Alice4/Bob5 équipes1membre, UI bloque2e etPOST400sansmutation ;jalon,deuxPDF/révisions/SHA/téléchargements ;autreéquipeGETetPOST404,gestionnairedraft/publier403,brouilloninvisibleapprenant,publicationhumaine/contributionAliceseule. CoursA4/objectifanalyseA conservésgestionnaire,masquésapprenant/évaluateur. Sansmockréseau, vrai navigateur danschaqueSIS.",
+          "initial_failure": "Heading timeout5s pendantchargement :trace GETdétail/équipes200,jalonencorepending. Correctif harness attente20s,pasproduit. Log/last-runfailed/trace/contexterougesconservés.",
+          "limits": "Un tenant effectif par SIS ; parcours individuel complet désormais couvert, pas réception institutionnelle multi-établissements ni acquisition/officiels/LMSdistant."
+        },
+        {
+          "id": "wave29-real-course-and-collective-regressions",
+          "result": "two_existing_cases_per_variant_reexecuted_with_shared_pdf_helper_passed",
+          "commit": "0bb4766",
+          "artifact_refs": [
+            "school-projects-browser",
+            "university-projects-browser",
+            "school-projects-last-run",
+            "university-projects-last-run",
+            "school-course-receipt",
+            "university-course-receipt",
+            "school-project-receipt",
+            "university-project-receipt",
+            "pdf-helper-check"
+          ],
+          "source_refs": [
+            "sis_apps/frontend-app-sis/e2e/project-courses.e2e.js:14",
+            "sis_apps/frontend-app-sis/e2e/projects.e2e.js:10",
+            "sis_apps/frontend-app-sis/e2e/project-helpers.js"
+          ],
+          "counts": {
+            "school_cases_passed": 2,
+            "university_cases_passed": 2,
+            "total_wave29_cases_per_variant_including_individual": 3,
+            "total_new_browser_receipts": 6
+          },
+          "verification": "Cours26 etcollectifprivé25réellementrejoués29 avec helperPDFextrait :rattachement/conflit/retrait/contexteprivé,collectifjalons/PDF/contributions/publication/révocation/module. NouveauxIDs/reçusrapprochésauxHTTP29.",
+          "limits": "TroiscasparSIS,pas six ;anciensenseignants27etcompétences28nonautomatiquementrequalifiés,anciensrésultats/cutoffsintacts."
+        },
+        {
+          "id": "wave29-fixtures-six-http-receipts-and-common-closure-gates",
+          "result": "fixture_harness_failure_preserved_recreation_and_six_http_receipts_passed_common_gates_pending",
+          "commit": "0bb4766",
+          "artifact_refs": [
+            "school-fixture-first-red",
+            "school-fixture-log",
+            "university-fixture-log",
+            "school-fixture-json",
+            "university-fixture-json",
+            "fixture-script",
+            "parent-incidents",
+            "school-before-restart",
+            "school-after-restart",
+            "university-before-restart",
+            "university-after-restart",
+            "school-individual-persistence",
+            "university-individual-persistence",
+            "school-course-persistence",
+            "university-course-persistence",
+            "school-project-persistence",
+            "university-project-persistence",
+            "school-individual-receipt",
+            "university-individual-receipt",
+            "school-course-receipt",
+            "university-course-receipt",
+            "school-project-receipt",
+            "university-project-receipt",
+            "individual-restart-checker",
+            "unchanged-course-restart-checker",
+            "unchanged-project-restart-checker",
+            "acceptance-scope"
+          ],
+          "source_refs": [
+            "sis_apps/sis_common/tests/test_projects.py:703",
+            "sis_apps/docs/RESTE_A_FAIRE_ET_VALIDATION.md"
+          ],
+          "counts": {
+            "before_after_capture_files": 4,
+            "authenticated_http_persistence_receipts": 6,
+            "individual_receipts": 2,
+            "course_collective_regression_receipts": 4
+          },
+          "verification": "IDsconteneursdifférents,mêmeimageee2/mêmesvolumes29. SixreçusHTTPconcordentavec sixbrowser :projet/version/mode/équipes/jalon/deuxSHA/évaluateur/contribution/cours-objectifs/masquage ;anciencollectifPDF/évaluationpubliée/contribution. Checkerindividuelneufquatresessions+GETPDF+POSTrefusés403/404,aucunecommandedemutationprojet réussie ;scripts26cours/25projetsinchangésparhash. Tousverts,pas429.",
+          "fixture_provenance": "Clones28aureposvers29selonparent. PremierKeyErroruser_idthroughCompte transactionatomique ;cléparmetadata corrigéeharness,seuls rechecksverts. Retraitdéclaré permissionETscope évaluerteacher28,gestion/read/affectation/passwordconservés ;autrescomptes/permissions/cours/affectations/projets/notes/outboxinchangés. Nouveaucompteévaluateur29seulement,id15secondaire13supérieur. Affectations27A6/B2et28A5résolues. Aucuncredentials/envluoudupliqué.",
+          "closure_boundary": "RecréationAPIavecmêmevolumeneprouvepasrestaurationbackupisolée. Règlecommunepréexistanteb898347:1517-1528 exigeencore deuxétablissementspeuplésréels,restaurationisoléebase/fichiers,comparaisoncomptes/MFA/droits/données. Objettenantauto_create_schema=Falseetuntenantbrowser/SISinsuffisants. Clonespréparatoiresantérieursauxnouveauxprojetsneprouventpasleurrestauration.",
+          "limits": "API/nginx29arrêtésnormalementselonparent,PGRedisprivésconservés. Pasdéploiementpartagé/piloteprestataire/production/nouvellecharge500. Troisincidentsparentpréservés,harness/test seulement,pasbugsproduitdéduits."
+        }
+      ],
+      "requirement_scope_boundary": {
+        "source_reference": "paste-1793818759374.txt:918",
+        "original_requirement": "Organise les projets individuels et collectifs, leurs étapes, livrables et évaluations.",
+        "unchanged_acceptance_criteria": true,
+        "functional_evidence_now_covered": "Cycle INDIVIDUEL complet désormais qualifié dans les deux SIS, collectif réellement rejoué, refus interéquipes en lecture ET écriture. La lacune individuelle du cutoff28 est levée sans réécrire28.",
+        "existing_common_rule_reference": "sis_apps/docs/RESTE_A_FAIRE_ET_VALIDATION.md@b898347b1a7eb2776752d5e93781e779c79b65f4:1517-1528",
+        "common_closure_pending": [
+          "Deux établissements réellement peuplés exercés par HTTP authentifié ; autre objet tenant sans création de schéma et un tenant par SIS ne suffisent pas.",
+          "Restauration isolée de sauvegardes base/fichiers des projets ; recréation sur volume conservé et clones pré-campagne ne la prouvent pas.",
+          "Comparaison explicite comptes/MFA/droits/données protégées avant/après migration applicable et restauration ; gardes de fixture et persistance seules insuffisantes."
+        ],
+        "not_new_project_requirements": "Acquisition, notes officielles, provisioning/inscription/synchronisation LMS distant et réception prestataire/production ne sont pas ajoutés aux critères10.5. Objectifs≠acquis reste une limite produit. Les conditions communes ci-dessus existaient déjà ; elles ne réécrivent pas les bilans historiques27/28.",
+        "status": "partial"
+      },
+      "qualification_limits": [
+        "46 anciensupdates/cutoffs etanciens evidence intacts,94IDs/statuts1verified/72partial/19absent/2unverified inchangés ;seuleportéecourante10.5actualisée,aucunstatut/F-lotclos.",
+        "Cycleindividuelplusmanquant ;top_missing_piecesfonctionnelsvidespourcesparcoursidentifiés,common_closure_pendingliéeàrèglecommunepréexistante. Pasdeuxschémasétablissementspeuplés/restaurationisolée/comparaisoncomplèteMFAcomptesdroitsdonnéesdémontrés.",
+        "Tests/harnessseulement,aucunproduit/migration/UIproduitchangé ;17testsprojets/SIS,pasintégrales29,cours/compétencesSQL28nonréattribués,bundle28réutilisésansnouveaubuild29.",
+        "Jest20passés14timeout5000ms restentrouges,34/34recheck30000msnonsommésaux40de28 ;premiersrougesUUIDtest/fixturethrough/headingbrowserconservés,correctifsharnesssansmock/produit.",
+        "Troiscasbrowser/SIS,sixreçusbrowser/sixHTTP,quatrecapturesrecréationconcordants ;pasrequalificationautomatiqueteachers27/compétences28,pasrestaurationbackup.",
+        "50artefactshachés,dontESLintvideàsuccèsattestéparentnonprobanteautonome ;neufPythoncommit/imageidentiques,170inputsfrontnon-envet23bundlecontrôlésici,171inputsattestésparent,envnonlu.",
+        "Objectifs≠acquisition ;aucunenoteofficielle/LMSdistantinduit,pasnouvellesobligations10.5. Concurrencesexactesoffre-sélection/affectation-rattachementnonqualifiées,sansjetonclientrévisionoffre.",
+        "IAM/F07/F09ouverts,10.7partielle ;charge500rougeinchangée500timeouts/262écrituresindéterminées,pasdéploiementpartagé/piloteprestataire/production/lot30qualifié,100%nonatteint."
+      ]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-07T19:20:43+00:00",
+    "as_of": "2026-11-07T20:05:28+00:00",
     "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
     "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
     "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
@@ -4256,9 +4795,22 @@
     "wave28_published_qualification": "8cf8002=HEAD=origin/main vérifié surmain ;image local-20261107-8cf8002@sha256:c789651e2582c850a01ef8613f928fffbb4ef19bdbcb5ae7a520e475cbc72436 standard sansoverlaybackend,huitPythoncommit/source/imageidentiques.87passés/1skip/26sous-testssecondaire143.09s et88/29supérieur163.83s,check/migrationssansdérive,guardian.W001connu,pasintégrales28. UIparent40/40deuxsuites251.676s(34projets+6navigation),avant2échecs/32ignorés puis34/34recouvrants,nonsommés ;correctifsUIseule,Pythoninchangés. BundleFINAL28vert3warnings78.185sutilisépartousnavigateurs28.5casréellementrejouésparSIS,dixreçusbrowser,aucunrougenavigateur28 ;anciensupdates25-27nonréattribués.",
     "wave28_competency_objectives_bounded": "Objectifsfacultatifs exclusivementoffredéjàliéeclasse.offre_configuration/formation.offre_configuration(pasmaquette/cataloguecourant).0-100codesuniquesstricts,omissionconserve,[]retire,null/types/codes/labelsclient400sansmutation. Sélecteurpaginédroitsprojets/cours,intersectionacteur/responsable,affectationsnonstaff ;numeric/pass_fail/absentevideexplicite,sourcecorrompue400. Snapshotprivé0012conservéàl'usage/historique,libelléschoisishistoriques,publicnull/masqué/version1criteria sans_offre/_contexte ;accèsperdu/déplacementmasque. Revalidationcours/responsable/offre,retraitexplicitemêmecorruption,UIchargement/pagination/erreurbloqueconfirmationmaisgardebrouillon/retry,409rechargepuisconfirmation. Objectifs≠acquisition ;pasnoteofficielle/LMSdistant. Pasjetonclientrévisionoffre,sélectioncaptureoffrecourantesousverrou,concurrenceoffre/sélectionetaffectation/rattachementnonqualifiées.",
     "wave28_persistence_bounded": "4capturesIDsavant/aprèsdifférents,mêmeimagec789/volumes28 ;10reçusHTTPfinalsrapprochésaux10reçusbrowser(projets/version/cours/objectifs/équipes/masquage/empreintesnonexposées/refusadminLMSenseignant,PDFSHA/publication/contributionpropre). Checker28neuf,scripts27/26/25inchangés. WSGIsecondaireerronécode4corrigéharnessconfig.wsgi:application ;5echeckerlogin429après10logins/throttle10-min,initialJSONvideNONvert,attente61s puisrecheckJSONvert/logvide. Supérieurpauses61s,sansmodificationprotections. FixturesDB/volumesclonés27aurepos,0012deuxSIS,cours4/5/6etenseignant28nouveaux,ancienscomptes/cours/affectationspréservés ;IDsaffectations27actualisésdansfixturedepuisreçus27. API/nginxarrêtésselonparent,anciensecondaire137arrêtDockerexplicitesansdiagnosticOOM,APIsrecrééesarrêtnormal,PGRedisprivésconservés.",
-    "projects_bounded": "10.5partial,pasverified :acquis25-27conservés(équipes/jalons/PDFprivés/évaluations/contributions/publication,courslocal,nonstaffaffecté),lectureETécritureautreéquipeinterdites.28publiée8cf8002ajouteobjectifscompétencesissusdesoffresdéjàliéesclasse/formation,snapshotprivé/historiqueetmasquage,droitsacteur/responsableopposables,UIchoixprotégés/409confirmé,persistancebornée. Lacune identifiée10.5 : aucun parcours navigateur INDIVIDUEL complet livré/qualifié au cutoff ; API individuelle surtout cohérence/refus, collectifs complets seuls. Source918 et critères inchangés. Objectifs≠acquis reste une limite produit ; acquisition/notesofficielles/LMSdistant restent des travaux du programme, pas de nouvelles obligations de10.5. IAM/recetteinstitutionnelle/restaurationglobale relèvent des autres F-lots ; concurrencesoffre-sélection/affectation-rattachement nonqualifiées et absencejetonclientoffre restent limitesdepreuve,pascritèresajoutés. Aucunstatutpromu/intégrale28/déploiementpartagé/lot29qualifié.",
+    "wave29_published_qualification_reference": {
+      "update_id": "EXEC-20261107-wave29-published-individual-project-cycle",
+      "campaign_ids": [
+        "wave29-individual-cycle-targeted-backend",
+        "wave29-author-jest-recheck-and-unchanged-frontend",
+        "wave29-real-individual-browser-cycle",
+        "wave29-real-course-and-collective-regressions",
+        "wave29-fixtures-six-http-receipts-and-common-closure-gates"
+      ]
+    },
+    "wave29_published_qualification": "0bb4766publié,imageee2a9bcstandard sansoverlaybackend,neufPythoncommit/source/imageidentiques. Tests/harnessseulement,5fichiers,pasproduit/migration/UIproduitchangé.17testsprojets/SIS104.81s/126.05s,check/migrationssansdérive,guardian.W001connu,pasintégrales29/réattributionSQL28. Premiersecondaire1fail16passUUID/stringconservé,puisstrassertion/rebuild ;supérieurinitialnonexécuté. Jest20passés14timeout5s puis34/34timeout30s,nonsommésaux40de28 ;bundle28réutilisé171inputs/23fichiersinchangésattestésparent,170non-env+23hashescontrôlésici,pasbuild29.",
+    "wave29_individual_cycle_bounded": "Parcoursindividuelcomplet désormaisqualifié deuxSIS :gestionnaireteacher28nonstaff sansévaluer,évaluateur29distinctnonstaff scopedresponsable,équipesAlice4/Bob5unmembre,ajout2eUIbloqué/POST400atomique,jalon,deuxPDF/révisions/SHA/téléchargements ;autreéquipeGETetPOST404,gestionnairedraft/publier403,brouilloninvisiblepuispublicationhumaine/contributionAliceseule,coursA4/objectifanalyseAconservésgestionnaireetmasquésapprenant/évaluateur. Notesofficiellesinchangéesassertbackend. Premierheading5srougeconservé,recheck20svert,harnessseul.1nouveau+2régressionscours/collectifparSISréellementjoués29,sansmock ;pas6cas/SISniqualificationautomatiqueteachers27/compétences28.",
+    "wave29_persistence_and_common_gates": "4capturesIDsAPIréellementdifférents,mêmeimage/mêmesvolumes29 ;6reçusHTTPconcordentavec6browser,versions/mode/équipes/2SHA/évaluateur/contribution/cours-objectifs/masquagepersistants,anciencollectifPDF/contribution. Checkerindividuel4sessions/GETPDF/POST403-404refusés,sansmutationprojet réussie ;checkers26/25inchangés,pas429. FixturepremierKeyErroruser_idatomiqueconservé,rechecksvertsclémetadata ;seulretraitdéclarépermission+scopeévaluerteacher28,autresancienscomptes/donnéespréservés. Recréationvolumeconservé≠restaurationbackup ;règlecommunepréexistanteb898347:1517-1528 exigeencore deuxétablissementspeuplésréels,restaurationisoléebase/fichiers,comparaisoncomptes/MFA/droits/données. Unobjettenantauto_create_schema=Falseetuntenantbrowser/SISneprouventpasdeuxschémas.",
+    "projects_bounded": "10.5partial,pasverified :acquis25-28conservés,29publiée0bb4766qualifie désormaislecycleINDIVIDUELcompletet rejouecollectif/cours. Source918etcritèresinchangés,lectureETécritureautreéquipeinterditesetrefusqualifiés. Plusdelacunefonctionnelleidentifiéesurcesparcours ;top_missing_piecesvide,common_closure_pendingdistinctreliéàrègleCOMMUNEpréexistanteb898347:1517-1528 :deuxétablissementsréellementpeuplés,restaurationisoléebase/fichiers,comparaisoncomptes/MFA/droits/données. Objettenant sansschémaetuntenantbrowser/SISinsuffisants ;recréationAPIvolumeconservé≠restaurationbackup. Acquisition/notesofficielles/LMSdistant/réceptionprestataire ne deviennentpasnouvellesobligations10.5. Objectifs≠acquis,concurrencesoffre-sélection/affectation-rattachementnonqualifiées,sansjetonclientrévisionoffre. Historiques27/28nonréécrits,aucunstatut/F-lotclos/intégrale29/déploiementpartagé/lot30qualifié.",
     "current_requirement_status_counts": {"verified": 1, "partial": 72, "absent": 19, "unverified": 2, "change": "10.5_absent_to_partial_only_explicit_parent_authorization"},
-    "shared_deployment_scope": "Aucun déploiementpartagédesvagues15à28,piloteprestataire/réceptionétablissement/production. Champsdelivraison/main/fixturehistoriquesconservés ;image28qualifiée ne remplacepas current_user_backend/current_user_frontend. DB28/volumesprivésclonés27aureposselonparent,recréationAPI+10reçusHTTPbornés,pasrestaurationglobale. IncidentsWSGI4/login429préservés,protectionsinchangées. HelpersAPI/nginx28arrêtésselonparent,anciensecondaire137suitearrêtDockerexplicitesansdiagnosticOOM,APIsrecrééesarrêtGunicornnormal,PGRedisprivésconservés. Aucunservicepartagétouché,aucunsondage/arrêt/testici ;aucunlotultérieurqualifié,dernier500rougeinchangé.",
+    "shared_deployment_scope": "Aucun déploiementpartagédesvagues15à29,piloteprestataire/réceptionétablissement/production. Champsdelivraison/main/fixturehistoriquesconservés ;image29qualifiée ne remplacepas current_user_backend/current_user_frontend. DB29/volumesprivésclonés28aureposselonparent,recréationAPI+6reçusHTTPbornés,pasrestaurationbackupisolée. API/nginx29arrêtésnormalementselonparent,PGRedisprivésconservés. Aucunservicepartagétouché,aucunsondage/arrêt/testici ;aucunlot30ouultérieurqualifié,dernier500rougeinchangé. Conditionscommunesdeuxétablissementspeuplés/restauration/comparaisoncomptesMFA droitsdonnéesencoreàprouver,aucuneobligationprestataireajoutéeà10.5.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -4899,9 +5451,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 172,
+    "imported_evidence_campaign_records": 177,
     "requirements_with_new_increment_evidence": 25,
-    "conclusion": "172 campagnes documentaires non sommées(167avant28,5nouvelles),25exigencesavecpreuves.45anciensupdatesintacts,94IDs/statuts1verified/72partial/19absent/2unverified inchangés,10.5partial,seuleportéecouranteenrichie.28publiée8cf8002,imagec789standard sansoverlaybackend,huitPythoncommit/source/imageidentiques. Objectifscompétencesfacultatifsoffresdéjàliéesclasse/formation,pasmaquette/catalogue ;0-100codesstricts,omission/[]/refus400,scopesintersectionacteur-responsable/affectationsnonstaff,snapshotprivé0012/projectionmasquée/historiquenonréécrit. Objectifs≠acquisition ;aucunenoteofficielle/LMSdistantinduit. Sélectioncaptureoffrecourantesousverrou,sansjetonclientrévisionoffre,concurrencesoffre-sélection/affectation-rattachementnonqualifiées. Ciblés87passés/1skip/26sous-tests et88/29,checks/migrationssansdérive,guardian.W001connu,pasintégrales28. UI40/40sur2suites,dont34projetsrecouvrantrecheck34 ;2premiersrougesUIpréservés,puiscorrectionUIseule,buildFINAL28vert3warnings78.185s.5casbrowserréellementrejouésparSIS,dixnouveauxreçus,sansmock/rougenavigateur28/réattribution25-27.4capturesrecréation/10reçusHTTPfinalsconcordants,63artefactshachés ;WSGIsecondairecode4 et5echeckerlogin429préservés,initialJSONvideNONvert,recheckaprès61svert,sanschangementsprotections. Fixturesclonées27aurepos,0012,cours4/5/6etenseignant28,ancienscomptes/cours/affectationspréservés. Helpersarrêtésselonparent,ancien137suitearrêtDockerexplicitesansdiagnosticOOM,APIsrecrééesarrêtnormal,PGRedisprivésconservés. Lacune10.5 : aucun parcours navigateur INDIVIDUEL complet livré/qualifié au cutoff ; API individuelle surtout cohérence/refus, collectifs complets seuls. Acquisition/notesofficielles/LMSréel restent ouverts au programme sans être de nouvelles obligations de10.5 ; recetteinstitutionnelle/restaurationglobale et concurrencesnonqualifiées restent travaux des autres F-lots ou limitesdepreuve, pas critères ajoutés. LectureETécritureautreéquipeinterdites,pasF-lotclos/pilote/production/déploiementpartagé/lot29qualifié.500timeouts/262écrituresindéterminéesinchangés,IAM/F07/F09ouverts,10.7partielle,100%nonatteint."
+    "conclusion": "177campagnesdocumentairesnonsommées(172avant29+5nouvelles),25exigencesavecpreuves.46anciensupdates/cutoffs/evidenceintacts,94IDs/statuts1verified/72partial/19absent/2unverifiedinchangés,seuleportéecourante10.5actualisée.29publiée0bb4766,imageee2a9bcstandard sansoverlaybackend,neufPythoncommit/source/imageidentiques ;5fichierstests/harnessseulement,pasproduit/migration/UIproduitchangé. CycleINDIVIDUELcompletdésormaisqualifiédeuxSIS :équipes1membre/jalon/2PDFprivésSHA,gestionnaireetévaluateurdistinctsnonstaff,brouillonconfidentiel/publicationhumaine/contributionpropre,refusautreéquipelectureETécriture404,gestionnaireévaluer/publier403 ;notesofficiellesinchangéesassertbackend.17testsprojets/SIS104.81s/126.05s,check/migrationssansdériveguardian.W001connu,pasintégrales29. Jestpremier20pass14timeout5s puis34/34timeout30s,sanschangementproduit/testsUI,nonsommésaux40de28 ;bundle28réutilisé171inputs/23fichiersinchangésattestésparent,170non-env+23vérifiésici,pasbuild29. PremierbackendUUID/string,teststrseul+rebuild,premièrefixtureKeyErrorthroughcorrigéemetadata,premierbrowserheading5s→20sharness :rougesconservés.1individuel+2cours/collectifréellementrejouésparSIS,sixreçusbrowser/sixHTTP/4capturesrecréationconcordants,50artefactshachésdontESLintvideattestéparentnonprobanteautonome. Seulretraitdéclarépermission+scopeévaluerteacher28,nouvelévaluateur29,autresancienscomptes/donnéespréservés ;helpersarrêtésnormalementselonparent,PGRedisprivésconservés.10.5partial :parcoursfonctionnelsidentifiéscouverts,top_missing_piecesvide ;common_closure_pendingrèglepréexistanteb898347:1517-1528,deuxétablissementsréellementpeuplés/restaurationisoléebase-fichiers/comparaisoncomptesMFA droitsdonnéesencoreàprouver. Objettenant sansschéma≠deuxétablissements,volumeconservé≠restaurationbackup. Aucuncritèreacquisition/notesofficielles/LMSdistant/prestataireajouté ;concurrencesexactesnonqualifiées,sansjetonclientoffre. Aucunstatut/F-lotclos/pilote/production/déploiementpartagé/lot30qualifié.500timeouts/262écrituresindéterminéesinchangés,IAM/F07/F09ouverts,10.7partielle,100%nonatteint."
   },
   "requirements": [
     {
@@ -10110,17 +10662,20 @@
         "sis_apps/sis_superieur/apps/portail/api.py:34"
       ],
       "test_evidence": [
-        "sis_apps/sis_common/tests/test_projects.py:306",
-        "sis_apps/sis_common/tests/test_projects.py:355",
-        "sis_apps/sis_common/tests/test_projects.py:386",
-        "sis_apps/sis_common/tests/test_projects.py:406",
-        "sis_apps/sis_common/tests/test_projects.py:452",
-        "sis_apps/sis_common/tests/test_projects.py:643",
-        "sis_apps/sis_common/tests/test_projects.py:756",
+        "sis_apps/sis_common/tests/test_projects.py:308",
+        "sis_apps/sis_common/tests/test_projects.py:357",
+        "sis_apps/sis_common/tests/test_projects.py:388",
+        "sis_apps/sis_common/tests/test_projects.py:408",
+        "sis_apps/sis_common/tests/test_projects.py:454",
+        "sis_apps/sis_common/tests/test_projects.py:569",
+        "sis_apps/sis_common/tests/test_projects.py:703",
+        "sis_apps/sis_common/tests/test_projects.py:719",
+        "sis_apps/sis_common/tests/test_projects.py:760",
+        "sis_apps/sis_common/tests/test_projects.py:873",
         "sis_apps/sis_common/tests/test_project_courses.py",
         "sis_apps/frontend-app-sis/src/projects/ProjectsPage.test.jsx",
         "sis_apps/frontend-app-sis/src/components/layout/navigation.projects.test.js",
-        "sis_apps/frontend-app-sis/e2e/projects.e2e.js:32",
+        "sis_apps/frontend-app-sis/e2e/projects.e2e.js:10",
         "sis_apps/frontend-app-sis/e2e/project-courses.e2e.js:14",
         "sis_apps/sis_common/tests/test_project_courses.py:529",
         "sis_apps/sis_common/tests/test_project_courses.py:604",
@@ -10134,20 +10689,49 @@
         "sis_apps/frontend-app-sis/e2e/project-teachers.config.js",
         "sis_apps/frontend-app-sis/e2e/project-competencies.e2e.js:37",
         "sis_apps/frontend-app-sis/e2e/project-competencies.e2e.js:140",
-        "sis_apps/frontend-app-sis/e2e/project-competencies.config.js"
+        "sis_apps/frontend-app-sis/e2e/project-competencies.config.js",
+        "sis_apps/frontend-app-sis/e2e/project-individuals.e2e.js:20",
+        "sis_apps/frontend-app-sis/e2e/project-individuals.config.js",
+        "sis_apps/frontend-app-sis/e2e/project-helpers.js"
       ],
-      "assessment_cutoff_at": "2026-11-07T19:20:43+00:00",
-      "assessment_scope": "Seuleportéecourante10.5enrichieen28,statutpartialinchangé ;ancienobjetavant25archivé dans requirement_status_transition.previous_assessment de EXEC-20261107-wave25-projects-provisional-qualification. Référencescourantesaucommitpublié8cf8002,ancragesdéplacésactualisés ;45anciensupdates/anciens execution_evidence/cutoffs/touscritèresintacts. Clarification parent : source paste-1793818759374.txt:918, required_behaviors et acceptance_checks n'exigent pas acquisition/notesofficielles/provisioningLMS ; ces travaux du programme ne deviennent pas de nouvelles conditions de10.5.",
+      "assessment_cutoff_at": "2026-11-07T20:05:28+00:00",
+      "assessment_scope": "Seuleportéecourante10.5actualiséeen29,statutpartialinchangé ;ancienobjetavant25archivé dans requirement_status_transition.previous_assessment de EXEC-20261107-wave25-projects-provisional-qualification. Référencescourantesaucommitpublié0bb4766,ancragestestsdéplacésactualisés ;46anciensupdates/anciens execution_evidence/cutoffs/touscritèresintacts. Cycleindividuelcompletdésormaisqualifié. Relecturerèglecommunepréexistanteb898347:1517-1528 :conditionscommunesrestantesexplicitementdistinctesdeslacunesfonctionnellescouvertes. Source918/required_behaviors/acceptance_checks n'exigentpasacquisition/notesofficielles/provisioningLMS ;aucunenouvelleobligationmétierajoutée.",
       "existing_scope": "Gestionnaireprojetsindividuels/collectifs2SIS :équipes/jalons/PDFprivésrévisions/évaluations/contributions/publicationhumaine. Lien26optionnelPROTECTmappinglocalclasse-matière/ECUE,parcours27nonstaffréellementaffectéavecprofil/droits/scopesopposables conservés.28ajouteobjectifscompétencesfacultatifsissusuniquementdesoffresdéjàliéesclasse/formation,snapshotprivé0012/historique,UIpaginéeetmasquage. Objectifs≠acquisition,sansprovisioning/inscription/noteofficielle. Moduleoffpardéfaut/API+UIcapacitésserveur etdroitsprojetspropresconservés.",
-      "current_scope": "10.5partial,pasverified :8cf8002publié. Objectifs0-100codesuniquesstricts,sourceexclusiveclasse.offre_configuration/formation.offre_configuration(pasmaquette/cataloguecourant),omissionconserve,[]retire,null/types/codes/labelsclient400sansmutation. Sélecteurpaginédroitsprojets/cours,intersectionacteur/responsable,affectationsnonstaff27 etfrontièreadminstaffconservées ;numeric/pass_fail/absentevideexplicite,sourcecorrompue400. Snapshotprivéconservéàl'usage/historique,libelléschoisispréservés,publicnull/{disponible:false}/{version:1,disponible:true,criteria} sans_offre/_contexte ;perteaccès/déplacementmasque. Cours/responsable/offrerevalidés,retraitexplicitemêmecorruption,UIbloqueconfirmationenchargement/pagination/erreur,gardechoix/retry,409rechargepuisnouvelleconfirmation. Sélectionexplicitecaptureoffrecourantesousverrousource,sansjetonclientrévisionoffre ;concurrencesoffre-sélection/affectation-rattachementnonqualifiées. Lacune de preuve10.5 : aucun parcours navigateur INDIVIDUEL complet livré/qualifié au cutoff ; API individuelle surtout cohérence/refus, collectifs complets seuls. Objectifs≠acquis reste une limite produit, pas une obligation d'acquisition ajoutée. Notesofficielles/LMSdistants non réalisés restent travaux du programme, pas nouvelles conditions de10.5 ; recetteinstitutionnelle/restaurationglobale et autres limites ne modifient pas les critères. LectureETécritureautreéquipeinterdites.",
-      "test_scope": "Importdocumentaireseulement.28imagec789,huitPythoncommit/source/imageidentiques :87passés/1skipUE-ECUE/26sous-testssecondaire143.09s et88/29supérieur163.83s ;check/migrationssansdérive,guardian.W001connu,pasintégrales28. UIparent40/40sur2suites251.676s(projets34+navigation6),deuxrégressionsinitialesrouges/32ignoréspréservées puis34/34recouvrants,nonsommés ;UIseulecorrigée,Pythoninchangés. BuildFINAL28vert3warnings78.185s.5casréellementrejouésparSIS(2compétences+2projets+1enseignant),dixreçusbrowseret10reçusHTTPaprès4capturesrecréationconcordants :objectifs/cours/version/équipes/masquage/empreintesnonexposées/refusadminLMS/PDFSHA/publication/contribution. WSGIcode4harnesscorrigé et5echeckersecondaire429conservés,initialJSONvideNONvert ;attente61s,recheckJSONvert,protectionsinchangées.63artefactshachésdont3videsnonprobantsseuls,scripts27/26/25inchangés ;anciensrésultatsnonréattribués,charge500nonrequalifiée. Aucun parcours navigateur INDIVIDUEL complet livré/qualifié au cutoff ; API individuelle surtout cohérence/refus, seuls les collectifs ont des parcours complets qualifiés.",
+      "current_scope": "10.5partial,pasverified :0bb4766publié,tests/harnessseulement,produit25-28conservé. Objectifs0-100codesuniquesstrictssourceexclusiveclasse.offre_configuration/formation.offre_configuration(pasmaquette/cataloguecourant),omissionconserve/[]retire/null-types-codes-labels400sansmutation ;sélecteurpaginéintersectionacteur-responsable,affectationsnonstaff/frontièreadminstaff ;numeric-pass_fail-absentevide/sourcecorrompue400. Snapshotprivéhistorique/libellésconservés,publicnull/{disponible:false}/{version:1,disponible:true,criteria},sans_offre/_contexte,perteaccès/déplacementmasque ;cours-responsable-offrerevalidés,retraitmêmecorruption,UIchargement/pagination/erreur/retry/409confirmationpréservés.29qualifie cycleINDIVIDUELcomplet :équipesunmembre/jalon/deuxPDFprivésrévisionsSHA,gestionnaireetévaluateurdistinctsnonstaff,brouillonconfidentiel/publicationhumaine/contributionAliceseule,coursA4/objectifanalyseAconservésgestionnaireetmasquésapprenant/évaluateur. LectureETécritureautreéquipeinterdites,GET/POST404sansmutation ;gestionnaireévaluer/publier403. Collectifetcoursréellementrejoués29. Plusdelacunefonctionnelleidentifiéesurcesparcours ;restentconditionscommunespréexistantesb898347:1517-1528,deuxétablissementsréellementpeuplés/restaurationisolée/comparaisoncomptesMFA droitsdonnées. Objettenant sansschémaetuntenant/SISinsuffisants,APIrecrééevolumeconservé≠restaurationbackup. Objectifs≠acquis ;acquisition/notesofficielles/LMSdistants restentprogramme,pasnouvellesobligations10.5. Sélectionoffrecourantesousverrousansjetonclientrévision ;concurrencesexactesoffre-sélection/affectation-rattachementnonqualifiées.",
+      "test_scope": "Importdocumentaireseulement.29imageee2a9bc,neufPythoncommit/source/imageidentiques ;17testsprojets/SIS104.81s/126.05s,check/migrationssansdériveguardian.W001connu,pasintégrales29/réattributionSQLcours-compétences28. Premiersecondaire1fail16pass107.02sUUID/string,teststrseulcorrigéetimagereconstruite ;supérieurinitialnonexécuté. AuteurJest20pass14timeout5s196.279s puis34/34timeout30s196.127s,sansproduit/testsUIchangés,nonsommésaux40de28. Bundle28réutilisé171inputs/23fichiersattestésinchangés,170non-env+23hashescontrôlésici,envnonlu,pasbuild29. Premierbrowserindividuelsecondaireheading5srouge55.6s,traceHTTP200détail/équipes,jalonpending ;attente20sharness,puis1/1≈2.0minsecondaireet1/1≈2.1minsupérieur. Cours/collectif2/2parSISréellementrejoués29,total3/SIS,sixreçusbrowser/sixHTTP/4capturesrecréationconcordants,mode/version/2SHA/évaluation/contribution/cours-objectifs/masquage. PremierfixtureKeyErroruser_idatomiquepréservé,metadataharnesscorrigée,rechecksverts,seulretraitdéclaréévaluerteacher28permission+scope,autrescomptes/donnéespréservés. Checkerindividuel4sessions/GETPDF/POST403-404refusés,sansmutationprojet réussie ;checkers26/25inchangés,pas429.50artefactshachésdontESLintvideattestéparentnonprobanteautonome. Cycleindividuelplusmanquant maisuntenantbrowser/SIS,autreobjettenantauto_create_schema=False,pasrestaurationbackupni comparaisoncomplètecomptes/MFA/droits/données.",
       "status": "partial",
-      "top_missing_pieces": [
-        "Aucun parcours navigateur INDIVIDUEL complet livré/qualifié à ce cutoff pour l'organisation des étapes, livrables et évaluations prévue par la source918. L'API individuelle couvre surtout cohérence/refus ; seuls les collectifs disposent de parcours complets qualifiés."
+      "top_missing_pieces": [],
+      "functional_evidence_covered": [
+        "Organisation du cycle INDIVIDUEL complet désormais qualifiée29 dans les deux SIS : équipes d'un membre, jalon, deux livrables PDF/révisions privées, évaluation par personne distincte, brouillon confidentiel puis publication humaine et contribution personnelle.",
+        "Cycle COLLECTIF complet et scénario cours local réellement rejoués29 avec le helper PDF extrait ; acquis25-28 conservés, sans réattribution des campagnes antérieures.",
+        "Interdiction de lecture ET écriture des livrables privés d'une autre équipe : GET/POST404, état/version/historique inchangés après refus ; second membre individuel400 atomique et gestionnaire évaluer/publier403."
       ],
+      "common_closure_pending": {
+        "source_reference": "sis_apps/docs/RESTE_A_FAIRE_ET_VALIDATION.md@b898347b1a7eb2776752d5e93781e779c79b65f4:1517-1528",
+        "scope_artifact_update_id": "EXEC-20261107-wave29-published-individual-project-cycle",
+        "scope_artifact_ref": "acceptance-scope",
+        "status_reason": "Règle commune préexistante non entièrement démontrée ; pas nouvelle exigence métier ni promotion malgré les parcours fonctionnels identifiés désormais couverts.",
+        "gates": [
+          {
+            "gate": "two_populated_establishments",
+            "remaining": "Deux schémas établissements réellement peuplés exercés via HTTP authentifié, permissions tenant/objet et écritures.",
+            "evidence_limit": "test_projects.py:703-717 : autre objet établissement avec auto_create_schema=False ; test de refus à719 ne crée pas de deuxième schéma effectif. Un tenant navigateur par SIS29."
+          },
+          {
+            "gate": "isolated_database_and_file_backup_restore",
+            "remaining": "Restauration isolée de sauvegardes base/fichiers vers stockage indépendant, y compris les nouveaux projets et PDF.",
+            "evidence_limit": "Quatre captures et six reçus démontrent la recréation API sur volumes identiques, pas la restauration d'une sauvegarde. Clones préparatoires antérieurs aux parcours insuffisants pour les nouveaux projets."
+          },
+          {
+            "gate": "protected_accounts_mfa_rights_data_comparison",
+            "remaining": "Comparaison explicite comptes/MFA/droits/données protégées avant/après migration applicable et restauration isolée.",
+            "evidence_limit": "Gardes de fixture, migrations antérieures et preuves de redémarrage disponibles ; aucune comparaison complète des données protégées à travers restauration dans29."
+          }
+        ]
+      },
       "program_scope_boundaries": {
         "not_new_10_5_obligations": "Acquisition, notes officielles et provisioning/inscription/synchronisation LMS ne sont exigés ni par paste-1793818759374.txt:918 ni par required_behaviors/acceptance_checks. Leur non-réalisation reste un travail du programme, pas une nouvelle condition pour10.5. Objectifs≠acquis est une limite de portée du produit.",
-        "other_f_lot_work": "IAM, portail enseignant, recette multirôles/multi-tenant institutionnelle, déploiement partagé et restauration globale restent hors de la qualification bornée. Aucun statut ni F-lot clos ; ces travaux ne deviennent pas des critères supplémentaires de10.5.",
+        "other_f_lot_work": "IAM/F07/F09, portail enseignant complet, intégrations officielles/LMS, déploiement partagé et réception prestataire/production restent travaux du programme, sans nouvel impératif métier10.5 ni F-lot clos. En revanche les conditions multi-établissements/restauration/comparaison applicables à10.5 viennent de la règle COMMUNE préexistante et sont explicitement suivies dans common_closure_pending ; clarification29 sans réécriture des bilans27/28.",
         "evidence_limits_not_new_acceptance_criteria": "Parcours nonstaff borné, formation sans département non éligible, aucune promotion implicite. Sélection de l'offre courante sous verrou source sans jeton client de révision d'offre ; concurrences offre/sélection et édition d'affectation/rattachement non qualifiées, verrous/revalidation ne prouvant pas ces scénarios."
       },
       "acceptance_checks": [
@@ -10196,6 +10780,19 @@
           "result": "bounded_linked_offering_competency_objectives_private_snapshots_ui_browser_and_persistence_passed_status_unchanged",
           "verified_scope": "8cf8002publié,imagec789huitPythoncommit/source/imageidentiques. Objectifsfacultatifssourceexclusiveoffreclasse/formation,pasmaquette ;0-100codesuniquesstricts,omissionconserve/[]retire/refus400,numeric-pass_fail-absentevide/sourcecorrompue400. Droitsprojets/coursintersectionacteur-responsable/nonstaffaffecté ;snapshotprivé0012/libelléshistoriques/publicmasqué,sans_offre/_contexte,perteaccès/déplacementmasque,cours-responsable-offrerevalidés,retraitexplicitemêmecorruption.87/1skip/26 et88/29 ciblés,40UI incluant34recheckrecouvrantsaprès2rougespréservés,buildFINAL28vert.5casréellementrejouésparSIS,dixreçusbrowser/HTTPconcordantsaprèsrecréation4captures,PDFSHA/évaluation/contributionconservés. UIchoixprotégéschargement/pagination/erreur/retry/409confirmation ;lectureETécritureautreéquipeinterdites.63artefacts,incidentsharnessWSGI4/429conservés,initialpersistenceJSONvideNONvert,recheck61svertprotectionsinchangées.",
           "remaining_scope": "10.5partial,94IDs/statuts1/72/19/2 inchangés,45anciensupdatesintacts. Lacune10.5 : aucun parcours navigateur INDIVIDUEL complet livré/qualifié au cutoff ; API individuelle surtout cohérence/refus, collectifs complets seuls. Objectifs≠acquis limite la portée du produit ; acquisition/notesofficielles/LMSdistants restent travaux du programme, explicitement pas nouvelles obligations de10.5. Recettemultirôlesinstitutionnelle/restaurationglobale relèvent des autres F-lots ; absencejetonclientoffre et concurrencesoffre-sélection/affectation-rattachement nonqualifiées sont des limites des preuves, pas critères ajoutés. Pasintégrales28/réattributionhistoriques/sommedédupliquée/déploiementpartagé/piloteprestataire/production/charge500corrigée/lot29qualifié ;IAM/F07/F09ouverts,aucunF-lotclos."
+        },
+        {
+          "update_id": "EXEC-20261107-wave29-published-individual-project-cycle",
+          "campaign_ids": [
+            "wave29-individual-cycle-targeted-backend",
+            "wave29-author-jest-recheck-and-unchanged-frontend",
+            "wave29-real-individual-browser-cycle",
+            "wave29-real-course-and-collective-regressions",
+            "wave29-fixtures-six-http-receipts-and-common-closure-gates"
+          ],
+          "result": "individual_and_collective_functional_cycles_passed_common_closure_pending_status_unchanged",
+          "verified_scope": "0bb4766publié,imageee2a9bcstandard sansoverlaybackend,neufPythoncommit/source/imageidentiques ;tests/harnessseulement,pasproduit/migration/UIproduitchangé. CycleINDIVIDUELcompletdeuxSIS :gestionnaireteacher28nonstaffsansévaluer,évaluateur29distinctnonstaff scopedresponsable,équipesAlice4/Bob5unmembre,jalon,deuxPDF/révisions/SHA/téléchargements,brouilloninvisiblepuispublicationhumaine/contributionAliceseule,coursA4/objectifanalyseAconservésgestionnairemasquésapprenant/évaluateur. AutreéquipelectureETécritureGET/POST404,secondmembre400atomique,gestionnaireévaluer/publier403sansmutation ;notesofficiellesinchangéesassertbackend.17testsprojets/SIS,checks/migrationssansdériveguardian.W001connu. Jest20pass14timeout5srougespuis34/34timeout30s,nonsommésaux40de28 ;bundle28réutilisépasbuild29.1individuel+2cours/collectifréellementjoués/SIS,sixbrowser/sixHTTPaprès4capturesrecréationconcordants,2SHA/versions/évaluation/contribution/cours-objectifs/masquagepersistants,checkers26/25inchangés.50artefactshachés ;premiersrougesUUIDtest/fixturethrough/headingbrowserconservés,corrigésharnessseulement ;retraitévaluerteacher28permission+scopedéclaré,autresancienscomptes/donnéespréservés.",
+          "remaining_scope": "10.5partial,46anciensupdates/cutoffs/evidenceet94statuts1/72/19/2critèresinchangés. Cycleindividuelplusmanquant,parcoursfonctionnelsidentifiéscouverts ;conditionscommunespréexistantesb898347:1517-1528 encoreàprouver :deuxétablissementsréellementpeuplés,restaurationisoléebase/fichiers,comparaisoncomptes/MFA/droits/données. Objettenantauto_create_schema=Falseetuntenantbrowser/SISinsuffisants ;recréationAPIvolumeconservé≠restaurationbackup,clonespré-campagnenonprobantspournouveauxprojets. Acquisition/notesofficielles/LMSdistant/réceptionprestataire ne deviennentpasnouvellesobligations10.5 ;objectifs≠acquis,concurrencesexactesoffre-sélection/affectation-rattachementnonqualifiées,sansjetonclientoffre. Pasintégrales29/build29/réattributionSQL28/qualificationautomatiqueteachers27-compétences28/déploiementpartagé/pilote/production/lot30qualifié. Charge500rouge500timeouts/262écrituresindéterminées,IAM/F07/F09ouverts,aucunF-lotclos."
         }
       ],
       "acceptance_execution_status": "increments_passed_requirement_incomplete"
