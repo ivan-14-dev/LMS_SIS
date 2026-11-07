@@ -9,17 +9,21 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 14:40:10 UTC**, vagues
-15 à 23 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
+**Dernier cutoff documentaire : 7 novembre 2026 à 15:48:28 UTC**, vagues
+15 à 24 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
 État officiel inchangé : **1 vérifiée, 71 partielles, 20 absentes et
 2 non vérifiées sur 94**. Le blocage de qualification Studio a été levé
 vers 07:30 UTC : le correctif est publié, avec une preuve ciblée limitée
 décrite en vague 19, **sans clôture de F07**. Après les lots et parcours
 groupes 20/21, les vagues 22/23 ajoutent l'audit du cycle de vie **via API**
-et son lecteur d'historique, avec preuves ciblées sur image reconstruite et
-un parcours navigateur par SIS. IAM reste en cours, sans recette exhaustive
-multi-tenant, parents, enseignants ou MFA/SoD. **Vague 24 en cours, sans
-preuve revendiquée** ; ses fichiers de travail ne sont pas inspectés ici.
+et son lecteur d'historique. La vague 24 ajoute la désactivation réversible
+des groupes sans retirer membres ou permissions, avec suites backend
+intégrales sur l'image reconstruite du commit publié, 31 tests UI et deux parcours
+navigateur par SIS, dont révocation/rétablissement dans une même session.
+IAM reste en cours, sans recette exhaustive multi-tenant, tous menus/rôles,
+MFA/SoD ou versionnement. **Vague 25 en implémentation/revue isolée, sans
+qualification revendiquée** ; aucun de ses fichiers de travail n'est inspecté.
+**Le 100 % n'est pas atteint.**
 Les bilans datés antérieurs conservent leurs cutoffs, blocages et rouges.
 
 **État historique au 5 novembre :** 5 tâches en cours, 31 à démarrer, 3 bloquées ; 170 tâches
@@ -814,6 +818,97 @@ IAM en cours, F07 ouvert, F09/10.7 partiels. Pas de preuve de vague 24 ;
 cutoffs et rouges antérieurs intacts, dont le dernier 500 (**500 timeouts,
 262 écritures indéterminées**).
 
+**Vague 24, publiée et qualifiée au cutoff du 7 novembre 2026
+à 15:48:28 UTC :** `9f432e3` (« Support reversible permission-group
+deactivation without removing memberships »), **21 fichiers, 1110 ajouts
+et 37 suppressions**, est vérifié égal à `HEAD` et `origin/main` sur `main`.
+`GroupLifecycle` relie en OneToOne l'état d'un groupe dans son tenant ;
+les migrations `0006_group_lifecycle` des deux SIS préservent les anciens
+groupes sans état comme **actifs**. L'API expose le booléen `actif` à la
+création et en PATCH/PUT ; son omission conserve l'état. Les backends
+ModelBackend/Guardian dérivés filtrent les groupes désactivés, avec couverture
+sync/async, `with_perm` et préchargement Guardian. Droits directs, autres
+groupes actifs, rôle et `is_staff` restent inchangés. Les gardes de
+délégabilité, scopes, tenant et propre groupe sont conservées ; les
+permissions objet sont contrôlées à la bascule et l'échec d'audit annule
+l'opération. Le snapshot de capacités exclut aussi les **noms** des groupes
+Django désactivés, tandis que les listes d'appartenance conservent leurs
+identifiants. Les groupes de configuration académique restent indépendants,
+calculés selon leurs propres conditions.
+
+La console ajoute la case **« Groupe actif »**, le suffixe inactif, la
+copie conservant l'état et l'état avant/après dans l'audit. Sans `actif`
+dans l'ancienne API, pas de bascule ; une réponse ne confirmant pas l'état
+est une erreur. Le PATCH contient uniquement les champs modifiés depuis
+le snapshot initial figé : une bascule seule envoie **`{"actif": false}`**,
+sans écraser un nom ou des permissions modifiés entre-temps. Ce mécanisme
+**n'est pas un versionnement optimiste complet**.
+
+L'image locale **`lms-sis:local-20261107-9f432e3`**, qualifiée sous
+`lms-sis:qualification-wave24-release-d0c25c75`, porte le digest
+`sha256:12bd66a6402e7a3987b866ac04c6a9a3a25958f066ac96b4b2d7e0f8ed8dec6f`.
+`wave24-backend-build-release.log` conserve ce digest ; les empreintes des
+**15 fichiers Python** de `wave24-image-source-comparison.json` correspondent
+au snapshot publié `9f432e3`. Pas d'overlay backend pendant suites ou
+navigateurs selon le parent : `wave24-container.sh` ne monte que les scripts
+et `frontend-app-sis/src/services/api.js` pour la collecte ; les serveurs
+navigateur ne montent que des settings synthétiques.
+
+Les suites intégrales **release**, sélection
+`python -m pytest --confcutdir=.. -p no:cacheprovider -o addopts= --tb=short -q apps ../sis_common/tests`,
+passent : `wave24-secondaire-full-release.log` **814 tests et 496 sous-tests,
+574,20 s** ; `wave24-superieur-full-release.log` **818 tests et 430 sous-tests,
+707,37 s**. Ne sommer ni variantes ni campagnes en tests uniques.
+Les deux `wave24-*-checks-release.log` attestent les checks sans erreur et
+les migrations sans dérive, **avec l'avertissement connu `guardian.W001`**.
+Guardian reconnaît le chemin exact du backend standard, pas son dérivé ;
+**ne pas ajouter le backend standard**, qui réaccorderait les droits filtrés.
+
+Le premier `wave24-secondaire-full-final.log`, sur l'image intermédiaire
+`91652…` selon le parent, reste **rouge : 1 échec, 813 tests et 496 sous-tests
+passés**, `FakeGroups` n'ayant pas de méthode `filter`. La correction concerne
+le **double de test**, pas un fallback en production ;
+`wave24-authorization-double.log` passe ensuite **15 tests**. L'adaptation et
+le formatage finaux du double sont inclus dans le commit et les nouvelles
+intégrales release vertes. Les anciens ciblages 76/135 et 77/135 sur `1b9…`,
+ainsi que les navigateurs antérieurs au filtrage des noms, restent
+intermédiaires selon le parent : ils ne sont pas les résultats finaux
+importés et leurs journaux ne sont pas réécrits.
+
+`wave24-group-lifecycle-ui-final.log` passe **31 tests du composant** ;
+`wave24-frontend-browser-build-final.log` compile avec **3 avertissements
+habituels de taille/performance**. ESLint, Black, isort et flake8 ciblés sont
+verts selon le parent, sans inventer de journal dédié ni de suite frontend
+intégrale. Les journaux `wave24-browser-groups-{secondaire,superieur}-release.log`
+et reçus des dossiers homonymes passent **deux cas par variante** sur
+l'image finale `12bd…`. Le premier reprend audit, copie, lots atomiques et
+refus apprenant. Le second connecte l'apprenant **avant** affectation :
+accès au compte voisin **200**, désactivation UI puis **404** avec permission
+et nom du groupe absents des capacités, réactivation UI puis **200** et
+permission/nom rétablis, dans la **même session**, sans retirer membres ni
+permissions. Les actions API sont réelles, sans réponses simulées.
+
+Les bases navigateur **synthétiques `sis_wave21_browser_*` sont réutilisées
+et migrées en 0006**, pas créées pour 24. API/passerelle24 arrêtées après
+qualification selon le parent ; PostgreSQL/Redis20 restent privés pour25.
+Ces faits ne constituent pas un déploiement partagé. Quinze artefacts sont
+hachés dans la matrice, en trois campagnes : backend release et historique
+rouge, UI/build, puis navigateurs finaux.
+
+**Limites conservées :** audit des API groupes seulement, pas audit universel
+ORM/admin ; appels directs aux backends/raccourcis natifs Guardian hors de
+ces contrôles non couverts. Les caches Django sont par instance : recharger
+l'utilisateur dans un traitement long ; les anciennes sessions enregistrant
+l'ancien backend nécessitent une reconnexion. Migrer **tous les schémas avant
+trafic** : aucun déploiement partiellement migré qualifié ; revenir à l'ancien
+code peut réaccorder les droits. Pas de nouvelle SSO/LMS réelle, qualification
+de tous menus/rôles, MFA/SoD, versionnement complet, dates de délégation,
+rôles métier, pilote, production ou réception institutionnelle. **94 statuts
+inchangés**, IAM en cours, F07 ouvert, F09/10.7 partiels, **pas 100 %**.
+Aucune qualification25 importée ; politiques, preuves22/23 et rouges
+historiques intacts, dont le dernier500 (**500 timeouts, 262 écritures
+indéterminées**). Aucun test ni service lancé pour cet import documentaire.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -1020,14 +1115,21 @@ absence soit masquée par un lot plus large. Elles conditionnent F30.
   scopes même vides ; tests API/UI ciblés qualifiés. `c8e2348` ajoute
   **un parcours navigateur réel par SIS** : création, copie sans membres,
   lots ajout/retrait, cible invalide 404 sans écriture partielle et apprenant
-  authentifié refusé 403. Multi-tenant, parents/enseignants, MFA/SoD,
-  versionnement et désactivation non exhaustifs ; **IAM reste en cours**.
+  authentifié refusé 403. Multi-tenant, parents/enseignants, MFA/SoD et
+  versionnement non exhaustifs ; **IAM reste en cours**.
   `5a90d45`/`e495418` ajoutent l'audit transactionnel du cycle de vie **API**
   et son historique filtré/paginé, avec contrôle d'accès, snapshots et
   différentiel ; le navigateur vérifie trois événements du groupe source
-  et le refus apprenant. L'historique persiste après suppression API, mais
-  la console ne propose ni suppression ni désactivation ; pas d'audit
-  Django admin hors API qualifié, ni preuve du lot 24.
+  et le refus apprenant. L'historique persiste après suppression API ; la
+  console ne propose pas de suppression. `9f432e3` ajoute la désactivation
+  réversible API/UI, sans retrait des membres/permissions, audit avant/après
+  et PATCH des seuls champs modifiés. Image finale `12bd…` : intégrales
+  814/496 et 818/430 vertes, 31 tests UI et deux parcours navigateur par SIS, dont
+  session déjà ouverte passant 200→404→200 avec retrait/rétablissement de
+  permission et nom du groupe. Warning `guardian.W001` documenté, anciennes
+  sessions à reconnecter, caches par instance et migration de tous les
+  schémas avant trafic ; pas d'audit ORM/Django admin universel ni de
+  versionnement optimiste complet, aucune qualification25 importée.
   **Les groupes ne sont pas des rôles métier** :
   le formulaire utilisateurs conserve ses rôles fixes.
   **Reste :** le cycle complet de rôle métier permettant à l'admin *habilité* d'un établissement
