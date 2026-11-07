@@ -46,7 +46,9 @@ export const workspaceKind = (capabilities) => {
 };
 
 export const canAccessModule = (item, capabilities) => Boolean(capabilities
-  && (!item.module || capabilities.modules?.[item.module] !== false) && (
+  && (!item.module || (item.module === 'sis.projects'
+    ? capabilities.modules?.[item.module] === true
+    : capabilities.modules?.[item.module] !== false)) && (
   item.public
   || hasCapability(capabilities, item.permission)
   || item.alternatePermissions?.some(permission => hasCapability(capabilities, permission))
@@ -235,6 +237,15 @@ const administrativeModules = (variant) => {
 export const getNavigation = (type, variant, capabilities, search = '') => {
   const kind = workspaceKind(capabilities);
   const personalItems = [];
+  if (capabilities?.modules?.['sis.projects'] === true) {
+    personalItems.push({
+      path: `/${variant}/projets`,
+      label: learnerRoles.includes(capabilities?.role) ? 'Mes projets' : 'Projets pédagogiques',
+      icon: Assignment,
+      public: true,
+      module: 'sis.projects',
+    });
+  }
   if (['eleve', 'etudiant', 'doctorant'].includes(capabilities?.role)
       || capabilities?.permissions?.some(permission => ['*', 'core.manage_accessdelegation'].includes(permission))) {
     personalItems.push({
@@ -339,7 +350,7 @@ export const getWorkspaceGroups = (sections, kind) => {
       id: 'documents', label: 'Mes documents', icon: Description, paths: ['documents'],
     },
     {
-      id: 'demarches', label: 'Mes démarches', icon: Assignment, paths: ['missions', 'reclamations'],
+      id: 'demarches', label: 'Mes démarches', icon: Assignment, paths: ['projets', 'missions', 'reclamations'],
     },
     {
       id: 'suivi', label: 'Notifications', icon: EventNote, paths: ['workflows'],
@@ -352,7 +363,7 @@ export const getWorkspaceGroups = (sections, kind) => {
       id: 'scolarite', label: 'Scolarité', icon: People, paths: ['eleves', 'etudiants', 'classes', 'formations', 'inscriptions', 'enseignants'],
     },
     {
-      id: 'pedagogie', label: 'Pédagogie', icon: Book, paths: ['portail-staff', 'evaluations', 'notes', 'examens', 'jurys', 'conseil-classe', 'emploi-du-temps', 'memoires', 'recherche'],
+      id: 'pedagogie', label: 'Pédagogie', icon: Book, paths: ['portail-staff', 'projets', 'evaluations', 'notes', 'examens', 'jurys', 'conseil-classe', 'emploi-du-temps', 'memoires', 'recherche'],
     },
     {
       id: 'vie', label: 'Vie de l’établissement', icon: Groups, paths: ['presences', 'discipline', 'cantine', 'transport', 'internat', 'infirmerie', 'clubs', 'bourses', 'stages', 'mobilite', 'bibliotheque', 'paiements'],

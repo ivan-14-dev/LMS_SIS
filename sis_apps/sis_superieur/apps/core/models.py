@@ -14,12 +14,49 @@ from sis_common.hierarchy_models import (
     attachment_constraint,
 )
 from sis_common.module_models import ModuleConfigurationBase
+from sis_common.project_models import (
+    PedagogicalProjectBase,
+    ProjectContributionBase,
+    ProjectDeliveryBase,
+    ProjectEvaluationBase,
+    ProjectMembershipBase,
+    ProjectMilestoneBase,
+    ProjectTeamBase,
+)
 from sis_common.signature_models import (
     ArchiveRevocationBase,
     DocumentArchiveBase,
     SignatureApprovalBase,
     SignatureMandateBase,
 )
+
+
+class PedagogicalProject(PedagogicalProjectBase):
+    etablissement = models.ForeignKey("etablissement.Universite", on_delete=models.PROTECT)
+
+
+class ProjectTeam(ProjectTeamBase):
+    pass
+
+
+class ProjectMembership(ProjectMembershipBase):
+    pass
+
+
+class ProjectMilestone(ProjectMilestoneBase):
+    pass
+
+
+class ProjectDelivery(ProjectDeliveryBase):
+    pass
+
+
+class ProjectEvaluation(ProjectEvaluationBase):
+    pass
+
+
+class ProjectContribution(ProjectContributionBase):
+    pass
 
 
 class SignatureApproval(SignatureApprovalBase):
@@ -64,9 +101,21 @@ class OrganizationAttachment(OrganizationAttachmentBase):
     activity = models.OneToOneField("emplois_du_temps.CreneauCours", null=True, blank=True, on_delete=models.PROTECT)
 
     class Meta:
-        constraints = [attachment_constraint((
-            "user", "book", "faculty", "department", "school", "track", "teaching_unit", "subject", "activity",
-        ))]
+        constraints = [
+            attachment_constraint(
+                (
+                    "user",
+                    "book",
+                    "faculty",
+                    "department",
+                    "school",
+                    "track",
+                    "teaching_unit",
+                    "subject",
+                    "activity",
+                )
+            )
+        ]
 
 
 class ConfigurationRevision(ConfigurationRevisionBase):

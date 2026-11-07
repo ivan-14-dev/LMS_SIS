@@ -42,6 +42,7 @@ import JurysPage from './superieur/jurys/JurysPage';
 import RelevesPage from './superieur/releves/RelevesPage';
 import WorkflowCenterPage from './workflow/WorkflowCenterPage';
 import ComplaintsPage from './workflow/ComplaintsPage';
+import ProjectsPage from './projects/ProjectsPage';
 import DocumentsPage from './documents/DocumentsPage';
 import AccessDelegationsPage from './workflow/AccessDelegationsPage';
 import SignaturesPage from './documents/SignaturesPage';
@@ -93,6 +94,7 @@ const App = () => (
 
           {/* ============ SIS SUPÉRIEUR ============ */}
           <Route path="/superieur" element={<SISLayout type="superieur" />}>
+            <Route path="projets" element={<ProjectsPage variant="superieur" />} />
             <Route path="signatures" element={<SignaturesPage variant="superieur" />} />
             <Route path="archives" element={<ArchivedDocuments variant="superieur" />} />
             <Route path="missions" element={<AccessDelegationsPage variant="superieur" />} />
@@ -165,6 +167,7 @@ const App = () => (
 
           {/* ============ SIS SECONDAIRE ============ */}
           <Route path="/secondaire" element={<SISLayout type="secondaire" />}>
+            <Route path="projets" element={<ProjectsPage variant="secondaire" />} />
             <Route path="signatures" element={<SignaturesPage variant="secondaire" />} />
             <Route path="archives" element={<ArchivedDocuments variant="secondaire" />} />
             <Route path="missions" element={<AccessDelegationsPage variant="secondaire" />} />

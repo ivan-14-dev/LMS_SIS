@@ -1,0 +1,256 @@
+const fs = require('fs');
+const { createHash } = require('crypto');
+const { test, expect } = require('@playwright/test');
+const { authenticatedApi, respectApiRateLimit } = require('./api');
+
+const mode = process.env.SIS_E2E_MODE || 'dual';
+if (!['dual', 'secondaire', 'superieur'].includes(mode)) { throw new Error('Invalid SIS_E2E_MODE.'); }
+const variants = mode === 'dual' ? ['secondaire', 'superieur'] : [mode];
+
+function loadFixture(variant) {
+  if (process.env.SIS_PROJECTS_E2E_ISOLATED !== '1'
+      || !process.env.SIS_PROJECTS_E2E_FIXTURE || !process.env.SIS_E2E_CREDENTIALS || !process.env.SIS_E2E_URL) {
+    throw new Error('Projects require SIS_PROJECTS_E2E_ISOLATED=1 and explicit fixture, credentials and URL.');
+  }
+  const origin = new URL(process.env.SIS_E2E_URL);
+  if (!['http:', 'https:'].includes(origin.protocol) || origin.hostname !== 'validation.localhost'
+      || Number(origin.port) <= 1024) {
+    throw new Error('Projects may mutate only a disposable validation.localhost stack on an explicit port above 1024.');
+  }
+  const config = JSON.parse(fs.readFileSync(process.env.SIS_PROJECTS_E2E_FIXTURE, 'utf8'));
+  const credentials = JSON.parse(fs.readFileSync(process.env.SIS_E2E_CREDENTIALS, 'utf8'));
+  const fixture = config.variants?.[variant];
+  if (config.isolated !== true || config.kind !== 'projects' || new URL(config.baseUrl).origin !== origin.origin
+      || !Array.isArray(fixture?.learnerUserIds) || fixture.learnerUserIds.length !== 2
+      || !fixture.learnerUserIds.every(id => Number.isInteger(id) && id > 0)
+      || new Set(fixture.learnerUserIds).size !== 2
+      || !Array.isArray(fixture.learnerUsernames) || fixture.learnerUsernames.length !== 2
+      || !fixture.learnerUsernames.every(name => typeof name === 'string' && name.trim())
+      || !credentials.username || !credentials.password) {
+    throw new Error('Invalid isolated project fixture or synthetic credentials.');
+  }
+  origin.hostname = `${variant}.validation.localhost`;
+  return { fixture, credentials, apiOrigin: origin.origin };
+}
+
+async function login(page, variant, username, password) {
+  await respectApiRateLimit(page);
+  await page.goto(`/${variant}`);
+  await page.getByRole('textbox', { name: 'Identifiant', exact: true }).fill(username);
+  await page.getByLabel(/^Mot de passe/).fill(password);
+  const [response] = await Promise.all([
+    page.waitForResponse(item => (
+      item.request().method() === 'POST' && new URL(item.url()).pathname === '/api/v1/auth/session/'
+    )),
+    page.getByRole('button', { name: 'Se connecter', exact: true }).click(),
+  ]);
+  expect(response.status()).toBe(200);
+  await expect(page.locator('.sis-layout')).toBeVisible();
+}
+
+async function choose(page, label, query, name) {
+  const field = page.getByRole('combobox', { name: label });
+  await field.fill(query);
+  await page.getByRole('option', { name, exact: true }).click();
+}
+
+async function submit(page, endpoint, status = 201, label = 'Enregistrer') {
+  const [result] = await Promise.all([
+    page.waitForResponse(item => (
+      item.request().method() === 'POST' && new URL(item.url()).pathname === `/api/v1/${endpoint}`
+    )),
+    page.getByRole('dialog').getByRole('button', { name: label, exact: true }).click(),
+  ]);
+  expect(result.status(), await result.text()).toBe(status);
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  return result.json();
+}
+
+function samplePdf() {
+  const stream = 'BT /F1 12 Tf 25 100 Td (Project acceptance sample) Tj ET';
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let document = '%PDF-1.4\n';
+  const offsets = [];
+  objects.forEach((object, index) => {
+    offsets.push(Buffer.byteLength(document));
+    document += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xref = Buffer.byteLength(document);
+  document += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  document += offsets.map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('');
+  document += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(document);
+}
+
+for (const variant of variants) {
+  test(`${variant}: private collective project, contributions, revocation and module restoration`, async ({
+    page, browser,
+  }, testInfo) => {
+    const { fixture, credentials, apiOrigin } = loadFixture(variant);
+    await login(page, variant, credentials.username, credentials.password);
+    const api = authenticatedApi(page, variant);
+    const modulesPath = 'etablissement/current/modules/';
+    const originalModules = await api(modulesPath);
+    const setEnabled = async enabled => {
+      const current = await api(modulesPath);
+      if (current.enabled['sis.projects'] !== enabled) {
+        await api(modulesPath, 'PATCH', {
+          revision: current.revision, enabled: { 'sis.projects': enabled }, reason: 'Isolated project acceptance',
+        });
+      }
+    };
+    const context = await browser.newContext({ baseURL: process.env.SIS_E2E_URL });
+    const otherContext = await browser.newContext({ baseURL: process.env.SIS_E2E_URL });
+    try {
+      await setEnabled(true);
+      const nonce = Date.now();
+      const extraUsername = `project-extra-${nonce}`;
+      await api('utilisateurs/comptes/', 'POST', {
+        username: extraUsername,
+        first_name: 'Projet',
+        last_name: `Partenaire ${nonce}`,
+        role: variant === 'secondaire' ? 'eleve' : 'etudiant',
+        password: credentials.password,
+        password_confirm: credentials.password,
+      });
+      const extraAccounts = await api(`utilisateurs/comptes/?search=${extraUsername}`);
+      const extra = extraAccounts.results.find(user => user.username === extraUsername);
+      expect(extra).toBeDefined();
+      const ownerCandidates = await api(`core/projets/candidats/?type=responsable&q=${encodeURIComponent(credentials.username)}`);
+      expect(ownerCandidates.results).toHaveLength(1);
+      const owner = ownerCandidates.results[0];
+      await page.goto(`/${variant}/projets`);
+      await page.getByRole('button', { name: 'Nouveau projet', exact: true }).click();
+      const title = `Projet collectif ${variant} ${nonce}`;
+      await page.getByLabel('Titre du projet').fill(title);
+      await page.getByLabel('Description', { exact: true }).fill('Dossier pédagogique privé de qualification.');
+      await choose(page, 'Responsable', credentials.username, owner.nom);
+      const project = await submit(page, 'core/projets/');
+      const projectPath = `core/projets/${project.id}/`;
+      await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+
+      await page.getByRole('button', { name: 'Nouveau jalon', exact: true }).click();
+      await page.getByLabel('Titre du jalon').fill('Rapport collectif');
+      await page.getByLabel(/^Ordre/).fill('1');
+      await page.getByLabel('Échéance (heure locale)').fill('2020-01-01T12:00');
+      await page.getByLabel(/^Barème/).fill('20');
+      const { jalon } = await submit(page, `${projectPath}jalons/`);
+      const members = await Promise.all(fixture.learnerUsernames.map(async (username, index) => {
+        const result = await api(`core/projets/candidats/?type=membre&projet=${project.id}&q=${encodeURIComponent(username)}`);
+        const member = result.results.find(user => user.id === fixture.learnerUserIds[index]);
+        expect(member).toBeDefined();
+        return { ...member, username };
+      }));
+      await page.getByRole('button', { name: 'Nouvelle équipe', exact: true }).click();
+      await page.getByLabel('Nom de l’équipe').fill('Équipe A');
+      await choose(page, 'Membres actifs', members[0].username, members[0].nom);
+      await choose(page, 'Membres actifs', extraUsername, extra.full_name);
+      const { equipe } = await submit(page, `${projectPath}equipes/`);
+      await page.getByRole('button', { name: 'Nouvelle équipe', exact: true }).click();
+      await page.getByLabel('Nom de l’équipe').fill('Équipe B');
+      await choose(page, 'Membres actifs', members[1].username, members[1].nom);
+      await submit(page, `${projectPath}equipes/`);
+      const teamPath = `${projectPath}equipes/${equipe.id}/`;
+      const learnerPage = await context.newPage();
+      const otherPage = await otherContext.newPage();
+      await login(learnerPage, variant, members[0].username, credentials.password);
+      await login(otherPage, variant, members[1].username, credentials.password);
+      await learnerPage.goto(`/${variant}/projets?projet=${project.id}`);
+      await expect(learnerPage.getByRole('heading', { name: title, exact: true })).toBeVisible();
+      await expect(learnerPage.getByRole('button', { name: 'Nouvelle équipe', exact: true })).toHaveCount(0);
+      await expect(learnerPage.getByRole('button', { name: 'Nouveau brouillon d’évaluation', exact: true })).toHaveCount(0);
+      const pdf = samplePdf();
+      const filename = `rapport-${variant}.pdf`;
+      await learnerPage.getByRole('button', { name: 'Déposer un PDF', exact: true }).click();
+      await learnerPage.getByLabel('Fichier PDF').setInputFiles({ name: filename, mimeType: 'application/pdf', buffer: pdf });
+      await learnerPage.getByLabel('Commentaire du dépôt').fill('Remise réelle du groupe.');
+      const { livrable } = await submit(learnerPage, `${teamPath}livrables/`);
+      expect(livrable.jalon).toBe(jalon.id);
+      expect(livrable.sha256).toBe(createHash('sha256').update(pdf).digest('hex'));
+      await expect(learnerPage.getByText('En retard', { exact: true })).toBeVisible();
+      const downloadEvent = learnerPage.waitForEvent('download');
+      await learnerPage.getByRole('button', { name: `Télécharger ${filename} (révision 1)`, exact: true }).click();
+      const downloaded = await downloadEvent;
+      expect(fs.readFileSync(await downloaded.path())).toEqual(pdf);
+      const fileUrl = `${apiOrigin}/api/v1/${teamPath}livrables/${livrable.id}/telecharger/`;
+      expect((await otherPage.request.get(fileUrl)).status()).toBe(404);
+      await otherPage.goto(`/${variant}/projets?projet=${project.id}`);
+      await expect(otherPage.getByRole('heading', { name: title, exact: true })).toBeVisible();
+      await expect(otherPage.getByText(filename, { exact: false })).toHaveCount(0);
+      await expect(otherPage.getByLabel('Équipe').locator('option')).toHaveText(['Équipe B']);
+
+      await page.getByRole('button', { name: 'Actualiser le projet', exact: true }).click();
+      await page.getByLabel('Équipe', { exact: true }).selectOption(equipe.id);
+      await page.getByRole('button', { name: 'Nouveau brouillon d’évaluation', exact: true }).click();
+      await page.getByLabel(/^Note du groupe/).fill('16');
+      await page.getByLabel('Commentaire du groupe').fill('Évaluation collective explicite.');
+      await page.getByLabel(`Note de ${members[0].nom}`).fill('17');
+      await page.getByLabel(`Contribution de ${members[0].nom}`).fill('Analyse personnelle publiée.');
+      await page.getByLabel(`Note de ${extra.full_name}`).fill('15');
+      await page.getByLabel(`Contribution de ${extra.full_name}`).fill('Commentaire confidentiel du partenaire.');
+      const { evaluation } = await submit(page, `${teamPath}evaluations/`);
+      expect(evaluation.statut).toBe('brouillon');
+      await learnerPage.getByRole('button', { name: 'Actualiser le projet', exact: true }).click();
+      await expect(learnerPage.getByText('Aucune évaluation accessible pour ce jalon.', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Publier cette évaluation', exact: true }).click();
+      const published = await submit(page, `${teamPath}evaluations/${evaluation.id}/publier/`, 200, 'Confirmer la publication');
+      expect(published.evaluation.statut).toBe('publiee');
+      await learnerPage.getByRole('button', { name: 'Actualiser le projet', exact: true }).click();
+      await expect(learnerPage.getByText('Note du groupe : 16.00 / 20.00', { exact: true })).toBeVisible();
+      await expect(learnerPage.getByText('Analyse personnelle publiée.', { exact: true })).toBeVisible();
+      await expect(learnerPage.getByText('Commentaire confidentiel du partenaire.', { exact: true })).toHaveCount(0);
+      expect((await otherPage.request.get(`${apiOrigin}/api/v1/${teamPath}evaluations/`)).status()).toBe(404);
+
+      await page.getByRole('button', { name: 'Remplacer les membres actifs', exact: true }).click();
+      await page.getByRole('dialog').getByRole('button', { name: members[0].nom, exact: true }).press('Delete');
+      await submit(page, `${teamPath}membres/`, 200);
+      expect((await learnerPage.request.get(fileUrl)).status()).toBe(404);
+      await learnerPage.reload();
+      await expect(learnerPage.getByText(/Accès aux projets refusé/)).toBeVisible();
+      await expect(learnerPage.getByText('Dossier pédagogique privé de qualification.', { exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Remplacer les membres actifs', exact: true }).click();
+      await choose(page, 'Membres actifs', members[0].username, members[0].nom);
+      await submit(page, `${teamPath}membres/`, 200);
+      await learnerPage.goto(`/${variant}/projets?projet=${project.id}`);
+      await expect(learnerPage.getByRole('heading', { name: title, exact: true })).toBeVisible();
+
+      await setEnabled(false);
+      expect((await learnerPage.request.get(fileUrl)).status()).toBe(403);
+      expect((await page.request.get(`${apiOrigin}/api/v1/core/projets/capacites/`)).status()).toBe(403);
+      await learnerPage.reload();
+      await expect(learnerPage.getByText(/module Projets pédagogiques est désactivé/)).toBeVisible();
+      await expect(learnerPage.getByText('Dossier pédagogique privé de qualification.', { exact: true })).toHaveCount(0);
+      await setEnabled(true);
+      await learnerPage.reload();
+      await expect(learnerPage.getByRole('heading', { name: title, exact: true })).toBeVisible();
+      const restored = await learnerPage.request.get(fileUrl);
+      expect(restored.status()).toBe(200);
+      expect(await restored.body()).toEqual(pdf);
+      await expect(learnerPage.getByText('Analyse personnelle publiée.', { exact: true })).toBeVisible();
+      fs.writeFileSync(testInfo.outputPath('project-receipt.json'), JSON.stringify({
+        isolated: true,
+        variant,
+        projectId: project.id,
+        teamId: equipe.id,
+        milestoneId: jalon.id,
+        deliveryId: livrable.id,
+        evaluationId: evaluation.id,
+        sha256: livrable.sha256,
+        learnerUserId: members[0].id,
+        extraUserId: extra.id,
+      }, null, 2));
+    } finally {
+      try {
+        await setEnabled(originalModules.enabled['sis.projects'] === true);
+      } finally {
+        await Promise.all([context.close(), otherContext.close()]);
+      }
+    }
+  });
+}

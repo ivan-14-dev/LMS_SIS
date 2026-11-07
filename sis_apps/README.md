@@ -201,6 +201,116 @@ cd /home/ivan/lms/openedx-platform/sis_apps/sis_superieur
 - Rate limit : 100 req/min/user
 - Multi-tenant automatique via sous-domaine
 
+### Projets pédagogiques (API des deux SIS)
+
+Le module optionnel `sis.projects` est **désactivé par défaut**. Son activation
+utilise `/api/v1/etablissement/current/modules/` (prévisualisation POST,
+application PATCH avec `revision`, `enabled: {"sis.projects": true}` et `reason`).
+La désactivation ferme toutes les routes ci-dessous, fichiers et capacités compris,
+sans effacer les données. Elle ne modifie aucune habilitation.
+
+Base : `/api/v1/core/projets/`. Les identifiants projet/équipe/jalon/livrable/évaluation
+sont des UUID ; les identifiants de comptes sont des entiers. Les collections GET
+utilisent `{count,next,previous,results}`, `page` et `page_size` (maximum 100).
+Les commandes refusent les champs inconnus, les relations imbriquées arbitraires,
+PUT, PATCH et DELETE. Aucune suppression de preuve ni remplacement de fichier.
+
+| Route relative | Méthode et corps |
+| --- | --- |
+| `/` | GET, filtres `q` (titre), `mode=individuel\|collectif` ; POST `{titre,description?,mode,responsable,evaluateurs?:[compteId]}` |
+| `{projet}/` | GET |
+| `capacites/` | GET → `{can_create,permissions}` |
+| `candidats/` | GET `?type=membre\|responsable\|evaluateur&q=terme[&projet=uuid\|&responsable=compteId]` → `{results:[{id,nom}]}` (20 maximum, recherche de 2 à 100 caractères) |
+| `{projet}/configurer/` | POST `{version,titre?,description?,responsable?,evaluateurs?:[compteId]}` ; mode non modifiable |
+| `{projet}/jalons/` | GET ; POST `{version,titre,consignes?,ordre,echeance,bareme}` |
+| `{projet}/equipes/` | GET ; POST `{version,nom,membres:[compteId]}` |
+| `{projet}/equipes/{equipe}/membres/` | POST `{version,membres:[compteId]}` (remplacement atomique des membres actifs) |
+| `{projet}/equipes/{equipe}/livrables/` | GET, filtre `jalon` ; POST **multipart** `version`, `jalon`, `fichier`, `commentaire?` |
+| `{projet}/equipes/{equipe}/livrables/{livrable}/telecharger/` | GET authentifié, réponse PDF privée sans cache |
+| `{projet}/equipes/{equipe}/evaluations/` | GET, filtre `jalon` ; POST `{version,jalon,note_groupe,commentaire,contributions?:[{membre,note,commentaire}]}` crée un brouillon |
+| `{projet}/equipes/{equipe}/evaluations/{evaluation}/publier/` | POST `{version}` |
+| `{projet}/historique/` | GET, historique administratif paginé avec `acteur`, `created_at`, `action`, `metadata` |
+
+Chaque réponse projet comprend `version` et
+`actions.{can_manage,can_submit,can_evaluate}`. Les équipes exposent ces mêmes
+capacités, leur liste `membres` actifs (`membre`, `nom`, `ajoute_par`, `created_at`)
+et leur `projet`. Les créations/configurations de projet renvoient le projet.
+Les autres mutations renvoient `{version,jalon|equipe|livrable|evaluation}` :
+mettre à jour la version locale après chaque réussite, ou recharger le projet
+après un conflit. Les jalons comprennent `ordre` (unique dans le projet),
+`echeance` (date/heure ISO 8601), `bareme` (décimal strictement positif, maximum
+10000) et leurs auteur/date. Ils sont communs à toutes les équipes et immuables.
+Une remise tardive reste possible et porte `en_retard: true`.
+
+Habilitations enregistrées : `core.gerer_projet_pedagogique` permet de créer et
+organiser dans le périmètre accordé ; `core.evaluer_projet_pedagogique` exige en
+plus d'être le responsable ou un évaluateur explicitement désigné. Être responsable,
+staff, super-admin de rôle hérité ou membre ne confère pas implicitement ces
+permissions. Les comptes apprenants ne peuvent pas administrer ou s'auto-évaluer.
+Le responsable délégué doit détenir la permission de gestion ; les évaluateurs
+doivent détenir celle d'évaluation. Les scopes ABAC reconnus sont `etablissement_id`
+(entiers), `projet_id` (UUID canoniques sous forme de chaînes) et `responsable_id`
+(entiers). Un scope inconnu ferme l'accès ; une permission scoped n'est jamais
+transformée en permission globale. La création est autorisée dans le contexte du
+responsable demandé : un enseignant avec `responsable_id: [son_id]` peut créer
+ses projets, sans obtenir de droit sur ceux de ses collègues. `can_create` indique
+qu'au moins un responsable actif, tenant-local et habilité peut être choisi dans
+ce périmètre. Un scope `projet_id` seul ne permet pas de créer un projet.
+
+Le sélecteur requiert la gestion du projet donné, sans exiger
+`utilisateurs.view_utilisateur`. Avant création, `type=responsable` renvoie les
+responsables éligibles dans le scope du demandeur, sans autre paramètre nécessaire.
+Pour `type=membre` ou `type=evaluateur`, transmettre `responsable=<compteId>` afin
+de vérifier le contexte du futur projet (par défaut : compte connecté). Les
+évaluateurs sont également filtrés sur ce responsable. Un responsable hors scope
+est refusé, pas remplacé par le compte connecté. `projet` et `responsable` sont
+mutuellement exclusifs : une fois le projet créé, utiliser uniquement `projet`.
+
+Un apprenant peut appartenir à **une seule équipe active par projet**. Un projet
+individuel peut avoir plusieurs équipes, chacune créée avec exactement une personne
+et limitée ensuite à une personne active. Une équipe vidée par retrait conserve ses
+preuves mais ne permet plus de dépôt ni de publication d'évaluation. Les appartenances
+retirées restent historisées ; le retrait coupe immédiatement les nouvelles requêtes
+d'accès. Un téléchargement déjà autorisé/en cours ne peut pas être rappelé.
+Les apprenants ne voient que leurs propres projets/équipes/livrables, les évaluations
+publiées de leur équipe, et uniquement leur propre contribution individuelle.
+L'historique administratif est réservé aux gestionnaires/évaluateurs habilités.
+
+Les livrables sont limités au PDF selon le validateur existant
+(`EXAM_COPY_MAX_SIZE`, 25 Mio par défaut, extension/type MIME/signature PDF).
+Cela ne constitue **pas** une analyse antivirus. Ils utilisent le stockage privé
+existant `PRIVATE_EXAM_STORAGE_ROOT`, sous `projets/<tenant>/<projet>/<équipe>/` :
+ce répertoire doit être persistant, sauvegardé et jamais exposé par le serveur web.
+La réponse ne contient ni chemin de stockage ni URL media ; elle contient
+`nom`, `taille`, `sha256`, `revision`, `depose_par`, `created_at`, `en_retard`.
+Chaque nouvelle remise crée une révision et conserve les fichiers précédents.
+Les contrôles de périmètre précèdent la lecture/validation du fichier.
+
+Chaque évaluation a `statut=brouillon|publiee`, `revision`, `bareme`,
+`evalue_par`, `created_at`, `publie_par`, `published_at`. Notes de groupe et
+individuelles sont comprises entre zéro et le barème explicite du jalon.
+Un brouillon peut être incomplet ; la publication humaine exige exactement tous
+les membres actuels et la dernière révision. Pour corriger, créer un nouveau
+brouillon ; les évaluations et contributions précédentes restent conservées.
+Les modifications d'appartenance, publications et audit partagent une transaction
+et un verrou de projet ; les versions périmées sont refusées.
+
+Erreurs : **400** champs, bornes ou comptes incompatibles ; **403** habilitation
+insuffisante/module désactivé ; **404** objet, équipe ou relation hors périmètre ;
+**409** version de projet périmée. L'API ne rattache pas encore les projets aux
+cours/classes/ECUE ni aux compétences. Ces évaluations pédagogiques ne sont
+**jamais des notes officielles SIS** : aucun transfert automatique, validation
+officielle ou synchronisation LMS n'est réalisé par ce module. Ces rattachements
+restent à réaliser pour compléter l'exigence 10.5.
+
+L'interface est disponible dans « Pédagogie → Projets pédagogiques »
+(`/secondaire/projets` ou `/superieur/projets`) après activation du module.
+Elle propose les commandes ci-dessus selon les capacités renvoyées par le serveur :
+organisation aux gestionnaires, dépôt privé aux membres et publication explicite
+aux évaluateurs habilités. Un conflit de version conserve les saisies et demande
+un rechargement puis une nouvelle confirmation ; aucune commande n'est rejouée
+automatiquement. L'historique administratif reste consultable par API.
+
 ## Conformité
 
 - **RGPD** : DPO, registre, droit à l'oubli, export.

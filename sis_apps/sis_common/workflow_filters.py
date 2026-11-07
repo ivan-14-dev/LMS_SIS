@@ -3,6 +3,7 @@
 from rest_framework import serializers
 
 PRIVATE_WORKFLOW_MODELS = [
+    "pedagogicalproject",
     "reclamation",
     "accessdelegation",
     "signatureapproval",

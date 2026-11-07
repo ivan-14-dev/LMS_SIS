@@ -54,6 +54,18 @@ MODULES = {
             events=("core.reclamation",),
         ),
         ModuleManifest(
+            "sis.projects",
+            "Projets pédagogiques",
+            "Équipes, jalons, livrables privés et évaluations humaines distinctes des notes officielles.",
+            False,
+            dependencies=("core.identity", "core.notifications"),
+            permissions=("core.gerer_projet_pedagogique", "core.evaluer_projet_pedagogique"),
+            api=("core/projets/",),
+            ui=("projets",),
+            events=("core.pedagogicalproject",),
+            default_enabled=False,
+        ),
+        ModuleManifest(
             "sis.delegations",
             "Missions et accès délégués",
             "Consultation de dossiers par mission explicite, datée et révocable, sans changement de rôle.",
