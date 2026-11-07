@@ -9,12 +9,12 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 20:05:28 UTC** :
-vagues 15 à 29 publiées et qualifiées dans leurs périmètres bornés ;
-**vague29 publiée en `0bb4766`, vérifié égal à `HEAD` et `origin/main` sur main**.
+**Dernier cutoff documentaire : 7 novembre 2026 à 20:57:43 UTC** :
+vagues 15 à 30 publiées et qualifiées dans leurs périmètres bornés ;
+**vague30 publiée en `bddabf7`, vérifié égal à `HEAD` et `origin/main` sur main**.
 Le passage autorisé de **10.5 d'absente à partielle** appartient à la
-vague25. **Aucun statut promu en vague29** :
-**1 vérifiée, 72 partielles, 19 absentes et 2 non vérifiées sur 94**.
+vague25. **Promotion30 explicitement autorisée : seule10.5, partielle→vérifiée** :
+**2 vérifiées, 71 partielles, 19 absentes et 2 non vérifiées sur 94**.
 Les 93 autres statuts et les chiffres historiques restent inchangés.
 Le blocage de qualification Studio a été levé
 vers 07:30 UTC : le correctif est publié, avec une preuve ciblée limitée
@@ -30,27 +30,25 @@ sont conservés. La vague28 ajoute des **objectifs compétences facultatifs** is
 exclusivement des offres déjà rattachées à la classe ou à la formation,
 avec instantanés privés et accès acteur/responsable opposables.
 **Objectifs sélectionnés ≠ acquisition**, sans notes officielles ou LMS distant induits.
-La vague29 ne change que **tests/harness**, pas produit, migrations ou UI produit :
-image **`ee2a9bc…`**,17 tests projets par SIS, cycle navigateur **individuel complet**
-désormais qualifié avec gestionnaire et évaluateur non staff distincts,
-deux révisions PDF privées et publication humaine. Cours26/collectif25 réellement
-rejoués29 : **trois cas par SIS**, six reçus HTTP après recréation.
-Les premiers rouges backend, fixture, navigateur et Jest sont conservés.
-Jest34/34 au timeout30 s après14 timeouts à5 s ; bundle28 inchangé réutilisé,
-**aucun nouveau build frontend ni intégrale29**.
-**10.5 reste partielle**, mais le parcours individuel n'est **plus manquant**.
-Les preuves fonctionnelles individuelles/collectives et les refus interéquipes
-en lecture **et** écriture sont désormais disponibles. Restent les conditions
-de la **règle commune préexistante**, pas de nouveaux critères métier :
-deux établissements réellement peuplés, restauration isolée et comparaison
-comptes/MFA/droits/données protégées. Un objet établissement sans création de
-schéma et un tenant navigateur par SIS ne prouvent pas deux établissements ;
-une recréation avec volume conservé ne prouve pas une restauration de sauvegarde.
+Les cycles individuels/collectifs et refus interéquipes en lecture **et**
+écriture sont prouvés25–29 ;29 conserve ses trois cas navigateur par SIS.
+La vague30 ne change que tests et guide de restauration, pas produit :
+image **`171bbb307…`**,20 tests ciblés par SIS (3 nouveaux vrais schémas A/B
+et17 régressions projets), sans intégrales30. **Aucun nouveau build, Jest ou
+parcours UI30** ; bundle28 et preuves UI25–29 conservés sans addition des compteurs.
+**10.5 est désormais vérifiée dans son périmètre déclaré** : les trois conditions
+de la **règle commune préexistante** sont démontrées30, après autorisation parent.
+Deux établissements réellement peuplés,64 contrôles HTTP par SIS avec IDs
+collisionnants, restauration indépendante `pg_dump`/`pg_restore` + archives de
+fichiers vers nouvelles bases/volumes, comparaison exhaustive avant HTTP,
+MFA actif/TOTP réel et recréation ultérieure comparée.
+Ce n'est ni un nouveau critère métier, ni une promotion d'un F-lot global.
 La source918 n'exige ni acquisition, ni notes officielles, ni provisioning LMS :
 ces travaux ouverts du programme ne deviennent **pas de nouvelles obligations
 de10.5**. Objectifs ≠ acquis reste une limite de portée du produit.
-La relecture29 de la règle commune précise son application à10.5 sans modifier
-les bilans27/28 : aucune réception prestataire/production n'est ajoutée à ses critères.
+Les bilans27–29 conservent leurs manques à leurs cutoffs, sans réécriture.
+Les trois conditions communes alors pendantes ont maintenant leurs preuves ;
+aucune réception prestataire/production n'est ajoutée aux critères10.5.
 Les concurrences exactes offre/sélection et affectation/rattachement ne sont
 pas qualifiées ; pas de jeton client de révision d'offre.
 **Le 100 % n'est pas atteint.**
@@ -1648,6 +1646,130 @@ Concurrences exactes offre/sélection et affectation/rattachement non qualifiée
 aucun lot30 ou ultérieur qualifié. Import documentaire sans test/service/agent,
 commit ou push.
 
+**Vague 30, publiée et qualifiée au cutoff du 7 novembre 2026 à
+20:57:43 UTC :** `bddabf7d23f5774f06f12aee9b948de7f2aa7809`, égal à
+`HEAD` et `origin/main` sur main propre avant import ; comparaison distante
+attestée parent. Commit horodaté20:51:10 UTC, provenance20:52:03 UTC,
+qualification parent20:54:14 UTC. **Seule10.5 passe de partielle à vérifiée,
+sur autorisation explicite du parent** :2 vérifiées,71 partielles,19 absentes,
+2 non vérifiées sur94. Les47 anciens updates, cutoffs, rouges, critères et
+les93 autres objets exigences sont intégralement conservés.
+
+La source918 et les critères10.5 restent projets individuels/collectifs,
+étapes, livrables et évaluations, avec refus interéquipes de **lecture ET écriture**
+des livrables privés. Les parcours propres25–29 sont conservés, non réattribués30.
+`wave30-parent-qualification.json`, lu en premier, confronte ces acquis aux
+**trois conditions communes préexistantes** de
+`RESTE_A_FAIRE_ET_VALIDATION.md@b898347:1517–1528`, désormais démontrées :
+deux établissements peuplés, restauration isolée base/fichiers, comparaison
+comptes/MFA/droits/données à travers migration, restauration et redémarrage.
+`common_closure_pending` est vide ; chaque condition possède une preuve de
+clôture explicite. **Pas de nouvelle obligation d'acquisition, notes officielles
+ou provisioning LMS**, ni nouvelle règle de recette.
+
+Code30 : un fichier de tests et le guide `BACKUP_RESTORE.md`, **aucun changement
+produit**. Image standard **`lms-sis:local-20261107-bddabf7`**, digest
+`sha256:171bbb3077963155a8970e655118137250904159375fcf3ecd8dab935f1c15e6`.
+`wave30-published-source-provenance.json` et
+`wave30-image-source-comparison.json` rapprochent **1500 Python commit/worktree/image** ;
+les1500 empreintes du commit et du principal sont revérifiées ici, sans runtime.
+Aucun overlay applicatif backend. `wave30-frontend-provenance.json` conserve
+171 sources/configurations et23 fichiers du bundle28 inchangés selon le parent ;
+170 entrées non-env et23 fichiers bundle revérifiés ici, env non lu.
+**Aucun build, Jest ou nouveau scénario navigateur UI30.**
+
+`wave30-{secondaire,superieur}-standard-recheck.log` : **20/20 chacun**,
+186,313 s /240,988 s : trois nouveaux scénarios à vrais schémas migrés/peuplés
+A/B et17 régressions projets. Contrôles Host, candidats, UUID, fichiers,
+commandes, module local et rejeu de session malgré IDs entiers collisionnants.
+Checks sans erreur, `guardian.W001` préexistant conservé, migrations sans dérive.
+Ce ne sont **pas des intégrales**, ni un total additionné aux tests20/29.
+Premier secondaire `wave30-secondaire-standard.log` : **20 exécutés,19 verts,
+1 erreur de harness en172,473 s**, image `750d68e…`. `SimpleCookie.copy`
+retournait un dict ; correction test `peer.cookies.update`, aucun bug produit.
+Première alerte Black sur helper parent conservée dans
+`wave30-parent-tools-style.log`, puis recheck vert. `wave30-final-static.log`
+montre neuf Python inchangés ; succès final Python/Node/shell attesté parent,
+sans inventer de sortie des outils silencieux.
+
+**Migration réelle0012** sur clones27, sources27/29 préservées : avant migration,
+nouveau compte synthétique sans droit métier, MFA réellement activé via
+`begin_enrollment`/`confirm_enrollment` et TOTP valide. Comparaison
+`wave30-migration-comparison.json` sur **147/159 tables** :
+seules différences attendues, colonne `competences_snapshot` avec valeurs nulles
+et ligne0012 dans les registres de migration ; autres colonnes/lignes SHA exacts.
+Les quatre fingerprints `wave30-migration-*-mfa-{before,after}.json`,
+reçus d'activation `wave30-migration-mfa-*.json`, vérifications `*-after.json`
+et logs d'application concordent. MFA actif chiffré et vrai TOTP toujours
+utilisable après migration, pas un simple booléen vide.
+
+**Préparation A/B** : `wave30-source-fixture-{secondaire,superieur}.json`
+et `wave30-source-preparation-comparison-recheck.json` attestent A préexistant
+inchangé, B réellement migré, gestionnaire/évaluateur/deux apprenants non staff
+aux IDs entiers collisionnants, MFA actif chiffré sans droit, PDF privé neuf.
+Seules nouvelles lignes publiques de tenant/domain ; registre
+`Etablissement` secondaire /`Universite` supérieur. Pas de note officielle
+ou outbox ajoutée. Les fichiers préexistants hors journaux opérationnels sont
+préservés ; journal `logs/sis.log` évolue légitimement pendant la préparation.
+La première comparaison parent supposait le mauvais nom de table de registre :
+`wave30-source-preparation-comparison.json` est **vide, pas une preuve verte** ;
+comparateur corrigé sans retoucher fixture/DB, recheck vert.
+
+**Vraie restauration indépendante**, pas une copie `template` de la base source :
+`wave30-backup-restore.sh/.log` exécutent `pg_dump --format=custom` et `tar`,
+puis `pg_restore` dans de nouvelles `sis_wave30_browser_*` et extraction dans
+de nouveaux volumes `sis-wave30-browser-data-*-d0c25c75`.
+`wave30-independent-restore-comparison.json` et fingerprints source/restauration
+comparent **AVANT HTTP toutes les287/312 tables et9/8 fichiers** :
+contenus, tailles, uid/gid et modes, **racine comprise**, identiques.
+Aucune exclusion de table/ligne pour la restauration ; les exclusions techniques
+de comparaison0012 ne lui sont pas appliquées. **Timestamps non comparés**.
+Les archives restent privées (`wave30-private-backups`, répertoire0700,
+fichiers0600) ; seuls hashes/métadonnées du rapport sont référencés :
+**aucune archive, credential, clé ou valeur secrète brute lue ou copiée ici**.
+MFA/TOTP réellement utilisable après restauration, reçu `wave30-browser-mfa-*`.
+
+**HTTP natif sur ces restaurations** : `wave30-tenant-*-persistence.json`,
+**64 contrôles par SIS**, quatre sessions gestionnaire/apprenant A/B,
+rejeu cookieA→B refusé malgré IDs collisionnants, candidats et UUID/fichiers/
+écritures croisés refusés. POST409 natif prouve le passage de la garde de version.
+PDF positifs vérifiés par SHA ; snapshots/historiques inchangés après refus.
+Huit reçus HTTP au total avec les six régressions individuels29/cours26/collectif25
+effectivement rejouées sur les restaurations. Scripts29/26/25 inchangés par hash.
+Les six reçus historiques ont les mêmes valeurs et octets que29, et le champ
+`afterRestart=true` est un **label hérité** : ni ce label ni leur hash seul ne
+prouvent la nouvelle cible. Les attestations parent et quatre
+`wave30-*-{before,after}-restart-runtime.json` rattachent les requêtes à
+l'image30, aux bases/volumes restaurés indépendants, sans montage applicatif,
+avec bundle28 en lecture seule. **HTTP seul ne prouve pas l'identité de la DB.**
+
+**Recréation réelle ensuite**, IDs de conteneurs différents :
+`wave30-*-restart-comparison.json` et fingerprints avant/après database/volume/MFA
+prouvent **287/312 tables et32/29 entrées de volume exactement conservées**,
+MFA actif et TOTP réel avant/après. Fingerprints DB/MFA en
+`REPEATABLE READ READ ONLY`, pas de valeurs brutes publiées.
+Pendant les requêtes positives précédentes, huit tables seulement par SIS
+ont changé : `axes_accesslog`, `django_session`, `utilisateurs_utilisateur`
+et `core_workflowevent` dans A et B ; **279/304 autres tables** inchangées,
+notamment droits/notes/outbox. Les connexions et téléchargements ont de vrais
+effets de session/audit : **ne pas prétendre qu'aucune écriture n'a eu lieu**.
+Le checker30 ne réussit aucune commande de mutation projet ; succès métier
+couverts par préparation, tests backend durables et UI réelles antérieures.
+Tous les contrôles HTTP sont verts, pas429 ni modification de throttle.
+
+**78 artefacts utiles lus puis hachés**, dont le premier fichier de comparaison
+vide explicitement non probant, cinq campagnes documentaires supplémentaires :
+**182 campagnes non sommées**,25 exigences avec preuves.
+Qualification locale synthétique, pas pilote ou production ; servicesAPI/nginx30
+arrêtés/supprimés selon parent, PG/Redis privés gardés.
+Authentification/MFA via code de service de production et HTTP réel, **pas
+nouvelle UI d'enrôlement MFA**. Aucun antivirus ou timestamp qualifié,
+concurrences adjacentes offre/sélection/affectation non exhaustives déjà documentées,
+sans inventer de nouvelle condition10.5. Objectifs ≠ acquis ; autres exigences
+et F-lots restent ouverts,100 % non atteint, aucun lot31 qualifié.
+Charge500 non relancée, dernier rouge **500 timeouts/262 écritures indéterminées**
+inchangé. Cet import n'a lancé aucun runtime/Docker/agent ni commit/push.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -1958,7 +2080,7 @@ leurs limites ; elles ne sont pas comprises dans les 21 absentes/non vérifiées
 | 9.1 Super Admin — absent | Console plateforme gère deux établissements et abonnements sans accorder d'accès métier aux dossiers des tenants. |
 | 10.1 Mobile — absent | Installation Android **et** iOS, tâches apprenant/enseignant/parent réelles ; session/appareil révoqué ne révèle plus les données privées. |
 | 10.2 Hors ligne — absent | Cours téléchargé sous droit, travail préparé hors réseau puis synchronisé une fois ; conflit et accès révoqué/expiré bloquent les données privées. |
-| 10.5 Projets — partiels | Créer des projets individuels/collectifs avec équipes, jalons, livrables et évaluations du groupe/contributions ; refuser à une autre équipe la lecture **et** la modification des livrables privés. Acquis25–28 conservés, objectifs facultatifs/snapshots privés sans acquisition induite. `0bb4766` qualifie désormais le cycle INDIVIDUEL complet : équipes d'un membre, jalon, deux PDF privés/SHA, gestionnaire et évaluateur non staff distincts, brouillon confidentiel/publication humaine/contribution propre, GET/POST autre équipe404. Collectif et cours réellement rejoués29, trois cas par SIS, six reçus HTTP après recréation. Plus de lacune fonctionnelle identifiée sur ces parcours ; restent les conditions de la règle commune préexistante (`b898347:1517–1528`) : deux établissements effectivement peuplés, restauration isolée base/fichiers, comparaison comptes/MFA/droits/données. Objet établissement sans schéma ≠ deuxième établissement peuplé ; recréation API sur volume conservé ≠ restauration de sauvegarde. Acquisition/notes officielles/LMS distant ne sont pas de nouvelles obligations10.5. Concurrences exactes offre/sélection et affectation/rattachement non qualifiées, pas de jeton client de révision d'offre. Statut partiel inchangé, aucun lot30 qualifié. |
+| 10.5 Projets — vérifiée dans le périmètre déclaré | Créer des projets individuels/collectifs avec équipes, jalons, livrables et évaluations du groupe/contributions ; refuser à une autre équipe la lecture **et** la modification des livrables privés. Critères propres prouvés25–29, dont cycle individuel complet et évaluateur distinct ; preuves UI conservées sans nouvelle UI30. `bddabf7` démontre les trois conditions communes préexistantes (`b898347:1517–1528`) : deux schémas A/B réellement peuplés, restauration indépendante base/fichiers, comparaison comptes/MFA/droits/données à travers migration/restauration/recréation.20 tests ciblés et64 contrôles HTTP par SIS ;287/312 tables,9/8 fichiers comparés exactement avant HTTP, MFA actif/TOTP réel, effets session/audit explicites. Promotion30 partial→verified autorisée pour10.5 seule,93 autres exigences inchangées. Acquisition/notes officielles/LMS distant ne sont pas ajoutés aux critères ; objectifs≠acquis, concurrences adjacentes non exhaustives, pas pilote/production/F-lot global clos ni100 %. |
 | 10.7 Recherche globale — partielle | Preuves de recherche au cutoff vague 18 : apprenants, factures, vrais cours et évaluations SIS reliées au LMS dans les deux SIS, documents sources universitaires et bulletins scolaires `BUL-<id>` ; palette/fiches sans cache partagé, parcours staff et apprenant qualifiés sur fixtures, facture d'autrui absente de la recherche et détail 404 sans numéro. Restent catalogue LMS natif exhaustif et parcours parents/enseignants/multi-tenant/révocations exhaustifs ; la garde Studio ciblée de vague 19 ne clôt pas la recherche, aucun statut promu. |
 | 10.9 Portail public — absent | Formations publiées, actualités et procédure consultables sans connexion ; candidature démarrée, brouillons et dossiers privés inaccessibles. |
 | 10.10 Signature — non vérifiée | Habilitation approuvée par tiers, signature, archive et notification ; auto-approbation, mandat révoqué et document altéré refusés. |
