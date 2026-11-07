@@ -27,7 +27,12 @@ const AcademicSearch = ({ variant, resources, onNavigate }) => {
         component="form"
         onSubmit={event => {
           event.preventDefault();
-          if (valid) { setSubmitted(term); setPage(1); }
+          if (valid) {
+            if (submitted === term && page === 1) { request.retry(); } else {
+              setSubmitted(term);
+              setPage(1);
+            }
+          }
         }}
       >
         <Stack spacing={2}>

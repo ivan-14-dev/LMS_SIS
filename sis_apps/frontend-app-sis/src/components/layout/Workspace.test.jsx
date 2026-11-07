@@ -625,6 +625,39 @@ describe('authorized record search', () => {
     expect(await screen.findByText('Aucun dossier autorisé ne correspond.')).toBeVisible();
   });
 
+  it.each(['updated', 'revoked'])('refreshes an unchanged search and discards its %s results', async outcome => {
+    let settle;
+    fetchApi.mockReset()
+      .mockResolvedValueOnce({ count: 1, results: [{ id: 17, code: 'REF-17', nom: 'Ancien dossier' }] })
+      .mockImplementationOnce(() => new Promise((resolve, reject) => {
+        settle = () => {
+          if (outcome === 'revoked') {
+            reject(Object.assign(new Error('Permission revoked'), { response: { status: 403 } }));
+          } else {
+            resolve({ count: 1, results: [{ id: 18, code: 'REF-18', nom: 'Dossier actualisé' }] });
+          }
+        };
+      }));
+    render(palette());
+    await openRecords();
+    submit();
+    expect(await screen.findByText('Ancien dossier')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Rechercher les dossiers' }));
+    await waitFor(() => expect(fetchApi).toHaveBeenCalledTimes(2));
+    expect(fetchApi.mock.calls[1][0]).toBe(fetchApi.mock.calls[0][0]);
+    expect(screen.queryByText('Ancien dossier')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    await act(async () => settle());
+    if (outcome === 'revoked') {
+      expect(await screen.findByRole('alert')).toHaveTextContent('Accès refusé (403)');
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    } else {
+      expect(await screen.findByRole('link', { name: 'Dossier actualisé REF-18' }))
+        .toHaveAttribute('href', '/secondaire/eleves/18');
+    }
+    expect(screen.queryByText('Ancien dossier')).not.toBeInTheDocument();
+  });
+
   it('discards records and in-flight responses when context or capabilities change', async () => {
     let resolve;
     fetchApi.mockResolvedValueOnce({ count: 1, results: [{ id: 1, code: 'REF', nom: 'Ancien dossier' }] })
