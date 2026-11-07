@@ -9,11 +9,11 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 18:25:28 UTC** :
-vagues 15 à 27 publiées et qualifiées dans leurs périmètres bornés ;
-**vague27 publiée en `a0ddbaa`, vérifié égal à `HEAD` et `origin/main` sur main**.
+**Dernier cutoff documentaire : 7 novembre 2026 à 19:20:43 UTC** :
+vagues 15 à 28 publiées et qualifiées dans leurs périmètres bornés ;
+**vague28 publiée en `8cf8002`, vérifié égal à `HEAD` et `origin/main` sur main**.
 Le passage autorisé de **10.5 d'absente à partielle** appartient à la
-vague25. **Aucun statut promu en vague27** :
+vague25. **Aucun statut promu en vague28** :
 **1 vérifiée, 72 partielles, 19 absentes et 2 non vérifiées sur 94**.
 Les 93 autres statuts et les chiffres historiques restent inchangés.
 Le blocage de qualification Studio a été levé
@@ -25,19 +25,26 @@ des groupes sans retirer membres ou permissions, avec suites backend
 intégrales sur l'image reconstruite du commit publié, 31 tests UI et deux parcours
 navigateur par SIS, dont révocation/rétablissement dans une même session.
 IAM reste en cours, sans recette exhaustive multi-tenant, tous menus/rôles,
-MFA/SoD ou versionnement. Le lien local cours26 est désormais accessible
-aux **enseignants non staff réellement affectés**, dans le périmètre projets27 :
-permission cours explicite, profil réel, affectations et scopes opposables,
-intersection gestionnaire/responsable ; frontière administrative staff inchangée.
-Image **`cefe061…`** : secondaire48 tests/1 skip/26 sous-tests, supérieur49/29 ;
-régressions portails/intégration séparées28/8 et27/8. Un parcours enseignant
-et deux parcours projets par SIS passent ; six reçus HTTP après recréation.
-**Aucune intégrale27, aucun nouveau Jest/build frontend27** : bundle26 réutilisé
-avec sources UI/manifests inchangés ; les intégrales25 restent uniquement25 BASE.
-**10.5 reste partielle** : compétences, notes officielles, opérations LMS
-distantes, recette institutionnelle multirôles et restauration globale restent ouvertes.
-Le parcours enseignant non staff n'est plus totalement manquant, sans être
-une qualification complète IAM, portail enseignant ou réception d'établissement.
+MFA/SoD ou versionnement. Les acquis projets25/cours26/enseignants non staff27
+sont conservés. La vague28 ajoute des **objectifs compétences facultatifs** issus
+exclusivement des offres déjà rattachées à la classe ou à la formation,
+avec instantanés privés et accès acteur/responsable opposables.
+**Objectifs sélectionnés ≠ acquisition**, sans notes officielles ou LMS distant induits.
+Image **`c789651…`** : secondaire87 tests/1 skip/26 sous-tests, supérieur88/29 ;
+40 tests UI sur deux suites, build final28 vert avec trois avertissements.
+Les deux régressions UI initialement rouges et les incidents de recréation restent
+consignés. **Cinq parcours réellement rejoués par SIS**, dix reçus HTTP après
+recréation ; aucune intégrale28 ni somme dédupliquée des campagnes.
+**10.5 reste partielle** : aucun parcours navigateur **INDIVIDUEL complet**
+n'est livré/qualifié à ce cutoff. L'API individuelle couvre surtout cohérence
+et refus ; seuls les collectifs disposent de parcours complets qualifiés.
+La source918 n'exige ni acquisition, ni notes officielles, ni provisioning LMS :
+ces travaux ouverts du programme ne deviennent **pas de nouvelles obligations
+de10.5**. Objectifs ≠ acquis reste une limite de portée du produit.
+Recette institutionnelle multirôles et restauration globale relèvent des autres
+travaux de qualification du programme, pas de critères ajoutés silencieusement.
+Les concurrences exactes offre/sélection et affectation/rattachement ne sont
+pas qualifiées ; pas de jeton client de révision d'offre.
 **Le 100 % n'est pas atteint.**
 Les bilans datés antérieurs conservent leurs cutoffs, blocages et rouges.
 
@@ -1356,6 +1363,155 @@ rouges ; pas de déploiement partagé/pilote, aucun lot28 qualifié,100 % non at
 Historiques/cutoffs26 et antérieurs intacts ; aucun test/service/commit/push/agent
 pour cet import documentaire.
 
+**Vague 28, publiée et qualifiée au cutoff du 7 novembre 2026 à
+19:20:43 UTC :** `8cf8002bfa9b9192f8d1bd222c35041a60075dcd`, vérifié égal
+à `HEAD` et `origin/main` sur le principal propre avant import, commit horodaté
+19:17:54 UTC ; provenance publiée capturée à19:18:05 UTC.
+**Les45 anciens updates, leurs cutoffs, les94 IDs/statuts et critères sont
+intacts : 1 vérifiée,72 partielles,19 absentes,2 non vérifiées.**
+Seul le périmètre courant10.5 est enrichi, aucun statut ni F-lot clos.
+
+**Clarification de portée après relecture :** la source originale
+`paste-1793818759374.txt:918` porte sur les projets individuels/collectifs,
+leurs étapes, livrables et évaluations. `required_behaviors` et
+`acceptance_checks` sont inchangés. **La lacune identifiée pour10.5 est
+l'absence de parcours navigateur INDIVIDUEL complet livré/qualifié au cutoff** :
+l'API individuelle couvre surtout cohérence/refus, seuls les collectifs ont
+des parcours complets qualifiés. Acquisition, notes officielles et
+provisioning/synchronisation LMS restent hors de ce périmètre obligatoire ;
+leur non-réalisation dans le programme n'ajoute aucune nouvelle condition
+à10.5. Les limites de concurrence et de qualification institutionnelle
+ci-dessous ne sont pas non plus de nouveaux critères d'acceptation.
+
+Les **compétences visées sont des objectifs facultatifs, pas des acquis**.
+Leur source exclusive est `classe.offre_configuration` au secondaire et
+`formation.offre_configuration` au supérieur, **pas la maquette**, ni un
+catalogue courant de substitution. Le sélecteur paginé exige droits projets
+et cours, intersection acteur/responsable, scopes et affectations non staff27.
+Les modes `numeric`, `pass_fail` ou offre absente donnent une liste vide
+explicite ; une offre corrompue donne400, sans repli sur un autre catalogue.
+
+Le contrat accepte **0 à100 codes uniques** : omission conserve en configuration,
+`[]` retire ; `null`, types/codes/labels client invalides donnent400 sans mutation
+ni audit de succès. Migration `0012_project_competencies` des deux SIS :
+snapshot privé, libellés choisis conservés à l'usage et dans les preuves historiques.
+La projection publique est uniquement `null`, `{disponible:false}` ou
+`{version:1,disponible:true,criteria}` ; **jamais `_offre` ou `_contexte`**.
+Perte d'accès ou déplacement académique masque codes/libellés, y compris
+l'historique, sans réécrire les anciennes preuves.
+
+Changement de cours/responsable/offre revalidé, retrait explicite possible même
+si la source est corrompue. Une nouvelle sélection capture l'offre courante
+sous verrou de source ; **aucun jeton client de révision d'offre**.
+Ne pas assimiler ces verrous/revalidations à une qualification de concurrence
+offre/sélection ou d'édition d'affectation contre rattachement. L'UI bloque
+la confirmation pendant chargement/pagination/erreur, conserve les choix pour
+réessayer, distingue retrait explicite et nouvelle sélection ;409 conserve le
+brouillon et exige rechargement puis nouvelle confirmation, sans rejeu automatique.
+
+Image standard **`lms-sis:local-20261107-8cf8002`**, digest
+`sha256:c789651e2582c850a01ef8613f928fffbb4ef19bdbcb5ae7a520e475cbc72436`.
+`wave28-published-source-provenance.json` rapproche **huit Python
+committés/source/image**, vérifiés ici au commit publié. Dockerfile standard,
+aucun overlay applicatif backend pour les campagnes finales ; navigateurs
+avec seul settings synthétique monté en plus du volume privé. Les correctifs
+ultérieurs du sélecteur ont modifié seulement l'UI, pas ces Python.
+
+`wave28-secondaire-standard.log` : **87 passés,1 skip,26 sous-tests en143,09 s** ;
+`wave28-superieur-standard.log` : **88 passés/29 sous-tests en163,83 s**.
+Sélection projets/cours/compétences/modules/registre/profils, **pas intégrales28**.
+Le skip secondaire reste spécifique au contrat UE/ECUE supérieur.
+Checks sans erreur, migrations sans dérive, **avertissement `guardian.W001` connu**
+conservé ; ne pas ajouter les backends standards pour le masquer.
+Les logs de migration des fixtures confirment0012 dans les deux SIS.
+
+Qualité Python finale verte selon le parent ; `wave28-python-quality-final.log`
+montre Black «8 fichiers inchangés», sans inventer de sortie des outils silencieux.
+`wave28-eslint-final.log` est **vide** : succès attesté par le parent, pas preuve
+autonome de code de sortie. Le lint ciblé du sélecteur enregistre explicitement0.
+`wave28-projects-ui-parent.log` passe **40/40 sur deux suites en251,676 s** :
+34 projets et6 navigation, avec dépréciations connues.
+Les **deux régressions UI initialement rouges** sont préservées dans
+`wave28-ui-selector-regression-before-20261107-1946.log`
+(2 échecs,32 ignorés sur34,80,558 s) : chargement/400 et pagination/erreur
+ne devaient pas autoriser une confirmation ni perdre les choix.
+Après correction UI, `wave28-ui-selector-jest-after-20261107-1946.log`
+passe **34/34 en202,102 s**, puis la campagne parent40/40 ci-dessus.
+Ce34 recouvre les40 : **ne pas les sommer**, ni transformer le premier rouge en vert.
+`wave28-frontend-browser-build.log` est le **bundle final28**, vert avec
+**3 avertissements en78,185 s**, utilisé par tous les navigateurs28 selon le parent.
+
+Les nouveaux `wave28-browser-competencies-{secondaire,superieur}.log`
+passent **2/2 chacun** :54,1 s/50,9 s au secondaire,54,5 s/51,1 s au supérieur.
+Parcours admin : sélectionA/B, source numérique vide, omission sans codes,
+409 sans relance automatique puis confirmation, historiqueA conservé,
+code inconnu400 et retrait de cours incompatible400 sans mutation,
+retrait explicite puis rétablissementA avec équipe conservée.
+Parcours enseignant28 non staff : créationA, apprenant masqué, vraie suppression
+et restauration d'affectation par admin HTTP dans la **même session** ;
+compétences/historique masqués, modification400, jalon autonome encore possible,
+administration LMS403. Aucune réponse réseau simulée.
+
+Régressions **réellement rejouées sur28** : `wave28-browser-projects-*`
+**2/2 par SIS** (cours26 et collectif privé25), `wave28-browser-teachers-*`
+**1/1 par SIS** (enseignants27), soit **cinq cas par SIS** avec les deux nouveaux.
+Les six répertoires contiennent **dix reçus navigateur** et six `.last-run.json`
+verts : **aucun rouge navigateur28**. Les logs projets, aux durées arrondies,
+ont les mêmes octets que27 ; leur hash seul ne distingue pas les exécutions.
+Les nouveaux IDs de projets/reçus, les captures d'image et l'attestation parent
+les rattachent à28, sans réattribuer les anciennes preuves25–27.
+
+Quatre `wave28-{secondaire,superieur}-{before,after}-restart.json` :
+IDs réellement différents, même image et mêmes montages/volumes28 par variante.
+**Dix reçus HTTP après recréation** sont rapprochés aux dix reçus navigateur :
+projets/version/cours/objectifs/équipes, masquage apprenant, absence d'empreintes
+internes, refus admin LMS pour enseignants ; anciens scénarios PDF au même SHA,
+évaluation publiée et contribution propre préservés.
+Le checker `wave28-competency-after-restart.cjs` est nouveau ; les scripts27
+enseignant,26 cours,25 projets sont **inchangés**, empreintes précédentes confirmées.
+Pour le collectif secondaire, **seul**
+`wave28-projects-secondaire-persistence-recheck.json` est le reçu vert final.
+
+**Incidents de harness préservés**, sans correctif produit :
+`wave28-restart-harness-incidents.json` et
+`wave28-api-secondaire-restart.log` gardent le mauvais point d'entrée
+`wave15_browser_settings:application`, sortie Gunicorn4.
+Correction vers `config.wsgi:application`, recheck API conservé.
+Le cinquième checker secondaire reçoit429 après dix logins (throttle10/min) :
+**`wave28-projects-secondaire-persistence.json` vide n'est pas une preuve verte**.
+Attente61 s puis checker inchangé réussi ; son log de recheck est vide également,
+la preuve positive est le JSON final et les GET authentifiés. La trace API
+conserve429 puis les requêtes de reprise et l'arrêt normal.
+Au supérieur, pauses61 s explicites selon le parent, sans changer throttle/cache.
+Ces incidents ne constituent ni défaut produit déduit, ni qualification de charge.
+
+Fixtures : DB/volumes28 clonés de27 **au repos selon le parent**, migration0012,
+cours locaux4/5/6 (A/B compétences,N numérique), nouvel enseignant28 non staff.
+Script et reçus attestent anciens comptes/cours/affectations et preuves
+officielles/LMS/projets/audit inchangés pendant la préparation ; les IDs
+d'affectations27 sont actualisés dans le JSON de fixture depuis les reçus27
+avant les nouveaux parcours. Aucun fichier credentials/env lu ou dupliqué ici.
+Ancien backend secondaire arrêté explicitement, code137 sans diagnostic OOM ;
+APIs recréées Gunicorn arrêtées normalement, API/nginx28 arrêtés après
+qualification selon le parent ; PostgreSQL/Redis privés conservés.
+
+**63 artefacts immuables utiles lus puis hachés**, dont trois fichiers vides
+explicitement non probants seuls, répartis en cinq campagnes documentaires.
+**10.5 reste partielle**, avec interdiction de **lecture ET écriture des
+livrables privés d'une autre équipe** intacte. Manque propre à la preuve10.5 :
+**parcours navigateur individuel complet**, non livré/qualifié au cutoff
+(API individuelle surtout cohérence/refus ; collectifs complets seuls).
+Objectifs ≠ acquisition ; notes officielles et LMS distant restent non réalisés,
+mais **ne sont pas de nouvelles obligations ajoutées à10.5**. Acquisition,
+intégrations officielles/LMS, réception multirôles/institutionnelle et restauration
+globale restent des travaux des autres F-lots du programme. Les concurrences
+exactes non qualifiées restent des limites des preuves, pas des critères ajoutés.
+Pas de services partagés, pilote prestataire ou production ; dernier500
+toujours rouge : **500 timeouts,262 écritures indéterminées**.
+IAM/F07/F09 restent ouverts, aucun F-lot clos,100 % non atteint.
+Cet import documentaire n'a lancé aucun test/service/agent/broadcast,
+ni commit/push ; aucun lot29 ou ultérieur qualifié.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -1666,7 +1822,7 @@ leurs limites ; elles ne sont pas comprises dans les 21 absentes/non vérifiées
 | 9.1 Super Admin — absent | Console plateforme gère deux établissements et abonnements sans accorder d'accès métier aux dossiers des tenants. |
 | 10.1 Mobile — absent | Installation Android **et** iOS, tâches apprenant/enseignant/parent réelles ; session/appareil révoqué ne révèle plus les données privées. |
 | 10.2 Hors ligne — absent | Cours téléchargé sous droit, travail préparé hors réseau puis synchronisé une fois ; conflit et accès révoqué/expiré bloquent les données privées. |
-| 10.5 Projets — partiels | Créer des projets individuels/collectifs avec équipes, jalons, livrables et évaluations du groupe/contributions ; refuser à une autre équipe la lecture **et** la modification des livrables privés. Acquis25/26 conservés ; `a0ddbaa` qualifie le rattachement local par enseignant non staff réellement affecté, permission cours/projets et scopes, intersection acteur/responsable, retrait/rétablissement dans la même session, historique masqué et persistance bornée. Frontière staff administrative inchangée, aucun provisioning/inscription/note officielle induit. Restent compétences, notes officielles, LMS distant réel, recette multirôles/institutionnelle et restauration globale ; concurrence affectation/rattachement non qualifiée, exigence non vérifiée. |
+| 10.5 Projets — partiels | Créer des projets individuels/collectifs avec équipes, jalons, livrables et évaluations du groupe/contributions ; refuser à une autre équipe la lecture **et** la modification des livrables privés. Acquis25–27 conservés ; `8cf8002` ajoute les objectifs compétences facultatifs de l'offre déjà liée à la classe/formation, sélection stricte et paginée, snapshot privé/historique et masquage, brouillons protégés/409 confirmé, cinq parcours navigateur par SIS et persistance bornée. Lacune de preuve10.5 : aucun parcours navigateur INDIVIDUEL complet livré/qualifié au cutoff ; API individuelle surtout cohérence/refus, collectifs complets seuls. Objectifs ≠ acquisition ; acquisition/notes officielles/LMS distant restent des travaux du programme, pas de nouvelles obligations de10.5. Concurrences offre/sélection et affectation/rattachement non qualifiées, sans jeton client de révision d'offre : limites de preuve, pas critères ajoutés. Statut partiel inchangé. |
 | 10.7 Recherche globale — partielle | Preuves de recherche au cutoff vague 18 : apprenants, factures, vrais cours et évaluations SIS reliées au LMS dans les deux SIS, documents sources universitaires et bulletins scolaires `BUL-<id>` ; palette/fiches sans cache partagé, parcours staff et apprenant qualifiés sur fixtures, facture d'autrui absente de la recherche et détail 404 sans numéro. Restent catalogue LMS natif exhaustif et parcours parents/enseignants/multi-tenant/révocations exhaustifs ; la garde Studio ciblée de vague 19 ne clôt pas la recherche, aucun statut promu. |
 | 10.9 Portail public — absent | Formations publiées, actualités et procédure consultables sans connexion ; candidature démarrée, brouillons et dossiers privés inaccessibles. |
 | 10.10 Signature — non vérifiée | Habilitation approuvée par tiers, signature, archive et notification ; auto-approbation, mandat révoqué et document altéré refusés. |
