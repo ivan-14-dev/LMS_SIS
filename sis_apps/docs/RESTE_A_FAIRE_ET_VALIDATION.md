@@ -9,12 +9,14 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 06:53:19 UTC**, vagues
-15/16/17/18 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
+**Dernier cutoff documentaire : 7 novembre 2026 à 08:12:15 UTC**, vagues
+15 à 19 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
 État officiel inchangé : **1 vérifiée, 71 partielles, 20 absentes et
-2 non vérifiées sur 94**. Les deux anciens fichiers Studio examinés
-séparément restent **non qualifiés et non publiés**, sans preuve revendiquée
-ici. Les bilans datés antérieurs conservent leurs cutoffs et attentes historiques.
+2 non vérifiées sur 94**. Le blocage de qualification Studio a été levé
+vers 07:30 UTC : le correctif est publié, avec une preuve ciblée limitée
+décrite en vague 19, **sans clôture de F07**. Le batch groupes de vague 20
+est **en cours, non qualifié**, sans preuve revendiquée. Les bilans datés
+antérieurs conservent leurs cutoffs, blocages et rapports rouges historiques.
 
 **État historique au 5 novembre :** 5 tâches en cours, 31 à démarrer, 3 bloquées ; 170 tâches
 terminées dans la TODO, mais seulement **1 exigence vérifiée sur 94**
@@ -591,6 +593,64 @@ Le rapport de session `wave18-cms-qualification-d0c25c75/report.json`
 (SHA-256 `2a0171010d4725fdb52a983de1edd9ea7b8fce039c016be0103350945c19b752`)
 conserve commandes, erreurs et limites. F07 n'est pas clôturé.
 
+**Dix-neuvième vague, qualification débloquée vers 07:30 UTC et consignée
+au cutoff du 7 novembre 2026 à 08:12:15 UTC :** les commits `56c3b33`
+(garde de reprise Studio) et `63949d1` (copie de groupe) sont publiés dans
+`origin/main`. Le blocage daté de 07:00:50 ci-dessus reste historique,
+pas l'état courant des deux fichiers Studio.
+
+La qualification CMS utilise l'image native de base
+`lms-sis-openedx:local-20261105-access-ownership2`, **MySQL 8.4.11 et
+MongoDB 7.0.39 jetables**, sur réseau interne sans ports publiés ni services
+partagés selon le parent. L'ajout d'un vrai MongoDB permet les migrations
+CMS complètes : **1 188 migrations appliquées**. Le premier passage exécute
+12 tests avec **2 erreurs de fixture d'assets** ; le second conserve
+**2 erreurs d'URL MFE**. Les fixtures sont corrigées vers les vrais assets
+de l'image (`/openedx/staticfiles/studio/webpack-stats.json`) et une
+`COURSE_AUTHORING_MICROFRONTEND_URL` localhost, sans changer le produit
+pour contourner ces erreurs ni simuler une réponse 500.
+`wave19-courses-recheck2.log` passe ensuite **12/12**.
+
+Sur les mêmes services, le code publié avant la garde échoue exactement
+sur **`200 != 403`** dans `wave19-courses-baseline.log` ; le cas candidat
+seul repasse dans `wave19-courses-regression-final.log`. `56c3b33` publie
+deux lignes de garde, 17 lignes de test et la documentation opérateur
+`DEPLOIEMENT_INTEGRATIONS.md` ; flake8, isort et Black ciblés sont verts
+selon le parent. `wave19-sql-state.log` conserve les comptes **1 188
+migrations, 0 binding et 0 utilisateur de service de test retenus**.
+`wave19-course-lock-statements.log` contient **51 `GET_LOCK` et 51
+`RELEASE_LOCK` de cours effectivement appelés en SQL** : cumul de plusieurs
+passages, **pas preuve de concurrence**, ni 51 cours ou scénarios uniques.
+
+Ces tests CMS utilisent `force_authenticate` et simulent le modulestore,
+`create_new_course`, `resume_initialization` et les droits d'auteur Studio.
+MongoDB est réel pour la fixture/migration, **mais aucune création réelle
+de cours MongoDB ni révocation Studio native de bout en bout n'est prouvée**.
+Il n'y a **ni nouvelle image LMS ni déploiement**. Les deux conteneurs
+natifs ont été arrêtés par le parent ; vérification du réseau vide et
+nettoyage restent en suivi, sans affirmer leur achèvement. Les journaux
+et le rapport initial sont conservés dans
+`files/wave18-cms-qualification-d0c25c75`. **F07 reste ouvert**.
+
+`63949d1` ajoute à la console existante une copie des permissions d'un
+groupe lisible en **brouillon éditable**, enregistrée via le POST existant,
+sans copier les membres ni modifier la source. L'habilitation
+`auth.add_group` non scopée est requise ; une liste de permissions absente
+du serveur interdit la copie. `wave19-group-duplication.log` passe
+**16 tests InstitutionalGroupsEditor, dont 4 nouveaux** ; il s'agit de
+tests UI avec services simulés, pas d'un parcours navigateur de clonage.
+ESLint ne relève aucun diagnostic sur les deux fichiers selon le parent.
+`wave19-frontend-build.log` compile avec **3 avertissements de taille/performance**.
+Aucune nouvelle capacité backend ni cycle de rôle métier n'est déduit.
+
+Les dix artefacts référencés, dont le rapport historique, sont hachés dans
+la matrice ; les contrôles qualité sans journal dédié restent attribués
+au parent. Aucun test ou service n'est relancé pour cet import. Aucun
+déploiement partagé, pilote ou réception externe/humaine ; les **94 statuts
+restent inchangés**, F09 et 10.7 partiels. Le dernier essai à 500 reste
+rouge (**500 timeouts, 262 écritures indéterminées**). **Vague 20 groupes
+en cours, non qualifiée : aucune preuve importée ici.**
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -788,10 +848,14 @@ ci-dessus ; ces cinq tâches sont suivies séparément pour éviter que leur
 absence soit masquée par un lot plus large. Elles conditionnent F30.
 
 - [ ] **Admin : créer et attribuer des rôles et permissions**
-  (`iam-role-authoring`, F02/F03/F05). L'API possède déjà des groupes Django
-  et un catalogue de permissions en lecture, mais le formulaire utilisateurs
-  présente des rôles fixes et aucune console d'édition des rôles n'est
-  proposée. **Reste :** permettre à l'admin *habilité* d'un établissement
+  (`iam-role-authoring`, F02/F03/F05). L'API possède des groupes Django et
+  un catalogue de permissions ; une console de création, édition et
+  affectation des groupes existe, avec copie en brouillon éditable ajoutée
+  par `63949d1` (16 tests UI, dont 4 nouveaux). Elle ne copie pas les membres
+  et ne modifie pas le groupe source ; aucun parcours navigateur de clonage
+  n'est encore qualifié. **Les groupes ne sont pas des rôles métier** :
+  le formulaire utilisateurs conserve ses rôles fixes.
+  **Reste :** le cycle complet de rôle métier permettant à l'admin *habilité* d'un établissement
   de créer, cloner, modifier, désactiver et attribuer un rôle à plusieurs
   utilisateurs, de choisir ses permissions par action/ressource dans le
   registre et de publier une permission métier nouvelle seulement après
@@ -877,7 +941,7 @@ plus nettes sont détaillées ici, avec les identifiants **du cahier initial**
 | 10.1 Mobile — absent | Installation Android **et** iOS, tâches apprenant/enseignant/parent réelles ; session/appareil révoqué ne révèle plus les données privées. |
 | 10.2 Hors ligne — absent | Cours téléchargé sous droit, travail préparé hors réseau puis synchronisé une fois ; conflit et accès révoqué/expiré bloquent les données privées. |
 | 10.5 Projets — absents | Équipe, jalons, livrables et évaluations individuelles/collectives ; autre équipe interdite en lecture et écriture. |
-| 10.7 Recherche globale — partielle | Au cutoff vague 18 : apprenants, factures, vrais cours et évaluations SIS reliées au LMS dans les deux SIS, documents sources universitaires et bulletins scolaires `BUL-<id>` ; palette/fiches sans cache partagé, parcours staff et apprenant qualifiés sur fixtures, facture d'autrui absente de la recherche et détail 404 sans numéro. Restent catalogue LMS natif exhaustif et parcours parents/enseignants/multi-tenant/révocations exhaustifs ; aucun statut promu, aucun acquis déduit du chantier Studio non qualifié/non publié. |
+| 10.7 Recherche globale — partielle | Preuves de recherche au cutoff vague 18 : apprenants, factures, vrais cours et évaluations SIS reliées au LMS dans les deux SIS, documents sources universitaires et bulletins scolaires `BUL-<id>` ; palette/fiches sans cache partagé, parcours staff et apprenant qualifiés sur fixtures, facture d'autrui absente de la recherche et détail 404 sans numéro. Restent catalogue LMS natif exhaustif et parcours parents/enseignants/multi-tenant/révocations exhaustifs ; la garde Studio ciblée de vague 19 ne clôt pas la recherche, aucun statut promu. |
 | 10.9 Portail public — absent | Formations publiées, actualités et procédure consultables sans connexion ; candidature démarrée, brouillons et dossiers privés inaccessibles. |
 | 10.10 Signature — non vérifiée | Habilitation approuvée par tiers, signature, archive et notification ; auto-approbation, mandat révoqué et document altéré refusés. |
 | 11 Cycle candidat → alumni — non vérifié | Neuf étapes 11.1–11.9 sur un identifiant continu ; refus/doublons/clôtures/coupures et restauration isolée contrôlés, versions et preuves navigateur/API/BD conservées. |

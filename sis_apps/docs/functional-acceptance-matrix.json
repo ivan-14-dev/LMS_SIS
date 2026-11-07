@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-07T06:53:19+00:00",
+  "last_evidence_update_at": "2026-11-07T08:12:15+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -3086,22 +3086,105 @@
         }
       ],
       "qualification_limits": ["Statuts officiels inchangés :1verified,71partial,20absent,2unverified sur94;F09 et10.7 restent partiels.", "Catalogue LMS natif exhaustif et parcours navigateur parents/enseignants/multi-tenant non exhaustifs;aucune image18 reconstruite ni suite complète18.", "Deux anciens fichiers Studio examinés séparément par un autre agent mais NON QUALIFIÉS/NON PUBLIÉS;aucune preuve déduite de ce chantier.", "Aucun déploiement partagé,pilote ou réception humaine. Cutoffs et preuves précédentes intacts,dernier500 rouge500timeouts/262écritures indéterminées inchangé."]
+    },
+    {
+      "id": "EXEC-20261107-wave19-native-guard-and-group-copy-qualification",
+      "evidence_cutoff_at": "2026-11-07T08:12:15+00:00",
+      "scope": "Vague19 publiée : garde de reprise de cours Studio après perte de droits et duplication UI d'un groupe de permissions lisible. Blocage CMS levé vers07:30UTC selon le parent;preuves ciblées uniquement,F07 non clos.",
+      "provenance": "Journaux existants lus/hachés,comptes SQL rapprochés,commits56c3b33/63949d1 vérifiés dans origin/main et sources de tests inspectées. Horloge hôte pour le cutoff documentaire;fenêtre de résolution vers07:30UTC rapportée par le parent. Aucun test,build,lint,backend,Docker ou sondage de service lancé ici.",
+      "count_policy": "12tests CMS après deux passages de12tests chacun avec2erreurs de fixture;baseline1cas et recheck1cas se recouvrent avec cette suite.51GET_LOCK+51RELEASE_LOCK sont des appels cumulés sur plusieurs runs,ni51cours/scénarios uniques ni preuve de concurrence.16tests UI incluent4nouveaux,pas20tests.",
+      "published_commits": ["56c3b33", "63949d1"],
+      "historical_state_before_resolution": {
+        "as_of": "2026-11-07T07:00:50+00:00",
+        "studio_pending_unqualified": "Deux anciens fichiers Studio inchangés,NON QUALIFIÉS et NON PUBLIÉS. Deux approches isolées échouent avant exécution :migrations CMS exigent MongoDB absent de la fixture;synchronisation sans migrations dépasse la longueur MySQL de l'index oel_tagging_tag.lineage.12tests détectés,0exécuté,aucun verrou consultatif qualifié. Conteneurs/volume/réseau/dossier temporaires supprimés,services partagés intacts. Rapport de session wave18-cms-qualification-d0c25c75/report.json SHA256:2a0171010d4725fdb52a983de1edd9ea7b8fce039c016be0103350945c19b752. F07 reste ouvert;les cutoffs précédents conservent leur état historique.",
+        "artifact_refs": ["historical-blocker-report"],
+        "policy": "État historique conservé tel quel,non état courant. Le nouveau MongoDB permet les migrations complètes;ni rapport bloqué ni premiers rouges ne sont réécrits."
+      },
+      "qualification_environment": {
+        "native_base_image": "lms-sis-openedx:local-20261105-access-ownership2",
+        "mysql_version_reported_by_parent": "8.4.11",
+        "mongodb_version_reported_by_parent": "7.0.39",
+        "network_reported_by_parent": "disposable_internal_no_published_ports_no_shared_services",
+        "new_lms_image_built": false,
+        "shared_deployment": false,
+        "cms_authentication": "force_authenticate",
+        "mocked_course_dependencies": ["modulestore", "create_new_course", "resume_initialization", "has_studio_write_access"],
+        "real_mongodb_course_creation_proven": false,
+        "real_native_studio_revocation_proven": false,
+        "native_containers_stopped": "two_containers_attested_by_parent",
+        "network_empty_verification_and_cleanup": "follow_up_in_progress_not_claimed_complete",
+        "limits": "Vrais services MySQL/MongoDB pour la fixture CMS et migrations;les opérations de cours/droits simulées ne deviennent pas un parcours natif de bout en bout. Aucune réception externe."
+      },
+      "f_lot_links": [
+        {"id": "F07", "scope": "Reprise de cours interrompu refusée après perte des droits selon tests CMS bornés;F07 reste ouvert,pas nouvelle livraison LMS.", "roadmap_status_unchanged": true},
+        {"id": "F02", "scope": "Console groupes existante et copie de permissions en brouillon testée;pas cycle complet de rôle métier.", "roadmap_status_unchanged": true},
+        {"id": "F05", "scope": "Garde de droits Studio et habilitation de copie auth.add_group non scopée;pas qualification exhaustive IAM/MFA/SoD.", "roadmap_status_unchanged": true}
+      ],
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "historical-blocker-report": {"path": "wave18-cms-qualification-d0c25c75/report.json", "sha256": "2a0171010d4725fdb52a983de1edd9ea7b8fce039c016be0103350945c19b752", "source_lines": [1, 87]},
+        "cms-first-assets-errors": {"path": "wave18-cms-qualification-d0c25c75/wave19-courses-full-migrations.log", "sha256": "14d73c398e8ca8aa64de7b924ef20ec89c51aef0680448d97beef76c6ff46d8d", "source_lines": [1, 88536], "result_lines": [88532, 88534]},
+        "cms-second-mfe-errors": {"path": "wave18-cms-qualification-d0c25c75/wave19-courses-recheck.log", "sha256": "00c76652a7a1c8a40ce7c65b0f897affd38eec6c6e26eb391023da380076c306", "source_lines": [1, 62667], "result_lines": [62655, 62657]},
+        "cms-suite-final": {"path": "wave18-cms-qualification-d0c25c75/wave19-courses-recheck2.log", "sha256": "68df5770d031be925d6dcd92448bcbb307063e6dc0b55a6956161e53f4fd3f8c", "source_lines": [1, 264], "result_lines": [252, 254]},
+        "cms-baseline-red": {"path": "wave18-cms-qualification-d0c25c75/wave19-courses-baseline.log", "sha256": "d3ce3085b5e446fdbcf8ac44787b3fb6f9552195ff1558068cf693496ab2f02d", "source_lines": [1, 153], "result_lines": [138, 141, 143]},
+        "cms-guard-final": {"path": "wave18-cms-qualification-d0c25c75/wave19-courses-regression-final.log", "sha256": "7ca9fd68ce52d1a808b6e930c1f0c9161c232734efab33b2b54e361798cd53ef", "source_lines": [1, 146], "result_lines": [134, 136]},
+        "cms-sql-state": {"path": "wave18-cms-qualification-d0c25c75/wave19-sql-state.log", "sha256": "583dc221f664b8cc01105451b03770c44f0fd7ad4bfc4ac7df2f509226cc90f6", "source_lines": [1, 4]},
+        "course-lock-statements": {"path": "wave18-cms-qualification-d0c25c75/wave19-course-lock-statements.log", "sha256": "66fe18bf9e67d0dd18f8c6630936796de8576cd2eae2163a9387dcb9994f6c94", "source_lines": [1, 102]},
+        "group-duplication": {"path": "wave19-group-duplication.log", "sha256": "e9d9ead0f444e18cca6eb990415ec6711a39eba64788c143bcaa3034f4104685", "source_lines": [1, 15]},
+        "frontend-build": {"path": "wave19-frontend-build.log", "sha256": "1e4ff841a31eae18051fb6363a0bf5bf2f91066f1e1c8b5ba1f41a2d512411f1", "source_lines": [1, 68]}
+      },
+      "campaigns": [
+        {
+          "id": "wave19-native-cms-fixture-and-suite",
+          "result": "twelve_cms_tests_passed_after_two_fixture_error_runs_not_native_end_to_end",
+          "artifact_refs": ["historical-blocker-report", "cms-first-assets-errors", "cms-second-mfe-errors", "cms-suite-final", "cms-sql-state", "course-lock-statements"],
+          "counts": {"cms_tests_passed_final": 12, "first_run_tests_executed": 12, "first_run_errors": 2, "second_run_tests_executed": 12, "second_run_errors": 2, "applied_migrations": 1188, "retained_test_bindings": 0, "retained_test_service_users": 0, "course_get_lock_statements": 51, "course_release_lock_statements": 51},
+          "verification": "Ajout d'un vrai MongoDB à la fixture MySQL :migrations CMS complètes possibles. Premier passage12tests/2erreurs assets,deuxième12tests/2erreurs URLMFE;fixtures ajustées aux assets baked /openedx/staticfiles/studio/webpack-stats.json et COURSE_AUTHORING_MICROFRONTEND_URL localhost,sans changement produit ni réponse500 simulée. Recheck2 :12/12verts. SQLstate1188/0/0 et51GET_LOCK+51RELEASE_LOCK de cours réellement appelés,comptes rapprochés de l'attestation parent.",
+          "limits": "Force_authenticate et opérations de cours/droits simulées;ni création MongoDB réelle de cours ni vraie révocation Studio native démontrées. Les102appels SQL cumulent plusieurs runs,ne prouvent ni concurrence ni102scénarios. Rapports initiaux rouges conservés;pas nouvelle image LMS ni déploiement."
+        },
+        {
+          "id": "wave19-interrupted-course-baseline-and-guard",
+          "result": "published_baseline_200_instead_of_403_reproduced_candidate_case_passed",
+          "commit": "56c3b33",
+          "artifact_refs": ["cms-baseline-red", "cms-guard-final", "cms-suite-final"],
+          "source_refs": ["sis_apps/deploy/openedx/sis-provisioning/sis_provisioning/course_views.py", "sis_apps/deploy/openedx/sis-provisioning/sis_provisioning/test_courses.py", "sis_apps/docs/DEPLOIEMENT_INTEGRATIONS.md"],
+          "counts": {"baseline_tests_failed": 1, "candidate_targeted_tests_passed": 1, "guard_lines_added": 2, "regression_test_lines_added": 17},
+          "verification": "Même fixture/services :code publié avant garde échoue exactement AssertionError:200!=403. Candidat vérifie has_studio_write_access avant resume_initialization d'un binding interrompu;recheck du seul cas vert,pas reprise ni update_item lorsque les droits simulés sont retirés. Correctif,test et documentation opérateur publiés.",
+          "quality_checks": {"flake8": "passed_targeted_parent_attestation", "isort": "passed_targeted_parent_attestation", "black": "passed_targeted_parent_attestation", "scope": "Fichiers concernés;aucun journal dédié fourni pour ces contrôles."},
+          "limits": "Cas inclus dans les12tests CMS,non additionné comme couverture unique. Droits/initialisation/modulestore simulés,pas preuve native de révocation ni livraison de l'image;F07 reste ouvert."
+        },
+        {
+          "id": "wave19-permission-group-duplication-ui",
+          "result": "editable_readable_permission_group_copy_ui_tests_and_build_passed",
+          "commit": "63949d1",
+          "artifact_refs": ["group-duplication", "frontend-build"],
+          "source_refs": ["sis_apps/frontend-app-sis/src/admin/utilisateurs/InstitutionalGroupsEditor.jsx", "sis_apps/frontend-app-sis/src/admin/utilisateurs/InstitutionalGroupsEditor.test.jsx"],
+          "counts": {"ui_tests_passed": 16, "new_ui_tests_included": 4, "ui_suites_passed": 1, "build_warnings": 3},
+          "verification": "Console groupes préexistante création/édition/affectation,avec copie en brouillon éditable des permissions lisibles viaPOSTexistant. Membres non copiés,source non modifiée;auth.add_group non scopé requis,liste de permissions manquante refusée.16tests InstitutionalGroupsEditor verts dont4nouveaux,build vert avec3warnings taille/performance.",
+          "targeted_eslint": {"files": 2, "diagnostics": 0, "evidence_origin": "Attestation précise du parent;aucun journal dédié fourni."},
+          "limits": "Tests UI/services simulés,pas navigateur de clonage ni nouvelle capacité backend. Groupes de permissions distincts des rôles métier;désactivation/versionnement,MFA/SoD et cycle complet de rôle métier restent ouverts. Aucune preuve du batchgroupes20 en cours."
+        }
+      ],
+      "qualification_limits": ["94statuts inchangés :1verified,71partial,20absent,2unverified;F07 non clos,F09 et10.7 partiels.", "Ancien blocage Studio07:00:50 et rouges intermédiaires conservés;ils ne décrivent plus le résultat ciblé publié de56c3b33.", "Aucune nouvelle image LMS,déploiement partagé,pilote ou réception externe/humaine;deux conteneurs natifs arrêtés selon parent,réseau vide/nettoyage en suivi.", "Dernier500 rouge500timeouts/262écritures indéterminées inchangé. Vague20 batchgroupes EN COURS NON QUALIFIÉE,sans preuve revendiquée."]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-07T07:00:50+00:00",
+    "as_of": "2026-11-07T08:12:15+00:00",
     "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
     "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
     "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
     "wave18_qualification_reference": {"update_id": "EXEC-20261107-wave18-published-learner-search-qualification", "campaign_ids": ["wave18-school-mapped-evaluation-search", "wave18-search-ui-and-build", "wave18-staff-and-learner-search-browser"]},
+    "wave19_qualification_reference": {"update_id": "EXEC-20261107-wave19-native-guard-and-group-copy-qualification", "campaign_ids": ["wave19-native-cms-fixture-and-suite", "wave19-interrupted-course-baseline-and-guard", "wave19-permission-group-duplication-ui"]},
     "wave15_bounded_sis_qualification": "35ef40c,d9ca357,c1eac39,06b55e8 publiés dans origin/main; image backend local-20261107-06b55e8@sha256:956bf0382d5b42b527080d27c937ca6b5622dfda4c22881a87aa99b5cae7f917 sans montage de code applicatif backend :762tests/305sous-tests secondaire et781/300 supérieur verts,check et migrations sans dérive. Chauffeurs protégés/anti-chevauchement, migrations sous propriétaireDB non superutilisateur selon parent; queryset de factures scolaires verrouillable corrigé. Aucun déploiement partagé.",
     "lms_grade_review_bounded": "F09 partiel : proposition obligatoire avant approbation/rejet nominatif audité.11tests par variante dont concurrence réelle200/409,1note/1audit; snapshot période/année et événement retenu plus récent opposables. Navigateur réel sur fixtures loopback des deux SIS, webhook signé synthétique traité en Celery eager, note absente avant approbation,rejet motivé,onglet obsolète409,rejeu,non-écrasement. Pas de vrai LMS natif ni réception humaine institutionnelle; boucle permissions EvaluationsManager corrigée par refetchOnMount:false.",
     "wave16_bounded_frontend_qualification": "ae86edd publié dans origin/main : palette métier/fiches sans cache partagé. Premier Jest400passés/2timeouts sur402tests,34suites passées/2échouées sur36; seulement2cas relancés avec20s passent,78ignorés. Pas de suite complète entièrement verte revendiquée. Lint0erreur/8warnings,build-r2 vert avec3warnings taille/performance. Navigateurs de recherche élèves/étudiants,factures25pagination20+5 et attestation universitaire passent sur fixtures loopback.",
     "global_search_bounded": "10.7 reste partial :apprenants,factures,vrais cours et évaluations SIS reliées au LMS des deux variantes,documents sources universitaires,bulletins scolaires BUL-<id>;palette/fiches et parcours staff/apprenant bornés qualifiés. Vague18 ajoute evaluations_lms secondaire avec permission/queryset natif/Personnel,cohérences académiques,tenant/scopes/mappings actifs. Catalogue LMS natif exhaustif et parcours parents/enseignants/multi-tenant/révocations exhaustifs restent ouverts;les mappings SIS ne couvrent pas tout le catalogue natif.",
     "wave17_bounded_search_qualification": "1be9eaa,bae0bd4,f24fd4f désormais publiés dans origin/main. Backend17 monté RO sur image06b55e8 :premier secondaire85tests/73sous-tests verts et1échec429 de fixture,cache isolé uniquement en tests puis10/19verts;pas de relance intégrale verte. Supérieur70/25verts. Workspace75tests seul fichier à20s,lint0erreur/8warnings,build3warnings. Deux parcours navigateur réels sans réponse réseau simulée,cours/bulletin/évaluation mappée;API/passerelles arrêtées ensuite selon parent. Pas d'image17 reconstruite ni suite complète17.",
     "wave18_bounded_search_qualification": "9ff9752 publié dans origin/main. Recherche evaluations_lms secondaire qualifiée69tests/87sous-tests(core+intégrationAPI+protectionsnotesLMS);UI37verts/42non sélectionnés sur79,build3warnings. Lint ciblé0erreur/0warning et Black/isort/flake8 API/testssecondaires verts selon parent,sans journal dédié. Deux parcours staff+apprenant par SIS sur vraie base de fixture,sans réponse réseau simulée :facture personnelle visible,facture d'autrui absente/requête détail404sansnuméro,typesCours/Évaluations administratifs absents et URLévaluation refusée sansdd. API/passerelles arrêtées selon parent;pas image18 reconstruite ni suite complète18.",
-    "studio_pending_unqualified": "Deux anciens fichiers Studio inchangés,NON QUALIFIÉS et NON PUBLIÉS. Deux approches isolées échouent avant exécution :migrations CMS exigent MongoDB absent de la fixture;synchronisation sans migrations dépasse la longueur MySQL de l'index oel_tagging_tag.lineage.12tests détectés,0exécuté,aucun verrou consultatif qualifié. Conteneurs/volume/réseau/dossier temporaires supprimés,services partagés intacts. Rapport de session wave18-cms-qualification-d0c25c75/report.json SHA256:2a0171010d4725fdb52a983de1edd9ea7b8fce039c016be0103350945c19b752. F07 reste ouvert;les cutoffs précédents conservent leur état historique.",
-    "shared_deployment_scope": "Aucun déploiement partagé des vagues15/16/17/18,pilote ou réception humaine. Les champs de livraison/main/fixture plus anciens conservent leurs cutoffs propres;aucune qualification ciblée ne remplace current_user_backend/current_user_frontend par déduction. Comptes/factures des parcours18 synthétiques sur infrastructure jetable loopback;API/passerelles arrêtées ensuite selon parent,aucun sondage de service ici. Dernier500 rouge conservé,aucune nouvelle charge.",
+    "studio_bounded_native_qualification": "Blocage levé vers07:30UTC selon parent,56c3b33 publié :image native de base local-20261105-access-ownership2,MySQL8.4.11+MongoDB7.0.39 jetables réseauinterne sansports,1188migrations CMS. Deux runs12tests/2erreursfixture(assets puis URLMFE) conservés,ajustementsfixture seuls puis12/12verts. Baseline exacte200!=403,puis cas candidatvert;SQL0binding/0serviceuserdetest,51GET_LOCK+51RELEASE_LOCKcours cumulés sans preuve de concurrence. Force_authenticate,modulestore/create_new_course/resume_initialization/droits simulés :pas création Mongo réelle ni révocation Studio native. Correctif2lignes+test17lignes+docopérateur publiés,qualitéciblée verte selon parent. Pas nouvelle imageLMS/déploiement;F07 ouvert. Ancien état07:00:50 archivé dans nouvel update et Markdown.",
+    "permission_group_console_bounded": "63949d1 publié :console groupes création/édition/affectation déjà présente,copie des permissions lisibles en brouillon éditable viaPOSTexistant,sans membres ni mutation source;auth.add_group non scopé,permissions absentes refusées.16testsUI dont4nouveaux verts,ESLint2fichiers0diagnostic selon parent,build3warnings. Pas navigateur clonage ni nouvelle capacité backend/rôle métier;cycle métier,désactivation/versionnement,MFA/SoD ouverts.",
+    "wave20_groups_in_progress": "Batchgroupes EN COURS NON QUALIFIÉ au cutoff;aucune preuve ni promotion revendiquée.",
+    "shared_deployment_scope": "Aucun déploiement partagé des vagues15à19,pilote ou réception externe/humaine. Les champs de livraison/main/fixture plus anciens conservent leurs cutoffs propres;aucune qualification ciblée ne remplace current_user_backend/current_user_frontend. API/passerelles de fixtures18 arrêtées selon parent;deux conteneurs natifs19 arrêtés,réseau vide/nettoyage en suivi,achèvement non revendiqué. Aucun sondage de service ici,pas nouvelle imageLMS19. Dernier500 rouge conservé,aucune nouvelle charge.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -3742,9 +3825,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 140,
+    "imported_evidence_campaign_records": 143,
     "requirements_with_new_increment_evidence": 24,
-    "conclusion": "140 campagnes documentaires non sommées (137 au cutoff17,3 ajouts vague18),24 exigences avec preuves ciblées;1verified,71partial,20absent,2unverified sur94 inchangés.9ff9752 publié :évaluations SIS secondaires reliées au LMS qualifiées69tests/87sous-tests;UI37verts/42non sélectionnés sur79,build3warnings,lint ciblé0/0 et contrôles Python ciblés verts selon parent sans journal dédié. Deux parcours navigateur staff+apprenant par SIS sur fixtures synthétiques loopback sans réponse réseau simulée;facture personnelle visible,autrui absent/détail404sansnuméro et URLévaluation refusée sansdd.10.7 reste partial :catalogue LMS natif et parcours parents/enseignants/multi-tenant non exhaustifs;F09 reste partiel sans vrai circuit LMS natif ni réception humaine. Pas image18 reconstruite ni suite complète18;cutoffs/suites/rapports rouges15/16/17 historiques intacts et non transférés. Deux anciens fichiers Studio examinés séparément NON QUALIFIÉS/NON PUBLIÉS. API/passerelles de fixtures18 arrêtées selon parent,aucun déploiement partagé,pilote ou réception humaine. Dernier500 rouge500timeouts/262écritures indéterminées inchangé. Aucune promotion ni couverture100%."
+    "conclusion": "143campagnes documentaires non sommées (140 au cutoff18,3ajouts19),24exigences avec preuves ciblées;1verified,71partial,20absent,2unverified sur94 inchangés.56c3b33 publié après levée du blocageCMS vers07:30UTC :vrais MySQL/MongoDB jetables,1188migrations,12/12verts après2runs avec2erreursfixture chacun;baseline200!=403 et recheckcandidatvert. SQL0binding/0serviceuserdetest,51GET_LOCK+51RELEASE_LOCKcumulés sans preuve de concurrence. Tests force_authenticate et cours/droits simulés,pas créationMongo réelle/révocationStudio native,nouvelleimageLMS ou déploiement;F07 reste ouvert.63949d1 copie les permissions de groupe en brouillon éditable sans membres ni mutation source :16testsUI dont4nouveaux verts,ESLintciblé0diagnostic selon parent,build3warnings;pas browserclonage ni capacitébackend/rôlemétier nouvelle. Groupes création/édition/affectation/copie existent,cycle rôle métier/versionnement/désactivation/MFA/SoD ouverts.10.7 etF09 restent partiels;cutoffs,blocage07:00:50 et rouges antérieurs intacts. Deux conteneurs natifs19 arrêtés selon parent,réseau vide/nettoyage en suivi;aucun pilote/réception externe/humaine. Dernier500 rouge500timeouts/262écritures indéterminées inchangé. Batchgroupes20 en cours non qualifié,sans preuve. Aucune promotion ni couverture100%."
   },
   "requirements": [
     {
@@ -4314,6 +4397,13 @@
           "result": "stored_identity_permission_and_mfa_continuity",
           "verified_scope": "Empreintes finales comptes/MFA/scopes/groupes/droits/identités et états d'accès suivis identiques à calendar-catalogs, principal administrateur/MFA existants préservés.",
           "remaining_scope": "Pas changement de gestion des utilisateurs ni nouvelle qualification de tous les rôles/scopes; autres limites1.4/F02/F07 inchangées."
+        },
+        {
+          "update_id": "EXEC-20261107-wave19-native-guard-and-group-copy-qualification",
+          "campaign_ids": ["wave19-permission-group-duplication-ui"],
+          "result": "bounded_editable_permission_group_copy_ui_passed",
+          "verified_scope": "63949d1 :console groupes existante création/édition/affectation,copie de permissions lisibles en brouillon éditable viaPOSTexistant,sans membres ni mutation du groupe source. Habilitation auth.add_group non scopée,liste de permissions manquante refusée.16testsUI InstitutionalGroupsEditor dont4nouveaux verts;build vert avec3warnings.",
+          "remaining_scope": "1.4 reste partial :groupes distincts des rôles métier,pas navigateur de clonage ni nouvelle capacitébackend. Désactivation/versionnement,cycle de rôle métier,MFA/SoD,audit et révocations exhaustifs encore ouverts;batchgroupes20 en cours non qualifié exclu."
         }
       ],
       "acceptance_execution_status": "increment_evidence_with_unresolved_failures"
@@ -4935,6 +5025,13 @@
           "result": "bounded_real_course_search_and_authorized_detail_passed_with_initial_school_failure_preserved",
           "verified_scope": "Recherche de vrais mappings LMS et ouverture de fiches de cours dans les deux SIS,avec détail/scopes autorisés;ne confond pas formations et cours. Parcours navigateur réels sans réponse réseau simulée et retrait d'is_staff opposable malgré wildcard.",
           "remaining_scope": "3.2 reste partial :pas catalogue natif LMS exhaustif,création/édition pédagogique ou recette multi-rôles exhaustive. Code17 monté RO,pas image17 ni suite complète17;premier secondaire avec1échec429 de fixture conservé,relance bulletins seulement."
+        },
+        {
+          "update_id": "EXEC-20261107-wave19-native-guard-and-group-copy-qualification",
+          "campaign_ids": ["wave19-native-cms-fixture-and-suite", "wave19-interrupted-course-baseline-and-guard"],
+          "result": "bounded_interrupted_course_initialization_authoring_guard_passed",
+          "verified_scope": "56c3b33 :avant reprise d'initialisation interrompue,absence de droits Studio renvoie403 plutôt que rétablir les droits. Baseline publiée200!=403 sur même fixture,puis cas candidatvert;12testsCMS verts après résolution des erreursfixture,1188migrations MySQL avec vrai MongoDB disponible.",
+          "remaining_scope": "3.2 etF07 restent partiels :force_authenticate et modulestore/création/reprise/droits simulés,pas créationMongo réelle de cours ni révocationStudio native de bout en bout.51GET_LOCK+51RELEASE_LOCKcumulés ne prouvent pas la concurrence;aucune nouvelle imageLMS ni livraison."
         }
       ],
       "acceptance_execution_status": "increments_passed_requirement_incomplete",
@@ -6808,6 +6905,13 @@
           "result": "bounded_signed_synthetic_webhook_to_review_gate_passed",
           "verified_scope": "Webhooks LMS signés synthétiques réellement traités par tâche Celery eager dans les deux SIS; propositions sans note officielle avant décision,preuve conservée en rejeu/rejet et non-écrasement après approbation.",
           "remaining_scope": "7.1 reste partial et ses échecs historiques restent ouverts. Pas d'échange avec un vrai LMS natif Open edX ni de worker/broker distant qualifié dans ces parcours; intégrations externes et réception institutionnelle non déduites."
+        },
+        {
+          "update_id": "EXEC-20261107-wave19-native-guard-and-group-copy-qualification",
+          "campaign_ids": ["wave19-native-cms-fixture-and-suite", "wave19-interrupted-course-baseline-and-guard"],
+          "result": "bounded_cms_provisioning_guard_qualified_after_fixture_blocker_resolution",
+          "verified_scope": "Fixture native CMS sur imageaccess-ownership2,MySQL8.4.11/MongoDB7.0.39 jetables réseauinterne sansports selon parent;1188migrations,12/12tests après erreursassets puisURLMFE. Baseline200!=403,candidatvert,0binding/0serviceuserdetest retenus;51GET_LOCK+51RELEASE_LOCKde cours réellement appelés en SQL sur plusieurs runs.",
+          "remaining_scope": "7.1 reste partial,F07 non clos. Authentification forcée et cours/droits simulés,pas créationMongo réelle/révocationStudio native ou qualification des fournisseurs externes. Appels de verrou non preuve de concurrence;pas nouvelle imageLMS/déploiement/réception humaine,anciens rouges inchangés."
         }
       ],
       "acceptance_execution_status": "increment_evidence_with_unresolved_failures"
@@ -7277,6 +7381,13 @@
           "result": "bounded_native_search_permissions_and_real_learner_denials_passed",
           "verified_scope": "Recherche secondaire evaluations_lms réutilisant permissions/queryset natifs,attributionPersonnel,tenant actif et scopes. Connexion apprenant réelle dans les deux SIS de fixture :facture personnelle lisible,autrui absent puis404sansnuméro,typesCours/Évaluations administratifs absents,URLévaluation refusée sansdd. Staff exercé séparément,aucune réponse réseau simulée.",
           "remaining_scope": "8.1 reste partial,échecs historiques inchangés. Parents/enseignants/multi-tenant et révocations non exhaustifs,pas validation globale IAM/MFA/SSO ni catalogue d'accès natif;comptes synthétiques,aucune réception humaine."
+        },
+        {
+          "update_id": "EXEC-20261107-wave19-native-guard-and-group-copy-qualification",
+          "campaign_ids": ["wave19-interrupted-course-baseline-and-guard", "wave19-permission-group-duplication-ui"],
+          "result": "bounded_authoring_guard_and_group_copy_permission_checks_passed",
+          "verified_scope": "RepriseCMS après perte simulée des droits :baseline200!=403 puis garde403 sans reprise/update_item. CopieUI d'un groupe lisible soumise à auth.add_group non scopé et liste de permissions disponible,sans copier membres ni modifier source;16testsUI dont4nouveaux verts.",
+          "remaining_scope": "8.1 reste partial. Force_authenticate/droitsCMS simulés et servicesUI simulés,pas révocationStudio native ni navigateurclonage. Cycle rôlemétier,désactivation/versionnement,MFA/SoD et sécuritéglobale non qualifiés;vague20 en cours exclue,aucun déploiement."
         }
       ],
       "acceptance_execution_status": "increment_evidence_with_unresolved_failures"
