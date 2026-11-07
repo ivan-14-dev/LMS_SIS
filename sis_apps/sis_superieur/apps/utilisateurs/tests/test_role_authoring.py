@@ -39,50 +39,177 @@ class GroupAuthoringTests(TenantAPITestCase):
         )
         self.client.force_authenticate(self.admin)
 
-    def test_admin_authors_and_assigns_only_own_permissions(self):
+    def test_group_lifecycle_and_single_assignment_named_audit(self):
+        self.admin.user_permissions.add(Permission.objects.get(content_type__app_label="auth", codename="delete_group"))
+        change_user = Permission.objects.get(content_type__app_label="utilisateurs", codename="change_utilisateur")
+        view_group = Permission.objects.get(content_type__app_label="auth", codename="view_group")
+        before = {
+            "name": "local-academic-readers",
+            "permissions": sorted(
+                [
+                    {"id": self.grant.pk, "code": "utilisateurs.view_utilisateur"},
+                    {"id": change_user.pk, "code": "utilisateurs.change_utilisateur"},
+                ],
+                key=lambda item: item["id"],
+            ),
+        }
+        after = {
+            "name": "local-readers",
+            "permissions": sorted(
+                [
+                    {"id": self.grant.pk, "code": "utilisateurs.view_utilisateur"},
+                    {"id": view_group.pk, "code": "auth.view_group"},
+                ],
+                key=lambda item: item["id"],
+            ),
+        }
+        headers = {"HTTP_X_REQUEST_ID": "group-lifecycle-audit"}
         response = self.client.post(
-            f"{BASE}groupes/", {"name": "local-academic-readers", "permissions": [self.grant.pk]}, format="json"
+            f"{BASE}groupes/",
+            {"name": before["name"], "permissions": [self.grant.pk, change_user.pk]},
+            format="json",
+            **headers,
         )
         assert response.status_code == 201, response.data
         group = Group.objects.get(pk=response.data["id"])
-        assert list(group.permissions.values_list("pk", flat=True)) == [self.grant.pk]
+        group_id = group.pk
+        assert list(group.permissions.order_by("pk").values_list("pk", flat=True)) == [
+            item["id"] for item in before["permissions"]
+        ]
         assert self.grant.pk in [row["id"] for row in self.client.get(f"{BASE}permissions/").data["results"]]
-        response = self.client.patch(f"{BASE}groupes/{group.pk}/", {"name": "local-readers"}, format="json")
+        expected = [("group_created", {"group_id": group_id, "before": None, "after": before})]
+        response = self.client.patch(
+            f"{BASE}groupes/{group_id}/",
+            {"name": after["name"], "permissions": [self.grant.pk, view_group.pk]},
+            format="json",
+            **headers,
+        )
         assert response.status_code == 200, response.data
-        response = self.client.post(f"{BASE}groupes/{group.pk}/assign/", {"user_id": self.student.pk})
-        assert response.status_code == 200, response.data
-        self.student.refresh_from_db()
-        assert self.student.groups.filter(pk=group.pk).exists()
-        assert Utilisateur.objects.get(pk=self.student.pk).has_perm("utilisateurs.view_utilisateur")
-        response = self.client.post(f"{BASE}groupes/{group.pk}/unassign/", {"user_id": self.student.pk})
-        assert response.status_code == 200, response.data
-        assert not self.student.groups.filter(pk=group.pk).exists()
-        assert not Utilisateur.objects.get(pk=self.student.pk).has_perm("utilisateurs.view_utilisateur")
+        group.refresh_from_db()
+        assert group.name == after["name"]
+        assert list(group.permissions.order_by("pk").values_list("pk", flat=True)) == [
+            item["id"] for item in after["permissions"]
+        ]
+        expected.append(("group_updated", {"group_id": group_id, "before": before, "after": after}))
+        other = Group.objects.create(name="untouched-single-group")
+        self.student.groups.add(other)
+        for action, change_key, changed, members in (
+            ("assign", "added_user_ids", [self.student.pk], [self.student.pk]),
+            ("assign", "added_user_ids", [], [self.student.pk]),
+            ("unassign", "removed_user_ids", [self.student.pk], []),
+            ("unassign", "removed_user_ids", [], []),
+        ):
+            with self.subTest(action=action, replay=not changed):
+                response = self.client.post(
+                    f"{BASE}groupes/{group_id}/{action}/", {"user_id": self.student.pk}, format="json", **headers
+                )
+                assert response.status_code == 200, response.data
+                assert response.data == {"user_id": self.student.pk, "group_id": group_id}
+                assert list(group.user_set.values_list("pk", flat=True)) == members
+                assert list(other.user_set.values_list("pk", flat=True)) == [self.student.pk]
+                assert Utilisateur.objects.get(pk=self.student.pk).has_perm("utilisateurs.view_utilisateur") == bool(
+                    members
+                )
+                expected.append(
+                    (
+                        action,
+                        {
+                            "group_id": group_id,
+                            "user_id": self.student.pk,
+                            "before": after,
+                            "after": after,
+                            change_key: changed,
+                        },
+                    )
+                )
+        assert self.client.delete(f"{BASE}groupes/{group_id}/", **headers).status_code == 204
+        assert not Group.objects.filter(pk=group_id).exists()
+        assert self.student.groups.filter(pk=other.pk).exists()
+        expected.append(("group_deleted", {"group_id": group_id, "before": after, "after": None}))
+        events = list(self._batch_events(group).order_by("pk"))
+        assert len(events) == len(expected)
+        for event, (action, metadata) in zip(events, expected):
+            with self.subTest(action=action, event=event.pk):
+                assert event.action == action
+                assert event.actor_id == self.admin.pk
+                assert event.tenant_id == self.tenant.pk
+                assert event.request_id == headers["HTTP_X_REQUEST_ID"]
+                assert event.object_id == str(group_id)
+                assert event.object_repr == (metadata["after"] or metadata["before"])["name"]
+                assert event.metadata == metadata
+
+    def test_single_operation_audit_failure_rolls_back_mutation_and_event(self):
+        self.admin.user_permissions.add(Permission.objects.get(content_type__app_label="auth", codename="delete_group"))
+        replacement = Permission.objects.get(content_type__app_label="auth", codename="view_group")
+        for operation in ("create", "update", "partial_update", "delete", "assign", "unassign"):
+            with self.subTest(operation=operation):
+                group = Group.objects.create(name=f"audit-atomic-{operation}")
+                group.permissions.add(self.grant)
+                if operation not in ("create", "assign"):
+                    self.student.groups.add(group)
+                before_members = list(group.user_set.values_list("pk", flat=True))
+                before_ids = set(Group.objects.values_list("pk", flat=True))
+                event_count = WorkflowEvent.objects.count()
+                name = group.name
+                payload = {
+                    "name": f"{name}-edited",
+                    "permissions": [self.grant.pk if operation == "create" else replacement.pk],
+                }
+                method = {"create": "post", "update": "put", "partial_update": "patch", "delete": "delete"}.get(
+                    operation, "post"
+                )
+                url = f"{BASE}groupes/" if operation == "create" else f"{BASE}groupes/{group.pk}/"
+                if operation in ("assign", "unassign"):
+                    url += f"{operation}/"
+                    payload = {"user_id": self.student.pk}
+
+                def failing_audit(request, instance, *args, **kwargs):
+                    if operation == "delete":
+                        assert not Group.objects.filter(pk=group.pk).exists()
+                        assert not self.student.groups.filter(pk=group.pk).exists()
+                    elif operation in ("create", "update", "partial_update"):
+                        saved = Group.objects.get(pk=instance.pk)
+                        assert saved.name == payload["name"]
+                        assert list(saved.permissions.values_list("pk", flat=True)) == payload["permissions"]
+                    else:
+                        assert self.student.groups.filter(pk=group.pk).exists() == (operation == "assign")
+                    record_workflow_event(request, instance, *args, **kwargs)
+                    raise RuntimeError("single operation audit failure")
+
+                with patch("sis_common.group_audit.record_workflow_event", side_effect=failing_audit):
+                    with self.assertRaisesMessage(RuntimeError, "single operation audit failure"):
+                        getattr(self.client, method)(url, payload, format="json")
+                group.refresh_from_db()
+                assert group.name == name
+                assert list(group.permissions.values_list("pk", flat=True)) == [self.grant.pk]
+                assert list(group.user_set.values_list("pk", flat=True)) == before_members
+                assert set(Group.objects.values_list("pk", flat=True)) == before_ids
+                assert WorkflowEvent.objects.count() == event_count
 
     def test_out_of_scope_and_scoped_permissions_cannot_be_delegated(self):
+        event_count = WorkflowEvent.objects.count()
         response = self.client.post(
             f"{BASE}groupes/", {"name": "forbidden-grant", "permissions": [self.forbidden.pk]}, format="json"
         )
         assert response.status_code == 400, response.data
         assert not Group.objects.filter(name="forbidden-grant").exists()
         group = Group.objects.create(name="existing-group")
-        response = self.client.patch(
-            f"{BASE}groupes/{group.pk}/", {"permissions": [self.forbidden.pk]}, format="json"
-        )
+        response = self.client.patch(f"{BASE}groupes/{group.pk}/", {"permissions": [self.forbidden.pk]}, format="json")
         assert response.status_code == 400, response.data
+        assert not group.permissions.exists()
         group.permissions.add(self.forbidden)
         assert self.client.post(f"{BASE}groupes/{group.pk}/assign/", {"user_id": self.student.pk}).status_code == 403
         assert not self.student.groups.filter(pk=group.pk).exists()
-        self.admin.attributs_acces = {
-            "permission_scopes": {"utilisateurs.view_utilisateur": {"classes": [1]}}
-        }
+        self.admin.attributs_acces = {"permission_scopes": {"utilisateurs.view_utilisateur": {"classes": [1]}}}
         self.admin.save(update_fields=["attributs_acces"])
         response = self.client.post(
             f"{BASE}groupes/", {"name": "scoped-grant", "permissions": [self.grant.pk]}, format="json"
         )
         assert response.status_code == 400, response.data
+        assert WorkflowEvent.objects.count() == event_count
 
     def test_self_promotion_and_direct_account_bypasses_are_denied(self):
+        event_count = WorkflowEvent.objects.count()
         group = Group.objects.create(name="self-target")
         group.permissions.add(self.grant)
         assert self.client.post(f"{BASE}groupes/{group.pk}/assign/", {"user_id": self.admin.pk}).status_code == 403
@@ -96,19 +223,17 @@ class GroupAuthoringTests(TenantAPITestCase):
         ):
             response = self.client.patch(f"{BASE}comptes/{self.admin.pk}/", payload, format="json")
             assert response.status_code == 400, response.data
-        response = self.client.patch(
-            f"{BASE}comptes/{self.student.pk}/", {"role": "doyen"}, format="json"
-        )
+        response = self.client.patch(f"{BASE}comptes/{self.student.pk}/", {"role": "doyen"}, format="json")
         assert response.status_code == 400, response.data
-        response = self.client.patch(
-            f"{BASE}comptes/{self.student.pk}/", {"groups": [group.pk]}, format="json"
-        )
+        response = self.client.patch(f"{BASE}comptes/{self.student.pk}/", {"groups": [group.pk]}, format="json")
         assert response.status_code == 400, response.data
         self.student.refresh_from_db()
         assert self.student.role == "etudiant"
         assert not self.student.groups.exists()
+        assert WorkflowEvent.objects.count() == event_count
 
     def test_foreign_institution_account_and_assignment_are_denied(self):
+        event_count = WorkflowEvent.objects.count()
         foreign = type(self.tenant)(schema_name="group_author_foreign")
         self.setup_tenant(foreign)
         foreign.auto_create_schema = False
@@ -119,17 +244,39 @@ class GroupAuthoringTests(TenantAPITestCase):
         )
         target = Utilisateur.objects.create_user("foreign-target", role="etudiant", etablissement=foreign)
         group = Group.objects.create(name="local-only")
-        assert self.client.post(f"{BASE}groupes/{group.pk}/assign/", {"user_id": target.pk}).status_code == 404
+        for action in ("assign", "unassign"):
+            with self.subTest(action=action):
+                response = self.client.post(f"{BASE}groupes/{group.pk}/{action}/", {"user_id": target.pk})
+                assert response.status_code == 404, response.data
         self.client.force_authenticate(outsider)
         assert self.client.post(f"{BASE}groupes/", {"name": "foreign-write"}).status_code == 403
         assert self.client.get(f"{BASE}groupes/").status_code == 403
         assert not Group.objects.filter(name="foreign-write").exists()
+        assert not group.user_set.exists()
+        assert WorkflowEvent.objects.count() == event_count
 
     def test_unprivileged_user_cannot_create_or_assign_groups(self):
         group = Group.objects.create(name="admin-only")
+        group.permissions.add(self.grant)
+        self.student.groups.add(group)
+        event_count = WorkflowEvent.objects.count()
         self.client.force_authenticate(self.student)
-        assert self.client.post(f"{BASE}groupes/", {"name": "not-allowed"}).status_code == 403
-        assert self.client.post(f"{BASE}groupes/{group.pk}/assign/", {"user_id": self.admin.pk}).status_code == 403
+        for method, suffix, payload in (
+            ("post", "", {"name": "not-allowed"}),
+            ("patch", f"{group.pk}/", {"name": "not-allowed", "permissions": []}),
+            ("delete", f"{group.pk}/", {}),
+            ("post", f"{group.pk}/assign/", {"user_id": self.admin.pk}),
+            ("post", f"{group.pk}/unassign/", {"user_id": self.student.pk}),
+        ):
+            with self.subTest(method=method, suffix=suffix):
+                response = getattr(self.client, method)(f"{BASE}groupes/{suffix}", payload, format="json")
+                assert response.status_code == 403, response.data
+                group.refresh_from_db()
+                assert group.name == "admin-only"
+                assert list(group.permissions.values_list("pk", flat=True)) == [self.grant.pk]
+                assert list(group.user_set.values_list("pk", flat=True)) == [self.student.pk]
+                assert not Group.objects.filter(name="not-allowed").exists()
+                assert WorkflowEvent.objects.count() == event_count
 
     def _batch_events(self, group):
         return WorkflowEvent.objects.filter(app_label="auth", model="group", object_id=str(group.pk))
@@ -315,9 +462,7 @@ class GroupAuthoringTests(TenantAPITestCase):
             assert group.user_set.count() == (2 if action == "assign_many" else 0)
 
     def test_tenant_superuser_retains_full_group_administration(self):
-        root = Utilisateur.objects.create_superuser(
-            "root-group-author", role="super_admin"
-        )
+        root = Utilisateur.objects.create_superuser("root-group-author", role="super_admin")
         self.client.force_authenticate(root)
         response = self.client.post(
             f"{BASE}groupes/", {"name": "root-managed", "permissions": [self.forbidden.pk]}, format="json"

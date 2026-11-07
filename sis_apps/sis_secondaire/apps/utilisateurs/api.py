@@ -1,7 +1,6 @@
 """API views for utilisateurs (ViewSets DRF) - SIS Secondaire."""
 
 from django.contrib.auth.models import Group, Permission
-from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
@@ -22,6 +21,7 @@ from sis_common.authorization import (
 )
 from sis_common.branding import branding_snapshot
 from sis_common.group_assignment import can_change_group_assignments, change_group_assignments
+from sis_common.group_audit import GroupAuditMixin, change_group_assignment
 from sis_common.module_registry import module_snapshot
 from sis_common.session_security import (
     list_active_sessions,
@@ -300,7 +300,7 @@ class PermissionsViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
 
-class GroupesPermissionsViewSet(viewsets.ModelViewSet):
+class GroupesPermissionsViewSet(GroupAuditMixin, viewsets.ModelViewSet):
     permission_classes = [CanManageAuthorization]
     serializer_class = GroupSerializer
     queryset = Group.objects.prefetch_related("permissions").order_by("name")
@@ -316,33 +316,13 @@ class GroupesPermissionsViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied("Ce groupe ne peut pas être administré par cet utilisateur.")
         return group
 
-    @transaction.atomic
-    def update(self, request, *args, **kwargs):
-        return super().update(request, *args, **kwargs)
-
-    @transaction.atomic
-    def destroy(self, request, *args, **kwargs):
-        return super().destroy(request, *args, **kwargs)
-
     @action(detail=True, methods=["post"])
-    @transaction.atomic
     def assign(self, request, pk=None):
-        group = self.get_object()
-        serializer = GroupAssignmentSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = self._assignment_target(request, serializer.validated_data["user_id"])
-        user.groups.add(group)
-        return Response({"user_id": user.pk, "group_id": group.pk})
+        return Response(change_group_assignment(self, request, GroupAssignmentSerializer))
 
     @action(detail=True, methods=["post"])
-    @transaction.atomic
     def unassign(self, request, pk=None):
-        group = self.get_object()
-        serializer = GroupAssignmentSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = self._assignment_target(request, serializer.validated_data["user_id"])
-        user.groups.remove(group)
-        return Response({"user_id": user.pk, "group_id": group.pk})
+        return Response(change_group_assignment(self, request, GroupAssignmentSerializer, remove=True))
 
     @action(detail=True, methods=["post"])
     def assign_many(self, request, pk=None):
