@@ -17,7 +17,7 @@ from sis_common.admissions import (
     activate_school_enrollment,
     scoped_admissions,
 )
-from sis_common.authorization import is_current_tenant_user, request_has_business_access
+from sis_common.authorization import filter_queryset_by_scopes, is_current_tenant_user, request_has_business_access
 from sis_common.learner_import import LearnerImportMixin
 from sis_common.workflow_tracking import record_workflow_event
 
@@ -44,6 +44,28 @@ def _ensure_class_capacity(classe, eleve):
     )
     if occupants >= classe.effectif_max:
         raise serializers.ValidationError({"classe": "La classe a atteint sa capacité."})
+
+
+def visible_learners(request):
+    """Share the pupil API's tenant, personal and guardian visibility with search."""
+    queryset = Eleve.objects.select_related("user", "etablissement", "classe_actuelle__niveau")
+    user = request.user
+    if not user.is_authenticated or not user.is_active or not is_current_tenant_user(request):
+        return queryset.none()
+    queryset = queryset.filter(etablissement=request.tenant)
+    if not user.is_staff and not user.is_superuser and user.role == "eleve":
+        queryset = queryset.filter(user=user)
+    if user.role == "parent" and not hasattr(user, "tuteur_profile"):
+        return queryset.none()
+    if hasattr(user, "tuteur_profile"):
+        queryset = queryset.filter(
+            id__in=EleveTuteur.objects.filter(
+                tuteur=user.tuteur_profile, autorise_acces_portail=True
+            ).values("eleve_id")
+        )
+    return filter_queryset_by_scopes(
+        queryset, user, "eleves.view_eleve", {"eleves": "pk", "classes": "classe_actuelle_id"}
+    )
 
 
 class IsVieScolariteOrReadOnly(IsAuthenticated):
@@ -93,29 +115,7 @@ class ElevesViewSet(LearnerImportMixin, AcademicLifecycleMixin, viewsets.ModelVi
 
     def get_queryset(self):
         """Retourne les élèves de l'établissement courant."""
-        qs = Eleve.objects.select_related("user", "etablissement", "classe_actuelle__niveau")
-
-        # Filtrer par établissement du tenant
-        request = self.request
-        if hasattr(request, "tenant"):
-            qs = qs.filter(etablissement=request.tenant)
-
-        # Un élève ne voit que son propre profil
-        user = request.user
-        if not user.is_staff and not getattr(user, "is_superuser", False) and getattr(user, "role", "") == "eleve":
-            qs = qs.filter(user=user)
-
-        # Un tuteur ne voit que ses enfants
-        if getattr(user, "role", "") == "parent" and not hasattr(user, "tuteur_profile"):
-            return qs.none()
-        if hasattr(user, "tuteur_profile"):
-            tuteur = user.tuteur_profile
-            eleves_ids = EleveTuteur.objects.filter(tuteur=tuteur, autorise_acces_portail=True).values_list(
-                "eleve_id", flat=True
-            )
-            qs = qs.filter(id__in=eleves_ids)
-
-        return qs
+        return visible_learners(self.request)
 
     def get_serializer_class(self):
         if self.action == "list":

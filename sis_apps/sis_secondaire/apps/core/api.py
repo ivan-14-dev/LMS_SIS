@@ -1,17 +1,25 @@
 """API views for core."""
 
+import unicodedata
+
 from apps.core.models import WorkflowEvent, WorkflowNotification
 from apps.core.serializers import WorkflowNotificationSerializer
-from django.db.models import Count
-from rest_framework import mixins, permissions, response, status, viewsets
+from apps.eleves.api import visible_learners
+from apps.paiements.api import visible_invoices
+from django.db.models import Count, F, Q, Value
+from django.db.models.functions import Concat
+from rest_framework import generics, mixins, permissions, response, serializers, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from sis_common.authorization import has_business_permission_or_role
+from sis_common.delegations import ActiveTenantAccess
 from sis_common.notification_channels import (
     notification_matches_delivery_filters,
     summarize_notification_deliveries,
     summarize_notification_delivery_trends,
 )
+from sis_common.pagination import SISPagination
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.workflow_filters import EVENT_FILTERS, PRIVATE_WORKFLOW_MODELS, filter_events, validated_event_filters
 
@@ -34,6 +42,63 @@ EVENT_REPORT_GROUPS = {
     "app_label": "app_label",
     "model": "model",
 }
+
+
+class AcademicSearchResultSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    code = serializers.CharField()
+    nom = serializers.CharField()
+
+
+class AcademicSearchPagination(SISPagination):
+    page_size = 20
+    max_page_size = 50
+
+
+class AcademicSearchView(generics.ListAPIView):
+    """Recherche GET ?ressource=eleves|factures&q=terme, sans accès anonyme.
+
+    Terme de 2 à 100 caractères, sans caractères de contrôle.
+    Résultats id/code/nom, paginés par 20 (page_size plafonné à 50).
+    Les élèves exigent eleves.view_eleve et le périmètre de leur API.
+    Les factures reprennent le périmètre finance, par numéro uniquement,
+    sans exposer l'identité de l'élève ni les montants.
+    """
+
+    permission_classes = [ActiveTenantAccess]
+    serializer_class = AcademicSearchResultSerializer
+    pagination_class = AcademicSearchPagination
+    filter_backends = []
+
+    def get_queryset(self):
+        resource = self.request.query_params.get("ressource")
+        if resource not in ("eleves", "factures"):
+            raise ValidationError({"ressource": "Choisissez eleves ou factures."})
+        raw_term = self.request.query_params.get("q", "")
+        term = raw_term.strip()
+        if (
+            not 2 <= len(term) <= 100
+            or len(raw_term) > 100
+            or any(unicodedata.category(char) == "Cc" for char in raw_term)
+        ):
+            raise ValidationError({"q": "Saisissez entre 2 et 100 caractères, sans caractères de contrôle."})
+
+        if resource == "factures":
+            return visible_invoices(self.request).filter(numero__icontains=term).annotate(
+                code=F("numero"),
+                nom=Concat(Value("Facture "), "numero"),
+            ).order_by("pk").values("id", "code", "nom")
+
+        if not self.request.user.has_perm("eleves.view_eleve"):
+            raise PermissionDenied("La consultation de cette ressource exige sa permission de lecture.")
+        return visible_learners(self.request).filter(
+            Q(matricule__icontains=term)
+            | Q(user__first_name__icontains=term)
+            | Q(user__last_name__icontains=term)
+        ).annotate(
+            code=F("matricule"),
+            nom=Concat("user__first_name", Value(" "), "user__last_name"),
+        ).order_by("pk").values("id", "code", "nom")
 
 
 class IsWorkflowAuditor(permissions.IsAuthenticated):

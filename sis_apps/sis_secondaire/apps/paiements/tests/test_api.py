@@ -113,7 +113,7 @@ class ConfirmedInvoiceBalanceTests(SimpleTestCase):
                     request.tenant = tenant
                     user = SimpleNamespace(
                         id=1, pk=1, role=role, etablissement_id=etablissement_id,
-                        is_authenticated=True, is_superuser=False, has_perm=lambda permission: False,
+                        is_authenticated=True, is_active=True, is_superuser=False, has_perm=lambda permission: False,
                     )
                     force_authenticate(request, user=user)
                     self.assertEqual(endpoint(request, pk="5").status_code, 404)
@@ -123,16 +123,18 @@ class ConfirmedInvoiceBalanceTests(SimpleTestCase):
         view.action = "solde_confirme"
         manager = SimpleNamespace(
             id=1, etablissement_id=7, role="comptable", is_authenticated=True,
-            is_superuser=False, has_perm=lambda permission: False,
+            is_active=True, is_superuser=False, has_perm=lambda permission: False,
         )
         view.request = SimpleNamespace(user=manager, tenant=SimpleNamespace(pk=7, configuration_academique={}))
         with patch.object(Facture, "objects") as invoices:
             queryset = invoices.select_related.return_value.prefetch_related.return_value
             queryset.filter.return_value = queryset
+            queryset.distinct.return_value = queryset
             self.assertIs(view.get_queryset(), queryset)
-            queryset.filter.assert_called_once_with(
+            queryset.filter.assert_any_call(
                 eleve__etablissement_id=7, type_frais__annee_scolaire__etablissement_id=7,
             )
+            queryset.filter.assert_any_call(pk__in=queryset.order_by.return_value.values.return_value)
 
             for tenant, user_id in ((SimpleNamespace(pk=8, configuration_academique={}), 7),
                                     (SimpleNamespace(pk=7, configuration_academique={}), 8),
@@ -148,7 +150,7 @@ class ConfirmedInvoiceBalanceTests(SimpleTestCase):
             manager.role = "eleve"
             queryset.reset_mock()
             self.assertIs(view.get_queryset(), queryset)
-            self.assertEqual(queryset.filter.call_count, 2)
+            self.assertEqual(queryset.filter.call_count, 3)
             queryset.filter.assert_any_call(eleve__user=manager)
             manager.role = "parent"
             queryset.reset_mock()

@@ -19,7 +19,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.academic_configuration import resolve_financial_workflow, workflow_transition_allowed
-from sis_common.authorization import has_business_permission_or_role, user_has_any_role
+from sis_common.authorization import filter_queryset_by_scopes, has_business_permission_or_role, user_has_any_role
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
@@ -141,6 +141,51 @@ class IsFinanceManager(IsAuthenticated):
         )
 
 
+def visible_invoices(request):
+    """Share the balance endpoint's tenant/owner policy across invoice reads.
+
+    Read scopes only narrow access. A scoped finance grant must still pass
+    IsFinanceManager; neither a read grant nor a scope grants finance access.
+    """
+    base_queryset = Facture.objects.select_related("eleve__user", "type_frais").prefetch_related("paiements")
+    queryset = base_queryset
+    tenant_id = getattr(getattr(request, "tenant", None), "pk", None)
+    user = request.user
+    if (
+        tenant_id is None
+        or not user.is_authenticated
+        or not user.is_active
+        or user.etablissement_id != tenant_id
+    ):
+        return queryset.none()
+    queryset = queryset.filter(
+        eleve__etablissement_id=tenant_id,
+        type_frais__annee_scolaire__etablissement_id=tenant_id,
+    )
+    scope_fields = {
+        "factures": "pk",
+        "eleves": "eleve_id",
+        "rubriques": "type_frais_id",
+        "annees": "type_frais__annee_scolaire_id",
+    }
+    if user_has_any_role(user, ("eleve",)):
+        queryset = queryset.filter(eleve__user=user)
+    elif user_has_any_role(user, ("parent",)):
+        queryset = queryset.filter(
+            eleve__tuteurs_lies__tuteur__user=user,
+            eleve__tuteurs_lies__autorise_acces_portail=True,
+        ).distinct()
+    elif IsFinanceManager().has_permission(request, None):
+        queryset = filter_queryset_by_scopes(queryset, user, "paiements.change_paiement", scope_fields)
+    else:
+        return queryset.none()
+    visible_ids = filter_queryset_by_scopes(
+        queryset, user, "paiements.view_facture", scope_fields
+    ).order_by().values("pk")
+    # Keep DISTINCT inside the authorization subquery so invoice rows remain lockable.
+    return base_queryset.filter(pk__in=visible_ids)
+
+
 class IsBudgetManager(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
@@ -242,34 +287,7 @@ class FacturesViewSet(viewsets.ModelViewSet):
     ordering = ["-date_emission"]
 
     def get_queryset(self):
-        queryset = Facture.objects.select_related("eleve__user", "type_frais").prefetch_related("paiements")
-        user = self.request.user
-        if self.action == "annuler":
-            tenant = getattr(self.request, "tenant", None)
-            if not getattr(tenant, "pk", None) or getattr(user, "etablissement_id", None) != tenant.pk:
-                return queryset.none()
-            queryset = queryset.filter(
-                eleve__etablissement_id=tenant.pk,
-                type_frais__annee_scolaire__etablissement_id=tenant.pk,
-            )
-        if self.action == "solde_confirme":
-            tenant = getattr(self.request, "tenant", None)
-            if not getattr(tenant, "pk", None) or getattr(user, "etablissement_id", None) != tenant.pk:
-                return queryset.none()
-            queryset = queryset.filter(
-                eleve__etablissement_id=tenant.pk,
-                type_frais__annee_scolaire__etablissement_id=tenant.pk,
-            )
-        if IsFinanceManager().has_permission(self.request, self):
-            return queryset
-        if user_has_any_role(user, ("eleve",)):
-            return queryset.filter(eleve__user=user)
-        if user_has_any_role(user, ("parent",)):
-            return queryset.filter(
-                eleve__tuteurs_lies__tuteur__user=user,
-                eleve__tuteurs_lies__autorise_acces_portail=True,
-            ).distinct()
-        return queryset.none()
+        return visible_invoices(self.request)
 
     def get_serializer_class(self):
         if self.action == "list":
