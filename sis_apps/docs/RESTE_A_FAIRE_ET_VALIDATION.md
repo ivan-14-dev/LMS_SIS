@@ -9,14 +9,14 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 21:36:13.951849 UTC** :
-vagues 15 à 31 publiées et qualifiées dans leurs périmètres bornés ;
-**vague31 publiée en `605aab7`, vérifié égal à `HEAD` et `origin/main` sur main**,
-comparaison distante attestée par le rapport parent.
+**Dernier cutoff documentaire : 7 novembre 2026 à 21:48:54.693074 UTC** :
+vagues 15 à 32 publiées et qualifiées dans leurs périmètres bornés ;
+**vague32 publiée en `f3168ed`**, comparée à `HEAD` et `origin/main`
+au moment de la publication du code, selon la provenance parent.
 Le passage autorisé de **10.5 d'absente à partielle** appartient à la
 vague25. **Promotion30 explicitement autorisée : seule10.5, partielle→vérifiée** :
 **2 vérifiées, 71 partielles, 19 absentes et 2 non vérifiées sur 94**.
-La vague31 ne promeut aucun statut ; les chiffres historiques restent inchangés.
+Les vagues31 et32 ne promeuvent aucun statut ; les chiffres historiques restent inchangés.
 Le blocage de qualification Studio a été levé
 vers 07:30 UTC : le correctif est publié, avec une preuve ciblée limitée
 décrite en vague 19, **sans clôture de F07**. Après les lots et parcours
@@ -58,8 +58,13 @@ purge des anciennes données pendant GET. Chromium final des deux SIS prouve
 sans ancien résultat/lien/compte ni navigation/reconnexion/refresh des capacités.
 **10.7 reste partielle** : cette preuve porte sur les apprenants, pas sur une
 recette complète cinq types/autre rôle/autre tenant. Le catalogue LMS natif
-exhaustif n'est pas une obligation de la source920. Qualification32 en cours,
-aucun résultat32 importé. Les restaurations/MFA30 ne sont pas requalifiés31.
+exhaustif n'est pas une obligation de la source920.
+La vague32 ajoute **40/40 tests scolaires et35/35 universitaires** : deux vrais
+schémas migrés/peuplés, cinq familles et détails, rôles distincts, révocation
+dans la même session et rejeu de cookies interétablissements.
+Ce sont des tests d'intégration Django/PostgreSQL, pas une nouvelle campagne
+navigateur ou restauration. Les conditions communes de reprise persistante
+restent à compléter pour ces parcours ; préparation33 non qualifiée.
 **Le 100 % n'est pas atteint.**
 Les bilans datés antérieurs conservent leurs cutoffs, blocages et rouges.
 
@@ -1870,6 +1875,52 @@ Aucun F-lot clos, pilote institutionnel, déploiement partagé ou100 %.
 Charge500 non relancée, rouge historique **500 timeouts/262 écritures
 indéterminées** conservé. Cet import documentaire n'a exécuté aucun test
 applicatif, Docker, SQL, service, agent, commit ou push.
+
+**Vague 32, publiée et qualifiée au cutoff du 7 novembre 2026 à
+21:48:54.693074 UTC :** `f3168ed11ef253c3f2adf46d6f804519b6be6ebb`,
+comparaison distante au moment de la publication attestée dans
+`wave32-published-source-provenance.json`. Seul ajout :
+`sis_common/tests/test_academic_search_tenant_isolation.py`,536 lignes.
+**Aucun comportement produit modifié.** Image
+`sha256:b27438d035d4190c0052ed23670abfaf6a4760ef062c1efad208fe08875a96cb`,
+**1501 fichiers Python exacts entre commit, worktree et image**.
+Black120, isort et Flake8 verts ; avertissement `guardian.W001` préexistant.
+
+**Secondaire40/40 en177,218 s ; supérieur35/35 en215,899 s.**
+Chaque sélection comprend trois nouveaux scénarios communs et respectivement
+37/32 régressions existantes. Deux tenants UUID réellement migrés/peuplés par SIS,
+comptes et première ligne aux IDs/noms collisionnants, autres sentinelles
+étrangères distinctes, deux contre trois lignes locales.
+Les cinq familles demandées et leurs détails sont contrôlés, y compris les
+trois types de documents universitaires. Résultats minimaux et comptes exacts ;
+aucune sentinelle étrangère dans la recherche ou le détail.
+Le gestionnaire ouvre ses objets ; l'apprenant reste limité à son dossier,
+ses factures/documents, avec refus des cours/activités administratifs.
+
+Révocation effective dans **la même session**, avec peer toujours autorisé.
+Pour les cours, retrait de `is_staff` en conservant la permission de lecture ;
+pour le détail élève secondaire, retrait du scope en plus du grant, conformément
+à sa politique native existante. Pas de politique modifiée pour faire passer
+le scénario. Cookie d'origine rejoué **avant chaque route étrangère**, puis
+connexion native peer positive : pas de série anonyme après expiration du cookie.
+Nettoyage des seuls schémas UUID et lignes publiques calendrier/domaine/tenant
+possédés ; les deux bases de test sont ensuite supprimées par le runner.
+
+**Limite de preuve :** `APIClient/force_login` traverse les vrais middleware,
+routeur tenant, ORM et migrations PostgreSQL. Ce n'est pas une nouvelle
+campagne TCP/Gunicorn, login par mot de passe, navigateur ou rendu PDF.
+Cache de classe privé, taux normaux inchangés et cache non vidé pendant les
+scénarios. Frontend31 inchangé, aucun nouveau build/Jest/navigateur32.
+Pas de nouvelle migration/restauration/recréation/MFA32 ; préparation33 séparée
+non qualifiée. Les UI17/18 et les finales Chromium31 restent des preuves distinctes.
+
+**Huit artefacts hachés, deux campagnes nouvelles :50 updates et188 campagnes
+documentaires non sommées**,25 exigences avec preuves. Les49 updates historiques,
+93 autres exigences et tous les critères/statuts sont préservés.
+**10.7 reste partielle** : conditions communes de reprise persistante à compléter
+pour ces parcours, sans inventer un catalogue LMS natif exhaustif.
+Compteurs inchangés **2/71/19/2** ; pas de déploiement partagé, pilote ou100 %.
+Charge500 non relancée, toujours **500 timeouts/262 écritures indéterminées**.
 
 ## Règle de clôture commune
 

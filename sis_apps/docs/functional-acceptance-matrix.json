@@ -5506,10 +5506,80 @@
         "Clonesrestaurations30pasnouvellepreuverestauration/restart/MFAvolume31 ;API/nginx31arrêtés/supprimésparent,PGRedisprivésgardés. Tracessynthétiques sansHARréseau/sources,aucunearchiveprivée/credentialindexé.54artefactsSHA,4campagnesnouvelles,186total,49updates.",
         "PasnouvellegatedecatalogueLMSnatifexhaustif ;critèresoriginaux920inchangés. PasF-lotclos/piloteinstitutionnel/déploiementpartagé/100%,global_completionfalse. Charge500historiqueROUGE500timeouts/262écrituresindéterminées,aucunenouvellecharge."
       ]
+    },
+    {
+      "id": "EXEC-20261107-wave32-published-search-tenant-isolation",
+      "evidence_cutoff_at": "2026-11-07T21:48:54.693074+00:00",
+      "qualification_status": "five_search_families_real_schema_roles_revocation_and_session_replay_passed_requirement_partial",
+      "scope": "Trois nouveaux scénarios communs exécutés dans chaque SIS avec deux vrais schémas migrés/peuplés, cinq familles et détails, rôles distincts et révocation. Tests et preuves publiés séparément ; aucune promotion de10.7.",
+      "code_commit": "f3168ed11ef253c3f2adf46d6f804519b6be6ebb",
+      "published_commits": ["f3168ed"],
+      "publication": {
+        "remote_main_equality_at_code_publication": true,
+        "source_provenance": "wave32-published-source-provenance.json",
+        "changed_code_files": 1,
+        "new_production_behavior": false,
+        "python_files_compared_commit_worktree_image": 1501
+      },
+      "qualification_environment": {
+        "image": "sha256:b27438d035d4190c0052ed23670abfaf6a4760ef062c1efad208fe08875a96cb",
+        "database": "Isolated PostgreSQL test_sis_wave32_tests_{secondaire,superieur}; both removed by Django runner.",
+        "client": "Django APIClient/force_login through real middleware, tenant router, ORM and migrations; not a new TCP/browser/password-login campaign.",
+        "cache": "Private per-class LocMem cache, unchanged normal throttle rates, not cleared during scenarios.",
+        "frontend": "Published31 unchanged; no new frontend build, Jest run or browser campaign.",
+        "static": "Parent black120/isort/flake8/diff check exited0; provenance records shell wave32-static-check."
+      },
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "parent-qualification": {"path": "wave32-parent-qualification.json", "sha256": "9710625ea6e56e3c578305a16af2ef3ef13b306d87bf16e5755a2236fc09d226"},
+        "parent-generator": {"path": "wave32-parent-qualification.py", "sha256": "74958c764847d3e48923fb22108179ae517699654e61a6f939f2af8b2f7cbe94"},
+        "image-build": {"path": "wave32-image-build.log", "sha256": "74c931fc84ae4f504b52380bfb66cea8efe59ba4cd43d62c54f34eebb094af65"},
+        "image-python-hashes": {"path": "wave32-image-python-hashes.json", "sha256": "7f6c299d0f28be342054adbdabe6092dd328c9d116bab5b416be299c003d985c"},
+        "published-provenance": {"path": "wave32-published-source-provenance.json", "sha256": "3faf6c4c9823c8d001d2f3772deee0f1d7df9aa3fde002080820b9b80132eed0"},
+        "container": {"path": "wave32-standard-container.sh", "sha256": "3be6ff3a1529f725a379a3efe0cca61aee3066a71d092b301f12151da8251d99"},
+        "secondary-tests": {"path": "wave32-secondaire-initial.log", "sha256": "cc21a3c913aed2f6f8cb94e24507af19f986a07c685b10263afbba7b32cde146"},
+        "university-tests": {"path": "wave32-superieur-initial.log", "sha256": "d7ee17862af1df9592541fd5fd46e8826207d8c571b64b089db45ce957d60c6c"}
+      },
+      "campaigns": [
+        {
+          "id": "wave32-secondary-real-schema-search",
+          "result": "40_of_40_passed_including_three_new_real_schema_scenarios",
+          "commit": "f3168ed",
+          "source_refs": ["sis_apps/sis_common/tests/test_academic_search_tenant_isolation.py"],
+          "artifact_refs": ["parent-qualification", "secondary-tests", "container", "published-provenance", "image-python-hashes", "image-build", "parent-generator"],
+          "counts": {"tests_passed": 40, "tests_total": 40, "new_common_scenarios": 3, "existing_regressions": 37, "duration_seconds": 177.218},
+          "verification": "Deux vrais schémas : élèves, cours mappés, évaluations mappées, factures, bulletins et leurs détails. Résultats minimaux/counts exacts, sentinelles privées absentes, apprenant limité au propre dossier/factures/documents. Révocation dans la même session, peer encore autorisé, cookie original rejoué avant chaque route étrangère, connexion native peer positive ensuite.",
+          "limits": "Détail élève secondaire protégé par retrait de scope en plus du grant ; politique native existante respectée. Cours révoqué par is_staff, permission view conservée. Pas de rendu PDF ni nouvelle HTTP/navigateur32. Avertissement guardian.W001 préexistant."
+        },
+        {
+          "id": "wave32-university-real-schema-search",
+          "result": "35_of_35_passed_including_three_new_real_schema_scenarios",
+          "commit": "f3168ed",
+          "source_refs": ["sis_apps/sis_common/tests/test_academic_search_tenant_isolation.py"],
+          "artifact_refs": ["parent-qualification", "university-tests", "container", "published-provenance", "image-python-hashes", "image-build", "parent-generator"],
+          "counts": {"tests_passed": 35, "tests_total": 35, "new_common_scenarios": 3, "existing_regressions": 32, "duration_seconds": 215.899},
+          "verification": "Deux vrais schémas : étudiants, cours mappés, évaluations mappées, factures et trois types documentaires relevés/transcripts/attestations. Mêmes contrôles positifs, rôles, révocation, sentinelles, counts et rejeu de cookies que le secondaire ; comptes et première ligne aux IDs/noms collisionnants, autres lignes étrangères uniques,2vs3 résultats.",
+          "limits": "Client Django et PostgreSQL réels, pas nouvelle recette TCP/navigateur/login par mot de passe32. Schémas UUID possédés et seules lignes publiques de calendrier/domaine/tenant enregistrées nettoyés ; bases de test supprimées. Avertissement guardian.W001 préexistant."
+        }
+      ],
+      "criteria_confrontation": {
+        "requirement_id": "10.7",
+        "source_reference": "paste-1793818759374.txt:920",
+        "required_behaviors_acceptance_checks_unchanged": true,
+        "bounded_new_evidence": "Cinq familles/détails et autre rôle/tenant après révocation démontrés en intégration réelle à deux schémas par SIS ; les UI réelles antérieures et le correctif31 restent des preuves distinctes.",
+        "remaining_scope": "Conditions communes de reprise persistante à compléter pour ces parcours ; préparation33 non qualifiée. Pas de nouvelle restauration/recréation/MFA32.",
+        "status": "partial",
+        "status_transition_authorized": false
+      },
+      "qualification_limits": [
+        "49 anciennes updates et leurs cutoffs/rouges inchangés ;93 autres exigences intactes.10.7 reçoit uniquement une nouvelle execution_evidence, aucun statut ni critère modifié.",
+        "8 artefacts SHA,2 nouvelles campagnes,188 campagnes documentaires non sommées,50 updates,25 exigences avec preuves ; pas de total dédupliqué d'exécutions applicatives.",
+        "Aucun catalogue LMS natif exhaustif ajouté à la source920. Pas de déploiement partagé, pilote institutionnel, nouvelle charge ou100%. Charge500 toujours rouge500timeouts/262écritures indéterminées."
+      ]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-07T21:36:13.951849+00:00",
+    "as_of": "2026-11-07T21:48:54.693074+00:00",
     "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
     "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
     "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
@@ -5528,7 +5598,7 @@
     "wave15_bounded_sis_qualification": "35ef40c,d9ca357,c1eac39,06b55e8 publiés dans origin/main; image backend local-20261107-06b55e8@sha256:956bf0382d5b42b527080d27c937ca6b5622dfda4c22881a87aa99b5cae7f917 sans montage de code applicatif backend :762tests/305sous-tests secondaire et781/300 supérieur verts,check et migrations sans dérive. Chauffeurs protégés/anti-chevauchement, migrations sous propriétaireDB non superutilisateur selon parent; queryset de factures scolaires verrouillable corrigé. Aucun déploiement partagé.",
     "lms_grade_review_bounded": "F09 partiel : proposition obligatoire avant approbation/rejet nominatif audité.11tests par variante dont concurrence réelle200/409,1note/1audit; snapshot période/année et événement retenu plus récent opposables. Navigateur réel sur fixtures loopback des deux SIS, webhook signé synthétique traité en Celery eager, note absente avant approbation,rejet motivé,onglet obsolète409,rejeu,non-écrasement. Pas de vrai LMS natif ni réception humaine institutionnelle; boucle permissions EvaluationsManager corrigée par refetchOnMount:false.",
     "wave16_bounded_frontend_qualification": "ae86edd publié dans origin/main : palette métier/fiches sans cache partagé. Premier Jest400passés/2timeouts sur402tests,34suites passées/2échouées sur36; seulement2cas relancés avec20s passent,78ignorés. Pas de suite complète entièrement verte revendiquée. Lint0erreur/8warnings,build-r2 vert avec3warnings taille/performance. Navigateurs de recherche élèves/étudiants,factures25pagination20+5 et attestation universitaire passent sur fixtures loopback.",
-    "global_search_bounded": "10.7 reste partial :acquis15-18apprenants/factures/vrais cours et évaluations SIS reliées au LMS,documents sources universitaires/bulletins scolaires et parcours staff/apprenant bornés conservés.31ajoute recherche identique page1 et révocation directe réelle d'apprenant, finales ChromiumdeuxSIS200→403mêmeformulaire/session/URLsansancienrésultat/lien/compte. Critères920inchangés :cinqtypes+détailsautorisés,mêmequeryautrerôle/tenantaprèsrévocationsanstitre/extrait/compteinaccessible. Pas nouvelle recette complète cinqtypes/A-B31 ;qualification32encoursnonimportée. Catalogue LMS natif exhaustif non imposé par920 ;formulationshistoriquesconservéesàleurscutoffs,pasnouvellegate.",
+    "global_search_bounded": "10.7 reste partial. Acquis15-18 et Chromium31 conservés.32 ajoute deux vrais schémas migrés/peuplés par SIS : cinq familles et détails, rôles gestionnaire/apprenant, révocation dans la même session, refus interétablissements et rejeu de cookies malgré les IDs collisionnants.40/40 secondaire et35/35 supérieur via client Django et PostgreSQL réels, pas nouvelle recette TCP/navigateur/PDF32. Conditions communes de reprise persistante à compléter pour ces parcours ; préparation33 non qualifiée. Source920 et critères inchangés, aucun catalogue LMS natif exhaustif ajouté.",
     "wave17_bounded_search_qualification": "1be9eaa,bae0bd4,f24fd4f désormais publiés dans origin/main. Backend17 monté RO sur image06b55e8 :premier secondaire85tests/73sous-tests verts et1échec429 de fixture,cache isolé uniquement en tests puis10/19verts;pas de relance intégrale verte. Supérieur70/25verts. Workspace75tests seul fichier à20s,lint0erreur/8warnings,build3warnings. Deux parcours navigateur réels sans réponse réseau simulée,cours/bulletin/évaluation mappée;API/passerelles arrêtées ensuite selon parent. Pas d'image17 reconstruite ni suite complète17.",
     "wave18_bounded_search_qualification": "9ff9752 publié dans origin/main. Recherche evaluations_lms secondaire qualifiée69tests/87sous-tests(core+intégrationAPI+protectionsnotesLMS);UI37verts/42non sélectionnés sur79,build3warnings. Lint ciblé0erreur/0warning et Black/isort/flake8 API/testssecondaires verts selon parent,sans journal dédié. Deux parcours staff+apprenant par SIS sur vraie base de fixture,sans réponse réseau simulée :facture personnelle visible,facture d'autrui absente/requête détail404sansnuméro,typesCours/Évaluations administratifs absents et URLévaluation refusée sansdd. API/passerelles arrêtées selon parent;pas image18 reconstruite ni suite complète18.",
     "studio_bounded_native_qualification": "Blocage levé vers07:30UTC selon parent,56c3b33 publié :image native de base local-20261105-access-ownership2,MySQL8.4.11+MongoDB7.0.39 jetables réseauinterne sansports,1188migrations CMS. Deux runs12tests/2erreursfixture(assets puis URLMFE) conservés,ajustementsfixture seuls puis12/12verts. Baseline exacte200!=403,puis cas candidatvert;SQL0binding/0serviceuserdetest,51GET_LOCK+51RELEASE_LOCKcours cumulés sans preuve de concurrence. Force_authenticate,modulestore/create_new_course/resume_initialization/droits simulés :pas création Mongo réelle ni révocation Studio native. Correctif2lignes+test17lignes+docopérateur publiés,qualitéciblée verte selon parent. Pas nouvelle imageLMS/déploiement;F07 ouvert. Ancien état07:00:50 archivé dans nouvel update et Markdown.",
@@ -5585,8 +5655,13 @@
     "wave31_published_qualification": "605aab7publié/remotecomparéparent,2fichiersAcademicSearch.jsx/Workspace.test.jsx,39insertions1suppression. Même terme/page1retryhookprivé,purgependantGET,autressaisies/pagesinchangées. Workspace81/81en213.342s,puis2ciblésfinaux+79nonsélectionnés20.273saprèsErrorlint,ESLintvert ;pas83tests distincts. Build31neuf69.462s/3warningstaille,171sources/configsgit-showcomparées/2changées/23dist,23HTTPbundle28et23HTTPbundle31hashés. Backend30réutilisésha256:171bbb3077963155a8970e655118137250904159375fcf3ecd8dab935f1c15e6,pasnouveaucode/build/backendtests/migration31.",
     "wave31_identical_search_revocation_bounded": "Rougevalableancienbundle28wave31-red-secondaire-recheck :2clics/1GET200,droitretiré,résultatancienvisible,grantrestauré. Finaleswave31-green-{secondaire,superieur}-finalmêmeharnessstabilisé :mêmeformulaire/type/terme/page1/session/URL,GET200puisnouveauGETidentique403,aucunancienrésultat/lien/compte,aucunenavigation/relogin/refreshcapabilities,grantsrestaurés. PremiersOOM/mockOnce/ESLintnonError/MUIexact:true/deuxrougessessionuniversitaires/assertionformatJestconservés. Requêtesdocumentabandonnéconsignéesetretiréesuniquementànavigationavantpremièrerecherche ;aprèsrésultat,navigationinterditeetcomptagejamaisréinitialisé,pasbypassproduit.",
     "wave31_preservation_and_limits": "Clones31restaurations30,nouveauseulwave31-search-readerparSISnonstaff/nonsuperuser,eleves.view_eleveouetudiants.view_etudiant+scopegrade-learner-0. GuardsDB/settings31/schémaexacts,SHAbrutstouteslignesprotégéesautourseed/revoke/restore,séquencescomparées ;ancienscomptes/MFA/droits/public/B/donnéesmétierpréservés. Loginréelnouveaucomptepeutmodifiersessions/logs/last_login. Pasnouvellepreuverestauration/restart/MFAvolume31 ;API/nginx31arrêtés/supprimésparent,PGRedisprivésgardés.54artefactsdont53parent+rapport,4campagnesnouvelles186total,49updates,25exigencesavecpreuves.10.7partial,10.5clôture30inchangée,aucunrésultat32importé.",
+    "wave32_published_qualification_reference": {
+      "update_id": "EXEC-20261107-wave32-published-search-tenant-isolation",
+      "campaign_ids": ["wave32-secondary-real-schema-search", "wave32-university-real-schema-search"]
+    },
+    "wave32_published_qualification": "f3168ed publié et distant comparé ; seul nouveau fichier de tests commun536 lignes. Image b27438d035d4190c0052ed23670abfaf6a4760ef062c1efad208fe08875a96cb,1501 Python exacts commit/worktree/image.40/40 secondaire177.218s et35/35 supérieur215.899s, dont trois nouveaux scénarios par variante ; Black120/isort/Flake8 verts. Bases de test supprimées par le runner. Aucun nouveau comportement produit, build frontend ou parcours navigateur32.",
     "current_requirement_status_counts": {"verified": 2, "partial": 71, "absent": 19, "unverified": 2, "change": "10.5_partial_to_verified_only_explicit_parent_authorization_wave30"},
-    "shared_deployment_scope": "Aucun déploiement partagé des vagues15à31, pilote prestataire/réception institutionnelle/production. Champshistoriquesconservés ;image30réutilisée etbundle31qualifié ne remplacentpas current_user_backend/current_user_frontend. Restaurations30indépendantesprotégéesclôturent10.5seulement ;clones31pasnouvellepreuverestauration/restart/MFAvolume. API/nginx31arrêtés/supprimésparent,PGRedisprivésgardés. Aucunruntime/Docker/SQL/agent/sondage/arrêt/testapplicatifici ;aucunrésultat32importé,charge500nonrelancée500timeouts/262écrituresindéterminéesinchangés.10.7partial,IAM/F07/F09etF-lotsinchangés,global_completionfalse.",
+    "shared_deployment_scope": "Aucun déploiement partagé des vagues15à32, pilote institutionnel ou production. Les images de qualification ne remplacent pas current_user_backend/current_user_frontend. Restaurations30 indépendantes conservées ;31 et32 n'ajoutent pas de preuve de restauration/recréation/MFA. API/nginx31 arrêtés, bases de test32 supprimées, PG/Redis privés conservés. Préparation33 distincte non qualifiée. Charge500 non relancée :500timeouts/262écritures indéterminées.10.7partial, autres F-lots inchangés, global_completionfalse.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -6227,9 +6302,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 186,
+    "imported_evidence_campaign_records": 188,
     "requirements_with_new_increment_evidence": 25,
-    "conclusion": "186campagnesdocumentairesnonsommées(182avant31+4nouvelles),49updates,54artefacts31dont53duparent+rapportqualifié,25exigencesavecpreuves.48anciensupdates/cutoffs/rougeset93autresobjetsintacts,94IDs/critères/source/statuts/F-lotsinchangés. Pour10.7seuleexecution_evidenceajoutée,partial ;10.5vérifiée30inchangée. Compteurs2verified/71partial/19absent/2unverified/external_credentials_blocked0,application_execution_countnull.605aab7publié/remotecomparéparent,AcademicSearch.jsx+Workspace.test.jsxseulement39insertions1suppression :mêmeterme/page1retryprivé,purgependantGET,autressaisies/pagesinchangées. Workspace81/81puis2ciblésfinaux+79nonsélectionnésaprèsErrorlint,ESLintvert,pas83tests distincts. Build31neuf69.462s/3warnings,171sources/configscomparéesgit-show/2changées/23dist,23anciensHTTPbundle28et23nouveauxHTTPbundle31hashés. Backend30image171bbb307réutilisée,pasnouveaucode/build/backendtests/migration31. Témoinrouge28valable2clics/1GET200,droitretiré,résultatancienvisible ;finalesChromiumdeuxSISmêmeformulaire/type/terme/page1/session/URL,GET200puisnouveauGETidentique403,sansancienrésultat/lien/compte,navigation/relogin/refreshcapabilities,grantsrestaurés. IncidentsOOM512Mo/mockOnce1024Mo/ESLintnonError/MUIexact:true/deuxessaisuniversitairessession/assertionJestconservés ;comptagedocumentcorrigéharnessseulavantpremièrerecherche,puisaucunenavigation/réinitialisation. Compteseulnouveaunonstaff/nonsuperuserparclone,permissionapprenant+scope ;gardesDB/settings31/SHAbrutslignesprotégéesetséquencesautourseed/revoke/restore,ancienscomptes/MFA/droits/public/B/métierpréservés,loginréelpeutmodifiersessions/logs/last_login. Clonesrestaurations30pasnouvellepreuverestauration/restart/MFAvolume31,API/nginx31arrêtés/supprimésparent,PGRedisprivésgardés. Tracessynthétiques sansHARréseau/sources,archivesprivées/credentialsnonindexés,générateurparentnonréexécuté. Critères920cinqtypes/détailsautorisés/mêmequeryautrerôle-tenantaprèsrévocationinchangés,pascatalogueLMSnatifexhaustifimposé,pasrecettecomplète31nirésultat32importé. PasF-lotclos/pilote/déploiementpartagé/100%,global_completionfalse ;aucunenouvellecharge,500timeouts/262écrituresindéterminéeshistoriquesROUGESinchangés."
+    "conclusion": "188 campagnes documentaires non sommées,50 updates,25 exigences avec preuves ;8 artefacts32 après les54 artefacts31.49 updates historiques et93 autres exigences strictement préservées,94 IDs/statuts/critères/source/F-lots inchangés ;10.7 reçoit uniquement une nouvelle preuve et reste partial. Compteurs2verified/71partial/19absent/2unverified/external_credentials_blocked0, application_execution_count=null. f3168ed publié : seul nouveau test commun536 lignes, image b27438d et1501 Python exacts commit/worktree/image.40/40 secondaire177.218s et35/35 supérieur215.899s, dont trois nouveaux scénarios par variante, Black/isort/Flake8 verts. Deux vrais schémas migrés/peuplés par SIS, cinq familles et détails, rôles gestionnaire/apprenant, révocation dans la même session, sentinelles étrangères absentes, cookies rejoués malgré IDs collisionnants puis natif peer positif. Client Django/middleware/ORM/PostgreSQL réels ; pas nouveau TCP/navigateur/login/PDF32. Bases de test supprimées par le runner. Les UI17/18 et les finales Chromium31 restent des preuves distinctes ; conditions communes de reprise persistante à compléter pour ces parcours, préparation33 non qualifiée. Pas nouveau catalogue LMS natif exhaustif imposé, migration/restauration/recréation/MFA32, déploiement partagé, pilote ou100%. Charge500 toujours rouge500timeouts/262écritures indéterminées, aucune nouvelle charge."
   },
   "requirements": [
     {
@@ -11724,6 +11799,14 @@
           "incident_boundary": "OOM512Mo,mockOnce1024Mo,rougeisolé1GETvs2,ESLintnonError,premierMUIexact:true,deuxessaisuniversitairessessionetassertionformatJestconservés. Requêtesdocumentabandonnéparloginretiréesexplicitement/consignéesuniquementnavigationavantpremièrerecherche ;aprèsrésultat,navigationinterdite/comptagejamaisréinitialisé. Deuxfinalesmêmeharnessstabilisé,aucunbypassproduit,rougesharnesspasproduitpassé.",
           "criteria_scope": "Source920inchangée :apprenant,cours,document,facture,activité selonpermissions ;5types+détailsautorisés,mêmequeryautrerôle/tenantaprèsrévocationsanstitre/extrait/compteinaccessible. CatalogueLMSnatifexhaustifnonexigé :formulationshistoriquesconservéesàleurscutoffs,pasnouvellegate.",
           "remaining_scope": "10.7 reste partial.31qualifie seulement recherche identique et révocation directe réelle d'apprenant ;pasrecettecomplètecinqtypes/autrerôle/autretenant. QualificationA/B32encoursnonimportée.54artefactsdont53parent+rapport,tracessynthétiquessansHARréseau/sources,aucunearchiveprivée/credentialindexé. API/nginx31arrêtés/supprimésparent,PGRedisprivésgardés ;pasdéploiementpartagé/pilote/nouvellecharge/100%.10.5clôturée30et93autresexigencesinchangées,charge500ROUGE500timeouts/262écrituresindéterminéesconservée."
+        },
+        {
+          "update_id": "EXEC-20261107-wave32-published-search-tenant-isolation",
+          "campaign_ids": ["wave32-secondary-real-schema-search", "wave32-university-real-schema-search"],
+          "result": "five_families_details_roles_revocation_and_cookie_replay_on_two_real_schemas_passed_requirement_partial",
+          "verified_scope": "f3168ed publié : trois nouveaux scénarios communs,40/40 secondaire et35/35 supérieur. Deux vrais schémas migrés/peuplés, cinq familles et détails natifs, dont les trois types documentaires universitaires. Rôles gestionnaire/apprenant, counts et résultats minimaux exacts, absence des sentinelles étrangères, révocation dans la même session avec peer toujours autorisé, cookie original rejoué avant chaque route malgré les identifiants collisionnants puis connexion native peer positive.",
+          "boundary": "Django APIClient/force_login, vrais middleware/ORM/migrations/PostgreSQL ; pas nouvelle campagne TCP/navigateur/login/PDF32. Cache de classe privé, taux normaux inchangés. Nettoyage des seuls schémas UUID et lignes publiques possédés, puis bases de test détruites par le runner. Image b27438d et1501 Python exacts commit/worktree/image ; seul ajout produit = fichier de tests536 lignes.",
+          "remaining_scope": "10.7 reste partial : conditions communes de reprise persistante à compléter pour ces parcours, préparation33 non qualifiée. Pas nouvelle restauration/recréation/MFA32, catalogue LMS natif exhaustif non imposé, pas déploiement partagé/pilote/charge/100%. Critères, statuts et preuves historiques inchangés."
         }
       ],
       "acceptance_execution_status": "increments_passed_requirement_incomplete"
