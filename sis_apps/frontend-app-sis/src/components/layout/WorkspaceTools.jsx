@@ -16,7 +16,7 @@ import { academicSearchResources } from '../../services/academicSearch';
 export const navigationKey = item => item.path.split('?')[0];
 
 const WorkspaceTools = ({
-  sections, preferences, brand, variant, capabilities, searchContext,
+  sections, preferences, brand, variant, capabilities, searchContext, lmsAdmin,
 }) => {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(false);
@@ -57,7 +57,7 @@ const WorkspaceTools = ({
     links[next].focus();
   };
   const visible = filterNavigation(sections, query);
-  const resources = academicSearchResources(variant, capabilities);
+  const resources = academicSearchResources(variant, capabilities, lmsAdmin);
   return (
     <>
       <Tooltip title="Rechercher un module ou un dossier (Ctrl+K / ⌘K)">
@@ -209,8 +209,9 @@ WorkspaceTools.propTypes = {
     permissions: PropTypes.arrayOf(PropTypes.string),
   }),
   searchContext: PropTypes.string,
+  lmsAdmin: PropTypes.bool,
 };
 WorkspaceTools.defaultProps = {
-  brand: undefined, variant: undefined, capabilities: undefined, searchContext: null,
+  brand: undefined, variant: undefined, capabilities: undefined, searchContext: null, lmsAdmin: false,
 };
 export default WorkspaceTools;

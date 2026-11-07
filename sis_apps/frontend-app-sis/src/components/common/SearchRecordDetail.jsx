@@ -9,6 +9,32 @@ import { academicSearchResources, usePrivateResource } from '../../services/acad
 import { apiErrorMessage, resourceUrl } from '../../services/resources';
 
 const definitions = {
+  bulletins: {
+    title: 'Bulletin',
+    endpoint: 'notes/bulletins',
+    fields: [
+      ['Élève', 'eleve_nom'], ['Matricule', 'eleve_matricule'], ['Classe', 'classe_nom'],
+      ['Période', 'periode_libelle'], ['Moyenne', 'moyenne_generale'], ['Rang', 'rang'],
+      ['Appréciation', 'appreciation_conseil'], ['Décision', 'decision'], ['Publié', 'publie'],
+    ],
+  },
+  cours: {
+    title: 'Cours LMS',
+    endpoint: 'integration/mappings/courses',
+    fields: [
+      ['Clé LMS', 'course_id'], ['Nom', 'course_name'], ['Matière', 'matiere_nom'],
+      ['Classe', 'classe_nom'], ['ECUE', 'ecue_nom'], ['Actif', 'actif'],
+    ],
+  },
+  evaluations_lms: {
+    title: 'Évaluation reliée au LMS',
+    endpoint: 'notes/evaluations',
+    fields: [
+      ['Titre', 'titre'], ['Description', 'description'], ['ECUE', 'ecue_nom'],
+      ['Semestre', 'semestre_libelle'], ['Modalité', 'modalite_display'],
+      ['Date', 'date'], ['Barème', 'bareme'], ['Fin de soumission', 'fin_soumission'],
+    ],
+  },
   factures: {
     title: 'Facture',
     endpoint: 'paiements/factures',
@@ -69,7 +95,10 @@ const Record = ({ variant, resource, id }) => {
   if (!record || String(record.id) !== id) { return <Alert severity="error">Réponse de dossier invalide reçue du serveur.</Alert>; }
   return (
     <>
-      <PageHeader title={definition.title} subtitle={record.numero || record.numero_serie || record.code} />
+      <PageHeader
+        title={definition.title}
+        subtitle={record.numero || record.numero_serie || record.code || record.course_id || record.titre}
+      />
       <Box component="dl">
         {definition.fields.filter(([, field]) => record[field] != null).map(([label, field]) => (
           <Box key={field} sx={{ mb: 2 }}>
@@ -78,7 +107,7 @@ const Record = ({ variant, resource, id }) => {
           </Box>
         ))}
       </Box>
-      {['releves', 'transcripts', 'attestations'].includes(resource) && (
+      {['bulletins', 'releves', 'transcripts', 'attestations'].includes(resource) && (
         <Alert severity="info">
           La validation administrative n’est pas une signature numérique vérifiable.
           Les versions signées sont consultables dans l’espace documentaire.
@@ -96,11 +125,14 @@ Record.propTypes = {
 
 const SearchRecordDetail = ({ resource }) => {
   const { id, documentType } = useParams();
-  const { variant, capabilities, searchContext } = useOutletContext();
+  const {
+    variant, capabilities, searchContext, profile,
+  } = useOutletContext();
   const selected = resource || documentType;
   if (!searchContext) { return <Alert severity="info">Vérification de vos accès avant la consultation…</Alert>; }
+  const allowedResources = academicSearchResources(variant, capabilities, profile?.is_staff === true);
   if (!definitions[selected] || !/^[1-9]\d*$/.test(id)
-    || !academicSearchResources(variant, capabilities).some(item => item.value === selected)) {
+    || !allowedResources.some(item => item.value === selected)) {
     return <Alert severity="error">Vous n’avez pas accès à ce type de dossier dans ce contexte.</Alert>;
   }
   return <Record key={`${searchContext}:${selected}:${id}`} variant={variant} resource={selected} id={id} />;

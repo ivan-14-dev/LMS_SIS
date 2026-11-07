@@ -40,7 +40,7 @@ const AcademicSearch = ({ variant, resources, onNavigate }) => {
             value={term}
             onChange={event => { clear(); setTerm(event.target.value); }}
             error={Boolean(term) && !valid}
-            helperText="Entre 2 et 100 caractères, sans caractères de contrôle. Factures et documents : numéro uniquement."
+            helperText="Entre 2 et 100 caractères, sans caractères de contrôle. Factures et documents : numéro ou référence."
           />
           <Button type="submit" disabled={!valid || request.loading}>Rechercher les dossiers</Button>
         </Stack>

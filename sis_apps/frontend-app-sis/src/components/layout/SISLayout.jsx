@@ -41,7 +41,9 @@ const Workspace = ({ type, variant }) => {
   const allowedCapabilities = capabilities.isError ? undefined : capabilities.data;
   const searchContext = !capabilities.isFetching && !capabilities.isError
     && !profile.isFetching && !profile.isError && profile.data?.id
-    ? JSON.stringify([profileUrl, profile.data.id, profile.data.etablissement, allowedCapabilities]) : null;
+    ? JSON.stringify([
+      profileUrl, profile.data.id, profile.data.etablissement, profile.data.is_staff, allowedCapabilities,
+    ]) : null;
   const allSections = getNavigation(variant, variant, allowedCapabilities, location.search);
   const preferences = useWorkspacePreferences(profile.data?.id
     ? `${profileUrl}:${profile.data.etablissement}:${profile.data.id}` : null);
@@ -130,6 +132,7 @@ const Workspace = ({ type, variant }) => {
               variant={variant}
               capabilities={allowedCapabilities}
               searchContext={searchContext}
+              lmsAdmin={profile.data?.is_staff === true}
             />
             <label className="sis-context-select" htmlFor="sis-context">
               <span>Contexte SIS</span>

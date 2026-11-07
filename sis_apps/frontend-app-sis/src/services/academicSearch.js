@@ -14,13 +14,19 @@ const documents = [
   { value: 'attestations', label: 'Attestations', permission: 'releves.view_attestation' },
 ];
 
-export const academicSearchResources = (variant, capabilities) => {
+export const academicSearchResources = (variant, capabilities, lmsAdmin = false) => {
   if (!capabilities || !['secondaire', 'superieur'].includes(variant)) { return []; }
   const personal = canEnterPortal(capabilities, 'learner')
     || (variant === 'secondaire' && canEnterPortal(capabilities, 'parent'));
   const resources = (variant === 'secondaire'
     ? [{ value: 'eleves', label: 'Élèves', permission: 'eleves.view_eleve' }]
     : universityResources).filter(resource => hasCapability(capabilities, resource.permission));
+  if (lmsAdmin && !personal) {
+    resources.push({ value: 'cours', label: 'Cours LMS' });
+  }
+  if (variant === 'superieur' && !personal && hasCapability(capabilities, 'notes.view_evaluation')) {
+    resources.push({ value: 'evaluations_lms', label: 'Évaluations reliées au LMS' });
+  }
   const financePermission = variant === 'secondaire' ? 'paiement' : 'paiementfrais';
   const invoicePermission = variant === 'secondaire' ? 'facture' : 'facturefrais';
   if (personal || hasCapability(capabilities, `paiements.change_${financePermission}`)
@@ -31,6 +37,8 @@ export const academicSearchResources = (variant, capabilities) => {
     resources.push(...documents.filter(resource => personal
       || hasCapability(capabilities, resource.permission)
       || hasCapability(capabilities, resource.permission.replace('.view_', '.change_'))));
+  } else if (personal || hasCapability(capabilities, 'notes.view_bulletin')) {
+    resources.push({ value: 'bulletins', label: 'Bulletins' });
   }
   return resources;
 };

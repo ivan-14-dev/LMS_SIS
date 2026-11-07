@@ -99,6 +99,8 @@ const App = () => (
             <Route path="documents" element={<DocumentsPage variant="superieur" />} />
             <Route path="documents/:documentType/:id" element={<SearchRecordDetail />} />
             <Route path="factures/:id" element={<SearchRecordDetail resource="factures" />} />
+            <Route path="cours/:id" element={<SearchRecordDetail resource="cours" />} />
+            <Route path="evaluations_lms/:id" element={<SearchRecordDetail resource="evaluations_lms" />} />
             <Route path="parcours/:id" element={<SearchRecordDetail resource="parcours" />} />
             <Route path="reclamations" element={<ComplaintsPage variant="superieur" />} />
             <Route path="compte" element={<AccountPage variant="superieur" />} />
@@ -168,6 +170,7 @@ const App = () => (
             <Route path="missions" element={<AccessDelegationsPage variant="secondaire" />} />
             <Route path="documents" element={<DocumentsPage variant="secondaire" />} />
             <Route path="factures/:id" element={<SearchRecordDetail resource="factures" />} />
+            <Route path="cours/:id" element={<SearchRecordDetail resource="cours" />} />
             <Route path="reclamations" element={<ComplaintsPage variant="secondaire" />} />
             <Route path="compte" element={<AccountPage variant="secondaire" />} />
             <Route index element={<DashboardSecondaire />} />
@@ -188,6 +191,7 @@ const App = () => (
               )}
             />
             <Route path="bulletins" element={<BulletinsPage />} />
+            <Route path="bulletins/:id" element={<SearchRecordDetail resource="bulletins" />} />
             <Route path="examens" element={<ExamManagement variant="secondaire" />} />
             <Route path="workflows" element={<WorkflowCenterPage apiType="secondaire" title="Centre workflow secondaire" subtitle="Notifications et historique global des workflows du secondaire" />} />
             <Route path="conseil-classe" element={<ConseilClassePage />} />

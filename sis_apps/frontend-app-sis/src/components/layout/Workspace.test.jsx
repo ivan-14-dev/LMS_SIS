@@ -139,6 +139,9 @@ const renderWorkspace = (path = '/secondaire', client = workspaceClient()) => re
             <Route path="classes" element={<h1>Gestion des classes</h1>} />
             <Route path="eleves" element={<h1>Dossiers élèves</h1>} />
             <Route path="factures/:id" element={<SearchRecordDetail resource="factures" />} />
+            <Route path="cours/:id" element={<SearchRecordDetail resource="cours" />} />
+            <Route path="bulletins/:id" element={<SearchRecordDetail resource="bulletins" />} />
+            <Route path="evaluations_lms/:id" element={<SearchRecordDetail resource="evaluations_lms" />} />
             <Route path="documents/:documentType/:id" element={<SearchRecordDetail />} />
             <Route path="parcours/:id" element={<SearchRecordDetail resource="parcours" />} />
             <Route path="compte" element={<h1>Sécurité du compte</h1>} />
@@ -174,6 +177,7 @@ beforeEach(() => {
       return {
         id: 1,
         etablissement: 1,
+        is_staff: roles[variant].role === 'super_admin',
         full_name: 'Compte recette',
         role_display: roles[variant].role,
         etablissement_nom: `Campus ${variant}`,
@@ -516,6 +520,7 @@ describe('authorized record search', () => {
         variant="secondaire"
         capabilities={{ role: 'super_admin', permissions: ['*'] }}
         searchContext="tenant:1:account:1"
+        lmsAdmin
         {...props}
       />
     </MemoryRouter>
@@ -536,6 +541,7 @@ describe('authorized record search', () => {
   it.each([
     ['secondaire', 'Élèves', 'eleves', '/secondaire/eleves/17'],
     ['secondaire', 'Factures', 'factures', '/secondaire/factures/17'],
+    ['secondaire', 'Bulletins', 'bulletins', '/secondaire/bulletins/17'],
     ['superieur', 'Étudiants', 'etudiants', '/superieur/etudiants/17'],
     ['superieur', 'Factures', 'factures', '/superieur/factures/17'],
     ['superieur', 'Formations', 'formations', '/superieur/formations/17'],
@@ -543,6 +549,9 @@ describe('authorized record search', () => {
     ['superieur', 'Relevés de notes', 'releves', '/superieur/documents/releves/17'],
     ['superieur', 'Transcripts', 'transcripts', '/superieur/documents/transcripts/17'],
     ['superieur', 'Attestations', 'attestations', '/superieur/documents/attestations/17'],
+    ['secondaire', 'Cours LMS', 'cours', '/secondaire/cours/17'],
+    ['superieur', 'Cours LMS', 'cours', '/superieur/cours/17'],
+    ['superieur', 'Évaluations reliées au LMS', 'evaluations_lms', '/superieur/evaluations_lms/17'],
   ])('opens %s %s at the actual entity destination', async (variant, label, resource, path) => {
     fetchApi.mockResolvedValue({ count: 1, next: null, results: [{ id: 17, code: 'REF-17', nom: 'Dossier attendu' }] });
     render(palette({ variant }));
@@ -632,6 +641,7 @@ describe('authorized record search', () => {
     view.rerender(palette({
       searchContext: 'tenant:2:account:1:revoked',
       capabilities: { role: 'custom', permissions: [] },
+      lmsAdmin: false,
     }));
     expect(signal.aborted).toBe(true);
     await act(async () => resolve({ count: 1, results: [{ id: 2, code: 'REF', nom: 'Réponse tardive' }] }));
@@ -648,13 +658,21 @@ describe('authorized record search', () => {
     expect(screen.queryByRole('option', { name: 'Élèves' })).not.toBeInTheDocument();
   });
 
-  it('does not present a formation as an LMS course or expose an unimplemented course destination', async () => {
-    render(palette({ variant: 'superieur' }));
+  it('does not mistake wildcard permissions for LMS administrative access', async () => {
+    render(palette({ variant: 'superieur', lmsAdmin: false }));
     await openRecords();
     fireEvent.mouseDown(screen.getByLabelText('Type de dossier'));
     expect(screen.getByRole('option', { name: 'Formations' })).toBeVisible();
     expect(screen.queryByRole('option', { name: /cours lms/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('option', { name: /^cours$/i })).not.toBeInTheDocument();
+  });
+
+  it('does not present mapped evaluations as learner-accessible LMS content', async () => {
+    render(palette({ variant: 'superieur', capabilities: portalRole('etudiant', ['*']) }));
+    await openRecords();
+    fireEvent.mouseDown(screen.getByLabelText('Type de dossier'));
+    expect(screen.queryByRole('option', { name: 'Évaluations reliées au LMS' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Cours LMS' })).not.toBeInTheDocument();
   });
 
   it.each([
@@ -664,6 +682,10 @@ describe('authorized record search', () => {
     ['superieur', '/documents/transcripts/17', '/releves/transcripts/17/', 'Transcript'],
     ['superieur', '/documents/attestations/17', '/releves/attestations/17/', 'Attestation'],
     ['superieur', '/parcours/17', '/formations/parcours/17/', 'Parcours'],
+    ['secondaire', '/cours/17', '/integration/mappings/courses/17/', 'Cours LMS'],
+    ['superieur', '/cours/17', '/integration/mappings/courses/17/', 'Cours LMS'],
+    ['superieur', '/evaluations_lms/17', '/notes/evaluations/17/', 'Évaluation reliée au LMS'],
+    ['secondaire', '/bulletins/17', '/notes/bulletins/17/', 'Bulletin'],
   ])('loads the authorized %s %s detail without sharing its result in cache', async (variant, route, endpoint, heading) => {
     const defaultFetch = fetchApi.getMockImplementation();
     fetchApi.mockImplementation((url, options) => (
@@ -706,5 +728,23 @@ describe('authorized record search', () => {
     expect(await screen.findByText('Vous n’avez pas accès à ce type de dossier dans ce contexte.')).toBeVisible();
     expect(screen.queryByText('FACTURE-CONFIDENTIELLE')).not.toBeInTheDocument();
     expect(screen.queryByText('125.00')).not.toBeInTheDocument();
+  });
+
+  it('removes course details after LMS administrator status is revoked independently of wildcard grants', async () => {
+    const defaultFetch = fetchApi.getMockImplementation();
+    fetchApi.mockImplementation((url, options) => (
+      url.endsWith('/integration/mappings/courses/17/')
+        ? Promise.resolve({ id: 17, course_id: 'course-v1:PRIVATE', course_name: 'Cours privé' })
+        : defaultFetch(url, options)
+    ));
+    const client = workspaceClient();
+    renderWorkspace('/secondaire/cours/17', client);
+    expect(await screen.findByText('Cours privé')).toBeVisible();
+    act(() => client.setQueryData(
+      ['profile', 'https://secondaire.example.test/api/v1/utilisateurs/comptes/'],
+      prior => ({ ...prior, is_staff: false }),
+    ));
+    expect(await screen.findByText('Vous n’avez pas accès à ce type de dossier dans ce contexte.')).toBeVisible();
+    expect(screen.queryByText('Cours privé')).not.toBeInTheDocument();
   });
 });

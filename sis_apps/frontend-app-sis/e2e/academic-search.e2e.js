@@ -19,9 +19,10 @@ async function openSearch(page, type, term) {
 }
 
 for (const variant of variants) {
-  test(`${variant}: authorized typed search opens real learner and invoice details`, async ({ page }) => {
+  test(`${variant}: authorized typed search opens real academic and financial details`, async ({ page }) => {
     // Extend the disposable grade fixture with invoiceId/Number/Prefix (25 matching invoices),
-    // and documentId/Number for a university attestation. No records are created by this test.
+    // documentId/Number for an attestation, bulletinId for a school bulletin and courseMappingId.
+    // No records are created by this test.
     const { fixture, credentials } = loadGradeFixture(variant);
     expect(Number.isInteger(fixture.invoiceId)).toBe(true);
     expect(typeof fixture.invoiceNumber).toBe('string');
@@ -59,7 +60,22 @@ for (const variant of variants) {
     await expect(page.getByRole('heading', { name: 'Facture', exact: true })).toBeVisible();
     await expect(page.locator('dd').filter({ hasText: fixture.invoiceNumber })).toBeVisible();
 
+    expect(Number.isInteger(fixture.courseMappingId)).toBe(true);
+    dialog = await openSearch(page, 'Cours LMS', fixture.courseId);
+    const courseLink = dialog.getByRole('link').filter({ hasText: fixture.courseId });
+    await expect(courseLink).toHaveAttribute('href', `/${variant}/cours/${fixture.courseMappingId}`);
+    await courseLink.click();
+    await expect(page.getByRole('heading', { name: 'Cours LMS', exact: true })).toBeVisible();
+    await expect(page.locator('dd').filter({ hasText: fixture.courseId })).toBeVisible();
+
     if (variant === 'superieur') {
+      dialog = await openSearch(page, 'Évaluations reliées au LMS', fixture.evaluationTitle);
+      const evaluationLink = dialog.getByRole('link').filter({ hasText: fixture.evaluationTitle });
+      await expect(evaluationLink).toHaveAttribute('href', `/${variant}/evaluations_lms/${fixture.evaluationId}`);
+      await evaluationLink.click();
+      await expect(page.getByRole('heading', { name: 'Évaluation reliée au LMS', exact: true })).toBeVisible();
+      await expect(page.locator('dd').filter({ hasText: fixture.evaluationTitle })).toBeVisible();
+
       expect(Number.isInteger(fixture.documentId)).toBe(true);
       expect(typeof fixture.documentNumber).toBe('string');
       dialog = await openSearch(page, 'Attestations', fixture.documentNumber);
@@ -68,6 +84,15 @@ for (const variant of variants) {
       await documentLink.click();
       await expect(page.getByRole('heading', { name: 'Attestation', exact: true })).toBeVisible();
       await expect(page.locator('dd').filter({ hasText: fixture.documentNumber })).toBeVisible();
+      await expect(page.getByText(/La validation administrative n’est pas une signature numérique vérifiable/)).toBeVisible();
+    } else {
+      expect(Number.isInteger(fixture.bulletinId)).toBe(true);
+      dialog = await openSearch(page, 'Bulletins', `BUL-${fixture.bulletinId}`);
+      const bulletinLink = dialog.getByRole('link').filter({ hasText: `BUL-${fixture.bulletinId}` });
+      await expect(bulletinLink).toHaveAttribute('href', `/${variant}/bulletins/${fixture.bulletinId}`);
+      await bulletinLink.click();
+      await expect(page.getByRole('heading', { name: 'Bulletin', exact: true })).toBeVisible();
+      await expect(page.locator('dd').filter({ hasText: fixture.learnerMatricule })).toBeVisible();
       await expect(page.getByText(/La validation administrative n’est pas une signature numérique vérifiable/)).toBeVisible();
     }
   });
