@@ -9,11 +9,11 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 17:47:21 UTC** :
-vagues 15 à 26 publiées et qualifiées dans leurs périmètres bornés ;
-**vague26 publiée en `4f282a2`, vérifié égal à `HEAD` et `origin/main` sur main**.
+**Dernier cutoff documentaire : 7 novembre 2026 à 18:25:28 UTC** :
+vagues 15 à 27 publiées et qualifiées dans leurs périmètres bornés ;
+**vague27 publiée en `a0ddbaa`, vérifié égal à `HEAD` et `origin/main` sur main**.
 Le passage autorisé de **10.5 d'absente à partielle** appartient à la
-vague25. **Aucun statut promu en vague26** :
+vague25. **Aucun statut promu en vague27** :
 **1 vérifiée, 72 partielles, 19 absentes et 2 non vérifiées sur 94**.
 Les 93 autres statuts et les chiffres historiques restent inchangés.
 Le blocage de qualification Studio a été levé
@@ -25,15 +25,19 @@ des groupes sans retirer membres ou permissions, avec suites backend
 intégrales sur l'image reconstruite du commit publié, 31 tests UI et deux parcours
 navigateur par SIS, dont révocation/rétablissement dans une même session.
 IAM reste en cours, sans recette exhaustive multi-tenant, tous menus/rôles,
-MFA/SoD ou versionnement. La vague26 ajoute un **lien optionnel à un mapping
-de cours local préexistant** (classe/matière ou ECUE), autorisé à la fois
-au gestionnaire et au responsable, avec permission cours explicite et
-prérequis staff hérité. Image corrigée **`e89d…`** : 40 tests/17 sous-tests
-secondaire et40/20 supérieur, 32 tests UI, deux parcours navigateur parSIS
-et persistance HTTP après recréation avec quatre captures avant/après.
-**Aucune intégrale26** ; les intégrales25 restent uniquement25 BASE.
+MFA/SoD ou versionnement. Le lien local cours26 est désormais accessible
+aux **enseignants non staff réellement affectés**, dans le périmètre projets27 :
+permission cours explicite, profil réel, affectations et scopes opposables,
+intersection gestionnaire/responsable ; frontière administrative staff inchangée.
+Image **`cefe061…`** : secondaire48 tests/1 skip/26 sous-tests, supérieur49/29 ;
+régressions portails/intégration séparées28/8 et27/8. Un parcours enseignant
+et deux parcours projets par SIS passent ; six reçus HTTP après recréation.
+**Aucune intégrale27, aucun nouveau Jest/build frontend27** : bundle26 réutilisé
+avec sources UI/manifests inchangés ; les intégrales25 restent uniquement25 BASE.
 **10.5 reste partielle** : compétences, notes officielles, opérations LMS
-distantes, parcours enseignants non staff et réception complète restent ouverts.
+distantes, recette institutionnelle multirôles et restauration globale restent ouvertes.
+Le parcours enseignant non staff n'est plus totalement manquant, sans être
+une qualification complète IAM, portail enseignant ou réception d'établissement.
 **Le 100 % n'est pas atteint.**
 Les bilans datés antérieurs conservent leurs cutoffs, blocages et rouges.
 
@@ -1237,6 +1241,121 @@ institutionnel, nouvelle charge500 ou100 % : dernier rouge **500 timeouts,
 262 écritures indéterminées**. Politiques, cutoffs et preuves historiques
 intacts ; aucun test/service/commit/push pour cet import documentaire.
 
+**Vague 27, publiée et qualifiée au cutoff du 7 novembre 2026 à
+18:25:28 UTC :** `a0ddbaa4421fdb696099b8cd804eafbbae61fb27`, vérifié égal
+à `HEAD` et `origin/main` sur le principal propre avant import ; comparaison
+distante et publication attestées par le parent. Le commit modifie cinq fichiers :
+helper cours, tests associés, README et scénario/config navigateur enseignants.
+**Aucun statut promu : 1 vérifiée,72 partielles,19 absentes,2 non vérifiées sur94**.
+Seule la portée courante de10.5 est actualisée, sans modifier ses critères.
+
+Le parcours **non staff** exige `integration.view_edxcoursemapping`,
+les permissions/scopes projets, un profil réel et le rôle `enseignant`
+(également `chercheur` au supérieur). Il réutilise le queryset local
+`apps.portail.api._TenantTeacherPortal._affectations_queryset`, **sans modifier
+les portails ni appeler leurs actions HTTP**. Au secondaire, une même affectation
+doit relier profil/classe/matière/année, avec tous les parents locaux.
+Au supérieur, une affectation ECUE ne couvre pas ses frères ; une affectation
+UE sans ECUE couvre ses ECUE, mais une UE explicite contradictoire est refusée.
+L'année d'affectation doit égaler celles de maquette **et** de semestre ;
+formation/département/faculté doivent être locaux. **Formation sans département
+non éligible au non-staff** ; aucune condition temporelle `en_cours` inventée.
+
+La branche staff conserve la frontière administrative26 ; chaque acteur et
+responsable reste contrôlé, y compris les couples staff/non-staff.
+Aucun staff automatique, accès administrateur LMS, provisioning, inscription
+ou droit aux notes n'est accordé. Le retrait d'affectation masque le contexte
+du détail et de l'historique **sans réécrire les preuves persistées** ; une
+configuration conservant le lien devient400 sans mutation. Le retrait explicite,
+les projets non rattachés et les activités autonomes du projet restent possibles
+selon leurs droits propres. Verrous projet/mapping et revalidation sont conservés ;
+**la concurrence exacte édition d'affectation contre rattachement n'est pas qualifiée**.
+
+Image standard **`lms-sis:local-20261107-a0ddbaa`**, digest
+`sha256:cefe061a07c134d2a428f82a5849fb9e2edc8e99fe9f4b0e0e077cf0cc3e7aae`.
+Le build et `wave27-image-source-comparison.json` sont lus : **deux Python
+identiques source/image/commit publié**, frontend `src` et manifests inchangés
+depuis `4f282a2`, portails inchangés également. Aucun overlay applicatif backend
+pour la qualification finale ; runner standard limité aux scripts/collecte frontend,
+navigateurs limités aux settings synthétiques et au volume privé.
+
+`wave27-secondaire-standard.log` : **48 tests passés,1 ignoré,26 sous-tests,
+128,59 s** ; le skip concerne uniquement le contrat UE/ECUE du supérieur.
+`wave27-superieur-standard.log` : **49 tests/29 sous-tests,145,35 s**.
+Checks sans erreur et migrations sans dérive, avec **`guardian.W001` connu**
+(ne pas ajouter les backends standards pour le faire disparaître).
+Campagne séparée `wave27-*-portals-integration.log` : secondaire
+**28 tests/8 sous-tests,93,87 s**, supérieur **27/8,112,68 s**.
+Ne pas sommer variantes/campagnes comme tests uniques ; **aucune intégrale27**.
+
+Les deux `wave27-*-baseline-reproduction.log` restent **rouges attendus** :
+le nouveau positif non-staff échoue sur l'ancien backend26 `e89d…`, liste vide
+au lieu du cours attendu, **1 échec en90,32 s /107,83 s**. Selon le parent,
+seul le nouveau fichier de tests est monté en lecture seule pour cette
+reproduction, pas le code applicatif. Ces rouges ne qualifient pas l'image27
+et ne remplacent pas ses campagnes finales vertes.
+
+Qualité Python attestée par le parent (Black/isort/flake8) :
+`wave27-python-quality.log` conserve le résultat Black «2 fichiers inchangés» ;
+les outils silencieux ne reçoivent pas de sortie inventée. ESLint des deux
+nouveaux E2E vert dans `wave27-e2e-quality.log`, diff-check vert attesté.
+Les neuf erreurs de formatage initiales ont été corrigées par autofix selon
+le parent, **avant tout lancement navigateur**. Aucun nouveau Jest ni build
+frontend27 : le bundle26 est réutilisé, **ses32 tests ne deviennent pas des tests27**.
+
+Le premier `wave27-browser-teachers-secondaire.log` reste **1 échec** :
+`getByRole('option')` global comptait trois options au lieu d'une ; le contexte
+d'erreur montre les deux choix «Contexte SIS» en plus du cours attendu.
+Correction du **harness uniquement**, recherche d'options limitée au `listbox`.
+`wave27-browser-teachers-secondaire-recheck.log` et
+`wave27-browser-teachers-superieur.log` passent **1 cas chacun**, en54,1 s
+et54,3 s pour les cas (durées totales des runs56,2 s et56,1 s).
+
+Ces parcours réels utilisent deux enseignants A/B **non staff**, dont les scopes
+autorisent les mappings2 et3 mais les affectations diffèrent : A ne choisit queA,
+admin avec responsableA également, B seulementB. B reçoit404 sur GET/POST du
+projetA ; l'endpoint administratif mappings reste403. Suppression d'affectation
+par admin HTTP204, puis **même sessionA** rechargée : détail/historique masqués,
+choix vides, conservation400 sans mutation. Retrait explicite par UI conservant
+l'équipe ; restauration admin POST201 avec nouvel ID, puis même sessionA
+choisissant de nouveauA par UI, sans accès administratif. **Aucune réponse réseau
+simulée**. Les `wave27-browser-projects-{secondaire,superieur}.log` passent
+séparément **2/2 chacun** : rattachement administratif26 et collectif privé25
+(PDF/SHA, contributions, publication, retrait et module). Reçus et `.last-run.json`
+finaux verts, premier reçu rouge conservé.
+
+Quatre captures `wave27-{secondaire,superieur}-{before,after}-restart.json`
+attestent IDs de conteneur différents, même image et mêmes volumes par variante.
+**Six reçus HTTP authentifiés** `wave27-{teacher,course,projects}-*-persistence.json`
+sont rapprochés aux reçus navigateur après arrêt/recréation : cours/version/équipe
+enseignant et affectation restaurée persistants, autre enseignant404, mappings
+admin403, contexte apprenant invisible ; cours administratif et PDF au même SHA,
+évaluation publiée et contribution propre persistants.
+Nouveau `wave27-teacher-after-restart.cjs` ; scripts26 cours et25 projets
+réutilisés **sans modification**, empreintes précédentes confirmées.
+
+Fixtures DB27 et volumes27 **clonés de26 au repos selon le parent**, pas services
+partagés. Script et reçus `wave27-browser-fixture-*` gardés : comptes antérieurs,
+mappings/outbox/intent/enrollment/notes/évaluations/projets/audit inchangés.
+**Exception synthétique explicite au supérieur** : F1 id1 sans département reçoit
+un département/faculté locaux sous gardes ;
+`formation_department_link_added={"formation_id":1,"departement_id":1}`.
+Ne pas présenter cette adaptation comme aucune mutation de la structure académique,
+ni comme provisioning LMS ou qualification complète du portail enseignant.
+
+Les **47 artefacts lus puis hachés** sont répartis en quatre campagnes documentaires :
+backend/portails/baseline, enseignants navigateur/qualité E2E, régressions projets,
+fixtures/persistance. API/nginx27 arrêtés explicitement selon le parent ;
+codes137 observés après arrêt, **sans diagnostic OOM supplémentaire**.
+PostgreSQL/Redis privés conservés. Aucun service partagé touché ou sondé ici.
+**10.5 reste partielle**, avec interdiction de **lecture ET écriture des livrables
+privés d'une autre équipe** intacte. Compétences, notes officielles, LMS réel,
+recette multirôles/institutionnelle et restauration globale restent ouverts.
+Pas de nouvelle charge500 : **500 timeouts,262 écritures indéterminées** restent
+rouges ; pas de déploiement partagé/pilote, aucun lot28 qualifié,100 % non atteint.
+Historiques/cutoffs26 et antérieurs intacts ; aucun test/service/commit/push/agent
+pour cet import documentaire.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -1547,7 +1666,7 @@ leurs limites ; elles ne sont pas comprises dans les 21 absentes/non vérifiées
 | 9.1 Super Admin — absent | Console plateforme gère deux établissements et abonnements sans accorder d'accès métier aux dossiers des tenants. |
 | 10.1 Mobile — absent | Installation Android **et** iOS, tâches apprenant/enseignant/parent réelles ; session/appareil révoqué ne révèle plus les données privées. |
 | 10.2 Hors ligne — absent | Cours téléchargé sous droit, travail préparé hors réseau puis synchronisé une fois ; conflit et accès révoqué/expiré bloquent les données privées. |
-| 10.5 Projets — partiels | Créer des projets individuels/collectifs avec équipes, jalons, livrables et évaluations du groupe/contributions ; refuser à une autre équipe la lecture **et** la modification des livrables privés. Acquis25 conservés ; `4f282a2` ajoute le lien optionnel PROTECT à un mapping local classe/matière ou ECUE, intersection gestionnaire/responsable avec droit cours explicite et prérequis staff, retrait explicite/409/historique protégé et persistance bornée. Aucun provisioning/inscription/note officielle induit. Restent compétences, notes officielles, opérations LMS distantes, enseignants non staff et réception complète ; exigence non vérifiée. |
+| 10.5 Projets — partiels | Créer des projets individuels/collectifs avec équipes, jalons, livrables et évaluations du groupe/contributions ; refuser à une autre équipe la lecture **et** la modification des livrables privés. Acquis25/26 conservés ; `a0ddbaa` qualifie le rattachement local par enseignant non staff réellement affecté, permission cours/projets et scopes, intersection acteur/responsable, retrait/rétablissement dans la même session, historique masqué et persistance bornée. Frontière staff administrative inchangée, aucun provisioning/inscription/note officielle induit. Restent compétences, notes officielles, LMS distant réel, recette multirôles/institutionnelle et restauration globale ; concurrence affectation/rattachement non qualifiée, exigence non vérifiée. |
 | 10.7 Recherche globale — partielle | Preuves de recherche au cutoff vague 18 : apprenants, factures, vrais cours et évaluations SIS reliées au LMS dans les deux SIS, documents sources universitaires et bulletins scolaires `BUL-<id>` ; palette/fiches sans cache partagé, parcours staff et apprenant qualifiés sur fixtures, facture d'autrui absente de la recherche et détail 404 sans numéro. Restent catalogue LMS natif exhaustif et parcours parents/enseignants/multi-tenant/révocations exhaustifs ; la garde Studio ciblée de vague 19 ne clôt pas la recherche, aucun statut promu. |
 | 10.9 Portail public — absent | Formations publiées, actualités et procédure consultables sans connexion ; candidature démarrée, brouillons et dossiers privés inaccessibles. |
 | 10.10 Signature — non vérifiée | Habilitation approuvée par tiers, signature, archive et notification ; auto-approbation, mandat révoqué et document altéré refusés. |
