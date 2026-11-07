@@ -6,6 +6,29 @@ const mode = process.env.SIS_E2E_MODE || 'dual';
 if (!['dual', 'secondaire', 'superieur'].includes(mode)) { throw new Error('Invalid SIS_E2E_MODE.'); }
 const variants = mode === 'dual' ? ['secondaire', 'superieur'] : [mode];
 
+function samplePdf(text = 'Project acceptance sample') {
+  const escaped = text.replace(/([\\()])/g, '\\$1');
+  const stream = `BT /F1 12 Tf 25 100 Td (${escaped}) Tj ET`;
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let document = '%PDF-1.4\n';
+  const offsets = [];
+  objects.forEach((object, index) => {
+    offsets.push(Buffer.byteLength(document));
+    document += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xref = Buffer.byteLength(document);
+  document += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  document += offsets.map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('');
+  document += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(document);
+}
+
 function loadFixture(variant) {
   if (process.env.SIS_PROJECTS_E2E_ISOLATED !== '1'
       || !process.env.SIS_PROJECTS_E2E_FIXTURE || !process.env.SIS_E2E_CREDENTIALS || !process.env.SIS_E2E_URL) {
@@ -76,5 +99,5 @@ async function command(page, origin, path, method, data, status) {
 }
 
 module.exports = {
-  variants, loadFixture, login, choose, submit, command,
+  variants, loadFixture, login, choose, submit, command, samplePdf,
 };

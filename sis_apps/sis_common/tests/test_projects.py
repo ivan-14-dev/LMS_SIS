@@ -1,5 +1,6 @@
 import shutil
 from concurrent.futures import ThreadPoolExecutor
+from hashlib import sha256
 from pathlib import Path
 from threading import Barrier
 from unittest.mock import patch
@@ -16,6 +17,7 @@ from apps.core.models import (
     WorkflowEvent,
 )
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -448,6 +450,121 @@ class PedagogicalProjectTests(ProjectFixture):
             ProjectDelivery.objects.count(),
             ProjectEvaluation.objects.count(),
         )
+
+    def test_complete_individual_workflow_separates_management_publication_and_private_revisions(self):
+        official_models = [apps.get_model("notes", name) for name in ("Note", "Evaluation")]
+        official_before = [list(model.objects.order_by("pk").values()) for model in official_models]
+        self.prepare("individuel")
+
+        def state():
+            return (
+                PedagogicalProject.objects.get(pk=self.project["id"]).version,
+                list(ProjectMembership.objects.order_by("pk").values()),
+                list(WorkflowEvent.objects.order_by("pk").values()),
+                ProjectDelivery.objects.count(),
+                ProjectEvaluation.objects.count(),
+                ProjectContribution.objects.count(),
+            )
+
+        before = state()
+        refused = self.mutate(self.team_path("membres/"), membres=[self.alice.pk, self.anne.pk])
+        assert refused.status_code == 400, refused.data
+        assert state() == before
+        self.login(self.manager)
+        teams = self.client.get(self.url("equipes/"))
+        assert teams.status_code == 200, teams.data
+        assert {team["id"]: [member["membre"] for member in team["membres"]] for team in teams.data["results"]} == {
+            self.team["id"]: [self.alice.pk],
+            self.other_team["id"]: [self.bob.pk],
+        }
+
+        deliveries = []
+        contents = [b"%PDF-1.4\nindividual first revision", b"%PDF-1.4\nindividual revised analysis"]
+        for revision, content in enumerate(contents, 1):
+            uploaded = self.upload(fichier=SimpleUploadedFile("analyse.pdf", content, content_type="application/pdf"))
+            assert uploaded.status_code == 201, uploaded.data
+            delivery = uploaded.data["livrable"]
+            assert delivery["revision"] == revision
+            assert str(delivery["jalon"]) == self.milestone["id"]
+            assert delivery["depose_par"] == self.alice.pk
+            assert delivery["sha256"] == sha256(content).hexdigest()
+            deliveries.append(delivery)
+        assert deliveries[0]["sha256"] != deliveries[1]["sha256"]
+        for user in (self.alice, self.evaluator):
+            self.login(user)
+            for delivery, content in zip(deliveries, contents):
+                download = self.client.get(self.url(self.team_path(f"livrables/{delivery['id']}/telecharger/")))
+                assert download.status_code == 200
+                assert b"".join(download.streaming_content) == content
+
+        before = state()
+        self.login(self.bob)
+        assert self.client.get(self.url()).status_code == 200
+        assert [team["id"] for team in self.client.get(self.url("equipes/")).data["results"]] == [self.other_team["id"]]
+        for tail in ("livrables/", "evaluations/"):
+            assert self.client.get(self.url(self.team_path(tail))).status_code == 404
+        with patch.object(self.storage, "open", side_effect=AssertionError("Other individual file read")):
+            for delivery in deliveries:
+                assert (
+                    self.client.get(self.url(self.team_path(f"livrables/{delivery['id']}/telecharger/"))).status_code
+                    == 404
+                )
+        with patch("rest_framework.parsers.MultiPartParser.parse", side_effect=AssertionError("Private upload parsed")):
+            assert self.upload(self.bob).status_code == 404
+        assert self.mutate(self.team_path("evaluations/"), self.bob).status_code == 404
+        assert state() == before
+
+        contribution = {"membre": self.alice.pk, "note": "17.00", "commentaire": "Analyse individuelle argumentée."}
+        payload = {
+            "jalon": self.milestone["id"],
+            "note_groupe": "17.00",
+            "commentaire": "Évaluation humaine individuelle.",
+            "contributions": [contribution],
+        }
+        assert self.mutate(self.team_path("evaluations/"), self.manager, **payload).status_code == 403
+        assert self.mutate("configurer/", self.evaluator, titre="Gestion non habilitée").status_code == 403
+        assert state() == before
+        draft = self.draft(**payload)
+        assert draft.status_code == 201, draft.data
+        evaluation = draft.data["evaluation"]
+        assert evaluation["statut"] == "brouillon"
+        assert evaluation["evalue_par"] == self.evaluator.pk
+        assert evaluation["published_at"] is None
+        assert evaluation["contributions"] == [contribution]
+        self.login(self.alice)
+        hidden = self.client.get(self.url(self.team_path("evaluations/")))
+        assert hidden.status_code == 200 and hidden.data["count"] == 0
+
+        before = state()
+        publication_path = self.team_path(f"evaluations/{evaluation['id']}/publier/")
+        assert self.mutate(publication_path, self.manager).status_code == 403
+        assert self.mutate(publication_path, self.alice).status_code == 403
+        assert self.mutate(publication_path, self.bob).status_code == 404
+        assert state() == before
+        assert ProjectEvaluation.objects.get(pk=evaluation["id"]).published_at is None
+        published = self.publish(evaluation)
+        assert published.status_code == 200, published.data
+        assert published.data["version"] == before[0] + 1
+        assert published.data["evaluation"]["statut"] == "publiee"
+        assert published.data["evaluation"]["publie_par"] == self.evaluator.pk
+        assert published.data["evaluation"]["published_at"]
+        self.login(self.alice)
+        results = self.client.get(self.url(self.team_path("evaluations/"))).data["results"]
+        assert len(results) == 1
+        assert results[0]["id"] == evaluation["id"]
+        assert results[0]["contributions"] == [contribution]
+        assert ProjectContribution.objects.filter(evaluation_id=evaluation["id"]).count() == 1
+        self.login(self.bob)
+        assert self.client.get(self.url(self.team_path("evaluations/"))).status_code == 404
+        self.login(self.manager)
+        final = self.client.get(self.url()).data
+        assert final["mode"] == "individuel"
+        assert final["actions"]["can_manage"] is True
+        assert final["actions"]["can_evaluate"] is False
+        history = self.client.get(self.url("historique/")).data["results"]
+        publications = [event for event in history if event["action"] == "projet_publication"]
+        assert len(publications) == 1 and publications[0]["acteur"] == self.evaluator.pk
+        assert [list(model.objects.order_by("pk").values()) for model in official_models] == official_before
 
     def test_individual_teams_and_foreign_key_commands_are_coherent_and_atomic(self):
         self.prepare("individuel")

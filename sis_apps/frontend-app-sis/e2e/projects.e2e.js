@@ -3,30 +3,8 @@ const { createHash } = require('crypto');
 const { test, expect } = require('@playwright/test');
 const { authenticatedApi } = require('./api');
 const {
-  variants, loadFixture, login, choose, submit,
+  variants, loadFixture, login, choose, submit, samplePdf,
 } = require('./project-helpers');
-
-function samplePdf() {
-  const stream = 'BT /F1 12 Tf 25 100 Td (Project acceptance sample) Tj ET';
-  const objects = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
-    `<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`,
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-  ];
-  let document = '%PDF-1.4\n';
-  const offsets = [];
-  objects.forEach((object, index) => {
-    offsets.push(Buffer.byteLength(document));
-    document += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-  const xref = Buffer.byteLength(document);
-  document += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  document += offsets.map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('');
-  document += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
-  return Buffer.from(document);
-}
 
 for (const variant of variants) {
   test(`${variant}: private collective project, contributions, revocation and module restoration`, async ({
