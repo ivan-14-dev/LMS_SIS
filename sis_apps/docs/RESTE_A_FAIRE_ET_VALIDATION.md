@@ -9,6 +9,13 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
+**Dernier cutoff documentaire : 7 novembre 2026 à 06:43:28 UTC**, vagues
+15/16/17 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
+État officiel inchangé : **1 vérifiée, 71 partielles, 20 absentes et
+2 non vérifiées sur 94**. Les activités secondaires de vague 18 sont en
+cours, **non qualifiées et sans preuve revendiquée ici**. Les bilans datés
+antérieurs restent historiques, y compris les attentes du cutoff 15/16.
+
 **État historique au 5 novembre :** 5 tâches en cours, 31 à démarrer, 3 bloquées ; 170 tâches
 terminées dans la TODO, mais seulement **1 exigence vérifiée sur 94**
 (70 partielles, 21 absentes, 2 non vérifiées). Le dernier essai à 500
@@ -397,6 +404,131 @@ campagne à 500 précontrôlée, autorisée et verte. La dernière campagne à
 500 demeure rouge : **1/94 exigence vérifiée** (71 partielles, 20 absentes,
 2 non vérifiées), sans promotion sur les seuls tests de code.
 
+**Cutoff historique des deux bilans suivants : 7 novembre 2026 à 06:37:14 UTC.**
+
+**Quinzième vague, publiée et qualifiée au cutoff du 7 novembre 2026 :**
+les commits présents dans `origin/main` ajoutent les chauffeurs à identité
+pérenne et coordonnées protégées, avec refus des affectations chevauchantes
+(`35ef40c`), la recherche universitaire de documents selon leurs sources
+autorisées et de vrais cours (`d9ca357`), la recherche scolaire d'élèves et
+de factures selon les politiques de visibilité communes (`c1eac39`), puis
+les propositions de notes LMS soumises à approbation ou rejet nominatif
+audité avant toute note officielle (`06b55e8`). Le conflit PostgreSQL
+`DISTINCT`/`FOR UPDATE` des factures scolaires est corrigé par un queryset
+verrouillable. Le rafraîchissement en boucle des permissions dans
+`EvaluationsManager` est corrigé avec `refetchOnMount: false` ; sa
+régression ciblée passe 14 tests.
+
+L'image backend `lms-sis:local-20261107-06b55e8`, digest
+`sha256:956bf0382d5b42b527080d27c937ca6b5622dfda4c22881a87aa99b5cae7f917`,
+a été testée sans montage de code applicatif backend, sur PostgreSQL/Redis
+jetables : **762 tests et 305 sous-tests secondaire**, **781 tests et
+300 sous-tests supérieur**, tous verts. `manage.py check` et
+`makemigrations --check --dry-run` passent dans chaque variante. Les
+migrations transport/chauffeurs ont été validées avec un propriétaire de
+base non superutilisateur selon le parent ; le journal de préparation
+secondaire conserve l'application de `transport.0002` et `transport.0003`.
+Les anciennes données ne sont pas automatiquement rapprochées : seuls les
+trajets datés portant une référence chauffeur bénéficient de sa contrainte.
+
+Les protections des notes comprennent **11 tests par variante**, inclus
+dans les suites complètes, avec concurrence PostgreSQL réelle : deux
+décisions obtiennent **200/409**, une seule note et un seul audit de décision
+sont créés. Le snapshot académique période/année est recontrôlé et un
+événement plus récent retenu bloque l'approbation d'une ancienne proposition.
+Les parcours navigateur réussis `wave15-browser-secondaire-r3` et
+`wave15-browser-superieur` utilisent des fixtures jetables sur loopback :
+webhook signé **synthétique**, tâche réellement exécutée en **Celery eager**,
+absence de note officielle avant approbation, rejet motivé, second onglet
+obsolète refusé en 409, rejeu et non-écrasement de la note officielle.
+Ce n'est **pas un échange avec un vrai LMS natif Open edX**, ni une recette
+institutionnelle humaine ; **F09 reste partiel**.
+
+**Seizième vague, publiée et qualifiée au même cutoff :** `ae86edd`, présent
+dans `origin/main`, raccorde la recherche métier à la palette existante et
+ouvre les fiches autorisées sans cache partagé. La première suite frontend
+n'est **pas entièrement verte** : **400 tests passés et 2 timeouts sur
+402 tests, 34 suites passées et 2 échouées sur 36**. Seuls les deux cas
+en timeout ont été relancés avec une limite de 20 secondes : **2 passés,
+78 ignorés** dans les deux fichiers sélectionnés. Cette relance ciblée ne
+remplace pas une nouvelle suite complète verte. Le lint final compte
+**0 erreur et 8 avertissements** ; le build de production passe avec
+**3 avertissements de taille/performance**.
+
+Les parcours navigateur `wave16-browser-search-secondaire` et
+`wave16-browser-search-superieur-r2` passent sur fixtures jetables loopback :
+recherche et ouverture d'élève/étudiant et de facture, pagination de
+**25 factures en 20 + 5**, puis ouverture d'une attestation universitaire.
+Ils ne prouvent ni la recherche des activités, ni les cinq familles dans les
+deux SIS, ni tous les rôles/révocations ; **10.7 reste partielle**.
+Les reçus `.last-run.json` attestent le succès des derniers passages cités ;
+leur périmètre est rapproché des scénarios publiés et des résultats du parent,
+pas d'une trace exhaustive.
+
+Les preuves conservées dans le dossier `files` de la session
+`d0c25c75-b0da-489a-9501-d00e100d5269` sont notamment
+`wave15-school-published-full.log`, `wave15-university-published-full.log`,
+`wave15-image-build.log`, `wave15-capability-regression.log`,
+`wave16-frontend-full.log`, `wave16-frontend-timeout-recheck.log`,
+`wave16-frontend-lint-final.log`, `wave16-frontend-build-r2.log` et les quatre
+reçus navigateur ci-dessus ; leurs empreintes sont rattachées aux nouveaux
+cutoffs dans la matrice. Aucun test ni service n'est relancé pour cet import
+documentaire. Aucun déploiement partagé de ces vagues, pilote ou réception
+humaine n'est démontré. Les rapports rouges historiques restent intacts,
+dont le dernier essai à **500 : 500 timeouts et 262 écritures indéterminées**.
+**Aucune des 94 exigences n'est promue. La vague 17 en cours, non publiée,
+est exclue de ces preuves** et sera traitée séparément après vérification.
+
+**Dix-septième vague, publiée et qualifiée au cutoff du 7 novembre 2026
+à 06:43:28 UTC :** trois commits sont désormais présents dans `origin/main`.
+`1be9eaa` ajoute les vrais cours LMS et les bulletins scolaires recherchables
+par référence PDF `BUL-<id>`, avec une politique partagée entre liste, détail,
+PDF et recherche : familles soumises à la publication, établissement et
+scopes respectés, référence du professeur principal corrigée vers `User`.
+`bae0bd4` ajoute la recherche d'évaluations SIS universitaires reliées à des
+sous-sections LMS actives, avec scopes et détail de cours autorisé.
+`f24fd4f` raccorde les fiches de cours dans les deux SIS, le bulletin scolaire
+et l'évaluation reliée au LMS universitaire ; le retrait d'`is_staff` enlève
+l'accès administratif LMS même si une permission générique `*` subsiste.
+Les cours recherchés sont des mappings réels, pas des formations présentées
+comme des cours ; les évaluations restent des objets SIS reliés au LMS.
+
+La qualification backend est **ciblée**, avec le code de vague 17 monté en
+**lecture seule sur l'image `lms-sis:local-20261107-06b55e8`** :
+aucune image de vague 17 reconstruite ni suite backend complète de vague 17
+n'est revendiquée. Le premier passage secondaire
+`wave17-school-search.log` conserve **85 tests et 73 sous-tests passés,
+1 échec HTTP 429** : le parcours de fixture dépassait le quota. Après
+isolation/vidage du cache **uniquement dans les tests**, sans relâcher le
+quota applicatif, `wave17-school-bulletins-recheck.log` passe **10 tests et
+19 sous-tests**. Cette relance ciblée **ne rend pas le premier passage
+intégralement vert**. Le supérieur passe **70 tests et 25 sous-tests**
+dans `wave17-university-search.log`.
+
+`wave17-workspace-complete.log` passe les **75 tests du seul fichier
+Workspace**, avec délai de 20 secondes ; ce n'est pas toute la suite
+frontend. `wave17-frontend-lint.log` donne **0 erreur et 8 avertissements** ;
+`wave17-frontend-build.log` compile avec **3 avertissements de taille/performance**.
+Les deux parcours navigateur réels, un par variante, passent sur la même
+infrastructure de fixtures jetables loopback :
+`wave17-browser-search-secondaire` ouvre élève, factures (25, pagination
+20 + 5), cours et bulletin ; `wave17-browser-search-superieur` ouvre étudiant,
+factures, cours, évaluation mappée et attestation. **Aucune réponse réseau
+n'est simulée** : l'interception ne fait qu'espacer les requêtes avant
+`route.continue()`. Les reçus `.last-run.json` attestent le succès, leur
+périmètre étant rapproché des scénarios publiés et des résultats du parent.
+Le parent confirme l'arrêt des API et passerelles de ces fixtures après
+les parcours ; aucun service n'est démarré ou sondé pour cet import.
+
+Les huit artefacts cités sont hachés dans la matrice. **10.7 et F09 restent
+partiels**, sans promotion d'exigence : activités secondaires en cours de
+vague 18 non qualifiée, pas de catalogue LMS natif exhaustif ni de recette
+navigateur exhaustive multi-rôles/révocations. Aucun déploiement partagé,
+pilote ou réception humaine ; les suites complètes de vague 15 ne se
+transfèrent pas au code monté de vague 17. Les premiers rouges frontend
+de vague 16 et secondaire de vague 17 restent conservés ; le dernier
+essai à 500 reste rouge avec **500 timeouts et 262 écritures indéterminées**.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -480,6 +612,10 @@ un résultat vert.
   et nouvelles remises aux évaluations SIS. **Valider :** réponse LMS en
   retard ou répétée n'écrase jamais un résultat clos ; publication seulement
   après validation humaine nominative et vérification des conflits.
+  **Preuve bornée au cutoff vagues 15/16 :** proposition LMS obligatoire,
+  approbation/rejet audité, rejeu et concurrence qualifiés sur fixtures dans
+  les deux SIS ; pas d'échange natif Open edX ni de réception humaine réelle.
+  **F09 reste partiel**, copies/rubriques/remises et circuit complet à valider.
 - [ ] **F10 — Espaces pédagogiques** (`ft-learning-workspaces`). Cours,
   reprises, travaux à rendre/corriger, progression et agenda par rôle.
   **Valider :** valeurs et actions réelles, refus et états vide/erreur sur
@@ -679,7 +815,7 @@ plus nettes sont détaillées ici, avec les identifiants **du cahier initial**
 | 10.1 Mobile — absent | Installation Android **et** iOS, tâches apprenant/enseignant/parent réelles ; session/appareil révoqué ne révèle plus les données privées. |
 | 10.2 Hors ligne — absent | Cours téléchargé sous droit, travail préparé hors réseau puis synchronisé une fois ; conflit et accès révoqué/expiré bloquent les données privées. |
 | 10.5 Projets — absents | Équipe, jalons, livrables et évaluations individuelles/collectives ; autre équipe interdite en lecture et écriture. |
-| 10.7 Recherche globale — partielle | Apprenant universitaire consultable sur recherche bornée ; restent cours, documents, factures et activités dans les deux SIS, puis cinq types ouvrables par rôle autorisé sans titre/extrait inaccessible après révocation. |
+| 10.7 Recherche globale — partielle | Au cutoff vague 17 : apprenants, factures et vrais cours dans les deux SIS, documents sources universitaires, bulletins scolaires `BUL-<id>` et évaluations SIS reliées aux sous-sections LMS actives au supérieur ; palette/fiches sans cache partagé et parcours navigateur bornés qualifiés sur fixtures. Restent activités secondaires (vague 18 en cours non qualifiée), catalogue LMS natif exhaustif et recette multi-rôles/révocations sans titre/extrait inaccessible ; aucun statut promu. |
 | 10.9 Portail public — absent | Formations publiées, actualités et procédure consultables sans connexion ; candidature démarrée, brouillons et dossiers privés inaccessibles. |
 | 10.10 Signature — non vérifiée | Habilitation approuvée par tiers, signature, archive et notification ; auto-approbation, mandat révoqué et document altéré refusés. |
 | 11 Cycle candidat → alumni — non vérifié | Neuf étapes 11.1–11.9 sur un identifiant continu ; refus/doublons/clôtures/coupures et restauration isolée contrôlés, versions et preuves navigateur/API/BD conservées. |

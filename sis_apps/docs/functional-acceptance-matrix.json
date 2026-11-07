@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-06T21:38:52+00:00",
+  "last_evidence_update_at": "2026-11-07T06:43:28+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -2817,12 +2817,224 @@
         "verification": "PostgreSQL/Redis jetables : 89 tests API secondaire et 66 supérieur passés avec seuls modules modifiés montés. Image reconstruite du code publié : manage.py check, makemigrations --check --dry-run, 708 tests secondaire et 730 supérieur passés ; lint Python ciblé et git diff --check verts.",
         "limits": "Un examen disciplinaire refusé avant intervention ; deux fichiers Open edX locaux non testés/non publiés. Pas de remplacement des services partagés, recette institutionnelle, prestataires réels, restauration ni nouveau test de charge 500. Statuts inchangés : 1 verified, 71 partial, 20 absent, 2 unverified."
       }]
+    },
+    {
+      "id": "EXEC-20261107-wave15-published-qualification",
+      "evidence_cutoff_at": "2026-11-07T06:37:14+00:00",
+      "scope": "Vague 15 publiée : chauffeurs identifiés et protégés, recherche universitaire de documents sources/cours et recherche scolaire élèves/factures, propositions LMS avec décision nominative auditée. Qualification technique bornée, aucune exigence promue.",
+      "provenance": "Lecture et hachage des journaux/reçus de session, comparaison aux scénarios des commits publiés dans origin/main et résultats précis fournis par le parent. Aucun test, backend, Docker, déploiement ou charge relancé pour cet import documentaire. Les reçus navigateur .last-run.json attestent passed sans trace détaillée : leur périmètre vient du rapprochement avec les scénarios publiés et l'attestation du parent.",
+      "count_policy": "Tests et sous-tests séparés par variante; les 11 tests de protection des notes par variante sont inclus dans les suites complètes, pas additionnés. Les campagnes ciblées et navigateur se chevauchent; aucun total de tests uniques ni couverture globale déduit.",
+      "published_commits": ["35ef40c", "d9ca357", "c1eac39", "06b55e8"],
+      "f_lot_links": [
+        {"id": "F09", "scope": "Proposition LMS obligatoire avant approbation/rejet nominatif, rejouements et concurrence; F09 reste partiel, pas de circuit natif Open edX complet ni réception humaine.", "roadmap_status_unchanged": true},
+        {"id": "F13", "scope": "Création d'une note officielle seulement après décision, pas de validation exhaustive des résultats/jurys.", "roadmap_status_unchanged": true},
+        {"id": "F20", "scope": "Identité/contact chauffeur protégés et chevauchements interdits sur trajets datés avec référence chauffeur; services transport/hébergement incomplets.", "roadmap_status_unchanged": true},
+        {"id": "F23", "scope": "Recherche permissionnée de types supplémentaires; 10.7 reste partial.", "roadmap_status_unchanged": true}
+      ],
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "school-full": {"path": "wave15-school-published-full.log", "sha256": "3a4c993de467ac768358abc3b51a73207ad71952d804b29fafed14363d443945", "source_lines": [1, 13], "result_lines": [1, 2, 13]},
+        "university-full": {"path": "wave15-university-published-full.log", "sha256": "df96434c8247a8b565f9ed94fbd306cf6dde1db7fb87536963847e25dd73ba6e", "source_lines": [1, 13], "result_lines": [1, 2, 13]},
+        "image-build": {"path": "wave15-image-build.log", "sha256": "660e61c3a506dc34ca077c5a3965e4b37130d92331b96e10272eb1cfb6ed31a5", "source_lines": [1, 1]},
+        "capability-regression": {"path": "wave15-capability-regression.log", "sha256": "8c964245f867259fe8e5ca95ef20de453e0b533bb7d3f1b3592628cea72dc44b", "source_lines": [1, 15]},
+        "transport-migrations": {"path": "wave15-browser-seed-secondaire.log", "sha256": "e5aa80811470331338db1a04e126cb9e8b4510f22ec0bf4808f04bddc69bda73", "source_lines": [323, 326]},
+        "eager-settings": {"path": "wave15_browser_settings.py", "sha256": "a148caba12bf80240df14c5d35e89f66ba497ce89e3400f7f3729284dffe88a4", "source_lines": [3, 4]},
+        "grade-browser-school": {"path": "wave15-browser-secondaire-r3/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]},
+        "grade-browser-university": {"path": "wave15-browser-superieur/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]},
+        "school-search-targeted": {"path": "wave16-school-search-final.log", "sha256": "86e89b7f0a28f406d061921443c382a63d82fc8e8066a7974854a4e17dac956f", "source_lines": [1, 2]}
+      },
+      "campaigns": [
+        {
+          "id": "wave15-published-backend-regressions",
+          "result": "passed_on_disposable_published_image_without_institutional_acceptance",
+          "artifact_refs": ["school-full", "university-full", "image-build"],
+          "published_head": "06b55e8",
+          "image": "lms-sis:local-20261107-06b55e8",
+          "image_digest": "sha256:956bf0382d5b42b527080d27c937ca6b5622dfda4c22881a87aa99b5cae7f917",
+          "counts": {"secondaire": {"passed": 762, "subtests_passed": 305}, "superieur": {"passed": 781, "subtests_passed": 300}},
+          "verification": "Suites complètes vertes sur PostgreSQL/Redis jetables, sans montage de code applicatif backend selon le parent. Les deux journaux confirment manage.py check sans erreur et makemigrations --check --dry-run sans dérive.",
+          "limits": "Image non déployée sur les services partagés; pas de pilote, réception humaine, restauration institutionnelle ou campagne500. Les sous-tests ne sont pas des exigences supplémentaires."
+        },
+        {
+          "id": "wave15-driver-identity-and-migrations",
+          "result": "bounded_driver_protection_and_migrations_passed",
+          "commit": "35ef40c",
+          "artifact_refs": ["school-full", "transport-migrations"],
+          "source_refs": ["sis_apps/sis_secondaire/apps/transport/tests/test_api.py", "sis_apps/sis_secondaire/apps/transport/migrations/0003_chauffeur_trajetscolaire_chauffeur.py"],
+          "verification": "Identité chauffeur stable, coordonnées soumises aux permissions, refus des comptes étrangers; exclusion PostgreSQL des chevauchements d'un même chauffeur sur trajets datés, même avec véhicules/lignes différents. Migrations transport/chauffeurs validées avec un propriétaire DB non superutilisateur selon le parent; le journal cité confirme l'application de transport.0002 et transport.0003, sans attester seul le rôle SQL.",
+          "limits": "Référence chauffeur facultative, aucun rapprochement automatique des noms historiques; textes libres et arrêts non datés ne deviennent pas protégés par cette contrainte. Pas de validation globale des abonnements, capacités, frais ou hébergements."
+        },
+        {
+          "id": "wave15-lms-grade-review-protection",
+          "result": "bounded_human_review_gate_and_real_database_concurrency_passed",
+          "commit": "06b55e8",
+          "artifact_refs": ["school-full", "university-full", "capability-regression"],
+          "source_refs": ["sis_apps/sis_common/tests/test_lms_grade_protection.py", "sis_apps/frontend-app-sis/src/components/common/EvaluationsManager.jsx"],
+          "counts": {"grade_protection_secondaire": 11, "grade_protection_superieur": 11, "capability_frontend": 14},
+          "verification": "Chaque événement LMS reste une proposition avant décision nominative auditée; rejet motivé sans note officielle, rejouements sans doublon et notes existantes non écrasées. Les 11 tests par variante incluent une concurrence PostgreSQL réelle : décisions 200/409, une note et un WorkflowEvent lms_grade_review. Snapshot période/année recontrôlé; un événement retenu plus récent bloque l'ancienne proposition. EvaluationsManager utilise refetchOnMount:false contre la boucle de permissions; 14 tests ciblés verts.",
+          "limits": "11 tests inclus dans les suites backend, pas une campagne distincte à sommer. F09 reste partiel; aucune réception humaine institutionnelle ni chaîne native Open edX déduite."
+        },
+        {
+          "id": "wave15-lms-grade-review-browser",
+          "result": "disposable_loopback_browser_journeys_passed_with_synthetic_signed_webhook",
+          "artifact_refs": ["grade-browser-school", "grade-browser-university", "eager-settings"],
+          "source_refs": ["sis_apps/frontend-app-sis/e2e/lms-grade-review.e2e.js"],
+          "verification": "Navigateur réel dans les deux SIS sur fixtures jetables loopback. Webhook signé synthétique et tâche réellement exécutée en Celery eager; note officielle absente avant approbation, rejet motivé, approbation, second onglet obsolète409, rejeu et non-écrasement. Reçus passed des passages secondaire-r3 et supérieur.",
+          "limits": "Pas un vrai LMS natif Open edX ni un worker/broker distant qualifié; décisions exercées par le scénario automatisé, pas réception institutionnelle humaine. Les noms r3 n'effacent pas les essais antérieurs."
+        },
+        {
+          "id": "wave15-authorized-search-backends",
+          "result": "bounded_source_authorized_search_extensions_and_invoice_locking_passed",
+          "commits": ["d9ca357", "c1eac39"],
+          "artifact_refs": ["school-full", "university-full", "school-search-targeted"],
+          "source_refs": ["sis_apps/sis_superieur/apps/core/tests/test_academic_document_search.py", "sis_apps/sis_superieur/apps/integration/tests/test_course_search.py", "sis_apps/sis_secondaire/apps/core/tests/test_academic_search.py", "sis_apps/sis_secondaire/apps/paiements/tests/test_api.py"],
+          "verification": "Supérieur : documents filtrés par les permissions de leurs sources et vrais cours EdxCourseMapping recherchés par course_id/course_name, distincts des formations/parcours. Secondaire : élèves et factures selon les politiques de visibilité communes. Queryset scolaire rendu verrouillable pour éviter DISTINCT/FOR UPDATE. Journal ciblé secondaire :44 tests et55 sous-tests verts; régressions complètes finales ci-dessus.",
+          "limits": "Recherche des mappings de cours, pas échange natif Open edX démontré. Activités et couverture des cinq familles dans les deux variantes non qualifiées au cutoff; la vague17 en cours est exclue. 10.7 reste partial."
+        }
+      ],
+      "qualification_limits": ["Aucun statut officiel des94 exigences ni F-lot promu; seules les références de preuves et leur état d'exécution documentaire sont complétés.", "Aucun déploiement partagé de cette vague, pilote ou réception humaine. Dernier500 inchangé :500timeouts et262écritures indéterminées; les rouges historiques sont conservés.", "Aucune preuve de la vague17 en cours et non publiée."]
+    },
+    {
+      "id": "EXEC-20261107-wave16-published-search-qualification",
+      "evidence_cutoff_at": "2026-11-07T06:37:14+00:00",
+      "scope": "Vague16 publiée : palette de recherche métier et fiches autorisées sans cache partagé; qualification frontend et navigateur bornée, premier passage Jest partiellement rouge conservé.",
+      "provenance": "Journaux et reçus existants lus/hachés; commit ae86edd vérifié dans origin/main. Scénarios navigateur rapprochés du code publié et de l'attestation du parent; aucun test/build/lint/backend/Docker relancé ici.",
+      "count_policy": "400 tests verts et2timeouts sur402 au premier passage; seulement2cas rejoués avec20s,78ignorés dans les deux fichiers. Pas de nouvelle suite complète verte ni cumul404tests. Les campagnes restent séparées.",
+      "published_commits": ["ae86edd"],
+      "f_lot_links": [{"id": "F23", "scope": "Palette, liens de fiches et pagination vérifiés sur fixtures;10.7 reste partial.", "roadmap_status_unchanged": true}],
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "frontend-full": {"path": "wave16-frontend-full.log", "sha256": "6b8efaeded0f3560e19b4802e0e349991972c28026b2e5d6b0090874f64c2e4d", "source_lines": [1, 116]},
+        "frontend-timeout-recheck": {"path": "wave16-frontend-timeout-recheck.log", "sha256": "f660b22af8afc7741a6f61711c7153fbce350c26d2b05c866500efb320b4c954", "source_lines": [1, 16]},
+        "frontend-lint": {"path": "wave16-frontend-lint-final.log", "sha256": "e4da9a125c73339da50b79d23c11af33e6d43278c2da625895fee1d41984a85e", "source_lines": [1, 22]},
+        "frontend-build": {"path": "wave16-frontend-build-r2.log", "sha256": "8de5e2be1524f172387ba2085158e5d4740798c7f1f5cb353cb26e15a8039502", "source_lines": [1, 68]},
+        "search-browser-school": {"path": "wave16-browser-search-secondaire/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]},
+        "search-browser-university": {"path": "wave16-browser-search-superieur-r2/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]}
+      },
+      "campaigns": [
+        {
+          "id": "wave16-frontend-full-and-targeted-recheck",
+          "result": "initial_full_run_had_two_timeouts_only_those_two_passed_on_recheck",
+          "artifact_refs": ["frontend-full", "frontend-timeout-recheck"],
+          "initial": {"tests_passed": 400, "tests_failed_timeout": 2, "tests_total": 402, "suites_passed": 34, "suites_failed": 2, "suites_total": 36, "timeout_ms": 5000},
+          "targeted_recheck": {"tests_passed": 2, "tests_skipped": 78, "suites_passed": 2, "timeout_ms": 20000, "full_suite_rerun": false},
+          "verification": "Deux cas seulement : Workspace.test.jsx «validates minimum, maximum and control characters without a request» et CoursePublicationDialog.test.jsx «exposes only the qualified admin course action and keeps inactive and unrelated actions disabled». Tous deux passent avec20s.",
+          "limits": "Le premier rapport reste rouge; la relance filtrée ne démontre ni402tests verts dans une même exécution ni absence de sensibilité au délai."
+        },
+        {
+          "id": "wave16-frontend-lint-and-build",
+          "result": "lint_without_errors_and_production_build_passed_with_warnings",
+          "artifact_refs": ["frontend-lint", "frontend-build"],
+          "counts": {"lint_errors": 0, "lint_warnings": 8, "build_warnings": 3},
+          "verification": "Lint final sans erreur,8avertissements; build-r2 compilé avec3avertissements de taille/performance.",
+          "limits": "Pas de lint sans avertissement ni garantie de performances ou déploiement frontend déduits."
+        },
+        {
+          "id": "wave16-authorized-search-browser",
+          "result": "disposable_loopback_search_and_record_navigation_passed",
+          "commit": "ae86edd",
+          "artifact_refs": ["search-browser-school", "search-browser-university"],
+          "source_refs": ["sis_apps/frontend-app-sis/e2e/academic-search.e2e.js", "sis_apps/frontend-app-sis/src/components/layout/AcademicSearch.jsx", "sis_apps/frontend-app-sis/src/components/common/SearchRecordDetail.jsx"],
+          "verification": "Palette existante, recherche métier et fiches autorisées sans cache partagé. Sur fixtures jetables loopback dans les deux SIS : recherche/ouverture élève ou étudiant et facture,25factures paginées20+5; attestation universitaire ouverte depuis son résultat. Reçus secondaire et supérieur-r2 passed.",
+          "limits": "Ces reçus ne sont pas des traces exhaustives; pas de recette de tous les rôles/révocations ou des cinq familles dans les deux SIS. Aucun parcours navigateur de recherche d'activités revendiqué, ni nouvelle preuve native Open edX.10.7 reste partial."
+        }
+      ],
+      "qualification_limits": ["Statuts officiels inchangés :1verified,71partial,20absent,2unverified sur94;F09 et10.7 restent partiels.", "Aucun déploiement partagé de ces vagues, pilote/réception humaine, restauration institutionnelle ou nouveau500. Dernier500 rouge500timeouts/262écritures indéterminées inchangé.", "Vague17 en cours, non publiée et sans preuve importée ici."]
+    },
+    {
+      "id": "EXEC-20261107-wave17-published-search-qualification",
+      "evidence_cutoff_at": "2026-11-07T06:43:28+00:00",
+      "scope": "Vague17 publiée : vrais cours et bulletins scolaires, évaluations SIS universitaires reliées aux sous-sections LMS actives, détails autorisés et retrait d'accès is_staff indépendant de la permission générique. Qualification ciblée uniquement, aucune exigence promue.",
+      "provenance": "Cutoff relevé sur l'horloge hôte. Journaux/reçus existants lus et hachés, commits vérifiés dans origin/main, scénarios rapprochés du code publié et des résultats du parent. Aucun test, build, lint, backend, Docker ou sondage de service exécuté pour cet import. Les reçus navigateur attestent passed sans trace exhaustive; arrêt des API/passerelles de fixtures rapporté par le parent.",
+      "count_policy": "Premier secondaire85tests/73sous-tests verts et1échec429 conservé; relance ciblée10tests/19sous-tests verte, sans nouveau passage intégral. Supérieur70tests/25sous-tests et Workspace75tests dans un seul fichier. Aucun cumul dédupliqué ni suite complète de vague17 déduit.",
+      "published_commits": ["1be9eaa", "bae0bd4", "f24fd4f"],
+      "qualification_environment": {
+        "base_image": "lms-sis:local-20261107-06b55e8",
+        "base_image_digest": "sha256:956bf0382d5b42b527080d27c937ca6b5622dfda4c22881a87aa99b5cae7f917",
+        "wave17_backend_source_mount": "read_only",
+        "wave17_rebuilt_image_claimed": false,
+        "wave17_full_backend_suite_claimed": false,
+        "browser_fixture": "same_disposable_loopback_infrastructure",
+        "browser_network_mock_responses": 0,
+        "browser_pacing": "Requêtes API espacées puis route.continue(), aucune réponse remplacée.",
+        "api_and_gateways_stopped_after_journeys": "attested_by_parent_not_reprobed_here",
+        "limits": "Le digest identifie l'image de base de vague15, pas un artefact intégrant le code monté de vague17; ses suites complètes ne qualifient pas ce nouveau code par transfert."
+      },
+      "f_lot_links": [
+        {"id": "F23", "scope": "Recherche/détail de cours,bulletins et évaluations mappées qualifiés dans un périmètre borné;10.7 reste partial.", "roadmap_status_unchanged": true},
+        {"id": "F05", "scope": "Politiques de visibilité partagées et retrait d'is_staff opposable malgré wildcard;pas de recette exhaustive multi-rôles.", "roadmap_status_unchanged": true},
+        {"id": "F13", "scope": "Visibilité liste/détail/PDF/recherche des bulletins selon publication,tenant,famille et scopes;pas de validation complète des résultats.", "roadmap_status_unchanged": true}
+      ],
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "school-search-initial": {"path": "wave17-school-search.log", "sha256": "7138b36d9bb7cb8ab8b0396aea3d936b90dc359d2c1859e27bc4b9ebf07696e9", "source_lines": [1, 15]},
+        "school-bulletins-recheck": {"path": "wave17-school-bulletins-recheck.log", "sha256": "504bd3c45a97aef38869813d11170d81b7f7a3e702e4fe7090400e700241a9e9", "source_lines": [1, 2]},
+        "university-search": {"path": "wave17-university-search.log", "sha256": "50e6f87abb90f2c7099a7b8004b8bf3583b1250a415731279c5a97e2ccc28510", "source_lines": [1, 2]},
+        "workspace-complete": {"path": "wave17-workspace-complete.log", "sha256": "1df3963ee724fc8b011beac84888a7c1928ab59affaab7aecf14a71321d92ab5", "source_lines": [1, 15]},
+        "frontend-lint": {"path": "wave17-frontend-lint.log", "sha256": "e4da9a125c73339da50b79d23c11af33e6d43278c2da625895fee1d41984a85e", "source_lines": [1, 22]},
+        "frontend-build": {"path": "wave17-frontend-build.log", "sha256": "5bc2d9872189e7f782a65ba4e8fbcfb5abe8a063053a2c33598eff60a9148501", "source_lines": [1, 68]},
+        "search-browser-school": {"path": "wave17-browser-search-secondaire/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]},
+        "search-browser-university": {"path": "wave17-browser-search-superieur/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]}
+      },
+      "campaigns": [
+        {
+          "id": "wave17-school-search-and-bulletin-recheck",
+          "result": "initial_targeted_run_had_one_429_failure_bulletin_recheck_passed",
+          "commit": "1be9eaa",
+          "artifact_refs": ["school-search-initial", "school-bulletins-recheck"],
+          "source_refs": ["sis_apps/sis_secondaire/apps/core/tests/test_academic_search.py", "sis_apps/sis_secondaire/apps/notes/tests/test_bulletin_visibility.py"],
+          "initial": {"tests_passed": 85, "subtests_passed": 73, "failures": 1, "failure_http_status": 429},
+          "targeted_recheck": {"tests_passed": 10, "subtests_passed": 19, "full_initial_selection_rerun": false},
+          "verification": "Vrais cours LMS et bulletins scolaires recherchables par référence PDF BUL-<id>. Politique partagée liste/détail/PDF/recherche : familles soumises à publication,tenant et scopes; FK professeur principal corrigée vers User. Le cas read_scopes dépassait le quota par cumul des appels de fixture; isolation/vidage du cache uniquement dans les tests,puis10tests/19sous-tests verts.",
+          "limits": "Premier rapport85/73avec1échec429 conservé; aucune exécution intégrale verte de cette sélection revendiquée,aucun relâchement des quotas applicatifs. Code backend monté RO sur06b55e8,pas d'image17 ni suite backend complète17."
+        },
+        {
+          "id": "wave17-university-mapped-evaluation-search",
+          "result": "targeted_mapped_evaluation_search_and_scoped_course_detail_passed",
+          "commit": "bae0bd4",
+          "artifact_refs": ["university-search"],
+          "source_refs": ["sis_apps/sis_superieur/apps/core/tests/test_academic_activity_search.py", "sis_apps/sis_superieur/apps/integration/tests/test_course_search.py"],
+          "counts": {"tests_passed": 70, "subtests_passed": 25},
+          "verification": "Évaluations SIS universitaires recherchables seulement avec liaison à une sous-section LMS active,scopes appliqués,détail de cours autorisé;70tests/25sous-tests verts.",
+          "limits": "Évaluations SIS mappées, pas catalogue natif de toutes activités Open edX ni accès apprenant universel. Qualification ciblée sur code monté RO,aucune reconstruction ou suite complète17."
+        },
+        {
+          "id": "wave17-workspace-lint-and-build",
+          "result": "workspace_file_passed_and_frontend_lint_build_passed_with_warnings",
+          "commit": "f24fd4f",
+          "artifact_refs": ["workspace-complete", "frontend-lint", "frontend-build"],
+          "source_refs": ["sis_apps/frontend-app-sis/src/components/layout/Workspace.test.jsx", "sis_apps/frontend-app-sis/src/components/common/SearchRecordDetail.jsx"],
+          "counts": {"workspace_tests_passed": 75, "workspace_suites_passed": 1, "test_timeout_ms": 20000, "lint_errors": 0, "lint_warnings": 8, "build_warnings": 3},
+          "verification": "Fiches de cours des deux SIS,bulletin secondaire et évaluation LMS supérieure raccordés. Retrait d'is_staff revalidé indépendamment d'une permission wildcard conservée;75tests du fichier Workspace verts. Lint0erreur/8warnings,build compilé avec3warnings de taille/performance.",
+          "limits": "Workspace complet signifie le seul fichier Workspace.test.jsx,pas toute la suite frontend. Les2timeouts du premier passage complet de vague16 restent historiques,non effacés."
+        },
+        {
+          "id": "wave17-search-browser-both-variants",
+          "result": "two_real_disposable_loopback_browser_journeys_passed_without_network_mock_responses",
+          "artifact_refs": ["search-browser-school", "search-browser-university"],
+          "source_refs": ["sis_apps/frontend-app-sis/e2e/academic-search.e2e.js", "sis_apps/frontend-app-sis/e2e/api.js"],
+          "counts": {"secondaire_journeys_passed": 1, "superieur_journeys_passed": 1, "network_mock_responses": 0},
+          "verification": "Secondaire : élève,factures25pagination20+5,cours,bulletin. Supérieur : étudiant,factures,cours,évaluation SIS mappée,attestation. Navigateur réel sur fixtures jetables de la même infrastructure loopback; pacing des appels uniquement avec route.continue(),aucune réponse simulée. Reçus passed et API/passerelles arrêtées ensuite selon parent.",
+          "limits": "Un parcours par variante,pas recette navigateur exhaustive multi-rôles/révocations ni catalogue LMS natif exhaustif. Aucune nouvelle preuve des activités secondaires,vague18 en cours non qualifiée."
+        }
+      ],
+      "qualification_limits": ["1verified,71partial,20absent,2unverified sur94 inchangés;F09 et10.7 restent partiels.", "Aucune image17 reconstruite ni suite complète17;code monté RO sur image06b55e8. Premier secondaire429 conservé,relance ciblée seulement.", "Activités secondaires de vague18 en cours non qualifiées;catalogue natif LMS et navigateur multi-rôles exhaustifs non démontrés.", "Aucun déploiement partagé,pilote ou réception humaine;dernier500 rouge500timeouts/262écritures indéterminées et tous rapports antérieurs conservés."]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-06T21:38:52+00:00",
+    "as_of": "2026-11-07T06:43:28+00:00",
+    "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
+    "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
+    "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
+    "wave15_bounded_sis_qualification": "35ef40c,d9ca357,c1eac39,06b55e8 publiés dans origin/main; image backend local-20261107-06b55e8@sha256:956bf0382d5b42b527080d27c937ca6b5622dfda4c22881a87aa99b5cae7f917 sans montage de code applicatif backend :762tests/305sous-tests secondaire et781/300 supérieur verts,check et migrations sans dérive. Chauffeurs protégés/anti-chevauchement, migrations sous propriétaireDB non superutilisateur selon parent; queryset de factures scolaires verrouillable corrigé. Aucun déploiement partagé.",
+    "lms_grade_review_bounded": "F09 partiel : proposition obligatoire avant approbation/rejet nominatif audité.11tests par variante dont concurrence réelle200/409,1note/1audit; snapshot période/année et événement retenu plus récent opposables. Navigateur réel sur fixtures loopback des deux SIS, webhook signé synthétique traité en Celery eager, note absente avant approbation,rejet motivé,onglet obsolète409,rejeu,non-écrasement. Pas de vrai LMS natif ni réception humaine institutionnelle; boucle permissions EvaluationsManager corrigée par refetchOnMount:false.",
+    "wave16_bounded_frontend_qualification": "ae86edd publié dans origin/main : palette métier/fiches sans cache partagé. Premier Jest400passés/2timeouts sur402tests,34suites passées/2échouées sur36; seulement2cas relancés avec20s passent,78ignorés. Pas de suite complète entièrement verte revendiquée. Lint0erreur/8warnings,build-r2 vert avec3warnings taille/performance. Navigateurs de recherche élèves/étudiants,factures25pagination20+5 et attestation universitaire passent sur fixtures loopback.",
+    "global_search_bounded": "10.7 reste partial : apprenants,factures et vrais cours des deux SIS,documents sources universitaires,bulletins scolaires BUL-<id>,évaluations SIS universitaires reliées aux sous-sections LMS actives;palette/fiches qualifiées sur parcours bornés. Activités secondaires vague18 non qualifiées,catalogue LMS natif et navigateur multi-rôles/révocations exhaustifs encore ouverts. Les mappings/évaluations SIS ne constituent pas tout le catalogue natif.",
+    "wave17_bounded_search_qualification": "1be9eaa,bae0bd4,f24fd4f désormais publiés dans origin/main. Backend17 monté RO sur image06b55e8 :premier secondaire85tests/73sous-tests verts et1échec429 de fixture,cache isolé uniquement en tests puis10/19verts;pas de relance intégrale verte. Supérieur70/25verts. Workspace75tests seul fichier à20s,lint0erreur/8warnings,build3warnings. Deux parcours navigateur réels sans réponse réseau simulée,cours/bulletin/évaluation mappée;API/passerelles arrêtées ensuite selon parent. Pas d'image17 reconstruite ni suite complète17.",
+    "wave18_in_progress": "Activités secondaires EN COURS, NON QUALIFIÉES au cutoff;aucune preuve revendiquée ici. Pas de promotion anticipée de10.7.",
+    "shared_deployment_scope": "Aucun déploiement partagé des vagues15/16/17,pilote ou réception humaine. Les champs de livraison/main/fixture plus anciens conservent leurs cutoffs propres;ni image jetable ni code17 monté RO ne remplacent current_user_backend/current_user_frontend par déduction. API/passerelles des fixtures navigateur17 arrêtées selon parent;aucun sondage de service ici. Dernier500 rouge conservé,aucune nouvelle charge.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
-    "university_learner_search_bounded": "Commit 00f1755 publié sur origin/main, image jetable local-20261106-00f1755 testée (13/13 core); 10.7 devient partial pour le seul apprenant universitaire, sans qualification globale ni déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques.",
+    "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
     "integration_admin_tenant_boundary": "SIS principal sur image integration-admin-tenant1 934fcba… : permission administrative et tenant/schéma contrôlés avant toutes les routes d'intégration concernées. Tests empaquetés52+50 verts, six services redémarrés et sains; snapshots antérieur dc4da52d et final1b26df04,58 snapshots/116 packs relus. Frontendd035, LMS access-ownership2 et fixture100b8 inchangés; dernier500 rouge, aucun500b8 exécuté/autorisé.",
     "manual_sync_tenant_boundary": "Incrément précédent manual-sync-tenant2 988ec9f… : refus 403 de l'administrateur étranger, 404 du compte et des sources de cours étrangères, dont ascendants année/niveau et semestre/maquette, avant appel distant. Tests empaquetés 29+43 verts et snapshotde0bd3eb/56-112 relu. Garde conservée dans l'image principale integration-admin-tenant1; frontendd035, LMS access-ownership2 et fixture100b8 inchangés.",
@@ -3461,9 +3673,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 120,
-    "requirements_with_new_increment_evidence": 20,
-    "conclusion": "120 enregistrements documentaires historiques non sommés,20 exigences avec preuves ciblées,71 partial/20 absent/2 unverified/1 verified. La recherche universitaire couvre maintenant un des cinq types attendus par 10.7 (apprenant), mais non les cours LMS, documents, factures et activités : 10.7 devient partial, pas verified. Les preuves historiques sur principal SIS b8/frontend d035, sauvegarde53/106 et fixture b8 qualifiée100HTTP/120s,p95 819ms restent bornées à leurs versions. LMS natif access-ownership2 et sauvegarde froide6f5e098d restent historiques. F07 demeure partiel; dernier500/13b rouge500timeouts/262indéterminés inchangé. Aucun nouveau500, promotion globale ou couverture100%."
+    "imported_evidence_campaign_records": 137,
+    "requirements_with_new_increment_evidence": 24,
+    "conclusion": "137 campagnes documentaires non sommées (133 au cutoff15/16,4 ajouts vague17),24 exigences avec preuves ciblées;1verified,71partial,20absent,2unverified sur94 inchangés. F09 reste partiel :propositions LMS/décisions auditées sur fixtures,pas vrai LMS natif ni réception humaine.10.7 reste partial malgré cours des deux SIS,bulletins scolaires et évaluations SIS universitaires mappées ajoutés en vague17 :activités secondaires vague18 en cours non qualifiées,catalogue natif et recette navigateur multi-rôles exhaustifs ouverts. Vague17 publiée1be9eaa/bae0bd4/f24fd4f,backend monté RO sur06b55e8,pas image17 reconstruite ni suite complète17. Premier secondaire85tests/73sous-tests verts+1échec429 conservé,relance ciblée10/19verte;supérieur70/25verts,Workspace75tests seul fichier,lint0erreur/8warnings,build3warnings,deux parcours navigateur sans réponse réseau simulée. Suites complètes15 et premier frontend16(400passés/2timeouts puis seuls2cas rejoués) restent historiques,non transférés. Aucun déploiement partagé,pilote ou réception humaine;API/passerelles de fixtures17 arrêtées selon parent. Dernier500 rouge500timeouts/262écritures indéterminées inchangé. Aucune promotion ni couverture100%."
   },
   "requirements": [
     {
@@ -4647,6 +4859,13 @@
           "result": "passed_for_increment_only",
           "verified_scope": "Inscription audit native préexistante active ou inactive protégée contre l'adoption implicite du service SIS;10 tests natifs Open edX sur image installable, livraison et redémarrage avec intégrité et cours/score historiques vérifiés.",
           "remaining_scope": "Édition, chapitres, ressources, devoirs, groupes, progression et accès aux autres contextes pédagogiques restent à qualifier."
+        },
+        {
+          "update_id": "EXEC-20261107-wave17-published-search-qualification",
+          "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"],
+          "result": "bounded_real_course_search_and_authorized_detail_passed_with_initial_school_failure_preserved",
+          "verified_scope": "Recherche de vrais mappings LMS et ouverture de fiches de cours dans les deux SIS,avec détail/scopes autorisés;ne confond pas formations et cours. Parcours navigateur réels sans réponse réseau simulée et retrait d'is_staff opposable malgré wildcard.",
+          "remaining_scope": "3.2 reste partial :pas catalogue natif LMS exhaustif,création/édition pédagogique ou recette multi-rôles exhaustive. Code17 monté RO,pas image17 ni suite complète17;premier secondaire avec1échec429 de fixture conservé,relance bulletins seulement."
         }
       ],
       "acceptance_execution_status": "increments_passed_requirement_incomplete",
@@ -4863,8 +5082,16 @@
         "Exécuter chaque type annoncé, avant/pendant/après fenêtre, puis rapprocher réponses, points, corrections et résultat proposé.",
         "Refuser dépassement de tentatives/fenêtre et accès hors groupe; toute surveillance doit être proportionnée et autorisée."
       ],
-      "execution_evidence": [],
-      "acceptance_execution_status": "not_run"
+      "execution_evidence": [
+        {
+          "update_id": "EXEC-20261107-wave17-published-search-qualification",
+          "campaign_ids": ["wave17-university-mapped-evaluation-search", "wave17-search-browser-both-variants"],
+          "result": "bounded_mapped_sis_evaluation_search_and_detail_passed",
+          "verified_scope": "Supérieur :recherche d'évaluations SIS reliées aux sous-sections LMS actives,scopes appliqués,détail ouvert dans le parcours navigateur;70tests/25sous-tests ciblés verts.",
+          "remaining_scope": "3.6 reste partial :preuve de recherche/lecture d'évaluations SIS mappées,pas exécution de tous types d'examens LMS natifs,tentatives,fenêtres ou surveillance. Activités secondaires vague18 en cours non qualifiées;aucune image17 reconstruite ou suite complète17."
+        }
+      ],
+      "acceptance_execution_status": "increments_passed_requirement_incomplete"
     },
     {
       "id": "3.7",
@@ -5078,9 +5305,23 @@
           "result": "new_b8_hundred_pass_with_confirmed_feedback_and_protected_personnel_authors",
           "verified_scope": "Nouveau actions100/b8 vert100HTTP/120s :1312updatesgrade-feedback confirmés(987enseignant/325direction),sur40notes parmi3286cycles. FKmodifie_par entièrement protégé,sansnormalisation;40Personnel conformes. Projection100 vérifiée d'abordcontre500 dans même instantanéreadonly,0violation/indéterminé.",
           "remaining_scope": "Appréciations répétées sur40notes sansdeadline de soumission, pas1312notes distinctes ni circuit de notes officielles/validation/publication/webhooks. Pas500b8 ou A/Bcausal;ancien50013brouge et addendumPersonnel inchangés."
+        },
+        {
+          "update_id": "EXEC-20261107-wave15-published-qualification",
+          "campaign_ids": ["wave15-published-backend-regressions", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser"],
+          "result": "bounded_lms_proposal_human_review_gate_passed_requirement_partial",
+          "verified_scope": "06b55e8 : proposition obligatoire, approbation/rejet nominatif audité avant note officielle.11tests par variante dont concurrence PostgreSQL200/409 avec1note/1audit; snapshot période/année recontrôlé et événement retenu plus récent bloquant l'ancienne proposition. Navigateurs des deux SIS sur fixtures loopback : absence de note avant approbation,rejet motivé,onglet obsolète409,rejeu,non-écrasement.",
+          "remaining_scope": "F09 et3.8 restent partiels. Webhook signé synthétique et Celery eager, pas vrai LMS natif Open edX ni réception humaine institutionnelle. Copies/rubriques/remises, agrégations,jurys,publication et rectification complètes à qualifier; aucune charge500 ou livraison partagée nouvelle."
+        },
+        {
+          "update_id": "EXEC-20261107-wave17-published-search-qualification",
+          "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-search-browser-both-variants"],
+          "result": "bounded_bulletin_visibility_and_search_passed_initial_429_preserved",
+          "verified_scope": "Bulletins scolaires référencés BUL-<id> :même politique pour liste,détail,PDF et recherche;publication requise pour familles,tenant/scopes respectés,professeur principal comparé au bon FKUser. Ouverture navigateur du bulletin;premier passage85tests/73sous-tests verts et1échec429,puis cache isolé uniquement en tests et relance10/19verte.",
+          "remaining_scope": "3.8 etF09 restent partiels :visibilité de bulletins,non validation complète des calculs/résultats ou réception humaine. Le premier passage reste rouge,pas suite complète17 ni nouvelle image17;les preuves15 de propositions LMS ne deviennent pas un échange natif Open edX."
         }
       ],
-      "acceptance_execution_status": "regression_evidence_only_requirement_incomplete"
+      "acceptance_execution_status": "increments_passed_requirement_incomplete"
     },
     {
       "id": "3.9",
@@ -5282,8 +5523,23 @@
         "Valider une inscription déclenchant les frais configurés avec réduction/bourse/échéancier; rapprocher total et solde.",
         "Rejouer validation et changer le tarif ultérieurement: aucune facture en double ni réécriture silencieuse."
       ],
-      "execution_evidence": [],
-      "acceptance_execution_status": "not_run"
+      "execution_evidence": [
+        {
+          "update_id": "EXEC-20261107-wave15-published-qualification",
+          "campaign_ids": ["wave15-authorized-search-backends", "wave15-published-backend-regressions"],
+          "result": "bounded_invoice_visibility_and_lockable_queryset_passed",
+          "verified_scope": "c1eac39 : recherche scolaire de factures selon la visibilité commune, queryset conservé verrouillable pour éviter l'incompatibilité PostgreSQL DISTINCT/FOR UPDATE; régressions dans l'image publiée06b55e8.",
+          "remaining_scope": "4.1 reste partial : cette preuve ne qualifie ni génération automatique des frais, ni tarifs/réductions/échéanciers, ni réconciliation complète."
+        },
+        {
+          "update_id": "EXEC-20261107-wave16-published-search-qualification",
+          "campaign_ids": ["wave16-authorized-search-browser"],
+          "result": "bounded_invoice_search_and_detail_browser_passed",
+          "verified_scope": "Dans chaque SIS sur fixtures loopback, recherche de25factures,pagination20+5 puis ouverture de la fiche de facture réelle par la palette publiée ae86edd.",
+          "remaining_scope": "Lecture/navigation bornées uniquement; aucun paiement réel, cycle de facturation complet, pilote ou réception humaine."
+        }
+      ],
+      "acceptance_execution_status": "increments_passed_requirement_incomplete"
     },
     {
       "id": "4.2",
@@ -5730,8 +5986,16 @@
         "Affecter apprenant à trajet/arrêts et chambre pour une période puis facturer les services.",
         "Refuser capacité dépassée, chambre déjà occupée et arrêt hors ligne; annulation/réaffectation doit ajuster disponibilité et frais."
       ],
-      "execution_evidence": [],
-      "acceptance_execution_status": "not_run"
+      "execution_evidence": [
+        {
+          "update_id": "EXEC-20261107-wave15-published-qualification",
+          "campaign_ids": ["wave15-driver-identity-and-migrations", "wave15-published-backend-regressions"],
+          "result": "bounded_driver_identity_contact_and_overlap_protection_passed",
+          "verified_scope": "35ef40c : identité pérenne des chauffeurs,coordonnées protégées,affectations chevauchantes refusées sous contrainte PostgreSQL. Migrations transport/chauffeurs validées sous propriétaireDB non superutilisateur selon parent,application0002/0003 conservée dans le journal; suite secondaire finale762tests/305sous-tests verte.",
+          "remaining_scope": "4.10 reste partial : seuls trajets datés avec référence chauffeur sont couverts,pas les textes libres historiques ou arrêts non datés. Abonnements,frais,capacités et hébergements complets,autres packs et données institutionnelles à qualifier; aucune livraison partagée."
+        }
+      ],
+      "acceptance_execution_status": "increments_passed_requirement_incomplete"
     },
     {
       "id": "5.1",
@@ -6454,6 +6718,13 @@
           "result": "existing_integration_decisions_and_mapping_continuity",
           "verified_scope": "Sources intégration/LMS inchangées parmi17empreintes par API; listings/outbox/identités et confirmations annulées readonly.61mappings secondaire/0supérieur et décisions/états d'accès stockés préservés.",
           "remaining_scope": "Zéro provisioning concerne ce parcours navigateur, pas absence globale sur toute période. Aucun nouveau transport natif testé ni F07/7.1/notes officielles clos."
+        },
+        {
+          "update_id": "EXEC-20261107-wave15-published-qualification",
+          "campaign_ids": ["wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser"],
+          "result": "bounded_signed_synthetic_webhook_to_review_gate_passed",
+          "verified_scope": "Webhooks LMS signés synthétiques réellement traités par tâche Celery eager dans les deux SIS; propositions sans note officielle avant décision,preuve conservée en rejeu/rejet et non-écrasement après approbation.",
+          "remaining_scope": "7.1 reste partial et ses échecs historiques restent ouverts. Pas d'échange avec un vrai LMS natif Open edX ni de worker/broker distant qualifié dans ces parcours; intégrations externes et réception institutionnelle non déduites."
         }
       ],
       "acceptance_execution_status": "increment_evidence_with_unresolved_failures"
@@ -6909,6 +7180,13 @@
           "result": "new_b8_hundred_sessions_real_authentication_and_logout_passed",
           "verified_scope": "100acteursHTTP60/30/10 authentifiés,cohorte complète120s surb8;droits/scopes/500identités d'origine conservés.100DELETE200+100GET401 réels,200checks intégrité clients,0session/broker/nettoyageforcé. Nouvellepreuve aprèsfreshreadiness et autorisations distinctes.",
           "remaining_scope": "Deux scénarios déclarés uniquement,pas100navigateurs,tousrôles/MFA/SSO/appareils ou sécuritéglobale8.1. Ne pas transférer le succès13b :ce succèsb8 est distinct;aucun500 ou autre campagne autorisé."
+        },
+        {
+          "update_id": "EXEC-20261107-wave17-published-search-qualification",
+          "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build"],
+          "result": "bounded_search_scope_and_independent_staff_revocation_checks_passed",
+          "verified_scope": "Politiques de visibilité partagées tenant/famille/publication/scopes pour bulletins et recherches autorisées. Tests Workspace du retrait d'is_staff indépendant d'une permission générique '*' conservée :accès administratif LMS retiré malgré wildcard.75tests du fichier Workspace verts.",
+          "remaining_scope": "8.1 reste partial et ses échecs historiques sont conservés. Pas recette navigateur exhaustive multi-rôles/révocations,SSO/MFA ou audit global;premier secondaire429 conservé et relance ciblée seulement,pas suite complète17."
         }
       ],
       "acceptance_execution_status": "increment_evidence_with_unresolved_failures"
@@ -7131,9 +7409,16 @@
           "result": "grade_modification_audit_regression_only",
           "verified_scope": "Tests empaquetés50par variante : LogEntry UPDATE retrouvé, appréciation avant/après et modifie_le dans changes_dict, object_repr identique; note.modifie_par et date_saisie préservés. PUT apprenant/valeur audités, refus d'offre sans modification ni nouvelle trace. Audit conservé sans désactivation; delivered atteste les données d'audit préservées.",
           "remaining_scope": "8.3 reste partial. Ces assertions ne qualifient pas les six opérations, LogEntry.actor/horodatage/résultat de chaque trace, journalisation des échecs, recherche/rétention/confidentialité ou refus d'altération/suppression des journaux. Le contrôle du modificateur de Note n'est pas une preuve exhaustive de l'attribution de chaque LogEntry."
+        },
+        {
+          "update_id": "EXEC-20261107-wave15-published-qualification",
+          "campaign_ids": ["wave15-lms-grade-review-protection"],
+          "result": "bounded_lms_review_decision_audit_passed",
+          "verified_scope": "Approbation/rejet de proposition LMS nominatif audité; concurrence réelle dans chaque variante avec réponses200/409,une note et un seul WorkflowEvent lms_grade_review,reviewed_by lié à l'acteur gagnant.",
+          "remaining_scope": "8.3 reste partial : preuve bornée à la décision LMS, pas qualification de toutes opérations,échecs,rétention,confidentialité ou inaltérabilité des journaux."
         }
       ],
-      "acceptance_execution_status": "regression_evidence_only_requirement_incomplete"
+      "acceptance_execution_status": "increments_passed_requirement_incomplete"
     },
     {
       "id": "8.4",
@@ -8544,6 +8829,27 @@
           "result": "one_required_family_passed_requirement_partial",
           "verified_scope": "Recherche HTTP d'apprenants universitaires par matricule/nom : retour minimal, refus d'utilisateur étranger, retrait de permission, scope par ID et lecture de son seul dossier par l'étudiant. 13/13 tests core verts dans l'image jetable 00f1755.",
           "remaining_scope": "Les quatre autres types d'objet (cours LMS, documents, factures, activités) ainsi que la variante secondaire, les liens navigateur, la révocation des fichiers et la recette persistante ne sont pas prouvés. 10.7 n'est pas verified."
+        },
+        {
+          "update_id": "EXEC-20261107-wave15-published-qualification",
+          "campaign_ids": ["wave15-authorized-search-backends", "wave15-published-backend-regressions"],
+          "result": "bounded_additional_search_families_passed_requirement_partial",
+          "verified_scope": "d9ca357 : documents universitaires dans le périmètre de leurs sources autorisées et vrais cours EdxCourseMapping par course_id/course_name,distincts des formations/parcours. c1eac39 : élèves/factures scolaires selon visibilité commune. Régressions complètes finales762tests/305sous-tests secondaire et781/300 supérieur vertes sur image06b55e8.",
+          "remaining_scope": "10.7 reste partial. Pas de preuve des activités ni des cinq familles dans les deux SIS; recherche des mappings de cours ne prouve pas une connexion native Open edX. Recette exhaustive des rôles,résultats,révocations et accès aux fichiers encore nécessaire."
+        },
+        {
+          "update_id": "EXEC-20261107-wave16-published-search-qualification",
+          "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"],
+          "result": "bounded_search_palette_browser_passed_initial_frontend_timeouts_preserved",
+          "verified_scope": "ae86edd : palette métier/fiches autorisées sans cache partagé; navigateur réel sur fixtures des deux SIS,recherche et ouverture d'élève/étudiant et facture,25factures paginées20+5,attestation universitaire. Lint0erreur/8warnings,build vert avec3warnings; frontend initial400passés/2timeouts sur402,puis seuls2cas verts à20s.",
+          "remaining_scope": "Pas de suite frontend complète entièrement verte revendiquée,ni recette multi-rôles/révocations exhaustive,ni déploiement partagé. Activités et couverture des cinq familles dans les deux SIS restent ouvertes; vague17 en cours non publiée exclue.10.7 demeure partial."
+        },
+        {
+          "update_id": "EXEC-20261107-wave17-published-search-qualification",
+          "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"],
+          "result": "additional_bounded_search_families_and_browser_details_passed_initial_school_failure_preserved",
+          "verified_scope": "1be9eaa :vrais cours et bulletins BUL-<id> secondaires avec politique partagée liste/détail/PDF/recherche,FKprofesseur principal User corrigé,familles/publication/tenant/scopes. bae0bd4 :évaluations SIS universitaires reliées aux sous-sections LMS actives et détail cours scopé. f24fd4f :fiches cours des deux SIS,bulletin secondaire,évaluation supérieure et révocation is_staff indépendante du wildcard. Un parcours navigateur réel par SIS sans réponse réseau simulée;élèves/étudiants,factures25pagination20+5,cours,bulletin secondaire,évaluation mappée et attestation supérieure.",
+          "remaining_scope": "10.7 reste partial :activités secondaires vague18 non qualifiées,catalogue LMS natif et navigateur multi-rôles/révocations exhaustifs ouverts. Qualification ciblée sur codebackend17montéRO/image06b55e8,pas image17 reconstruite ni suite complète17. Premier secondaire85/73et1échec429 conservé,puis relance10/19verte;supérieur70/25verts,Workspace75tests d'un seul fichier. Aucun déploiement partagé,pilote ou réception humaine."
         }
       ],
       "acceptance_execution_status": "increments_passed_requirement_incomplete"
@@ -9458,12 +9764,20 @@
         "Une autorité valide les résultats officiels et applique les conditions versionnées de passage/diplomation sans écraser une période close.",
         "Vérifier identité/tenant, autorisations, historique, persistance et rejeu avant de passer à l'étape suivante."
       ],
-      "execution_evidence": [],
+      "execution_evidence": [
+        {
+          "update_id": "EXEC-20261107-wave15-published-qualification",
+          "campaign_ids": ["wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser"],
+          "result": "bounded_official_grade_creation_after_nominative_review_passed",
+          "verified_scope": "Proposition LMS préalable obligatoire,absence de note officielle avant approbation,rejet motivé audité; décision nominative avec contrôles actualisés de période/année et refus d'une proposition dépassée par un événement retenu plus récent. Rejeu,onglet obsolète409 et concurrence200/409 sans doublon qualifiés sur fixtures des deux SIS.",
+          "remaining_scope": "11.7 etF09 restent partiels : webhook synthétique/Celery eager,pas de vrai LMS natif ni réception humaine institutionnelle. Conditions de passage/diplomation,jurys,agrégations et cycle complet persistant encore à qualifier; vague17 exclue."
+        }
+      ],
       "related_requirements": [
         "2.5",
         "3.8"
       ],
-      "acceptance_execution_status": "not_run"
+      "acceptance_execution_status": "increments_passed_requirement_incomplete"
     },
     {
       "id": "11.8",
