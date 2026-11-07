@@ -26,6 +26,18 @@ export const bindingLabel = course => {
     ? `Cours rattaché : ${courseLabel(course)}`
     : 'Rattachement conservé — cours indisponible dans votre périmètre actuel.';
 };
+export const criterionType = PropTypes.shape({
+  code: PropTypes.string.isRequired, label: PropTypes.string.isRequired,
+});
+export const competencyType = PropTypes.shape({
+  disponible: PropTypes.bool, version: PropTypes.number, criteria: PropTypes.arrayOf(criterionType),
+});
+export const competencyLabel = snapshot => {
+  if (!snapshot) { return 'Aucune compétence visée sélectionnée.'; }
+  return snapshot.disponible
+    ? `Compétences visées : ${snapshot.criteria.map(item => `${item.label} (${item.code})`).join(', ')}`
+    : 'Compétences visées conservées — indisponibles dans votre périmètre actuel.';
+};
 export const projectType = PropTypes.shape({
   id: PropTypes.string.isRequired,
   titre: PropTypes.string.isRequired,
@@ -34,6 +46,7 @@ export const projectType = PropTypes.shape({
   version: PropTypes.number.isRequired,
   responsable: PropTypes.number,
   cours: courseType,
+  competences: competencyType,
   actions: PropTypes.shape({
     can_manage: PropTypes.bool, can_submit: PropTypes.bool, can_evaluate: PropTypes.bool,
   }).isRequired,

@@ -21,6 +21,7 @@ from sis_common.authorization import filter_queryset_by_scopes, has_business_per
 from sis_common.exam_files import hash_uploaded_file
 from sis_common.module_registry import require_module
 from sis_common.pagination import SISPagination
+from sis_common.project_competencies import competency_source, readable_competencies, select_competencies
 from sis_common.project_courses import (
     ProjectCoursePagination,
     course_snapshot,
@@ -248,6 +249,7 @@ class ProjectViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
 
     def event(self, project, action_name, **metadata):
         metadata.setdefault("cours", self.binding_evidence(project))
+        metadata.setdefault("competences", project.competences_snapshot)
         metadata["version"] = project.version
         record_workflow_event(
             self.request, project, f"projet_{action_name}", "Suivi de projet pédagogique", metadata=metadata
@@ -350,6 +352,25 @@ class ProjectViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
 
     @action(detail=False, methods=["get"], url_path="cours-candidats")
     def cours_candidats(self, request):
+        owner = self.course_candidate_owner(request)
+        raw_term = request.query_params.get("q", "")
+        term = raw_term.strip()
+        if (
+            not 2 <= len(term) <= 100
+            or len(raw_term) > 100
+            or any(unicodedata.category(char).startswith("C") for char in raw_term)
+        ):
+            raise ValidationError({"q": "Saisissez entre 2 et 100 caractères, sans caractères de contrôle."})
+        queryset = (
+            selectable_project_courses(request, owner)
+            .filter(Q(course_name__icontains=term) | Q(course_id__icontains=term))
+            .order_by("course_name", "pk")
+        )
+        paginator = ProjectCoursePagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        return paginator.get_paginated_response([course_summary(course) for course in page])
+
+    def course_candidate_owner(self, request):
         project = None
         if "projet" in request.query_params:
             try:
@@ -368,22 +389,22 @@ class ProjectViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
             owner = self.creation_owner(owner_id)
         else:
             owner, _ = self.validate_delegation(project, owner_id, [])
-        raw_term = request.query_params.get("q", "")
-        term = raw_term.strip()
-        if (
-            not 2 <= len(term) <= 100
-            or len(raw_term) > 100
-            or any(unicodedata.category(char).startswith("C") for char in raw_term)
-        ):
-            raise ValidationError({"q": "Saisissez entre 2 et 100 caractères, sans caractères de contrôle."})
-        queryset = (
-            selectable_project_courses(request, owner)
-            .filter(Q(course_name__icontains=term) | Q(course_id__icontains=term))
-            .order_by("course_name", "pk")
-        )
+        return owner
+
+    @action(detail=False, methods=["get"], url_path="competences-candidates")
+    @transaction.atomic
+    def competences_candidates(self, request):
+        owner = self.course_candidate_owner(request)
+        raw_course = request.query_params.get("cours", "")
+        if not raw_course.isascii() or not raw_course.isdecimal() or len(raw_course) > 18 or int(raw_course) < 1:
+            raise ValidationError({"cours": "Un identifiant de cours positif est requis."})
+        course = validate_project_course(request, owner, int(raw_course))
+        criteria, mode, _, _ = competency_source(request, course)
         paginator = ProjectCoursePagination()
-        page = paginator.paginate_queryset(queryset, request, view=self)
-        return paginator.get_paginated_response([course_summary(course) for course in page])
+        page = paginator.paginate_queryset(criteria, request, view=self)
+        response = paginator.get_paginated_response(page)
+        response.data["etat"] = mode
+        return response
 
     @transaction.atomic
     def create(self, request):
@@ -392,10 +413,12 @@ class ProjectViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         self.creation_owner(owner_id)
         evaluator_ids = values.pop("evaluateurs")
         course_id = values.pop("cours")
+        codes = values.pop("competences")
         project = Project(etablissement=request.tenant, cree_par=request.user, responsable_id=owner_id, **values)
         owner, evaluators = self.validate_delegation(project, owner_id, evaluator_ids)
         project.responsable = owner
         project.cours = validate_project_course(request, owner, course_id)
+        project.competences_snapshot = select_competencies(request, project.cours, codes)
         project.save()
         project.evaluateurs.set(evaluators)
         self.event(
@@ -421,17 +444,21 @@ class ProjectViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         owner_id = values.pop("responsable", project.responsable_id)
         evaluator_ids = values.pop("evaluateurs", list(project.evaluateurs.values_list("pk", flat=True)))
         course_id = values.pop("cours", project.cours_id)
+        codes = values.pop("competences", None)
         owner, evaluators = self.validate_delegation(project, owner_id, evaluator_ids)
         course = validate_project_course(request, owner, course_id)
+        competencies = select_competencies(request, course, codes, previous=project.competences_snapshot)
         before = {
             "responsable": project.responsable_id,
             "evaluateurs": list(project.evaluateurs.values_list("pk", flat=True)),
             "titre": project.titre,
             "description": project.description,
             "cours": self.binding_evidence(project),
+            "competences": project.competences_snapshot,
         }
         project.responsable = owner
         project.cours = course
+        project.competences_snapshot = competencies
         for field, value in values.items():
             setattr(project, field, value)
         project.evaluateurs.set(evaluators)
@@ -704,6 +731,13 @@ class ProjectViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
 
     def readable_evidence(self, metadata):
         result = dict(metadata)
+        if "competences" in result:
+            result["competences"] = readable_competencies(self.request, result["competences"])
+        if "competences" in result.get("avant", {}):
+            result["avant"] = {
+                **result["avant"],
+                "competences": readable_competencies(self.request, result["avant"]["competences"]),
+            }
         if "cours" in result:
             result["cours"] = readable_course_snapshot(self.request, result["cours"])
         if "cours" in result.get("avant", {}):

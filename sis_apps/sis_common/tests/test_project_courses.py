@@ -21,7 +21,7 @@ MANAGE = "core.gerer_projet_pedagogique"
 READ = "integration.view_edxcoursemapping"
 
 
-class ProjectCourseTests(ProjectFixture):
+class ProjectCourseFixture(ProjectFixture):
     def setUp(self):
         super().setUp()
         self.course_permission = Permission.objects.get(
@@ -144,6 +144,8 @@ class ProjectCourseTests(ProjectFixture):
     def events(self):
         return WorkflowEvent.objects.filter(model="pedagogicalproject").order_by("pk")
 
+
+class ProjectCourseTests(ProjectCourseFixture):
     def test_create_replace_clear_and_protect_mapping_without_any_lms_or_grade_effect(self):
         models = [EdxCourseMapping, EdxEnrollment, EdxAccessIntent, OutboxEvent, Note]
         before = [list(model.objects.order_by("pk").values()) for model in models]

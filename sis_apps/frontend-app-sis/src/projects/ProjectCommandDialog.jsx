@@ -9,8 +9,9 @@ import { postApi } from '../services/api';
 import { apiErrorMessage } from '../services/resources';
 import ProjectCandidates from './ProjectCandidates';
 import ProjectCourseCandidates from './ProjectCourseCandidates';
+import ProjectCompetencyCandidates from './ProjectCompetencyCandidates';
 import {
-  bindingLabel, isDenied, milestoneType, projectType, rules, selectProps, teamType,
+  bindingLabel, competencyLabel, isDenied, milestoneType, projectType, rules, selectProps, teamType,
 } from './projectUi';
 
 const titles = {
@@ -43,6 +44,11 @@ const ProjectCommandDialog = ({
   const [course, setCourse] = useState(null);
   const [courseChanged, setCourseChanged] = useState(false);
   const [choosingCourse, setChoosingCourse] = useState(kind === 'create');
+  const [competencies, setCompetencies] = useState([]);
+  const [competenciesChanged, setCompetenciesChanged] = useState(false);
+  const [choosingCompetencies, setChoosingCompetencies] = useState(false);
+  const [competencyReady, setCompetencyReady] = useState(false);
+  const [competencyReview, setCompetencyReview] = useState(false);
   const [evaluateurs, setEvaluateurs] = useState([]);
   const [replaceEvaluators, setReplaceEvaluators] = useState(false);
   const [members, setMembers] = useState(
@@ -80,6 +86,25 @@ const ProjectCommandDialog = ({
     onSettled: () => { sending.current = false; onBusy(false); },
   });
   const busy = mutation.isPending || reloading;
+  const invalidCompetencies = ['create', 'configure'].includes(kind)
+    && (competencyReview || (choosingCompetencies && !competencyReady));
+  const chosenCourse = courseChanged ? course : project?.cours;
+  const selectedCourse = kind === 'create' ? course : chosenCourse;
+  const ownerId = responsable?.id || project?.responsable;
+  const reviewCompetencies = () => {
+    setChoosingCompetencies(false);
+    if (choosingCompetencies || competencies.length || (!competenciesChanged && project?.competences)) {
+      setCompetencyReview(true);
+    }
+  };
+  useEffect(() => {
+    if (project?.competences?.disponible === false) {
+      setCompetencies([]);
+      setCompetenciesChanged(false);
+      setChoosingCompetencies(false);
+      setCompetencyReview(true);
+    }
+  }, [project?.competences?.disponible]);
   const field = (name, maxLength) => ({
     value: values[name],
     onChange: event => setValues(previous => ({ ...previous, [name]: event.target.value })),
@@ -88,7 +113,7 @@ const ProjectCommandDialog = ({
   });
   const submit = event => {
     event.preventDefault();
-    if (sending.current || busy || conflict) { return; }
+    if (sending.current || busy || conflict || invalidCompetencies) { return; }
     const projectUrl = `${url}${destination.project}/`;
     const teamUrl = `${projectUrl}equipes/${destination.team}/`;
     let endpoint = url;
@@ -103,6 +128,7 @@ const ProjectCommandDialog = ({
           responsable: responsable.id,
           evaluateurs: evaluateurs.map(user => user.id),
           ...(course ? { cours: course.id } : {}),
+          ...(competenciesChanged ? { competences: competencies.map(item => item.code) } : {}),
         };
         break;
       case 'configure':
@@ -114,6 +140,7 @@ const ProjectCommandDialog = ({
           ...(responsable ? { responsable: responsable.id } : {}),
           ...(replaceEvaluators ? { evaluateurs: evaluateurs.map(user => user.id) } : {}),
           ...(courseChanged ? { cours: course?.id || null } : {}),
+          ...(competenciesChanged ? { competences: competencies.map(item => item.code) } : {}),
         };
         break;
       case 'team':
@@ -216,7 +243,11 @@ const ProjectCommandDialog = ({
                   type="responsable"
                   label={kind === 'create' ? 'Responsable' : 'Nouveau responsable (facultatif)'}
                   value={responsable}
-                  onChange={user => { setResponsable(user); if (kind === 'create') { setEvaluateurs([]); } }}
+                  onChange={user => {
+                    setResponsable(user);
+                    reviewCompetencies();
+                    if (kind === 'create') { setEvaluateurs([]); }
+                  }}
                   onDenied={onDenied}
                   disabled={busy}
                   required={kind === 'create'}
@@ -228,7 +259,12 @@ const ProjectCommandDialog = ({
                       <Button disabled={busy} onClick={() => setChoosingCourse(true)}>Choisir un cours</Button>
                       <Button
                         disabled={busy}
-                        onClick={() => { setCourse(null); setCourseChanged(true); setChoosingCourse(false); }}
+                        onClick={() => {
+                          setCourse(null);
+                          setCourseChanged(true);
+                          setChoosingCourse(false);
+                          reviewCompetencies();
+                        }}
                       >
                         Retirer le rattachement
                       </Button>
@@ -242,11 +278,66 @@ const ProjectCommandDialog = ({
                     projectId={project?.id}
                     ownerId={responsable?.id || project?.responsable}
                     value={course}
-                    onChange={selected => { setCourse(selected); setCourseChanged(true); }}
+                    onChange={selected => { setCourse(selected); setCourseChanged(true); reviewCompetencies(); }}
                     onDenied={onDenied}
                     disabled={busy}
                   />
                 )}
+                <Typography sx={{ overflowWrap: 'anywhere' }}>
+                  {competenciesChanged
+                    ? competencyLabel(competencies.length ? { disponible: true, criteria: competencies } : null)
+                    : competencyLabel(project?.competences)}
+                </Typography>
+                {competencyReview && (
+                  <Alert severity="warning">
+                    Contexte modifié ou indisponible : les compétences ne sont pas réassociées automatiquement.
+                    Recommencez leur sélection ou retirez-les explicitement avant de confirmer.
+                  </Alert>
+                )}
+                <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: 'wrap' }}>
+                  <Button
+                    disabled={busy || !selectedCourse?.id || !ownerId}
+                    onClick={() => {
+                      setCompetencies([]);
+                      setCompetenciesChanged(true);
+                      if (!choosingCompetencies) { setCompetencyReady(false); }
+                      setChoosingCompetencies(true);
+                      setCompetencyReview(false);
+                    }}
+                  >
+                    Nouvelle sélection des compétences visées
+                  </Button>
+                  <Button
+                    disabled={busy}
+                    onClick={() => {
+                      setCompetencies([]);
+                      setCompetenciesChanged(true);
+                      setChoosingCompetencies(false);
+                      setCompetencyReview(false);
+                    }}
+                  >
+                    Retirer les compétences visées
+                  </Button>
+                </Stack>
+                {choosingCompetencies && selectedCourse?.id && ownerId && (
+                  <ProjectCompetencyCandidates
+                    key={`competencies-${selectedCourse.id}-${ownerId}`}
+                    url={url}
+                    projectId={project?.id}
+                    courseId={selectedCourse.id}
+                    ownerId={ownerId}
+                    value={competencies}
+                    onChange={setCompetencies}
+                    onDenied={onDenied}
+                    onReadyChange={setCompetencyReady}
+                    disabled={busy}
+                  />
+                )}
+                <Alert severity="info">
+                  La nouvelle sélection remplace le choix précédent ; aucun choix conserve les compétences existantes.
+                  Une sélection vide les retire. Seuls les critères de l’offre liée sont proposés, sans acquisition
+                  ni note officielle. Toute modification de cette offre impose une nouvelle sélection ou un retrait.
+                </Alert>
                 <Alert severity="info">
                   Le serveur revérifie les accès au cours et la compatibilité du responsable à chaque configuration.
                   Un cours révoqué doit être remplacé ou explicitement retiré pour configurer le projet.
@@ -373,7 +464,9 @@ const ProjectCommandDialog = ({
           <Button
             type="submit"
             variant="contained"
-            disabled={busy || conflict || invalidMembers || (kind === 'create' && !responsable) || (kind === 'delivery' && !file)}
+            disabled={busy || conflict || invalidMembers
+              || invalidCompetencies
+              || (kind === 'create' && !responsable) || (kind === 'delivery' && !file)}
           >
             {kind === 'publish' ? 'Confirmer la publication' : 'Enregistrer'}
           </Button>

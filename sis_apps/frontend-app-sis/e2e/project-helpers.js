@@ -65,6 +65,16 @@ async function submit(page, endpoint, status = 201, label = 'Enregistrer') {
   return result.json();
 }
 
+async function command(page, origin, path, method, data, status) {
+  const csrf = await page.request.get(`${origin}/csrf/api/v1/token`);
+  expect(csrf.status()).toBe(200);
+  const response = await page.request.fetch(`${origin}${path}`, {
+    method, data, headers: { 'X-CSRFToken': (await csrf.json()).csrfToken },
+  });
+  expect(response.status(), await response.text()).toBe(status);
+  return status === 204 ? null : response.json();
+}
+
 module.exports = {
-  variants, loadFixture, login, choose, submit,
+  variants, loadFixture, login, choose, submit, command,
 };

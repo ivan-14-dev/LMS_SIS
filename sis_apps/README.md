@@ -217,12 +217,13 @@ PUT, PATCH et DELETE. Aucune suppression de preuve ni remplacement de fichier.
 
 | Route relative | Méthode et corps |
 | --- | --- |
-| `/` | GET, filtres `q` (titre), `mode=individuel\|collectif` ; POST `{titre,description?,mode,responsable,evaluateurs?:[compteId],cours?:mappingId\|null}` |
+| `/` | GET, filtres `q` (titre), `mode=individuel\|collectif` ; POST `{titre,description?,mode,responsable,evaluateurs?:[compteId],cours?:mappingId\|null,competences?:[code]}` |
 | `{projet}/` | GET |
 | `capacites/` | GET → `{can_create,permissions}` |
 | `candidats/` | GET `?type=membre\|responsable\|evaluateur&q=terme[&projet=uuid\|&responsable=compteId]` → `{results:[{id,nom}]}` (20 maximum, recherche de 2 à 100 caractères) |
 | `cours-candidats/` | GET `?q=terme&responsable=compteId[&projet=uuid]&page=1&page_size=20` → `{count,next,previous,results:[{id,nom,contexte}]}` |
-| `{projet}/configurer/` | POST `{version,titre?,description?,responsable?,evaluateurs?:[compteId],cours?:mappingId\|null}` ; mode non modifiable |
+| `competences-candidates/` | GET `?cours=mappingId&responsable=compteId[&projet=uuid]&page=1&page_size=20` → `{count,next,previous,results:[{code,label}],etat}` (maximum 50/page) |
+| `{projet}/configurer/` | POST `{version,titre?,description?,responsable?,evaluateurs?:[compteId],cours?:mappingId\|null,competences?:[code]}` ; mode non modifiable |
 | `{projet}/jalons/` | GET ; POST `{version,titre,consignes?,ordre,echeance,bareme}` |
 | `{projet}/equipes/` | GET ; POST `{version,nom,membres:[compteId]}` |
 | `{projet}/equipes/{equipe}/membres/` | POST `{version,membres:[compteId]}` (remplacement atomique des membres actifs) |
@@ -411,8 +412,8 @@ et un verrou de projet ; les versions périmées sont refusées.
 
 Erreurs : **400** champs, bornes ou comptes incompatibles ; **403** habilitation
 insuffisante/module désactivé ; **404** objet, équipe ou relation hors périmètre ;
-**409** version de projet périmée. Le rattachement local cours/contexte ci-dessus
-ne rattache pas les projets aux compétences. Ces évaluations pédagogiques ne sont
+**409** version de projet périmée. Les compétences visées ci-dessous constituent
+des objectifs sélectionnés, pas des acquis. Ces évaluations pédagogiques ne sont
 **jamais des notes officielles SIS** : aucun transfert automatique, validation
 officielle ou nouvel appel/synchronisation LMS n'est réalisé par ce module.
 Compétences, résultats officiels et articulation LMS restent distincts :
@@ -429,6 +430,73 @@ Création/configuration proposent le sélecteur de cours scoped et paginé ; le 
 distingue un projet non rattaché d'un rattachement devenu indisponible. Le retrait
 est explicite et versionné. Un conflit conserve aussi le cours et le responsable
 saisis ; un refus d'accès évince les données privées, y compris les candidats cours.
+
+#### Compétences visées (incrément 28, sans acquisition)
+
+Le choix est facultatif, y compris pour un projet rattaché. `competences` accepte
+uniquement une liste JSON de **0 à 100 codes distincts**, au format source
+`[a-z][a-z0-9_-]{0,63}`. Types non chaîne, doublons, espaces, code inconnu,
+liste trop longue et champs/labels client sont refusés (400), sans mutation ni audit.
+Omission à la création : aucun choix. Omission en configuration : conservation ;
+`[]` : retrait explicite. `null` est refusé pour ce champ.
+
+Le sélecteur exige les permissions de gestion du projet/création et l'accès au
+cours pour **les deux acteurs**, gestionnaire et responsable, avec les mêmes
+frontières staff/affectations réelles et scopes stricts que `cours-candidats`.
+Il ne consulte aucun annuaire ni catalogue global. Source secondaire :
+`cours.classe.offre_configuration`. Source supérieur :
+`cours.ecue.ue.maquette.formation.offre_configuration` (pas la maquette).
+L'offre liée reste indépendante du catalogue courant de l'établissement.
+Le contexte local est vérifié avant les critères, y compris niveau/années,
+matière, département/faculté, école doctorale et ascendance organisationnelle
+lorsque présents. Une relation étrangère est refusée, jamais utilisée comme source.
+
+`etat` reprend les modes existants : `competency`, `numeric`, `pass_fail` ;
+`absente` signifie une offre vide/absente. Les trois derniers états ont une liste
+vide explicite. Une offre malformée produit 400 : aucun repli sur le catalogue.
+Seul `competency` fournit des critères. Les libellés proviennent exclusivement du
+snapshot d'offre validé par `validate_learning_offering`.
+
+La colonne privée `competences_snapshot` (migration core 0012 dans les deux SIS)
+est `null` pour les anciennes lignes/sélections vides, sinon :
+`{version:1,_contexte:{cours,scope,source,organisation,...},_offre:{code,label,version,_sha256},criteria:[{code,label}]}`.
+`version:1` est la **version du format**, non un résultat ou une révision d'acquisition.
+`_contexte` identifie le cours et la source classe/formation et protège ses
+dimensions académiques. `_offre` historise la référence et l'empreinte complète
+de l'offre. Aucun de ces champs internes n'est sérialisé.
+
+La réponse projet (liste/détail/commande) et les métadonnées d'historique
+`competences`/`avant.competences` présentent seulement :
+`null`, `{disponible:false}` ou
+`{version:1,disponible:true,criteria:[{code,label}]}`.
+Les libellés restent ceux choisis à l'époque : renommer un critère, modifier
+l'offre ou son catalogue ne réécrit ni snapshot ni événement passé. Perte du
+droit au cours ou déplacement du contexte masque codes **et** libellés, y compris
+dans l'historique administratif. Les lignes sans snapshot ne reconstituent rien.
+
+La configuration revalide les compétences conservées sous verrou projet, cours
+et source d'offre. Retrait/changement de cours ou changement d'offre/contexte
+incompatible exige `competences:[]` ou une resélection explicite : aucun effacement
+ou rattachement implicite. Changer le responsable revérifie l'intersection des
+accès. `[]` reste un chemin de retrait même si l'offre est corrompue ; aucune
+compétence n'est requise pour un projet sans cours. La `version` **du projet**
+reste le verrou optimiste des commandes (409, sans écriture). Une resélection
+explicite capture l'offre courante à l'exécution ; il n'existe pas de jeton de
+révision d'offre côté client. Les anciennes preuves restent immuables.
+
+L'UI propose une nouvelle sélection paginée (remplacement explicite) et un retrait
+distinct. Un changement de cours/responsable conserve le brouillon visible mais
+exige un nouveau choix/retrait, sans réassociation silencieuse. Les erreurs 400
+ne produisent aucun succès ; 409 conserve la saisie et exige rechargement puis
+confirmation ; 403/404 purge les caches privés. Le détail apprenant respecte le
+masquage serveur. La confirmation d'une nouvelle sélection est bloquée pendant
+le chargement, la pagination et après une erreur du sélecteur. Les choix déjà faits
+sont conservés pour une nouvelle tentative ; le bouton de retrait explicite reste
+disponible, seul chemin de retrait sans chargement réussi.
+Équipes/livrables/évaluations restent utilisables après révocation
+du cours. Aucun catalogue supplémentaire, inscription, acquis, note officielle,
+sanction, provisioning ou synchronisation LMS n'est ajouté. Cet incrément ne
+déclare pas l'exigence 10.5 complète.
 
 ## Conformité
 

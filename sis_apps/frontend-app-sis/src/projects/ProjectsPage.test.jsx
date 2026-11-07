@@ -39,6 +39,7 @@ let deliveries;
 let modules;
 let canCreate;
 let courses;
+let criteria;
 let getFailure;
 let postHandler;
 let pendingResolve;
@@ -82,6 +83,7 @@ beforeEach(() => {
     nom: `Cours projet ${code}`,
     contexte: { ecue: { id: 201 + index, code, nom: `ECUE ${code}` } },
   }));
+  criteria = [{ code: 'analyse', label: 'Analyse source' }, { code: 'argumentation', label: 'Argumentation source' }];
   project = {
     id: projectId,
     titre: 'Projet énergie',
@@ -147,6 +149,17 @@ beforeEach(() => {
           next: currentPage < courses.length ? 'https://superieur.test/next-page' : null,
           previous: currentPage > 1 ? 'https://superieur.test/previous-page' : null,
           results: courses.slice(currentPage - 1, currentPage),
+        };
+      } else if (pathname === `${basePath}competences-candidates/`) {
+        expect(['101', '102']).toContain(searchParams.get('cours'));
+        expect(['91', '93']).toContain(searchParams.get('responsable'));
+        const currentPage = Number(searchParams.get('page'));
+        data = {
+          count: criteria.length,
+          etat: criteria.length ? 'competency' : 'absente',
+          next: currentPage < criteria.length ? 'https://superieur.test/next-page' : null,
+          previous: currentPage > 1 ? 'https://superieur.test/previous-page' : null,
+          results: criteria.slice(currentPage - 1, currentPage),
         };
       } else if (pathname === `${basePath}candidats/`) {
         expect(['responsable', 'evaluateur', 'membre']).toContain(searchParams.get('type'));
@@ -366,6 +379,212 @@ it('searches on the server and distinguishes an empty selection from a failed li
   fireEvent.click(screen.getByRole('button', { name: 'Actualiser' }));
   expect(await screen.findByText(/Liste indisponible/)).toBeInTheDocument();
   expect(screen.queryByText('Aucun projet accessible dans cette sélection.')).not.toBeInTheDocument();
+});
+
+it('selects only source codes across pages, displays the snapshot and removes objectives explicitly', async () => {
+  project = { ...project, cours: { ...courses[0], disponible: true } };
+  let removing = false;
+  postHandler = async (path, payload) => {
+    expect(path).toBe(`${detailPath}configurer/`);
+    expect(payload.competences).toEqual(removing ? [] : ['analyse', 'argumentation']);
+    expect(Object.keys(payload).sort()).toEqual(['competences', 'description', 'titre', 'version']);
+    project = {
+      ...project,
+      version: project.version + 1,
+      competences: removing ? null : { version: 1, disponible: true, criteria },
+    };
+    return project;
+  };
+  renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Configurer le projet' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Nouvelle sélection des compétences visées' }));
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Analyse source (analyse)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Compétences suivantes' }));
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Argumentation source (argumentation)' }));
+  save();
+  await waitSaved();
+  expect(screen.getByText('Compétences visées : Analyse source (analyse), Argumentation source (argumentation)')).toBeInTheDocument();
+  removing = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Configurer le projet' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Retirer les compétences visées' }));
+  expect(http.post).toHaveBeenCalledTimes(1);
+  save();
+  await waitSaved();
+  expect(screen.getByText('Aucune compétence visée sélectionnée.')).toBeInTheDocument();
+});
+
+it('keeps competency drafts after 409 and 400 with a fresh version and an explicit second confirmation', async () => {
+  project = { ...project, cours: { ...courses[0], disponible: true } };
+  postHandler = async (_, payload) => {
+    expect(payload.competences).toEqual(['analyse']);
+    if (payload.version === 1) { throw failure(409); }
+    expect(payload.version).toBe(8);
+    throw failure(400);
+  };
+  renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Configurer le projet' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Nouvelle sélection des compétences visées' }));
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Analyse source (analyse)' }));
+  save();
+  expect(await screen.findByText(/Refus serveur 409/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+  project = { ...project, version: 8 };
+  fireEvent.click(screen.getByRole('button', { name: 'Recharger le projet sans effacer les saisies' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeEnabled());
+  expect(http.post).toHaveBeenCalledTimes(1);
+  expect(await screen.findByRole('checkbox', { name: 'Analyse source (analyse)' })).toBeChecked();
+  save();
+  expect(await screen.findByText(/Refus serveur 400/)).toBeInTheDocument();
+  expect(await screen.findByRole('checkbox', { name: 'Analyse source (analyse)' })).toBeChecked();
+  expect(screen.queryByText('Enregistrement confirmé par le serveur.')).not.toBeInTheDocument();
+});
+
+it('blocks initial competency loading and HTTP 400 until removal is explicitly requested', async () => {
+  project = {
+    ...project,
+    cours: { ...courses[0], disponible: true },
+    competences: { version: 1, disponible: true, criteria: [criteria[0]] },
+  };
+  const get = http.get.getMockImplementation();
+  let rejectCandidates;
+  http.get.mockImplementation((url, options) => (
+    new URL(url).pathname === `${basePath}competences-candidates/`
+      ? new Promise((resolve, reject) => { rejectCandidates = reject; }) : get(url, options)
+  ));
+  postHandler = async (_, payload) => {
+    expect(payload.competences).toEqual([]);
+    project = { ...project, version: 2, competences: null };
+    return project;
+  };
+  renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Configurer le projet' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Nouvelle sélection des compétences visées' }));
+  expect(await screen.findByText('Chargement des compétences de l’offre liée…')).toBeInTheDocument();
+  const dialog = within(screen.getByRole('dialog'));
+  expect(dialog.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+  fireEvent.submit(dialog.getByLabelText(/^Titre du projet/).closest('form'));
+  expect(http.post).not.toHaveBeenCalled();
+  await act(async () => { rejectCandidates(failure(400)); });
+  expect(await screen.findByText(/Compétences indisponibles.*Refus serveur 400/)).toBeInTheDocument();
+  expect(dialog.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+  fireEvent.submit(dialog.getByLabelText(/^Titre du projet/).closest('form'));
+  expect(http.post).not.toHaveBeenCalled();
+  expect(screen.queryByText('Enregistrement confirmé par le serveur.')).not.toBeInTheDocument();
+  expect(project.competences.criteria).toEqual([criteria[0]]);
+  expect(dialog.getByRole('button', { name: 'Retirer les compétences visées' })).toBeEnabled();
+  fireEvent.click(dialog.getByRole('button', { name: 'Retirer les compétences visées' }));
+  save();
+  await waitSaved();
+  expect(http.post).toHaveBeenCalledTimes(1);
+});
+
+it('retains chosen competencies while pagination is pending or fails and permits confirmation only after retry', async () => {
+  project = { ...project, cours: { ...courses[0], disponible: true } };
+  const get = http.get.getMockImplementation();
+  let rejectNext;
+  let failNext = true;
+  http.get.mockImplementation((url, options) => {
+    const target = new URL(url);
+    if (failNext && target.pathname === `${basePath}competences-candidates/` && target.searchParams.get('page') === '2') {
+      return new Promise((resolve, reject) => { rejectNext = reject; });
+    }
+    return get(url, options);
+  });
+  postHandler = async (_, payload) => {
+    expect(payload.competences).toEqual(['analyse']);
+    project = {
+      ...project, version: 2, competences: { version: 1, disponible: true, criteria: [criteria[0]] },
+    };
+    return project;
+  };
+  renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Configurer le projet' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Nouvelle sélection des compétences visées' }));
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Analyse source (analyse)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Compétences suivantes' }));
+  const dialog = within(screen.getByRole('dialog'));
+  expect(await screen.findByText('Chargement des compétences de l’offre liée…')).toBeInTheDocument();
+  expect(dialog.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+  fireEvent.submit(dialog.getByLabelText(/^Titre du projet/).closest('form'));
+  expect(http.post).not.toHaveBeenCalled();
+  await act(async () => { rejectNext(failure(500)); });
+  expect(await screen.findByText(/Compétences indisponibles.*Refus serveur 500/)).toBeInTheDocument();
+  expect(dialog.getByText('Compétences visées : Analyse source (analyse)')).toBeInTheDocument();
+  expect(dialog.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+  fireEvent.submit(dialog.getByLabelText(/^Titre du projet/).closest('form'));
+  expect(http.post).not.toHaveBeenCalled();
+  failNext = false;
+  fireEvent.click(dialog.getByRole('button', { name: 'Réessayer les compétences' }));
+  expect(await screen.findByRole('checkbox', { name: 'Argumentation source (argumentation)' })).not.toBeChecked();
+  await waitFor(() => expect(dialog.getByRole('button', { name: 'Enregistrer' })).toBeEnabled());
+  expect(dialog.getByText('Compétences visées : Analyse source (analyse)')).toBeInTheDocument();
+  save();
+  await waitSaved();
+  expect(http.post).toHaveBeenCalledTimes(1);
+});
+
+it('requires explicit competency replacement or removal after owner and course changes without losing the draft silently', async () => {
+  project = {
+    ...project,
+    cours: { ...courses[0], disponible: true },
+    competences: { version: 1, disponible: true, criteria: [criteria[0]] },
+  };
+  postHandler = async (_, payload) => {
+    expect(payload).toEqual({
+      version: 1, titre: project.titre, description: project.description, responsable: 93, cours: null, competences: [],
+    });
+    project = {
+      ...project, ...payload, version: 2, competences: null,
+    };
+    return project;
+  };
+  renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Configurer le projet' }));
+  await choose('Nouveau responsable (facultatif)', 'Autre', 'Autre responsable habilité');
+  expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+  expect(within(screen.getByRole('dialog')).getByText('Compétences visées : Analyse source (analyse)')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Retirer le rattachement' }));
+  expect(screen.getByRole('button', { name: 'Nouvelle sélection des compétences visées' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Retirer les compétences visées' }));
+  save();
+  await waitSaved();
+});
+
+it.each([403, 404])('purges competency choices and private context when the selector returns %s', async status => {
+  project = { ...project, cours: { ...courses[0], disponible: true } };
+  const { client } = renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Configurer le projet' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Nouvelle sélection des compétences visées' }));
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Analyse source (analyse)' }));
+  getFailure = path => { if (path === `${basePath}competences-candidates/`) { throw failure(status); } };
+  fireEvent.click(screen.getByRole('button', { name: 'Compétences suivantes' }));
+  expect(await screen.findByText(/Accès aux projets refusé/)).toBeInTheDocument();
+  expect(screen.queryByText(/Analyse source/)).not.toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await waitFor(() => expect(client.getQueriesData({ queryKey: ['projects'] })).toEqual([]));
+});
+
+it('shows an explicit empty source and never exposes masked objectives in the learner projection', async () => {
+  project = {
+    ...project,
+    cours: { disponible: false },
+    competences: { disponible: false, criteria },
+    actions: { can_manage: false, can_evaluate: false, can_submit: true },
+  };
+  const view = renderPage();
+  expect(await screen.findByText('Compétences visées conservées — indisponibles dans votre périmètre actuel.')).toBeInTheDocument();
+  expect(screen.queryByText(/Analyse source/)).not.toBeInTheDocument();
+  view.unmount();
+  project = {
+    ...project, cours: { ...courses[0], disponible: true }, competences: null, actions: { can_manage: true },
+  };
+  criteria = [];
+  renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Configurer le projet' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Nouvelle sélection des compétences visées' }));
+  expect(await screen.findByText('Aucune compétence disponible : offre absente ou sans critères de compétences.')).toBeInTheDocument();
+  expect(http.post).not.toHaveBeenCalled();
 });
 
 it('creates an immutable dated milestone then replaces active memberships with the returned version', async () => {

@@ -27,6 +27,7 @@ class PedagogicalProjectBase(models.Model):
     cours = models.ForeignKey(
         "integration.EdxCourseMapping", on_delete=models.PROTECT, related_name="projets", null=True, blank=True
     )
+    competences_snapshot = models.JSONField(default=None, null=True, blank=True, editable=False)
     cree_par = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
     version = models.PositiveIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)

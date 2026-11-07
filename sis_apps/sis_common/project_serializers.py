@@ -7,6 +7,7 @@ from django.apps import apps
 from rest_framework import serializers
 
 from sis_common.exam_files import validate_exam_copy
+from sis_common.project_competencies import CompetencyCodesField, readable_competencies
 from sis_common.project_courses import course_snapshot, readable_course_snapshot
 
 Project = apps.get_model("core", "PedagogicalProject")
@@ -36,6 +37,7 @@ class ProjectCreateCommand(CommandSerializer):
     mode = serializers.ChoiceField(choices=Project.MODES)
     responsable = serializers.IntegerField(min_value=1)
     cours = serializers.IntegerField(min_value=1, allow_null=True, required=False, default=None)
+    competences = CompetencyCodesField(required=False, default=list)
     evaluateurs = serializers.ListField(
         child=serializers.IntegerField(min_value=1), max_length=50, required=False, default=list
     )
@@ -46,6 +48,7 @@ class ProjectConfigureCommand(VersionCommand):
     description = serializers.CharField(max_length=10000, allow_blank=True, required=False)
     responsable = serializers.IntegerField(min_value=1, required=False)
     cours = serializers.IntegerField(min_value=1, allow_null=True, required=False)
+    competences = CompetencyCodesField(required=False)
     evaluateurs = serializers.ListField(child=serializers.IntegerField(min_value=1), max_length=50, required=False)
 
 
@@ -88,6 +91,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     actions = serializers.SerializerMethodField()
     evaluateurs = serializers.SerializerMethodField()
     cours = serializers.SerializerMethodField()
+    competences = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -99,6 +103,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             "responsable",
             "evaluateurs",
             "cours",
+            "competences",
             "cree_par",
             "version",
             "created_at",
@@ -109,6 +114,9 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     def get_cours(self, obj):
         return readable_course_snapshot(self.context["request"], course_snapshot(obj.cours))
+
+    def get_competences(self, obj):
+        return readable_competencies(self.context["request"], obj.competences_snapshot)
 
     def get_evaluateurs(self, obj):
         return list(

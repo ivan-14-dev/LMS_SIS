@@ -2,18 +2,8 @@ const fs = require('fs');
 const { test, expect } = require('@playwright/test');
 const { authenticatedApi } = require('./api');
 const {
-  variants, loadFixture, login, choose, submit,
+  variants, loadFixture, login, choose, submit, command,
 } = require('./project-helpers');
-
-async function command(page, origin, path, method, data, status) {
-  const csrf = await page.request.get(`${origin}/csrf/api/v1/token`);
-  expect(csrf.status()).toBe(200);
-  const response = await page.request.fetch(`${origin}${path}`, {
-    method, data, headers: { 'X-CSRFToken': (await csrf.json()).csrfToken },
-  });
-  expect(response.status(), await response.text()).toBe(status);
-  return status === 204 ? null : response.json();
-}
 
 for (const variant of variants) {
   test(`${variant}: nonstaff assigned teacher binds, loses and regains course access without LMS administration`, async ({
