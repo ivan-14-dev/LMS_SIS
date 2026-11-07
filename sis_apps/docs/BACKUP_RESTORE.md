@@ -169,3 +169,43 @@ nouvelle référence pour vérifier que les demandes refusées ne changent ni
 projets, ni versions, ni historique. Les tests de code seuls, ou une recréation
 avec les mêmes volumes, ne constituent pas une preuve de restauration et ne
 changent pas le statut de recette.
+
+## Qualification ciblée de la recherche après restauration
+
+La régression `sis_common/tests/test_academic_search_tenant_isolation.py`
+exerce les cinq familles recherchables, leurs détails, les rôles distincts,
+la révocation et le rejeu de cookies sur deux vrais schémas migrés/peuplés :
+
+```bash
+# Depuis sis_apps/sis_secondaire, puis sis_apps/sis_superieur :
+python manage.py test sis_common.tests.test_academic_search_tenant_isolation --noinput
+```
+
+Elle ne remplace pas une restauration indépendante. Sur une copie isolée,
+conserver les comptes/MFA/droits existants, ajouter deux établissements de
+qualification et des données synthétiques distinctes, puis sauvegarder au
+repos la base entière et ses fichiers. Restaurer dans une nouvelle base
+créée depuis `template0` et un nouveau volume ; une copie par `TEMPLATE`
+de la base source n'est pas cette preuve.
+
+Avant toute connexion, comparer les tables brutes de tous les schémas et
+les fichiers (contenu, taille, propriétaire, groupe et modes, racine comprise),
+puis vérifier le déchiffrement du MFA synthétique et un véritable TOTP.
+Attester que l'API utilise bien cette base et ce volume restaurés, sans
+montage de code applicatif remplaçant l'image qualifiée.
+
+Avec de vraies sessions HTTP sur chaque Host, contrôler les résultats et
+comptes exacts, les détails autorisés, les restrictions de l'apprenant et le
+rejeu du cookie d'origine **avant chaque route étrangère**. Des identifiants
+entiers identiques dans deux schémas ne désignent pas le même objet :
+un ID collisionnant peut légitimement retourner l'objet local autorisé.
+La vérification doit comparer ses données, pas exiger arbitrairement une 404.
+Une fiche documentaire JSON ne prouve pas le rendu ou téléchargement PDF.
+
+Après les connexions, distinguer les écritures légitimes de session, de
+journal d'accès et de `last_login` des données métier protégées. Vérifier
+aussi que les anciens journaux sont conservés, même si HTTP y ajoute des
+lignes. Relever ensuite une nouvelle référence, recréer réellement API et
+proxy, et comparer de nouveau toutes les tables et tous les fichiers.
+Les reçus et empreintes ne doivent contenir ni cookies, ni mots de passe,
+ni secrets MFA ; garder les archives privées hors du dépôt.

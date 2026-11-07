@@ -9,14 +9,16 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 21:48:54.693074 UTC** :
-vagues 15 à 32 publiées et qualifiées dans leurs périmètres bornés ;
-**vague32 publiée en `f3168ed`**, comparée à `HEAD` et `origin/main`
-au moment de la publication du code, selon la provenance parent.
+**Dernier cutoff documentaire : 7 novembre 2026 à 22:34:18.809968 UTC** :
+vagues 15 à 33 qualifiées dans leurs périmètres bornés ;
+**vague33 sur backend32 `f3168ed` et frontend31 `605aab7` déjà publiés**,
+sources rapprochées du principal et du distant `b5116ca` au moment de la
+qualification. Aucun comportement produit modifié33.
 Le passage autorisé de **10.5 d'absente à partielle** appartient à la
 vague25. **Promotion30 explicitement autorisée : seule10.5, partielle→vérifiée** :
-**2 vérifiées, 71 partielles, 19 absentes et 2 non vérifiées sur 94**.
-Les vagues31 et32 ne promeuvent aucun statut ; les chiffres historiques restent inchangés.
+**Promotion33 explicitement autorisée : seule10.7, partielle→vérifiée** :
+**3 vérifiées, 70 partielles, 19 absentes et 2 non vérifiées sur 94**.
+Les vagues31 et32 ne promouvaient aucun statut ; leurs chiffres historiques restent inchangés.
 Le blocage de qualification Studio a été levé
 vers 07:30 UTC : le correctif est publié, avec une preuve ciblée limitée
 décrite en vague 19, **sans clôture de F07**. Après les lots et parcours
@@ -56,15 +58,20 @@ La vague31 corrige la recherche identique en page1 : nouvel appel du hook privé
 purge des anciennes données pendant GET. Chromium final des deux SIS prouve
 **200 puis403 sur la même URL, même formulaire/session après retrait réel du droit**,
 sans ancien résultat/lien/compte ni navigation/reconnexion/refresh des capacités.
-**10.7 reste partielle** : cette preuve porte sur les apprenants, pas sur une
+**Au cutoff31,10.7 restait partielle** : cette preuve porte sur les apprenants, pas sur une
 recette complète cinq types/autre rôle/autre tenant. Le catalogue LMS natif
 exhaustif n'est pas une obligation de la source920.
 La vague32 ajoute **40/40 tests scolaires et35/35 universitaires** : deux vrais
 schémas migrés/peuplés, cinq familles et détails, rôles distincts, révocation
 dans la même session et rejeu de cookies interétablissements.
 Ce sont des tests d'intégration Django/PostgreSQL, pas une nouvelle campagne
-navigateur ou restauration. Les conditions communes de reprise persistante
-restent à compléter pour ces parcours ; préparation33 non qualifiée.
+navigateur ou restauration. Les conditions communes de reprise persistante,
+encore ouvertes au cutoff32, sont maintenant démontrées33 :
+**185 contrôles HTTP scolaires et251 universitaires** après vraie restauration
+indépendante, cinq schémas par SIS, comptes/MFA/droits/fichiers conservés,
+TOTP réel et recréation API/proxy comparée exactement.
+**10.7 est vérifiée dans son périmètre déclaré**, sans catalogue LMS natif
+exhaustif imposé, nouveau PDF/UI33 ni promotion des F-lots associés.
 **Le 100 % n'est pas atteint.**
 Les bilans datés antérieurs conservent leurs cutoffs, blocages et rouges.
 
@@ -1922,6 +1929,82 @@ pour ces parcours, sans inventer un catalogue LMS natif exhaustif.
 Compteurs inchangés **2/71/19/2** ; pas de déploiement partagé, pilote ou100 %.
 Charge500 non relancée, toujours **500 timeouts/262 écritures indéterminées**.
 
+**Vague 33, qualifiée au cutoff du 7 novembre 2026 à
+22:34:18.809968 UTC :** recherche après restauration indépendante dans les
+deux SIS. Backend32 `f3168ed`, image
+`sha256:b27438d035d4190c0052ed23670abfaf6a4760ef062c1efad208fe08875a96cb`,
+frontend31 `605aab7` inchangés : **1501 Python**,171 entrées de build frontend,
+23 fichiers e2e distincts et23 fichiers de bundle effectivement servis
+rapprochés des sources/provenances publiées. Aucun nouveau comportement
+produit, build, Jest, suite backend ou parcours navigateur33.
+Les preuves UI17/18, Chromium31 et intégration32 restent distinctes.
+
+Les clones de préparation33 proviennent de31 au repos ; **ils ne constituent
+pas la preuve de restauration**. La fixture ajoute deux vrais schémas C/D
+migrés par SIS, avec deux acteurs authentifiables chacun : gestionnaire et
+apprenant, noms et PK naturellement identiques entre établissements.
+Deux contre trois lignes par ressource, sentinelles privées distinctes,
+supports FK inactifs à mots de passe inutilisables, aucun superutilisateur.
+Les anciennes **287/312 tables**, comptes, MFA, droits et séquences hors
+insertions publiques possédées sont préservés pendant cette préparation.
+
+Sauvegarde réellement exécutée par `pg_dump` et `tar`, restauration
+`pg_restore` dans de nouvelles bases **créées depuis `template0`** et
+extraction dans de nouveaux volumes. Avant toute connexion HTTP,
+**567 tables scolaires et618 universitaires exactement égales**, cinq
+schémas par SIS, aucune exclusion de table/ligne. Fichiers, tailles,
+UID/GID, modes et racine comparés ; timestamps non comparés.
+Archives privées0700/0600 hors dépôt. Le MFA synthétique hérité30 reste
+chiffré, son secret attendu se déchiffre et un **véritable TOTP** est vérifié,
+sans secret/OTP dans les reçus.
+
+**185/185 contrôles HTTP scolaires et251/251 universitaires**, quatre
+sessions natives par SIS, vrais Hosts/cookies/CSRF/login mot de passe.
+Recherche identique `BUL-`, résultats/counts et détails exacts des cinq
+familles ; sept endpoints au supérieur avec relevés/transcripts/attestations.
+Le gestionnaire ouvre ses objets ; l'apprenant reste limité à son dossier,
+ses factures/documents. Chaque rejeu inter-Host reçoit à nouveau le cookie
+source original, dans les deux sens et pour les deux rôles, avec refus401/403.
+Destinations natives positives avant rejeu, identité source et recherches
+finales recontrôlées. Un ID collisionnant autorisé désigne l'objet **local** ;
+404 seulement si réellement absent localement ou interdit par scope.
+Documents JSON uniquement, **aucun PDF créé ou rendu revendiqué**.
+Pas de nouvelle révocation33 : les preuves réelles31/32 sont conservées.
+Taux normaux, cache non vidé, pacing seulement, aucun retry ni429.
+
+Après HTTP, seules six tables par SIS changent légitimement : journaux
+de connexion, sessions et `last_login`. Toutes les autres colonnes des
+comptes sont identiques, droits et données métier inchangés.
+Seul `logs/sis.log` s'enrichit ; son préfixe original est strictement conservé
+et les autres fichiers sont identiques. API **et** proxy réellement recréés,
+IDs différents, mêmes image/base/volumes : **567/618 tables et32/29 entrées
+de volumes exactement conservées**, MFA/TOTP encore valides et `/ready/`200.
+Les helpers API/proxy33 sont ensuite arrêtés et supprimés.
+
+Le parent a formaté la fixture avant exécution ; le SHA exécuté est scellé,
+le hash déclaré initial reste dans le handoff auteur statique.
+L'assertion initiale de provenance frontend incluait à tort23 fichiers e2e
+dans les171 entrées du build : inventaire corrigé, sans changement produit.
+Le contrôle de reprise scolaire a ensuite été enrichi par la comparaison
+des comptes hors `last_login` et du préfixe des logs ; reçu final distinct,
+sans écraser l'ancien. Black120/isort/Flake8 sur13 scripts, syntaxes Node/Bash
+et `nginx -t` verts ; les erreurs de longueur de chaînes des outils parent
+ont été corrigées avant leur exécution.
+
+**73 artefacts hachés, quatre campagnes documentaires nouvelles :
+51 updates et192 campagnes non sommées**,25 exigences avec preuves.
+Les50 updates historiques et93 autres objets exigences sont intacts.
+Les critères source920 de10.7 ne changent pas : cinq types et détails
+autorisés, même requête/autre rôle/tenant après révocation sans donnée
+interdite. Les preuves17/18/31/32 satisfont ces critères métier ;33 complète
+la règle commune de reprise persistante. **Seule10.7 est promue vérifiée,
+après autorisation parent**, soit **3/70/19/2 sur94**.
+Catalogue LMS natif exhaustif, nouveau rendu PDF ou réception institutionnelle
+ne sont pas ajoutés comme obligations de10.7. Aucun F-lot clos, déploiement
+partagé, pilote ou100 %. Charge500 non relancée, toujours rouge :
+**500 timeouts/262 écritures indéterminées**. Lot34 en cours, non qualifié
+et exclu de ces résultats.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -2203,15 +2286,17 @@ absence soit masquée par un lot plus large. Elles conditionnent F30.
 
 ### Exigences encore absentes ou non vérifiées (21 sur 94) et domaines devenus partiels
 
-Le reste des 94 exigences est **partiel**, sauf 1.2 déjà vérifiée. Leurs
+Le reste des 94 exigences est **partiel**, sauf 1.2,10.5 et10.7 vérifiées
+dans leurs périmètres déclarés. Leurs
 conditions propres (deux ou trois contrôles par exigence) sont conservées dans
 `requirements[].acceptance_checks` de la
 [matrice](functional-acceptance-matrix.json) ; le lot F correspondant
 ci-dessus ne remplace jamais leur validation individuelle. Les lacunes les
 plus nettes sont détaillées ici, avec les identifiants **du cahier initial**
 (indépendants des sections 1–10 du cahier complémentaire ci-dessous).
-Le tableau conserve aussi 10.5 et 10.7, désormais partielles, pour suivre
-leurs limites ; elles ne sont pas comprises dans les 21 absentes/non vérifiées.
+Le tableau conserve aussi 10.5 et10.7, désormais vérifiées dans leurs
+périmètres déclarés, avec leurs preuves et limites ; elles ne sont pas
+comprises dans les21 absentes/non vérifiées.
 
 | Exigence initiale / statut | Condition de validation propre |
 |---|---|
@@ -2233,7 +2318,7 @@ leurs limites ; elles ne sont pas comprises dans les 21 absentes/non vérifiées
 | 10.1 Mobile — absent | Installation Android **et** iOS, tâches apprenant/enseignant/parent réelles ; session/appareil révoqué ne révèle plus les données privées. |
 | 10.2 Hors ligne — absent | Cours téléchargé sous droit, travail préparé hors réseau puis synchronisé une fois ; conflit et accès révoqué/expiré bloquent les données privées. |
 | 10.5 Projets — vérifiée dans le périmètre déclaré | Créer des projets individuels/collectifs avec équipes, jalons, livrables et évaluations du groupe/contributions ; refuser à une autre équipe la lecture **et** la modification des livrables privés. Critères propres prouvés25–29, dont cycle individuel complet et évaluateur distinct ; preuves UI conservées sans nouvelle UI30. `bddabf7` démontre les trois conditions communes préexistantes (`b898347:1517–1528`) : deux schémas A/B réellement peuplés, restauration indépendante base/fichiers, comparaison comptes/MFA/droits/données à travers migration/restauration/recréation.20 tests ciblés et64 contrôles HTTP par SIS ;287/312 tables,9/8 fichiers comparés exactement avant HTTP, MFA actif/TOTP réel, effets session/audit explicites. Promotion30 partial→verified autorisée pour10.5 seule,93 autres exigences inchangées. Acquisition/notes officielles/LMS distant ne sont pas ajoutés aux critères ; objectifs≠acquis, concurrences adjacentes non exhaustives, pas pilote/production/F-lot global clos ni100 %. |
-| 10.7 Recherche globale — partielle | Preuves de recherche au cutoff vague 18 : apprenants, factures, vrais cours et évaluations SIS reliées au LMS dans les deux SIS, documents sources universitaires et bulletins scolaires `BUL-<id>` ; palette/fiches sans cache partagé, parcours staff et apprenant qualifiés sur fixtures, facture d'autrui absente de la recherche et détail 404 sans numéro. Restent catalogue LMS natif exhaustif et parcours parents/enseignants/multi-tenant/révocations exhaustifs ; la garde Studio ciblée de vague 19 ne clôt pas la recherche, aucun statut promu. |
+| 10.7 Recherche globale — vérifiée dans le périmètre déclaré | Rechercher apprenant, cours, document, facture et activité selon permissions, ouvrir les détails autorisés ; même requête/autre rôle/tenant après révocation sans titre, extrait ou compte inaccessible. UI17/18, même formulaire200→403 réel31, vrais schémas/rôles/révocations32,185/251 contrôles HTTP33 après restauration indépendante.567/618 tables, fichiers et MFA/TOTP comparés ; recréation API/proxy sans perte, effets de connexion/logs explicités. Promotion33 autorisée pour10.7 seule,93 autres exigences inchangées. Catalogue LMS natif exhaustif non imposé, documents JSON seulement en33, pas nouvelle UI33, pilote/production/F-lot clos ou100 %. Les bilans datés antérieurs conservent leurs lacunes aux cutoffs correspondants. |
 | 10.9 Portail public — absent | Formations publiées, actualités et procédure consultables sans connexion ; candidature démarrée, brouillons et dossiers privés inaccessibles. |
 | 10.10 Signature — non vérifiée | Habilitation approuvée par tiers, signature, archive et notification ; auto-approbation, mandat révoqué et document altéré refusés. |
 | 11 Cycle candidat → alumni — non vérifié | Neuf étapes 11.1–11.9 sur un identifiant continu ; refus/doublons/clôtures/coupures et restauration isolée contrôlés, versions et preuves navigateur/API/BD conservées. |

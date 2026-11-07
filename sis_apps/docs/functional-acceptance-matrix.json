@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-07T21:36:13.951849+00:00",
+  "last_evidence_update_at": "2026-11-07T22:34:18.809968+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -5576,10 +5576,429 @@
         "8 artefacts SHA,2 nouvelles campagnes,188 campagnes documentaires non sommées,50 updates,25 exigences avec preuves ; pas de total dédupliqué d'exécutions applicatives.",
         "Aucun catalogue LMS natif exhaustif ajouté à la source920. Pas de déploiement partagé, pilote institutionnel, nouvelle charge ou100%. Charge500 toujours rouge500timeouts/262écritures indéterminées."
       ]
+    },
+    {
+      "id": "EXEC-20261107-wave33-published-search-recovery",
+      "evidence_cutoff_at": "2026-11-07T22:34:18.809968+00:00",
+      "qualification_status": "search_recovery_and_common_conditions_passed_10_7_verified_in_declared_scope",
+      "scope": "Reprise persistante de la recherche dans les deux SIS ; seule10.7 promue après rapprochement15–18/31–33.",
+      "code_commit": "f3168ed11ef253c3f2adf46d6f804519b6be6ebb",
+      "published_commits": [
+        "f3168ed11ef253c3f2adf46d6f804519b6be6ebb",
+        "605aab74482094c6b963c30d1efbffcaa77564a5"
+      ],
+      "publication": {
+        "qualified_sources": "Backend32 f3168ed et frontend31 605aab7 publiés ; aucun comportement produit modifié33.",
+        "main_equals_remote_at_qualification": "b5116cae70c226ce3fcf03e6da99ac445d9d5a3c",
+        "source_provenance": "wave33-source-provenance.json",
+        "new_production_behavior": false
+      },
+      "qualification_environment": {
+        "image": "sha256:b27438d035d4190c0052ed23670abfaf6a4760ef062c1efad208fe08875a96cb",
+        "database": "sis_wave33_browser_{secondaire,superieur}, nouvelles bases template0 restaurées par pg_restore.",
+        "client": "Node HTTP natif, loopback32490, vrais Hosts C/D, cookies/CSRF/login mot de passe.",
+        "frontend": "Bundle31 inchangé servi readonly ; pas nouvelle UI33.",
+        "static": "Black120/isort/Flake8 sur13 scripts Python, syntaxe Node/Bash et nginx -t verts."
+      },
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "parent-qualification": {
+          "path": "wave33-parent-qualification.json",
+          "sha256": "0e75b43b3aa34af38d1f0a87adf6eb21d3406105195aacef904601f69edac45c"
+        },
+        "wave33-search-handoff.json": {
+          "path": "wave33-search-handoff.json",
+          "sha256": "04f18fa6cee1151951b1b07a1277318c765dddf2afd37a6fe1fcb9a21c89c75c"
+        },
+        "wave33-search-fixture.py": {
+          "path": "wave33-search-fixture.py",
+          "sha256": "b8651ab1151678f305a2169a044719c839efcc0e49c6f71d163c5957cd7b6a89"
+        },
+        "wave33-search-after-restore.cjs": {
+          "path": "wave33-search-after-restore.cjs",
+          "sha256": "ae5e0cf1796ad2250ce56b1ad376eb7578fea68587bb4ea8e9211108a66aa6aa"
+        },
+        "wave33_browser_settings.py": {
+          "path": "wave33_browser_settings.py",
+          "sha256": "0208a53a90dcd7eb2125981983ee0e37b923b132694d21726b86f8b57fe5f1f6"
+        },
+        "wave33-browser-container.sh": {
+          "path": "wave33-browser-container.sh",
+          "sha256": "bc760efe8a1ce13f61415819e8b64a0d95a3f9a7cbcefcf86854e40204aa1763"
+        },
+        "wave33-browser-nginx.conf": {
+          "path": "wave33-browser-nginx.conf",
+          "sha256": "f47fd3cb22f02c1737701193085ec9392ebd792c5b51e300d4421c3100180267"
+        },
+        "wave33-database-fingerprint.py": {
+          "path": "wave33-database-fingerprint.py",
+          "sha256": "b8b31e8a37f5ecc5b04e536fa403f9ce9611ec8644998b2c8ca59e3d419a1de8"
+        },
+        "wave33-volume-fingerprint.py": {
+          "path": "wave33-volume-fingerprint.py",
+          "sha256": "4c8626169ac1dc5f7b6b881f880178d9f665fb124eedec1bac8441a02dea705c"
+        },
+        "wave33-mfa-readonly.py": {
+          "path": "wave33-mfa-readonly.py",
+          "sha256": "cc409a72d61875062c655950413ef8f3e642e07c2fe9d536213c71abf36ff020"
+        },
+        "wave33-backup-restore.sh": {
+          "path": "wave33-backup-restore.sh",
+          "sha256": "cef1867240ce11866a93930a02b839d7e01364519e33718afa70559f20498adc"
+        },
+        "wave33-backup-restore.log": {
+          "path": "wave33-backup-restore.log",
+          "sha256": "3875ae07156c7e22a1af7bbfe6818f3187db6992eef384deeb4c0c7667c1bddc"
+        },
+        "wave33-independent-restore-comparison.json": {
+          "path": "wave33-independent-restore-comparison.json",
+          "sha256": "2bc08def0828dfaa927b209936227c2739b20d123a30e42b5ea1493cb0dc43a8"
+        },
+        "wave33-compare-restore.py": {
+          "path": "wave33-compare-restore.py",
+          "sha256": "70bb8917d187c36796627244a6f0b84c456bc380d1504bf50d67702e67896f36"
+        },
+        "wave33-runtime-checkpoint.py": {
+          "path": "wave33-runtime-checkpoint.py",
+          "sha256": "d8dfd548ff0ec54de15f67ee55745277f9cffd2e5c23c64b48da3df8663f88be"
+        },
+        "wave33-attest-runtime.py": {
+          "path": "wave33-attest-runtime.py",
+          "sha256": "93ac10297a40ba75251c972138bee48cbf1d77eb77ba9e1f4bfb43b12603b056"
+        },
+        "wave33-http-account-preservation.py": {
+          "path": "wave33-http-account-preservation.py",
+          "sha256": "42d9c96333ea07b16ad0c7f054f44836d5e08824fe7d81d87c77ba7838d5c5d8"
+        },
+        "wave33-http-log-preservation.py": {
+          "path": "wave33-http-log-preservation.py",
+          "sha256": "4b7d5479ef4838c951839ea9ced0b3983b4edc29e63182035ad1486bd38b1c26"
+        },
+        "wave33-restart-compare.py": {
+          "path": "wave33-restart-compare.py",
+          "sha256": "4aaa1807ae8d5d3e01dba2775b0cbba36d81115a698176f713384c59a9bbdb4e"
+        },
+        "wave33-source-provenance.py": {
+          "path": "wave33-source-provenance.py",
+          "sha256": "4124bff121731a111c136fd2311398a65f5213e6e7b800d5e99e0b1248048aa2"
+        },
+        "wave33-source-provenance.json": {
+          "path": "wave33-source-provenance.json",
+          "sha256": "fa9c8399fe9604cf173f49616657f8b5977a5b5610ee46c3c5f0e436306d4e34"
+        },
+        "wave33-parent-tools-final.log": {
+          "path": "wave33-parent-tools-final.log",
+          "sha256": "037fc8734b619ad11af678f55ce270ddc10e44866ddd8c90a99c1bb92aa6d3a3"
+        },
+        "wave33-parent-qualification.py": {
+          "path": "wave33-parent-qualification.py",
+          "sha256": "48e354e651400cf3d4bf4490f2b881b49b1045fe39aa58f41246067be10bae8b"
+        },
+        "wave33-search-secondaire-fixture.json": {
+          "path": "wave33-search-secondaire-fixture.json",
+          "sha256": "211367e72908699c6dd97a22bcde0a8e92a857980c7d630efe0c6ce78b59a520"
+        },
+        "wave33-source-secondaire-database-fingerprint-before.json": {
+          "path": "wave33-source-secondaire-database-fingerprint-before.json",
+          "sha256": "1a1445d5473e69f28a59719f37d7219ae80d2744a155a058409f3be95b073b58"
+        },
+        "wave33-source-secondaire-mfa-readonly-before.json": {
+          "path": "wave33-source-secondaire-mfa-readonly-before.json",
+          "sha256": "4a86163fcdea49bf72c630f81212502ecb68664bcd0d605e2137efc98c26bbe3"
+        },
+        "wave33-source-secondaire-volume-preparation.json": {
+          "path": "wave33-source-secondaire-volume-preparation.json",
+          "sha256": "5e8f31dad20ed6fe1c5a6b2a72311ed681b38245e438506e925483916c7081df"
+        },
+        "wave33-source-secondaire-prebackup.json": {
+          "path": "wave33-source-secondaire-prebackup.json",
+          "sha256": "b128ea18ed93dd5b780439ca5fbc9dd81842eb3f3012e0d7e6dba8362a143e35"
+        },
+        "wave33-source-secondaire-mfa-prebackup.json": {
+          "path": "wave33-source-secondaire-mfa-prebackup.json",
+          "sha256": "4a86163fcdea49bf72c630f81212502ecb68664bcd0d605e2137efc98c26bbe3"
+        },
+        "wave33-volume-source-secondaire-prebackup.json": {
+          "path": "wave33-volume-source-secondaire-prebackup.json",
+          "sha256": "5e8f31dad20ed6fe1c5a6b2a72311ed681b38245e438506e925483916c7081df"
+        },
+        "wave33-browser-secondaire-restored.json": {
+          "path": "wave33-browser-secondaire-restored.json",
+          "sha256": "335c32274aeb9254010f7ae93f37ad50ba707c0e71987b11a046ce4e628cbfde"
+        },
+        "wave33-browser-secondaire-mfa-restored.json": {
+          "path": "wave33-browser-secondaire-mfa-restored.json",
+          "sha256": "1122f7b7d44a8a821f7126659da3bb57418fabc7aadd90ef075ff6e920bf978d"
+        },
+        "wave33-volume-browser-secondaire-restored.json": {
+          "path": "wave33-volume-browser-secondaire-restored.json",
+          "sha256": "04db39b1c7a0a95e6adac73e47d7fbb1caf3b6320fb58b7d918a4a63c64b3c60"
+        },
+        "wave33-secondaire-restore-attestation.json": {
+          "path": "wave33-secondaire-restore-attestation.json",
+          "sha256": "268a2d2aba817517bfa7651f39fbb1f6f54155bd844241466bed41c44de2109d"
+        },
+        "wave33-secondaire-http-restored.json": {
+          "path": "wave33-secondaire-http-restored.json",
+          "sha256": "8d9bda3c5e9567a6d41e8318ecb1cba4e103d0e29b88bffdb3ade4f1712b1827"
+        },
+        "wave33-secondaire-http-restored.log": {
+          "path": "wave33-secondaire-http-restored.log",
+          "sha256": "8fb780da9e555f080d2d5c01c76b03a087c61bf3e809350d4a830ff1e1663ecc"
+        },
+        "wave33-secondaire-http-account-preservation.json": {
+          "path": "wave33-secondaire-http-account-preservation.json",
+          "sha256": "9772b7d6d4c8ac6ce9724cc74c341f5562dc9d12b7dbcbf5e41fc3ad014db4ec"
+        },
+        "wave33-secondaire-http-log-preservation.json": {
+          "path": "wave33-secondaire-http-log-preservation.json",
+          "sha256": "10954ab72009df16acfed65809c6c430ea75b7592951c72900d9c4b803e172cc"
+        },
+        "wave33-secondaire-after-restart-ready.json": {
+          "path": "wave33-secondaire-after-restart-ready.json",
+          "sha256": "bae99a04d9550cfbf0a00b410d2d7adabc23716777ec4c60c968413d09d7d320"
+        },
+        "wave33-secondaire-restart-comparison-final.json": {
+          "path": "wave33-secondaire-restart-comparison-final.json",
+          "sha256": "d97916efa4a94d586219df99092918d6325880dc7d9a2fc1cfc58e6c630ab2e9"
+        },
+        "wave33-secondaire-runtime-before-restart.json": {
+          "path": "wave33-secondaire-runtime-before-restart.json",
+          "sha256": "567028bf516a36b3023ca9a4ccc6a2c4ac2c70dfb95c2c04f678829ac55b9582"
+        },
+        "wave33-secondaire-before-restart-database.json": {
+          "path": "wave33-secondaire-before-restart-database.json",
+          "sha256": "0027cea6c4493514d05560afa8b4b6bb7aacb69778353132cd25270b07c34d79"
+        },
+        "wave33-secondaire-before-restart-volume.json": {
+          "path": "wave33-secondaire-before-restart-volume.json",
+          "sha256": "e418bb6b789d0d49e022e7b72c79894f1c2e79b3196a26e0f96e241c3f7cf303"
+        },
+        "wave33-secondaire-before-restart-mfa.json": {
+          "path": "wave33-secondaire-before-restart-mfa.json",
+          "sha256": "1122f7b7d44a8a821f7126659da3bb57418fabc7aadd90ef075ff6e920bf978d"
+        },
+        "wave33-secondaire-runtime-after-restart.json": {
+          "path": "wave33-secondaire-runtime-after-restart.json",
+          "sha256": "9d5192e6bffd121810f58cd181b993ce3b5032a2ec0ccbe56b4743e9c2268494"
+        },
+        "wave33-secondaire-after-restart-database.json": {
+          "path": "wave33-secondaire-after-restart-database.json",
+          "sha256": "3dbb0845d70618768c2c795549c5a309b8e69edd8022565078f3325e5e9c86aa"
+        },
+        "wave33-secondaire-after-restart-volume.json": {
+          "path": "wave33-secondaire-after-restart-volume.json",
+          "sha256": "e418bb6b789d0d49e022e7b72c79894f1c2e79b3196a26e0f96e241c3f7cf303"
+        },
+        "wave33-secondaire-after-restart-mfa.json": {
+          "path": "wave33-secondaire-after-restart-mfa.json",
+          "sha256": "1122f7b7d44a8a821f7126659da3bb57418fabc7aadd90ef075ff6e920bf978d"
+        },
+        "wave33-search-superieur-fixture.json": {
+          "path": "wave33-search-superieur-fixture.json",
+          "sha256": "4cec102d92c2a63b57496147461608f10494bbec1695c9649c5b6b092da869a5"
+        },
+        "wave33-source-superieur-database-fingerprint-before.json": {
+          "path": "wave33-source-superieur-database-fingerprint-before.json",
+          "sha256": "8984bd53f3b3584e7e31ed3b9a632e4752ca9bb22ba5e8331a2a545bc72dcdc1"
+        },
+        "wave33-source-superieur-mfa-readonly-before.json": {
+          "path": "wave33-source-superieur-mfa-readonly-before.json",
+          "sha256": "b9d1e762f7f9e7b927f140ad0e7ccf7df2bfdfbb84166cc4e011754b4e011a47"
+        },
+        "wave33-source-superieur-volume-preparation.json": {
+          "path": "wave33-source-superieur-volume-preparation.json",
+          "sha256": "e3da0d2dbb71bd82984efac7d376e788dfb7de267844798253fece2de04c759e"
+        },
+        "wave33-source-superieur-prebackup.json": {
+          "path": "wave33-source-superieur-prebackup.json",
+          "sha256": "6645a98e2ae14c46d2fde04bf234a9d5a16691d6a5a0ed39d38691690c675cc9"
+        },
+        "wave33-source-superieur-mfa-prebackup.json": {
+          "path": "wave33-source-superieur-mfa-prebackup.json",
+          "sha256": "b9d1e762f7f9e7b927f140ad0e7ccf7df2bfdfbb84166cc4e011754b4e011a47"
+        },
+        "wave33-volume-source-superieur-prebackup.json": {
+          "path": "wave33-volume-source-superieur-prebackup.json",
+          "sha256": "e3da0d2dbb71bd82984efac7d376e788dfb7de267844798253fece2de04c759e"
+        },
+        "wave33-browser-superieur-restored.json": {
+          "path": "wave33-browser-superieur-restored.json",
+          "sha256": "de0a4787a6a20a6da48fdffb64a4685a36c36c00b15c15e49bd04322c3a0aa37"
+        },
+        "wave33-browser-superieur-mfa-restored.json": {
+          "path": "wave33-browser-superieur-mfa-restored.json",
+          "sha256": "81fdcde9ff24fed43c45bcb323837ec51f9c52d124e1a1da73f46c7678fa233f"
+        },
+        "wave33-volume-browser-superieur-restored.json": {
+          "path": "wave33-volume-browser-superieur-restored.json",
+          "sha256": "36c8a8c80ba64f0091a91c38d83e2fb3fcd1bc89d9de1abe6e64ba95c0c00407"
+        },
+        "wave33-superieur-restore-attestation.json": {
+          "path": "wave33-superieur-restore-attestation.json",
+          "sha256": "74b39dee24b6820e7df9ac6f32157c9da78976f33f58e2f143fbb937e18aeb00"
+        },
+        "wave33-superieur-http-restored.json": {
+          "path": "wave33-superieur-http-restored.json",
+          "sha256": "cb66b68bbd294a555d864ba7e0b7ac7e3d653c6a2e3e6e17b953d7e62827debe"
+        },
+        "wave33-superieur-http-restored.log": {
+          "path": "wave33-superieur-http-restored.log",
+          "sha256": "46bf9c2f838b65f09d3ff206023139ac3fccbc9536816d4a4113dbd2c61026c9"
+        },
+        "wave33-superieur-http-account-preservation.json": {
+          "path": "wave33-superieur-http-account-preservation.json",
+          "sha256": "22bb7f69fce2d2078a598457614e8fdd895154db8395c8b8f7edce9366ddb579"
+        },
+        "wave33-superieur-http-log-preservation.json": {
+          "path": "wave33-superieur-http-log-preservation.json",
+          "sha256": "236cdef40fa9ff4d2bb9fef2ee116496ea734f17771d2b5a5cae957327b78dd4"
+        },
+        "wave33-superieur-after-restart-ready.json": {
+          "path": "wave33-superieur-after-restart-ready.json",
+          "sha256": "e8a8e5fc8a8f0b31a1a5a86a629f729833bc0daf9ef44c496f15c3aba77ff5d0"
+        },
+        "wave33-superieur-restart-comparison-final.json": {
+          "path": "wave33-superieur-restart-comparison-final.json",
+          "sha256": "5abe8dcbe2d896cbec364a8dcf22578ded7b7a10b9c549e927752f7ca3de2b00"
+        },
+        "wave33-superieur-runtime-before-restart.json": {
+          "path": "wave33-superieur-runtime-before-restart.json",
+          "sha256": "70aeadbe331934f3e7f0f790630a3655904c04e811f714631e0c854545ffdb4a"
+        },
+        "wave33-superieur-before-restart-database.json": {
+          "path": "wave33-superieur-before-restart-database.json",
+          "sha256": "80307da27a65bebd1fbf246199e28a75c6e7218a819c480961d9e188f7e78e85"
+        },
+        "wave33-superieur-before-restart-volume.json": {
+          "path": "wave33-superieur-before-restart-volume.json",
+          "sha256": "50652098b3e9bf5b825a3b733fc24be590580fecd0620dcb8221af99b0608287"
+        },
+        "wave33-superieur-before-restart-mfa.json": {
+          "path": "wave33-superieur-before-restart-mfa.json",
+          "sha256": "81fdcde9ff24fed43c45bcb323837ec51f9c52d124e1a1da73f46c7678fa233f"
+        },
+        "wave33-superieur-runtime-after-restart.json": {
+          "path": "wave33-superieur-runtime-after-restart.json",
+          "sha256": "272865fc1dca5df10f9fca316f4e5885e66a5d7d63ef87501c8d829ce03ccf75"
+        },
+        "wave33-superieur-after-restart-database.json": {
+          "path": "wave33-superieur-after-restart-database.json",
+          "sha256": "160550a930b75a50f4209812fb7a6e35d6d283fb2eb4fe05a2b180041ce27d34"
+        },
+        "wave33-superieur-after-restart-volume.json": {
+          "path": "wave33-superieur-after-restart-volume.json",
+          "sha256": "50652098b3e9bf5b825a3b733fc24be590580fecd0620dcb8221af99b0608287"
+        },
+        "wave33-superieur-after-restart-mfa.json": {
+          "path": "wave33-superieur-after-restart-mfa.json",
+          "sha256": "81fdcde9ff24fed43c45bcb323837ec51f9c52d124e1a1da73f46c7678fa233f"
+        }
+      },
+      "campaigns": [
+        {
+          "id": "wave33-search-fixtures-and-independent-restoration",
+          "result": "native_tenant_migrations_protected_data_and_independent_restore_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave33-independent-restore-comparison.json",
+            "wave33-search-secondaire-fixture.json",
+            "wave33-search-superieur-fixture.json"
+          ],
+          "counts": {
+            "secondary_tables": 567,
+            "university_tables": 618
+          },
+          "verification": "Anciens287/312 tables et comptes/MFA/droits conservés pendant création/migration de C/D. Vrais pg_dump/tar puis pg_restore/template0 et nouveaux volumes ; cinq schémas par SIS, comparaison exacte de toutes les tables et fichiers avant HTTP, TOTP réel conservé.",
+          "limits": "Clones de préparation31 distincts de la vraie restauration33 ; archives privées non publiées."
+        },
+        {
+          "id": "wave33-secondary-restored-native-http-search",
+          "result": "five_families_roles_counts_details_and_original_session_replay_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave33-secondaire-http-restored.json",
+            "wave33-secondaire-restore-attestation.json"
+          ],
+          "counts": {
+            "http_checks": 185,
+            "native_sessions": 4
+          },
+          "verification": "Deux établissements C/D, gestionnaire et apprenant authentifiés nativement, mêmes noms/PK, deux contre trois lignes par ressource. Résultats/counts/détails exacts, refus hors scope ; chaque rejeu inter-Host reçoit une copie du cookie source original. Destinations natives positives avant rejeu, identité source et recherches finales recontrôlées.",
+          "limits": "HTTP TCP/Gunicorn réel, pas une nouvelle campagne navigateur. Documents JSON seulement ; aucune écriture métier ou révocation33, aucune diminution/vidange des throttles ou retry."
+        },
+        {
+          "id": "wave33-university-restored-native-http-search",
+          "result": "five_families_roles_counts_details_and_original_session_replay_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave33-superieur-http-restored.json",
+            "wave33-superieur-restore-attestation.json"
+          ],
+          "counts": {
+            "http_checks": 251,
+            "native_sessions": 4
+          },
+          "verification": "Deux établissements C/D, gestionnaire et apprenant authentifiés nativement, mêmes noms/PK, deux contre trois lignes par ressource. Résultats/counts/détails exacts, refus hors scope ; chaque rejeu inter-Host reçoit une copie du cookie source original. Destinations natives positives avant rejeu, identité source et recherches finales recontrôlées.",
+          "limits": "HTTP TCP/Gunicorn réel, pas une nouvelle campagne navigateur. Documents JSON seulement ; aucune écriture métier ou révocation33, aucune diminution/vidange des throttles ou retry."
+        },
+        {
+          "id": "wave33-search-recreation-mfa-and-published-provenance",
+          "result": "exact_recreation_protected_accounts_files_mfa_and_unchanged_sources_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave33-source-provenance.json",
+            "wave33-secondaire-restart-comparison-final.json",
+            "wave33-superieur-restart-comparison-final.json"
+          ],
+          "counts": {
+            "python_files": 1501,
+            "frontend_build_inputs": 171,
+            "unchanged_e2e_files": 23,
+            "served_bundle_files": 23,
+            "secondary_volume_entries": 32,
+            "university_volume_entries": 29
+          },
+          "verification": "API et proxy réellement recréés, IDs différents, mêmes image/base/volumes ; toutes les tables/fichiers exactement conservés, MFA/TOTP réel avant/après. HTTP ne change que six tables de connexions et ajoute au journal existant ; comptes exacts hors last_login des quatre nouveaux acteurs. Tous les autres fichiers et données métier inchangés. Services33 arrêtés/supprimés.",
+          "limits": "Image32/bundle31 réutilisés ; pas nouveaux build/Jest/suites backend/UI33, ni déploiement partagé."
+        }
+      ],
+      "criteria_confrontation": {
+        "requirement": "10.7",
+        "source": "paste-1793818759374.txt:920",
+        "criteria_unchanged": true,
+        "five_types_and_details": "Browser17/18, durable real-schema integration32, native HTTP33 on restored C/D.",
+        "role_tenant_and_revocation": "Same-session revocation32 for every family; identical browser query31 after actual revocation; two roles and Hosts with original-cookie replay33.",
+        "common_persistent_conditions": "Old raw rows/rights/MFA preserved across C/D native migrations; exact independent restore before HTTP; real TOTP and exact recreation after HTTP.",
+        "read_only_concurrency_boundary": "No business mutation in search; existing same-session revocation covers rereads. No new concurrent business-write claim.",
+        "parent_authorizes_only_10_7_promotion": true,
+        "from": "partial",
+        "to": "verified",
+        "expected_counts": {
+          "verified": 3,
+          "partial": 70,
+          "absent": 19,
+          "unverified": 2
+        },
+        "preserve_old_updates": 50,
+        "preserve_other_requirements": 93
+      },
+      "qualification_limits": [
+        "Synthetic isolated local qualification, not an institutional pilot or shared/production deployment.",
+        "No new frontend build, Jest, backend unit suite or browser UI campaign33; earlier executed evidence retained.",
+        "Five requested business families, not an exhaustive native LMS catalogue.",
+        "Document JSON details only; no PDF file/render/download claim in33.",
+        "No new revocation33: actual revocations31/32 remain separate evidence.",
+        "HTTP cannot prove DB identity alone; source hashes, independent restore and runtime metadata are separately checked.",
+        "Login legitimately changes six tables per SIS: access logs, sessions and last_login. All other account columns/rights and business rows are unchanged.",
+        "Only logs/sis.log grows during HTTP; original prefix and all other files are preserved. Full state is exact across recreation.",
+        "Historical load500 remains red:500 timeouts,262 indeterminate writes. No new load campaign.",
+        "Other requirements and F-lots remain open; global100% is not reached. Wave34 work is not included."
+      ]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-07T21:48:54.693074+00:00",
+    "as_of": "2026-11-07T22:34:18.809968+00:00",
     "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
     "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
     "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
@@ -5598,7 +6017,7 @@
     "wave15_bounded_sis_qualification": "35ef40c,d9ca357,c1eac39,06b55e8 publiés dans origin/main; image backend local-20261107-06b55e8@sha256:956bf0382d5b42b527080d27c937ca6b5622dfda4c22881a87aa99b5cae7f917 sans montage de code applicatif backend :762tests/305sous-tests secondaire et781/300 supérieur verts,check et migrations sans dérive. Chauffeurs protégés/anti-chevauchement, migrations sous propriétaireDB non superutilisateur selon parent; queryset de factures scolaires verrouillable corrigé. Aucun déploiement partagé.",
     "lms_grade_review_bounded": "F09 partiel : proposition obligatoire avant approbation/rejet nominatif audité.11tests par variante dont concurrence réelle200/409,1note/1audit; snapshot période/année et événement retenu plus récent opposables. Navigateur réel sur fixtures loopback des deux SIS, webhook signé synthétique traité en Celery eager, note absente avant approbation,rejet motivé,onglet obsolète409,rejeu,non-écrasement. Pas de vrai LMS natif ni réception humaine institutionnelle; boucle permissions EvaluationsManager corrigée par refetchOnMount:false.",
     "wave16_bounded_frontend_qualification": "ae86edd publié dans origin/main : palette métier/fiches sans cache partagé. Premier Jest400passés/2timeouts sur402tests,34suites passées/2échouées sur36; seulement2cas relancés avec20s passent,78ignorés. Pas de suite complète entièrement verte revendiquée. Lint0erreur/8warnings,build-r2 vert avec3warnings taille/performance. Navigateurs de recherche élèves/étudiants,factures25pagination20+5 et attestation universitaire passent sur fixtures loopback.",
-    "global_search_bounded": "10.7 reste partial. Acquis15-18 et Chromium31 conservés.32 ajoute deux vrais schémas migrés/peuplés par SIS : cinq familles et détails, rôles gestionnaire/apprenant, révocation dans la même session, refus interétablissements et rejeu de cookies malgré les IDs collisionnants.40/40 secondaire et35/35 supérieur via client Django et PostgreSQL réels, pas nouvelle recette TCP/navigateur/PDF32. Conditions communes de reprise persistante à compléter pour ces parcours ; préparation33 non qualifiée. Source920 et critères inchangés, aucun catalogue LMS natif exhaustif ajouté.",
+    "global_search_bounded": "10.7 verified dans le périmètre source920, promotion33 explicitement autorisée après rapprochement des cinq familles/détails/UI17–18, révocation navigateur31, tenants/rôles/révocations32 et reprise33. Catalogue LMS natif exhaustif non imposé ; pas nouveau PDF/UI33 ni promotion F05/F23/F09.",
     "wave17_bounded_search_qualification": "1be9eaa,bae0bd4,f24fd4f désormais publiés dans origin/main. Backend17 monté RO sur image06b55e8 :premier secondaire85tests/73sous-tests verts et1échec429 de fixture,cache isolé uniquement en tests puis10/19verts;pas de relance intégrale verte. Supérieur70/25verts. Workspace75tests seul fichier à20s,lint0erreur/8warnings,build3warnings. Deux parcours navigateur réels sans réponse réseau simulée,cours/bulletin/évaluation mappée;API/passerelles arrêtées ensuite selon parent. Pas d'image17 reconstruite ni suite complète17.",
     "wave18_bounded_search_qualification": "9ff9752 publié dans origin/main. Recherche evaluations_lms secondaire qualifiée69tests/87sous-tests(core+intégrationAPI+protectionsnotesLMS);UI37verts/42non sélectionnés sur79,build3warnings. Lint ciblé0erreur/0warning et Black/isort/flake8 API/testssecondaires verts selon parent,sans journal dédié. Deux parcours staff+apprenant par SIS sur vraie base de fixture,sans réponse réseau simulée :facture personnelle visible,facture d'autrui absente/requête détail404sansnuméro,typesCours/Évaluations administratifs absents et URLévaluation refusée sansdd. API/passerelles arrêtées selon parent;pas image18 reconstruite ni suite complète18.",
     "studio_bounded_native_qualification": "Blocage levé vers07:30UTC selon parent,56c3b33 publié :image native de base local-20261105-access-ownership2,MySQL8.4.11+MongoDB7.0.39 jetables réseauinterne sansports,1188migrations CMS. Deux runs12tests/2erreursfixture(assets puis URLMFE) conservés,ajustementsfixture seuls puis12/12verts. Baseline exacte200!=403,puis cas candidatvert;SQL0binding/0serviceuserdetest,51GET_LOCK+51RELEASE_LOCKcours cumulés sans preuve de concurrence. Force_authenticate,modulestore/create_new_course/resume_initialization/droits simulés :pas création Mongo réelle ni révocation Studio native. Correctif2lignes+test17lignes+docopérateur publiés,qualitéciblée verte selon parent. Pas nouvelle imageLMS/déploiement;F07 ouvert. Ancien état07:00:50 archivé dans nouvel update et Markdown.",
@@ -5660,8 +6079,14 @@
       "campaign_ids": ["wave32-secondary-real-schema-search", "wave32-university-real-schema-search"]
     },
     "wave32_published_qualification": "f3168ed publié et distant comparé ; seul nouveau fichier de tests commun536 lignes. Image b27438d035d4190c0052ed23670abfaf6a4760ef062c1efad208fe08875a96cb,1501 Python exacts commit/worktree/image.40/40 secondaire177.218s et35/35 supérieur215.899s, dont trois nouveaux scénarios par variante ; Black120/isort/Flake8 verts. Bases de test supprimées par le runner. Aucun nouveau comportement produit, build frontend ou parcours navigateur32.",
-    "current_requirement_status_counts": {"verified": 2, "partial": 71, "absent": 19, "unverified": 2, "change": "10.5_partial_to_verified_only_explicit_parent_authorization_wave30"},
-    "shared_deployment_scope": "Aucun déploiement partagé des vagues15à32, pilote institutionnel ou production. Les images de qualification ne remplacent pas current_user_backend/current_user_frontend. Restaurations30 indépendantes conservées ;31 et32 n'ajoutent pas de preuve de restauration/recréation/MFA. API/nginx31 arrêtés, bases de test32 supprimées, PG/Redis privés conservés. Préparation33 distincte non qualifiée. Charge500 non relancée :500timeouts/262écritures indéterminées.10.7partial, autres F-lots inchangés, global_completionfalse.",
+    "current_requirement_status_counts": {
+      "verified": 3,
+      "partial": 70,
+      "absent": 19,
+      "unverified": 2,
+      "change": "10.7_partial_to_verified_only_explicit_parent_authorization_wave33"
+    },
+    "shared_deployment_scope": "Aucun déploiement partagé des vagues15à33, pilote institutionnel ou production. Les images de qualification ne remplacent pas les services partagés ; lot34 non qualifié exclu.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -5703,7 +6128,17 @@
     "admission_observer_limits": "257captures100ms sans gap/erreur/intervalle perdu, CPUcapture1,885570247s+émission0,076962461s sur25,695201292s; journaux synchrones et attentes mesurées non négligeables. Première vague PID7/8/9/10=28/28/24/20, ancien monopole10 non reproduit. API≈3,002coeurs observés,67périodes bridées/2,082565s;0blocagePG parmi294échantillons. sched_schedstats=0 : runqueue non interprétable, ni GIL ni cause accept/keepalive/swap prouvés.",
     "current_user_backend": "lms-sis:local-20261105-complaint-actions1@sha256:b8d813e01bfc4c9141e47703345e1f340d23dd0403ae4c9fd46ae624c6be5aba",
     "current_user_frontend": "lms-sis-frontend:local-20261105-calendar-catalogs1@sha256:d035c78b95fbd7e71690b2044d71f8ab531ea942f481efe9f99a96e50d8148f6",
-    "global_completion": false
+    "global_completion": false,
+    "wave33_published_qualification_reference": {
+      "update_id": "EXEC-20261107-wave33-published-search-recovery",
+      "campaign_ids": [
+        "wave33-search-fixtures-and-independent-restoration",
+        "wave33-secondary-restored-native-http-search",
+        "wave33-university-restored-native-http-search",
+        "wave33-search-recreation-mfa-and-published-provenance"
+      ]
+    },
+    "wave33_search_recovery_verified": "185/251 contrôles HTTP natifs après restauration indépendante ;567/618 tables et32/29 entrées volumes exactes avant HTTP et après recréation API/proxy. Comptes/MFA/droits/données protégés, TOTP réel, logs enrichis sans perte.73 artefacts hachés ; backend32/imageb274 et frontend31 inchangés."
   },
   "execution_status_policy": {
     "requirement_verified_in_declared_scope": "Toutes les obligations/critères de l'exigence sont rapprochés de preuves exécutées, persistantes et livrées dans le périmètre déclaré; promotion explicitement autorisée, sans propagation aux autres exigences/F-lots.",
@@ -6292,19 +6727,19 @@
     "chapter10_features": 14,
     "chapter11_cycle_and_steps": 10,
     "counts_by_status": {
-      "partial": 71,
+      "partial": 70,
+      "verified": 3,
       "absent": 19,
       "unverified": 2,
-      "verified": 2,
       "external_credentials_blocked": 0
     },
     "application_execution_count": null,
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 188,
+    "imported_evidence_campaign_records": 192,
     "requirements_with_new_increment_evidence": 25,
-    "conclusion": "188 campagnes documentaires non sommées,50 updates,25 exigences avec preuves ;8 artefacts32 après les54 artefacts31.49 updates historiques et93 autres exigences strictement préservées,94 IDs/statuts/critères/source/F-lots inchangés ;10.7 reçoit uniquement une nouvelle preuve et reste partial. Compteurs2verified/71partial/19absent/2unverified/external_credentials_blocked0, application_execution_count=null. f3168ed publié : seul nouveau test commun536 lignes, image b27438d et1501 Python exacts commit/worktree/image.40/40 secondaire177.218s et35/35 supérieur215.899s, dont trois nouveaux scénarios par variante, Black/isort/Flake8 verts. Deux vrais schémas migrés/peuplés par SIS, cinq familles et détails, rôles gestionnaire/apprenant, révocation dans la même session, sentinelles étrangères absentes, cookies rejoués malgré IDs collisionnants puis natif peer positif. Client Django/middleware/ORM/PostgreSQL réels ; pas nouveau TCP/navigateur/login/PDF32. Bases de test supprimées par le runner. Les UI17/18 et les finales Chromium31 restent des preuves distinctes ; conditions communes de reprise persistante à compléter pour ces parcours, préparation33 non qualifiée. Pas nouveau catalogue LMS natif exhaustif imposé, migration/restauration/recréation/MFA32, déploiement partagé, pilote ou100%. Charge500 toujours rouge500timeouts/262écritures indéterminées, aucune nouvelle charge."
+    "conclusion": "192 campagnes documentaires non sommées,51 updates,25 exigences avec preuves ;73 artefacts33. 50 updates historiques et93 autres exigences strictement conservés. Seule10.7 promue après rapprochement des critères et reprise persistante ;3 vérifiées,70 partielles,19 absentes,2 non vérifiées. Aucun total dédupliqué d'exécutions, F-lots ouverts, charge500 rouge, pas100 %."
   },
   "requirements": [
     {
@@ -11738,7 +12173,7 @@
       ],
       "existing_scope": "La palette recherche des modules autorisés, non des apprenants/cours/documents/factures/activités. Recherche globale métier non identifiée.",
       "test_scope": "Tests source présents, non exécutés pendant cet inventaire.",
-      "status": "partial",
+      "status": "verified",
       "top_missing_pieces": [
         "Index/recherche multi-domaines tenant/rôle/objet avec filtres, pagination et liens sûrs.",
         "Mise à jour lors de suppression/révocation, fraîcheur et recherche sur documents autorisés."
@@ -11807,9 +12242,22 @@
           "verified_scope": "f3168ed publié : trois nouveaux scénarios communs,40/40 secondaire et35/35 supérieur. Deux vrais schémas migrés/peuplés, cinq familles et détails natifs, dont les trois types documentaires universitaires. Rôles gestionnaire/apprenant, counts et résultats minimaux exacts, absence des sentinelles étrangères, révocation dans la même session avec peer toujours autorisé, cookie original rejoué avant chaque route malgré les identifiants collisionnants puis connexion native peer positive.",
           "boundary": "Django APIClient/force_login, vrais middleware/ORM/migrations/PostgreSQL ; pas nouvelle campagne TCP/navigateur/login/PDF32. Cache de classe privé, taux normaux inchangés. Nettoyage des seuls schémas UUID et lignes publiques possédés, puis bases de test détruites par le runner. Image b27438d et1501 Python exacts commit/worktree/image ; seul ajout produit = fichier de tests536 lignes.",
           "remaining_scope": "10.7 reste partial : conditions communes de reprise persistante à compléter pour ces parcours, préparation33 non qualifiée. Pas nouvelle restauration/recréation/MFA32, catalogue LMS natif exhaustif non imposé, pas déploiement partagé/pilote/charge/100%. Critères, statuts et preuves historiques inchangés."
+        },
+        {
+          "update_id": "EXEC-20261107-wave33-published-search-recovery",
+          "campaign_ids": [
+            "wave33-search-fixtures-and-independent-restoration",
+            "wave33-secondary-restored-native-http-search",
+            "wave33-university-restored-native-http-search",
+            "wave33-search-recreation-mfa-and-published-provenance"
+          ],
+          "result": "common_recovery_conditions_passed_10_7_verified_in_declared_scope",
+          "verified_scope": "Critères source920 inchangés : cinq types et détails autorisés, même requête/autre rôle/tenant après révocation sans données interdites. UI17/18, même formulaire200→403 réel31, vrais schémas/révocations32 et185/251 contrôles HTTP natifs33 rapprochés. Deux établissements et deux rôles par SIS.",
+          "preservation_scope": "Anciennes données/MFA/droits conservés pendant migrations C/D ; restauration indépendante base/fichiers avec567/618 tables exactement comparées avant HTTP ; vrai TOTP, comptes hors last_login et fichiers protégés inchangés, logs seulement enrichis ; recréation API/proxy et nouvel état intégralement comparé.",
+          "remaining_scope": "Aucun critère10.7 déclaré restant après rapprochement ; seule10.7 promue. Pas catalogue LMS natif exhaustif imposé, pas nouvelle UI/révocation/PDF33, pas pilote/production/F-lot clos ou100 %. Charge500 rouge historique conservée ; lot34 non qualifié exclu."
         }
       ],
-      "acceptance_execution_status": "increments_passed_requirement_incomplete"
+      "acceptance_execution_status": "requirement_verified_in_declared_scope"
     },
     {
       "id": "10.8",
