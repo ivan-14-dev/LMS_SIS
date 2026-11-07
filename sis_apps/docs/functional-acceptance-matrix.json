@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-07T08:52:32+00:00",
+  "last_evidence_update_at": "2026-11-07T09:03:09+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -3223,16 +3223,66 @@
         }
       ],
       "qualification_limits": ["94statuts inchangés :1verified,71partial,20absent,2unverified;F07 ouvert,F09/10.7 partiels,IAM en cours.", "Pas navigateur batch,image backend reconstruite ou suites backend complètes. PostgreSQL/Redis jetables internes sansports conservés pour le parent et le raccordement navigateur21,sans preuve21.", "Pas de pilote/déploiement partagé/réception humaine;MFA/SoD,versionnement/désactivation des groupes et cycle rôle métier restent ouverts.", "Tous cutoffs et rapports rouges historiques conservés,dernier500 rouge500timeouts/262écritures indéterminées inchangé."]
+    },
+    {
+      "id": "EXEC-20261107-wave21-group-membership-browser-qualification",
+      "evidence_cutoff_at": "2026-11-07T09:03:09+00:00",
+      "scope": "Vague21 publiée :un parcours navigateur réel par SIS pour création/duplication de groupe,ajout/retrait en lot,rollback404 et refus403 apprenant. Complément navigateur borné au produit de vague20;IAM non clos.",
+      "provenance": "Reçus .last-run.json existants lus/hachés,c8e2348 vérifié dans origin/main,scénario/configuration publiés inspectés. Les reçus attestent passed sans trace détaillée :contenu,nombre des parcours et infrastructure rapprochés du code et des résultats précis du parent. Aucun test,backend,Docker ou sondage de service exécuté ici;cutoff relevé sur l'horloge hôte.",
+      "count_policy": "Un scénario par variante,intégrant staff puis apprenant dans un nouveau contexte :deux cas au total,pas quatre parcours distincts par rôle.121lignes ajoutées réparties en111de scénario et10de configuration,non121tests. Pas de nouvelle suite backend ou nouvelle qualification globale déduite.",
+      "published_commits": ["c8e2348"],
+      "product_baseline_commit": "2ade295",
+      "source_change_scope": {"e2e_files": 2, "scenario_lines_added": 111, "configuration_lines_added": 10, "product_code_changed_since_wave20": false},
+      "qualification_environment": {
+        "fixtures": "fresh_synthetic_sis_wave21_browser_*_databases_on_private_wave20_PostgreSQL_Redis",
+        "browser_test_match": "group-membership.e2e.js",
+        "initial_gateway": "internal_only_no_published_port_not_browser_reachable_from_host",
+        "final_gateway": "edge_network_added_only_to_gateway_bound_to_127.0.0.1:32490",
+        "api_and_databases": "remain_internal_no_published_ports",
+        "browser_network_mock_responses": 0,
+        "browser_pacing": "Requêtes API espacées puis route.continue(),sans réponse remplacée.",
+        "api_and_gateways_stopped_after_both_cases": "attested_by_parent_not_reprobed_here",
+        "postgres_redis_shutdown_claimed": false,
+        "rebuilt_backend_image_claimed": false,
+        "full_backend_suite_claimed": false,
+        "shared_deployment_or_pilot": false,
+        "limits": "Port loopback publié sur la passerelle seulement :la fixture finale n'est pas entièrement sans port publié. Pas de réception institutionnelle humaine."
+      },
+      "f_lot_links": [
+        {"id": "F02", "scope": "Création/copie et lots de membres exercés en navigateur sur fixtures des deux SIS;groupes distincts des rôles métier,IAM reste en cours.", "roadmap_status_unchanged": true},
+        {"id": "F05", "scope": "Lot mixte404sansécriture partielle et apprenant réellement authentifié403sansmodification;pas recette exhaustive multi-tenant/parents/enseignants/MFA/SoD.", "roadmap_status_unchanged": true}
+      ],
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "groups-browser-school": {"path": "wave21-browser-groups-secondaire/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]},
+        "groups-browser-university": {"path": "wave21-browser-groups-superieur/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]}
+      },
+      "campaigns": [
+        {
+          "id": "wave21-real-group-copy-batches-and-learner-denial",
+          "result": "one_real_browser_scenario_per_variant_passed_with_staff_and_separate_learner_context",
+          "commit": "c8e2348",
+          "artifact_refs": ["groups-browser-school", "groups-browser-university"],
+          "source_refs": ["sis_apps/frontend-app-sis/e2e/group-membership.e2e.js", "sis_apps/frontend-app-sis/e2e/group-membership.config.js", "sis_apps/frontend-app-sis/e2e/api.js"],
+          "counts": {"secondaire_cases_passed": 1, "superieur_cases_passed": 1, "network_mock_responses": 0},
+          "fixture_declared_by_parent": {"target_account_ids": [4, 5], "protected_existing_group_id": 1, "nonexistent_account_id": 2147483647},
+          "verification": "Staff connecté via vraieUI :création de groupe depuis permission catalogueview_utilisateur,affectation des deux comptes et relectureAPI conservant groupepréexistant1. Copie des permissions sans membres/sourceinchangée;lotmixte ciblevalide+2147483647 =>404sansécriture partielle. Retrait du lotentier restitue les groupesinitiaux. Nouveau contexte navigateur apprenant réellement authentifié :POSTassign_many =>403sansmodification. Aucune réponse réseau simulée,pacing seulement.",
+          "targeted_eslint": {"diagnostics": 0, "evidence_origin": "Attestation du parent pour les fichiers e2e,sans journal dédié fourni."},
+          "limits": "Un cas par variante,comptes/groupes synthétiques;pas plusieurs tenants,parents/enseignants,MFA/SoD,versionnement/désactivation ou IAM exhaustif. Les relectures portent sur membres/permissions,aucune nouvelle qualification navigateur exhaustive de l'audit n'est déduite. Pas de modification produit depuis20 ni imagebackend reconstruite."
+        }
+      ],
+      "qualification_limits": ["94statuts inchangés :1verified,71partial,20absent,2unverified;IAM en cours,F07 ouvert,F09/10.7 partiels.", "Attente navigateur batch/duplication20 levée dans le seul périmètre staff/apprenant décrit,non confirmation multi-tenant/parents/enseignants/MFA/SoD/versionnement/désactivation.", "API/passerelles stoppées après les deux cas selon parent;PostgreSQL/Redis privés20 non déclarés arrêtés. Aucun déploiement partagé,pilote ou réception humaine.", "Tous cutoffs et rapports rouges précédents conservés;dernier500 rouge500timeouts/262écritures indéterminées inchangé."]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-07T08:52:32+00:00",
+    "as_of": "2026-11-07T09:03:09+00:00",
     "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
     "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
     "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
     "wave18_qualification_reference": {"update_id": "EXEC-20261107-wave18-published-learner-search-qualification", "campaign_ids": ["wave18-school-mapped-evaluation-search", "wave18-search-ui-and-build", "wave18-staff-and-learner-search-browser"]},
     "wave19_qualification_reference": {"update_id": "EXEC-20261107-wave19-native-guard-and-group-copy-qualification", "campaign_ids": ["wave19-native-cms-fixture-and-suite", "wave19-interrupted-course-baseline-and-guard", "wave19-permission-group-duplication-ui"]},
     "wave20_qualification_reference": {"update_id": "EXEC-20261107-wave20-published-group-batch-qualification", "campaign_ids": ["wave20-atomic-audited-group-batch-api", "wave20-group-batch-ui-and-build"]},
+    "wave21_qualification_reference": {"update_id": "EXEC-20261107-wave21-group-membership-browser-qualification", "campaign_ids": ["wave21-real-group-copy-batches-and-learner-denial"]},
     "wave15_bounded_sis_qualification": "35ef40c,d9ca357,c1eac39,06b55e8 publiés dans origin/main; image backend local-20261107-06b55e8@sha256:956bf0382d5b42b527080d27c937ca6b5622dfda4c22881a87aa99b5cae7f917 sans montage de code applicatif backend :762tests/305sous-tests secondaire et781/300 supérieur verts,check et migrations sans dérive. Chauffeurs protégés/anti-chevauchement, migrations sous propriétaireDB non superutilisateur selon parent; queryset de factures scolaires verrouillable corrigé. Aucun déploiement partagé.",
     "lms_grade_review_bounded": "F09 partiel : proposition obligatoire avant approbation/rejet nominatif audité.11tests par variante dont concurrence réelle200/409,1note/1audit; snapshot période/année et événement retenu plus récent opposables. Navigateur réel sur fixtures loopback des deux SIS, webhook signé synthétique traité en Celery eager, note absente avant approbation,rejet motivé,onglet obsolète409,rejeu,non-écrasement. Pas de vrai LMS natif ni réception humaine institutionnelle; boucle permissions EvaluationsManager corrigée par refetchOnMount:false.",
     "wave16_bounded_frontend_qualification": "ae86edd publié dans origin/main : palette métier/fiches sans cache partagé. Premier Jest400passés/2timeouts sur402tests,34suites passées/2échouées sur36; seulement2cas relancés avec20s passent,78ignorés. Pas de suite complète entièrement verte revendiquée. Lint0erreur/8warnings,build-r2 vert avec3warnings taille/performance. Navigateurs de recherche élèves/étudiants,factures25pagination20+5 et attestation universitaire passent sur fixtures loopback.",
@@ -3240,10 +3290,10 @@
     "wave17_bounded_search_qualification": "1be9eaa,bae0bd4,f24fd4f désormais publiés dans origin/main. Backend17 monté RO sur image06b55e8 :premier secondaire85tests/73sous-tests verts et1échec429 de fixture,cache isolé uniquement en tests puis10/19verts;pas de relance intégrale verte. Supérieur70/25verts. Workspace75tests seul fichier à20s,lint0erreur/8warnings,build3warnings. Deux parcours navigateur réels sans réponse réseau simulée,cours/bulletin/évaluation mappée;API/passerelles arrêtées ensuite selon parent. Pas d'image17 reconstruite ni suite complète17.",
     "wave18_bounded_search_qualification": "9ff9752 publié dans origin/main. Recherche evaluations_lms secondaire qualifiée69tests/87sous-tests(core+intégrationAPI+protectionsnotesLMS);UI37verts/42non sélectionnés sur79,build3warnings. Lint ciblé0erreur/0warning et Black/isort/flake8 API/testssecondaires verts selon parent,sans journal dédié. Deux parcours staff+apprenant par SIS sur vraie base de fixture,sans réponse réseau simulée :facture personnelle visible,facture d'autrui absente/requête détail404sansnuméro,typesCours/Évaluations administratifs absents et URLévaluation refusée sansdd. API/passerelles arrêtées selon parent;pas image18 reconstruite ni suite complète18.",
     "studio_bounded_native_qualification": "Blocage levé vers07:30UTC selon parent,56c3b33 publié :image native de base local-20261105-access-ownership2,MySQL8.4.11+MongoDB7.0.39 jetables réseauinterne sansports,1188migrations CMS. Deux runs12tests/2erreursfixture(assets puis URLMFE) conservés,ajustementsfixture seuls puis12/12verts. Baseline exacte200!=403,puis cas candidatvert;SQL0binding/0serviceuserdetest,51GET_LOCK+51RELEASE_LOCKcours cumulés sans preuve de concurrence. Force_authenticate,modulestore/create_new_course/resume_initialization/droits simulés :pas création Mongo réelle ni révocation Studio native. Correctif2lignes+test17lignes+docopérateur publiés,qualitéciblée verte selon parent. Pas nouvelle imageLMS/déploiement;F07 ouvert. Ancien état07:00:50 archivé dans nouvel update et Markdown.",
-    "permission_group_console_bounded": "Console groupes création/édition/affectation/copie existante;copie63949d1 conserve source et exclut membres.2ade295 publié ajoute assign_many/unassign_many atomiques et audités1à100 dans les deux SIS,UI batch conservant singleassign. Tests ciblés API62/108secondaire et63/108supérieur,composant21verts,build3warnings;ESLintciblé0erreur et qualitéPythonciblée verts selon parent. Pas navigateur clonage/batch,imagebackend reconstruite ou suitebackend complète. Groupes distincts des rôles métier;IAM en cours,cycle métier,désactivation/versionnement,MFA/SoD ouverts.",
+    "permission_group_console_bounded": "Console groupes création/édition/affectation/copie existante;copie63949d1 conserve source et exclut membres. Produit2ade295 :lots atomiques/audités1à100 et UIbatch,suites ciblées20 API62/108et63/108,composant21verts. c8e2348 ajoute uniquemente2e :un parcours réel par SIS staff+apprenant,création/copie/batch/relectureAPI,404lotmixte sansécriturepartielle,403apprenant sansmodification. Pas imagebackend reconstruite ni suitebackend complète. IAM en cours :multi-tenant,parents/enseignants,MFA/SoD/versionnement/désactivation/cycle rôlemétier non exhaustifs.",
     "wave20_bounded_group_batch_qualification": "2ade295 publié origin/main :7fichiersbackend dont helpergroup_assignment,2frontend+README. user_ids1à100entiers strictement positifs uniques,réponse triée;transaction groupe/comptes verrouillés parPK,toutes cibles prévalidées,puisM2M+WorkflowEvent acteur/tenant/groupe/cibles/diff réel. Cible/audit refusé=>rollbacktout;rejeu sans doublon de membres mais nouvel auditdiffvide,autresgroupes intacts. Trois permissions d'affectation non scopées,même clé{} refusée,hors exception superutilisateur existante;tenant/groupe/grants protégés. UIcontrat/refus/reset/garde{} et navigationbloquée pendantmutation qualifiés par21tests composant,aucun navigateurbatch.",
-    "wave21_browser_follow_up": "Raccordement navigateur envisagé par le parent avec PostgreSQL/Redis jetables20 conservés sur réseauinterne sansports;aucune preuve de vague21 revendiquée au cutoff.",
-    "shared_deployment_scope": "Aucun déploiement partagé des vagues15à20,pilote ou réception externe/humaine. Les champs de livraison/main/fixture plus anciens conservent leurs cutoffs propres;aucune qualification ciblée ne remplace current_user_backend/current_user_frontend. Services PostgreSQL/Redis20 isolés internes sansports conservés pour le parent/browser21,pas arrêt/nettoyage revendiqué. Dernier état19 :deux conteneurs natifs arrêtés,réseau vide/nettoyage en suivi,non resondé ici. Pas imagebackend20 reconstruite ni nouvelle imageLMS19. Dernier500 rouge conservé,aucune nouvelle charge.",
+    "wave21_bounded_group_browser_qualification": "c8e2348 publié,2fichierse2e/121lignes ajoutées,sans modificationproduit depuis20. Un cas réel par variante sur basesneuves sis_wave21_browser_* :staff crée avec view_utilisateur,affecte4/5 en préservant groupe1,copiepermissions sansmembres/sourceinchangée,lotmixte+2147483647=>404sansécriturepartielle,retraitbatch conserveautresgroupes;nouveau contexte apprenantauthentifiéPOSTassign_many=>403sansmodification. Pacing seul,0réponsemock,ESLinte2e0diagnostic selon parent. Premièrepasserelleinterne sansport remplacée par raccordementedge à seulegateway127.0.0.1:32490;API/DBinternes,API/gatewaysarrêtés aprèslesdeuxcas selon parent. Portée IAM bornée,pas nouvelleimage.",
+    "shared_deployment_scope": "Aucun déploiement partagé des vagues15à21,pilote ou réception externe/humaine. Les champs de livraison/main/fixture plus anciens conservent leurs cutoffs propres;aucune qualification ciblée ne remplace current_user_backend/current_user_frontend. Vague21 :basesneuves sur PostgreSQL/Redis20 privés,API/DBrestent internes;seulepasserelle raccordéeedge exposée127.0.0.1:32490,puis API/gatewaysstoppés aprèslesdeuxcas selon parent. Aucun arrêtPostgreSQL/Redis ni nettoyage supplémentaire déduit,aucun sondage ici. État19 natif conservé à son cutoff;pas imagebackend20/21 reconstruite ni nouvelleimageLMS19. Dernier500 rouge inchangé,aucune nouvelle charge.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -3884,9 +3934,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 145,
+    "imported_evidence_campaign_records": 146,
     "requirements_with_new_increment_evidence": 24,
-    "conclusion": "145campagnes documentaires non sommées (143 au cutoff19,2ajouts20),24exigences avec preuves ciblées;1verified,71partial,20absent,2unverified sur94 inchangés.2ade295 publié :lotsgroupes assign_many/unassign_many1à100entiers positifs uniques,transaction/verrous triés/prévalidation complète,auditnominatifdiff réel et rollback cible/audit,rejeu sans doublon de membres mais nouvel auditdiffvide. Trois permissions non scopées,même clé{} refusée,hors exception superutilisateur préexistante. APIciblées62tests/108sous-testssecondaire et63/108supérieur vertes en sériePostgreSQL;UIbatch21testscomposantverts,build3warnings,ESLintciblé0erreur et qualitéPythonciblée verts selon parent. Pas navigateurbatch,imagebackend reconstruite,suitesbackendcomplètes ou déploiement partagé. PostgreSQL/Redis20 internes sansports conservés pour parent/browser21,aucune preuve21. IAM toujours en cours,MFA/SoD/versionnement/désactivation/cycle rôlemétier ouverts;F07 non clos,F09/10.7 partiels. Preuves19Studio bornées/publiées et tous cutoffs/rapports rouges antérieurs intacts,non transférés. Pas pilote/réception humaine;dernier500 rouge500timeouts/262écritures indéterminées inchangé. Aucune promotion ni couverture100%."
+    "conclusion": "146campagnes documentaires non sommées (145 au cutoff20,1ajout21),24exigences avec preuves ciblées;1verified,71partial,20absent,2unverified sur94 inchangés. Produitbatch2ade295 qualifié par API/UIciblées20,complété par c8e2348 testsnavigateurseuls :un cas réel par SIS staff+apprenant,création groupe catalogueview_utilisateur,affectation4/5,groupepréexistant1préservé,copiepermissions sansmembres/sourceinchangée,lotmixte+2147483647=>404sansécriturepartielle,retraitbatch préserveautresgroupes,nouveaucontexte apprenantauthentifié=>403sansmodification. Aucune réponse réseau simulée,pacing seul,ESLinte2e0diagnostic selon parent. Basesneuves sis_wave21_browser_* sur PostgreSQL/Redis20privés;seulegatewayedge127.0.0.1:32490,API/DBinternes,API/gatewaysstoppés ensuite selon parent. Pas modificationproduit depuis20,imagebackend reconstruite,suitebackendcomplète ou déploiement partagé. IAM toujours en cours,multi-tenant/parents/enseignants/MFA/SoD/versionnement/désactivation non exhaustifs;F07 ouvert,F09/10.7 partiels. Tous cutoffs/rouges antérieurs intacts,dernier500 rouge500timeouts/262écritures indéterminées. Aucun pilote/réception humaine,promotion ou couverture100%."
   },
   "requirements": [
     {
@@ -4470,6 +4520,13 @@
           "result": "bounded_atomic_group_batch_assignment_and_component_controls_passed",
           "verified_scope": "2ade295 :ajout/retrait1à100comptes par groupe dans les deux SIS,identifiants strictspositifsuniques/réponse triée,prévalidation complète/verrous triés/transaction/audit nominatifdiff réel. Erreurcible/audit rollbacktout,rejeu sans doublon de membres mais nouvel auditdiffvide,autres groupes préservés. UIbatch conserve singleassign,sélection après refus,reset après succès/changement et navigationbloquée;API62/108et63/108,composant21verts.",
           "remaining_scope": "1.4 reste partial,IAM en cours :groupes distincts des rôles métier,pas navigateurbatch/clonage,imagebackend reconstruite ou suitesbackendcomplètes. MFA/SoD,désactivation/versionnement et cycle rôlemétier encore ouverts;aucune preuvebrowser21,pilote ou réception humaine."
+        },
+        {
+          "update_id": "EXEC-20261107-wave21-group-membership-browser-qualification",
+          "campaign_ids": ["wave21-real-group-copy-batches-and-learner-denial"],
+          "result": "bounded_real_browser_group_creation_copy_and_batch_membership_passed",
+          "verified_scope": "Un parcours réel par SIS :staff connectéUI crée un groupe depuis view_utilisateur,affecte deux comptes et relit les groupesAPI en préservant le groupepréexistant. Copie des permissions sansmembres/sourceinchangée,lotmixte ciblevalide+IDinexistant404sansmutation partielle,retraitlotentier restauregroupesinitiaux. Nouveau contexte apprenantauthentifié403sansmodification;réseau réel avec pacing seul.",
+          "remaining_scope": "1.4 reste partial,IAM en cours. Preuve bornée staff/apprenant sur fixtures synthétiques,pas multi-tenant/parents/enseignants/MFA/SoD/versionnement/désactivation exhaustifs ni rôle métier universel. Aucun changementproduit depuis20,imagebackend reconstruite,déploiement partagé ou réception humaine."
         }
       ],
       "acceptance_execution_status": "increment_evidence_with_unresolved_failures"
@@ -7461,6 +7518,13 @@
           "result": "bounded_batch_permission_scope_and_target_guards_passed",
           "verified_scope": "auth.change_group+utilisateurs.change_utilisateur+utilisateurs.view_utilisateur non scopées pour les lots,même présence de clé scope{} refusée,hors exception superutilisateur existante. Tenant actif,groupe propre,cibles et grants non délégables prévalidés avantM2M;refus annule lelot. GardeUI alignée,refus visible et sélection conservée.",
           "remaining_scope": "8.1 reste partial :tests API/UI ciblés,pas parcours navigateurbatch ni qualification IAM/MFA/SoD/révocations exhaustive. Services jetables20 conservés pour raccordement21 sans preuve21;aucun déploiement partagé,pilote ou réception humaine."
+        },
+        {
+          "update_id": "EXEC-20261107-wave21-group-membership-browser-qualification",
+          "campaign_ids": ["wave21-real-group-copy-batches-and-learner-denial"],
+          "result": "real_authenticated_learner_batch_denial_and_atomic_invalid_target_passed",
+          "verified_scope": "Après parcours staffUI,browser.newContext puis connexion réelle apprenant :POSTassign_many refusé403 et relectureAPI des membres inchangée. Lotstaff mixte ciblevalide+2147483647 refusé404sansécriturepartielle;autresgroupes préservés. Un cas par variante,sans réponsemock,pacing seulement.",
+          "remaining_scope": "8.1 reste partial :pas confirmation multi-tenant,parents/enseignants,MFA/SoD ou cycleIAM/versionnement/désactivation exhaustifs. Comptes synthétiques,basesjetables privées,seulepasserelle loopback;API/gatewaysarrêtés selon parent,pas déploiement partagé ni réception humaine."
         }
       ],
       "acceptance_execution_status": "increment_evidence_with_unresolved_failures"

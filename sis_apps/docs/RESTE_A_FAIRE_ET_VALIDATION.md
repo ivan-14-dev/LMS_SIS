@@ -9,15 +9,16 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 08:52:32 UTC**, vagues
-15 à 20 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
+**Dernier cutoff documentaire : 7 novembre 2026 à 09:03:09 UTC**, vagues
+15 à 21 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
 État officiel inchangé : **1 vérifiée, 71 partielles, 20 absentes et
 2 non vérifiées sur 94**. Le blocage de qualification Studio a été levé
 vers 07:30 UTC : le correctif est publié, avec une preuve ciblée limitée
 décrite en vague 19, **sans clôture de F07**. Le batch groupes de vague 20
-est publié et qualifié par tests ciblés, **sans parcours navigateur batch** ;
-IAM reste en cours. Aucun acquis du raccordement navigateur de vague 21
-n'est revendiqué. Les bilans datés antérieurs conservent leurs cutoffs,
+est publié et qualifié par tests ciblés ; la vague 21 ajoute **un parcours
+navigateur réel par variante**, avec duplication, lots et refus apprenant.
+IAM reste en cours, sans recette exhaustive multi-tenant, parents,
+enseignants ou MFA/SoD. Les bilans datés antérieurs conservent leurs cutoffs,
 blocages et rapports rouges historiques.
 
 **État historique au 5 novembre :** 5 tâches en cours, 31 à démarrer, 3 bloquées ; 170 tâches
@@ -702,6 +703,47 @@ Les **94 statuts restent inchangés**, F07 ouvert, F09/10.7 partiels.
 Les cutoffs et rapports rouges antérieurs restent intacts ; dernier essai
 à 500 toujours rouge (**500 timeouts, 262 écritures indéterminées**).
 
+**Vingt et unième vague, publiée et qualifiée au cutoff du 7 novembre 2026
+à 09:03:09 UTC :** `c8e2348`, présent dans `origin/main`, ajoute seulement
+`group-membership.e2e.js` et `group-membership.config.js` (**121 lignes
+ajoutées : 111 de scénario et 10 de configuration**). Aucun code produit
+n'a changé depuis la vague 20, aucune image backend n'a été reconstruite.
+Le parent atteste ESLint e2e sans diagnostic, sans journal dédié fourni.
+
+Les reçus `wave21-browser-groups-secondaire/.last-run.json` et
+`wave21-browser-groups-superieur/.last-run.json` sont verts : **un parcours
+réel par variante**, chacun comprenant un staff et un apprenant, et non
+deux parcours distincts par rôle. Le staff se connecte dans l'UI réelle,
+crée un groupe à partir de `view_utilisateur` dans le catalogue et affecte
+les deux comptes synthétiques **4 et 5**. Les relectures API confirment les
+membres et préservent leur groupe préexistant **1**. La duplication conserve
+les permissions, sans copier les membres ni modifier la source. Un lot
+mixte contenant une cible valide et l'identifiant inexistant **2147483647**
+reçoit **404 sans écriture partielle**. Le retrait du lot entier restitue
+les groupes initiaux sans toucher aux autres groupes. Enfin, dans un nouveau
+contexte navigateur, l'apprenant s'authentifie réellement et son POST
+`assign_many` est **refusé en 403 sans modification**.
+
+**Aucune réponse réseau n'est simulée**, seulement le pacing avant
+transmission réelle. Les reçus attestent `passed` ; le périmètre et le
+nombre de parcours sont rapprochés du scénario publié et des résultats
+du parent. Les bases neuves `sis_wave21_browser_*` utilisent PostgreSQL/Redis
+privés de vague 20. Une première passerelle entièrement interne n'exposait
+pas de port ; le raccordement final ajoute un réseau edge **à la seule
+passerelle**, exposée sur **`127.0.0.1:32490`**. API et bases restent internes :
+ne pas décrire cette configuration finale comme totalement sans port publié.
+Les API et passerelles ont été arrêtées après les deux cas selon le parent ;
+aucun arrêt de PostgreSQL/Redis n'est déduit et aucun service n'est sondé ici.
+
+Les deux reçus sont hachés dans la matrice. Ces parcours lèvent l'attente
+navigateur batch/duplication de vague 20 dans **ce seul périmètre** ; ils
+ne qualifient pas plusieurs tenants, les parents/enseignants, MFA/SoD,
+versionnement ou désactivation des groupes. **IAM reste en cours** :
+aucun rôle métier universel, déploiement partagé, pilote ou réception
+humaine n'est déduit. **94 statuts inchangés**, F07 ouvert, F09/10.7
+partiels ; tous cutoffs et rouges antérieurs conservés, dernier essai
+à 500 rouge (**500 timeouts, 262 écritures indéterminées**).
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -903,11 +945,13 @@ absence soit masquée par un lot plus large. Elles conditionnent F30.
   un catalogue de permissions ; une console de création, édition et
   affectation des groupes existe, avec copie en brouillon éditable ajoutée
   par `63949d1` (16 tests UI, dont 4 nouveaux). Elle ne copie pas les membres
-  et ne modifie pas le groupe source ; aucun parcours navigateur de clonage
-  n'est encore qualifié. `2ade295` ajoute l'ajout/retrait transactionnel et
+  et ne modifie pas le groupe source. `2ade295` ajoute l'ajout/retrait transactionnel et
   audité de 1 à 100 comptes dans les deux SIS, avec UI batch et refus des
-  scopes même vides ; tests API/UI ciblés qualifiés, **pas encore de parcours
-  navigateur batch**. IAM reste en cours.
+  scopes même vides ; tests API/UI ciblés qualifiés. `c8e2348` ajoute
+  **un parcours navigateur réel par SIS** : création, copie sans membres,
+  lots ajout/retrait, cible invalide 404 sans écriture partielle et apprenant
+  authentifié refusé 403. Multi-tenant, parents/enseignants, MFA/SoD,
+  versionnement et désactivation non exhaustifs ; **IAM reste en cours**.
   **Les groupes ne sont pas des rôles métier** :
   le formulaire utilisateurs conserve ses rôles fixes.
   **Reste :** le cycle complet de rôle métier permettant à l'admin *habilité* d'un établissement
