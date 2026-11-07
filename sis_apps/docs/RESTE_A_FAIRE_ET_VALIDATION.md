@@ -9,12 +9,12 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 06:43:28 UTC**, vagues
-15/16/17 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
+**Dernier cutoff documentaire : 7 novembre 2026 à 06:53:19 UTC**, vagues
+15/16/17/18 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
 État officiel inchangé : **1 vérifiée, 71 partielles, 20 absentes et
-2 non vérifiées sur 94**. Les activités secondaires de vague 18 sont en
-cours, **non qualifiées et sans preuve revendiquée ici**. Les bilans datés
-antérieurs restent historiques, y compris les attentes du cutoff 15/16.
+2 non vérifiées sur 94**. Les deux anciens fichiers Studio examinés
+séparément restent **non qualifiés et non publiés**, sans preuve revendiquée
+ici. Les bilans datés antérieurs conservent leurs cutoffs et attentes historiques.
 
 **État historique au 5 novembre :** 5 tâches en cours, 31 à démarrer, 3 bloquées ; 170 tâches
 terminées dans la TODO, mais seulement **1 exigence vérifiée sur 94**
@@ -529,6 +529,54 @@ transfèrent pas au code monté de vague 17. Les premiers rouges frontend
 de vague 16 et secondaire de vague 17 restent conservés ; le dernier
 essai à 500 reste rouge avec **500 timeouts et 262 écritures indéterminées**.
 
+**Dix-huitième vague, publiée et qualifiée au cutoff du 7 novembre 2026
+à 06:53:19 UTC :** `9ff9752`, présent dans `origin/main`, ajoute le type
+`evaluations_lms` au secondaire et de vrais parcours apprenants dans les
+deux SIS. Les évaluations recherchées sont des objets SIS reliés au LMS :
+permission de lecture et queryset natif des évaluations, attribution
+enseignante via `Personnel`, cohérence matière/classe/période/année,
+tenant actif, scopes et mappings actifs sont contrôlés. Il ne s'agit pas
+d'un catalogue natif exhaustif des activités Open edX.
+
+`wave18-school-activity-search.log` passe **69 tests et 87 sous-tests**
+(core complet, API d'intégration et protections des notes LMS dans la
+sélection secondaire), pas toute la suite backend. `wave18-search-ui.log`
+passe **37 tests ciblés**, avec **42 non sélectionnés sur 79**, dans
+Workspace et avec délai de 20 secondes ; ni les 79 tests ni toute la suite
+frontend ne sont déclarés exécutés. `wave18-frontend-build.log` compile avec
+**3 avertissements de taille/performance**. Le parent atteste un lint
+frontend **ciblé à 0 erreur et 0 avertissement**, ainsi que Black, isort et
+flake8 verts sur l'API et les tests secondaires concernés ; aucun journal
+dédié de ces contrôles n'a été fourni, et ce n'est pas une nouvelle preuve
+de lint global sans avertissement.
+
+`wave18-browser-search-secondaire` et `wave18-browser-search-superieur`
+passent chacun **deux parcours réels : staff et apprenant**, avec la
+configuration `testMatch: academic-search.e2e.js`. Le staff ouvre cours,
+évaluation reliée au LMS, bulletin scolaire ou attestation universitaire,
+et les factures paginées (25 en 20 + 5). L'apprenant se connecte sur la vraie
+base de fixture et ouvre sa facture ; les types administratifs Cours LMS
+et Évaluations reliées au LMS sont absents de sa palette. La recherche de
+la facture d'un autre apprenant est vide, son détail API répond **404 sans
+divulguer le numéro**, et l'URL directe d'évaluation est refusée sans
+aucun champ de détail (`dd`). Cela ne qualifie pas tout l'accès pédagogique
+de l'apprenant dans le LMS natif.
+
+Les comptes et factures sont synthétiques, sur la seule infrastructure
+jetable loopback ; **aucune réponse réseau simulée**, seulement le pacing
+avant transmission réelle. Les reçus `.last-run.json` sont verts ; nombre
+et contenu des parcours sont rapprochés des scénarios publiés et des
+résultats du parent. Celui-ci confirme l'arrêt des API/passerelles après
+les parcours. Les cinq artefacts cités sont hachés dans la matrice.
+**Aucune image 18 reconstruite ni suite complète 18 n'est revendiquée**,
+aucun déploiement partagé, pilote ou réception humaine. **10.7 reste
+partielle** : catalogue LMS natif exhaustif et parcours navigateur
+parents/enseignants/multi-tenant non exhaustifs ; **F09 reste partiel**.
+Les deux anciens fichiers Studio examinés par un agent distinct sont
+**non qualifiés et non publiés** au cutoff. Les précédents cutoffs, leurs
+rapports rouges et le dernier essai à 500 (**500 timeouts,
+262 écritures indéterminées**) restent intacts ; aucun statut n'est promu.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -815,7 +863,7 @@ plus nettes sont détaillées ici, avec les identifiants **du cahier initial**
 | 10.1 Mobile — absent | Installation Android **et** iOS, tâches apprenant/enseignant/parent réelles ; session/appareil révoqué ne révèle plus les données privées. |
 | 10.2 Hors ligne — absent | Cours téléchargé sous droit, travail préparé hors réseau puis synchronisé une fois ; conflit et accès révoqué/expiré bloquent les données privées. |
 | 10.5 Projets — absents | Équipe, jalons, livrables et évaluations individuelles/collectives ; autre équipe interdite en lecture et écriture. |
-| 10.7 Recherche globale — partielle | Au cutoff vague 17 : apprenants, factures et vrais cours dans les deux SIS, documents sources universitaires, bulletins scolaires `BUL-<id>` et évaluations SIS reliées aux sous-sections LMS actives au supérieur ; palette/fiches sans cache partagé et parcours navigateur bornés qualifiés sur fixtures. Restent activités secondaires (vague 18 en cours non qualifiée), catalogue LMS natif exhaustif et recette multi-rôles/révocations sans titre/extrait inaccessible ; aucun statut promu. |
+| 10.7 Recherche globale — partielle | Au cutoff vague 18 : apprenants, factures, vrais cours et évaluations SIS reliées au LMS dans les deux SIS, documents sources universitaires et bulletins scolaires `BUL-<id>` ; palette/fiches sans cache partagé, parcours staff et apprenant qualifiés sur fixtures, facture d'autrui absente de la recherche et détail 404 sans numéro. Restent catalogue LMS natif exhaustif et parcours parents/enseignants/multi-tenant/révocations exhaustifs ; aucun statut promu, aucun acquis déduit du chantier Studio non qualifié/non publié. |
 | 10.9 Portail public — absent | Formations publiées, actualités et procédure consultables sans connexion ; candidature démarrée, brouillons et dossiers privés inaccessibles. |
 | 10.10 Signature — non vérifiée | Habilitation approuvée par tiers, signature, archive et notification ; auto-approbation, mandat révoqué et document altéré refusés. |
 | 11 Cycle candidat → alumni — non vérifié | Neuf étapes 11.1–11.9 sur un identifiant continu ; refus/doublons/clôtures/coupures et restauration isolée contrôlés, versions et preuves navigateur/API/BD conservées. |
