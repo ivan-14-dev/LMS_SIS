@@ -31,6 +31,7 @@ from sis_common.grade_entry import (
     validate_grade_batch,
     validate_offering_grade,
 )
+from sis_common.lms_grade_review import LMSGradeReviewMixin
 from sis_common.official_documents import (
     DocumentTenantPermission,
     private_document_download,
@@ -310,7 +311,7 @@ class IsAcademicAdmin(IsAuthenticated):
         )
 
 
-class EvaluationsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
+class EvaluationsViewSet(LMSGradeReviewMixin, AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour évaluations."""
 
     permission_classes = [IsCurrentTenantEvaluationUser]
@@ -321,6 +322,34 @@ class EvaluationsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     search_fields = ["titre", "description"]
     ordering_fields = ["date", "titre", "created_at"]
     ordering = ["-date"]
+    lms_learner_field = "eleve"
+    lms_learner_owner_field = "etablissement"
+    lms_grade_roles = ("enseignant", "vie_scolaire", "direction", "responsable_pedagogique")
+    eligible_lms_learners = staticmethod(_secondary_eligible_students)
+    ensure_lms_grade_entry = staticmethod(_ensure_secondary_continuous_assessment)
+
+    @staticmethod
+    def lms_grade_author(request):
+        return getattr(request.user, "personnel_profile", None)
+
+    @staticmethod
+    def lms_grade_context(evaluation):
+        return {
+            "classes": evaluation.classe_id,
+            "matieres": evaluation.matiere_id,
+            "annees": evaluation.classe.annee_scolaire_id,
+            "periodes": evaluation.periode_id,
+        }
+
+    @staticmethod
+    def lms_evaluation_is_local(evaluation, tenant):
+        return (
+            evaluation.classe.etablissement_id == tenant.pk
+            and evaluation.classe.annee_scolaire.etablissement_id == tenant.pk
+            and evaluation.periode.annee_scolaire.etablissement_id == tenant.pk
+            and evaluation.matiere.etablissement_id == tenant.pk
+            and evaluation.enseignant.user.etablissement_id == tenant.pk
+        )
 
     def get_queryset(self):
         qs = Evaluation.objects.select_related("matiere", "classe", "periode", "enseignant__user", "eleve_cible__user")

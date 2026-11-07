@@ -5,6 +5,8 @@ from apps.eleves.models import Eleve
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from sis_common.lms_grade_models import LMSGradeReviewModel
+
 
 class EdxUserMapping(models.Model):
     """Mapping entre utilisateur SIS et utilisateur LMS Open edX."""
@@ -115,7 +117,7 @@ class EdxAssessmentMapping(models.Model):
                 raise ValidationError("L'évaluation doit appartenir à la matière et à la classe du cours.")
 
 
-class EdxGradeLog(models.Model):
+class EdxGradeLog(LMSGradeReviewModel):
     """Log des notes synchronisées depuis LMS."""
 
     enrollment = models.ForeignKey(EdxEnrollment, on_delete=models.CASCADE, related_name="grade_logs")

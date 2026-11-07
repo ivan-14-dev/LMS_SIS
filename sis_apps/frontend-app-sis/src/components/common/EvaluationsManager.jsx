@@ -5,6 +5,8 @@ import ResourceManager from './ResourceManager';
 import GradeEntryDialog from './GradeEntryDialog';
 import WorkflowHistoryPanel from './WorkflowHistoryPanel';
 import { useCapabilities } from '../auth/PermissionGuard';
+import { canEnterPortal, hasCapability } from '../layout/navigation';
+import LmsGradeProposalsDialog from '../notes/LmsGradeProposalsDialog';
 import { apiErrorMessage } from '../../services/resources';
 
 const gradeButton = (variant, select, cell) => {
@@ -19,24 +21,30 @@ const gradeButton = (variant, select, cell) => {
 const historyButton = (select, cell) => (
   <Button onClick={() => select(cell.row.original.id)}>Historique</Button>
 );
+const proposalsButton = (select, cell) => (
+  <Button onClick={() => select(cell.row.original)}>Propositions LMS</Button>
+);
 const choices = pairs => pairs.map(([value, label]) => ({ value, label }));
 
 const EvaluationsManager = ({ variant, showHeading = true }) => {
   const secondary = variant === 'secondaire';
   const [selected, setSelected] = useState(null);
   const [history, setHistory] = useState(null);
+  const [proposals, setProposals] = useState(null);
   const [notice, setNotice] = useState('');
-  const capabilities = useCapabilities(variant);
+  const capabilities = useCapabilities(variant, { refetchOnMount: false });
   const roles = secondary
     ? ['enseignant', 'vie_scolaire', 'direction', 'responsable_pedagogique']
     : ['enseignant', 'chercheur', 'scolarite', 'directeur_etudes'];
   const permissions = capabilities.data?.permissions || [];
   const canManage = permissions.includes('*') || permissions.includes('notes.change_evaluation')
     || permissions.includes('notes.add_evaluation') || roles.includes(capabilities.data?.role);
+  const canReviewLms = canEnterPortal(capabilities.data, 'staff')
+    && hasCapability(capabilities.data, 'notes.change_note');
   if (capabilities.error) {
     return <Alert severity="error">{apiErrorMessage(capabilities.error)}</Alert>;
   }
-  if (!canManage) { return null; }
+  if (!canManage && !canReviewLms) { return null; }
   const columns = [
     { Header: 'Titre', accessor: 'titre' },
     { Header: 'Offre historisée', accessor: 'offre_configuration.label' },
@@ -49,6 +57,9 @@ const EvaluationsManager = ({ variant, showHeading = true }) => {
     { Header: 'Fin de soumission', accessor: 'fin_soumission' },
     { Header: 'Soumission', accessor: 'soumission_statut' },
     { Header: 'Notes', accessor: 'notes', Cell: gradeButton.bind(null, variant, setSelected) },
+    ...(canReviewLms ? [{
+      Header: 'LMS', accessor: 'propositions_lms', Cell: proposalsButton.bind(null, setProposals),
+    }] : []),
     ...(secondary ? [{ Header: 'Historique', accessor: 'historique', Cell: historyButton.bind(null, setHistory) }] : []),
   ];
   const fields = [
@@ -124,7 +135,16 @@ const EvaluationsManager = ({ variant, showHeading = true }) => {
         Son barème chiffré est alors défini automatiquement et reste figé.
       </Alert>
       {notice && <Alert severity="success">{notice}</Alert>}
-      <ResourceManager variant={variant} resource="notes/evaluations" title="Évaluations" columns={columns} fields={fields} showHeading={showHeading} />
+      <ResourceManager
+        variant={variant}
+        resource="notes/evaluations"
+        title="Évaluations"
+        columns={columns}
+        fields={fields}
+        showHeading={showHeading}
+        allowCreate={canManage}
+        allowEdit={canManage}
+      />
       {selected && (
         <GradeEntryDialog
           key={selected.id}
@@ -132,6 +152,14 @@ const EvaluationsManager = ({ variant, showHeading = true }) => {
           evaluation={selected}
           onClose={() => setSelected(null)}
           onSaved={() => { setSelected(null); setNotice('Notes enregistrées.'); }}
+        />
+      )}
+      {canReviewLms && proposals && (
+        <LmsGradeProposalsDialog
+          key={proposals.id}
+          variant={variant}
+          evaluation={proposals}
+          onClose={() => setProposals(null)}
         />
       )}
       {secondary && (

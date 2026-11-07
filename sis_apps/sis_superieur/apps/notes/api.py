@@ -28,6 +28,7 @@ from sis_common.grade_entry import (
     validate_grade_batch,
     validate_offering_grade,
 )
+from sis_common.lms_grade_review import LMSGradeReviewMixin
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.spreadsheets import load_excel_rows, template_response
 from sis_common.submission_windows import apply_submission_window_defaults
@@ -295,7 +296,7 @@ class IsAcademicAdmin(IsAuthenticated):
         )
 
 
-class EvaluationsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
+class EvaluationsViewSet(LMSGradeReviewMixin, AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour évaluations."""
 
     permission_classes = [IsEnseignantOrScolarite]
@@ -306,6 +307,36 @@ class EvaluationsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     search_fields = ["titre", "description"]
     ordering_fields = ["date", "titre", "created_at"]
     ordering = ["-date"]
+    lms_learner_field = "etudiant"
+    lms_learner_owner_field = "universite"
+    lms_grade_roles = ("enseignant", "chercheur", "scolarite", "directeur_etudes")
+    eligible_lms_learners = staticmethod(_superior_eligible_students)
+    ensure_lms_grade_entry = staticmethod(_ensure_superior_continuous_assessment)
+
+    @staticmethod
+    def lms_grade_author(request):
+        return request.user
+
+    @staticmethod
+    def lms_grade_context(evaluation):
+        formation = evaluation.ecue.ue.maquette.formation
+        return {
+            "formations": formation.pk,
+            "departements": formation.departement_id,
+            "facultes": formation.departement.faculte_id if formation.departement_id else None,
+            "annees": evaluation.semestre.annee_universitaire_id,
+            "semestres": evaluation.semestre_id,
+            "ues": evaluation.ecue.ue_id,
+            "ecues": evaluation.ecue_id,
+        }
+
+    @staticmethod
+    def lms_evaluation_is_local(evaluation, tenant):
+        return (
+            evaluation.semestre.annee_universitaire.universite_id == tenant.pk
+            and evaluation.ecue.ue.maquette.annee_universitaire.universite_id == tenant.pk
+            and evaluation.enseignant.etablissement_id == tenant.pk
+        )
 
     def get_queryset(self):
         qs = Evaluation.objects.select_related("ecue", "semestre", "enseignant")

@@ -2,12 +2,13 @@
 
 import hashlib
 import logging
-from decimal import Decimal
 
 from django.apps import apps
 from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+
+from sis_common.lms_grade_review import stage_lms_grade
 
 logger = logging.getLogger(__name__)
 
@@ -235,32 +236,7 @@ class WebhookHandler:
                     logger.info("Ignored out-of-order grade event %s", event_id)
                     return True
 
-                existing = self.Note.objects.select_for_update().filter(
-                    evaluation=evaluation, eleve=enrollment.eleve
-                ).first()
-                if existing and (
-                    existing.saisi_par_id is not None
-                    or existing.modifie_le is not None
-                    or not self.EdxGradeLog.objects.filter(note_sis=existing, imported_to_sis=True).exists()
-                ):
-                    logger.info("Grade retained without SIS import: staff-entered note for %s", event_id)
-                    return True
-
-                max_score_decimal = Decimal(str(max_score))
-                if max_score_decimal <= 0:
-                    raise ValueError("max_score must be greater than zero")
-                value = (
-                    Decimal(str(score)) * evaluation.bareme / max_score_decimal
-                ).quantize(Decimal("0.01"))
-                value = min(max(value, Decimal("0")), evaluation.bareme)
-                note, _ = self.Note.objects.update_or_create(
-                    evaluation=evaluation,
-                    eleve=enrollment.eleve,
-                    defaults={"valeur": value, "statut": "presente"},
-                )
-                grade_log.note_sis = note
-                grade_log.imported_to_sis = True
-                grade_log.save(update_fields=["note_sis", "imported_to_sis"])
+                stage_lms_grade(grade_log, evaluation)
             return True
         except Exception as e:
             logger.exception("Failed to import LMS grade: %s", e)
