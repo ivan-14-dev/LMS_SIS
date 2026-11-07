@@ -9,17 +9,18 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 09:03:09 UTC**, vagues
-15 à 21 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
+**Dernier cutoff documentaire : 7 novembre 2026 à 14:40:10 UTC**, vagues
+15 à 23 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
 État officiel inchangé : **1 vérifiée, 71 partielles, 20 absentes et
 2 non vérifiées sur 94**. Le blocage de qualification Studio a été levé
 vers 07:30 UTC : le correctif est publié, avec une preuve ciblée limitée
-décrite en vague 19, **sans clôture de F07**. Le batch groupes de vague 20
-est publié et qualifié par tests ciblés ; la vague 21 ajoute **un parcours
-navigateur réel par variante**, avec duplication, lots et refus apprenant.
-IAM reste en cours, sans recette exhaustive multi-tenant, parents,
-enseignants ou MFA/SoD. Les bilans datés antérieurs conservent leurs cutoffs,
-blocages et rapports rouges historiques.
+décrite en vague 19, **sans clôture de F07**. Après les lots et parcours
+groupes 20/21, les vagues 22/23 ajoutent l'audit du cycle de vie **via API**
+et son lecteur d'historique, avec preuves ciblées sur image reconstruite et
+un parcours navigateur par SIS. IAM reste en cours, sans recette exhaustive
+multi-tenant, parents, enseignants ou MFA/SoD. **Vague 24 en cours, sans
+preuve revendiquée** ; ses fichiers de travail ne sont pas inspectés ici.
+Les bilans datés antérieurs conservent leurs cutoffs, blocages et rouges.
 
 **État historique au 5 novembre :** 5 tâches en cours, 31 à démarrer, 3 bloquées ; 170 tâches
 terminées dans la TODO, mais seulement **1 exigence vérifiée sur 94**
@@ -744,6 +745,75 @@ humaine n'est déduit. **94 statuts inchangés**, F07 ouvert, F09/10.7
 partiels ; tous cutoffs et rouges antérieurs conservés, dernier essai
 à 500 rouge (**500 timeouts, 262 écritures indéterminées**).
 
+**Vagues 22 et 23, publiées et qualifiées au cutoff du 7 novembre 2026
+à 14:40:10 UTC :** `5a90d45` publie l'audit du cycle de vie des groupes et
+`e495418` son lecteur d'historique ; les deux commits sont dans `origin/main`.
+`GroupAuditMixin` et le helper d'affectation individuelle assurent transaction
+et événement nominatif pour création, modification, suppression, affectation
+et retrait **par les API groupes des deux SIS**, pas pour les opérations
+Django admin hors API. L'identité du groupe est conservée après suppression ;
+les snapshots avant/après contiennent `name` et les permissions `{id, code}`
+triées par identifiant. Une affectation sans changement ne remute pas les
+membres mais crée un nouvel audit au différentiel vide. Les refus ne créent
+pas d'événement ; six sous-opérations avec panne injectée après écriture
+d'audit vérifient le rollback du groupe, des relations M2M et de l'événement.
+
+Le journal global accepte `object_id` jusqu'à **64 caractères**, combiné
+aux filtres acteur/date dans liste, exports et summary ; ses filtres d'objet
+et de tenant restent opposables. `actor_nom` retombe sur le username si le
+nom complet est vide. Le lecteur UI exige `auth.view_group` et
+`core.view_workflowevent` non restreints ; il expose pagination, avant/après
+et différentiels d'identifiants. Le cache React Query utilise `gcTime: 0` ;
+révocation des capacités : démontage/purge, réponse 403 : données masquées
+avant réessai, mutation réussie : rafraîchissement. Le filtre reste celui
+du **journal global**, pas une nouvelle politique universelle IAM.
+L'historique d'un groupe supprimé persiste côté API ; **la console ne propose
+ni suppression ni désactivation**.
+
+L'image reconstruite **`lms-sis:local-20261107-e495418`**, initialement
+qualifiée sous `qualification-wave22-d0c25c75`, a le digest
+`sha256:9b9d8311fd7341c50bd066414809f4ec354d55932eb8c4b237ed714ef856efb5`.
+Elle comprend la vague 22 **et le backend de vague 23**, sans overlay de
+code backend pendant les tests selon le parent. `wave22-backend-build.log`
+en conserve le digest ; les deux journaux `wave22-*-check.log` sont verts.
+`wave22-secondaire-iam.log` passe **65 tests et 132 sous-tests**,
+`wave22-superieur-iam.log` **66 tests et 132 sous-tests** : utilisateurs,
+autorisations, séparation des rôles et deux tests de filtres workflow,
+**pas les suites backend complètes**. Black/isort/flake8 ciblés sont verts
+selon le parent, après passage Black sur trois fichiers de tests.
+
+`wave23-group-history-ui.log` passe **26 tests du composant**. Le parent
+rapporte 14 erreurs ESLint initiales de formatage, corrigées par autofix des
+tests seulement, puis **0 erreur et 0 avertissement ciblés** ; aucun journal
+dédié de lint n'est fourni. `wave23-frontend-build.log` compile avec
+**3 avertissements de taille/performance** ; sa durée Webpack anormale,
+affectée par l'horloge, n'est pas interprétée. Le build séparé
+`wave23-frontend-browser-build.log` utilise explicitement les URL de fixture
+et l'authentification locale, sans mocks, et passe avec 3 avertissements.
+
+`wave23-browser-groups-secondaire` et `wave23-browser-groups-superieur`
+passent chacun **un parcours réel staff + apprenant**. Ils reprennent la
+vague 21 puis vérifient dans l'UI l'historique du groupe source : exactement
+**3 événements** (`group_created`, `assign_many`, `unassign_many`), avant
+absent/après permission réelle ; relecture API du count, des identifiants,
+noms d'acteurs et différentiels, puis refus **403** de l'historique pour
+l'apprenant. Les reçus `.last-run.json` sont verts ; durées de 42,9 s et
+44,1 s rapportées par le parent, pas un benchmark. Les bases synthétiques
+**`sis_wave21_browser_*` sont réutilisées**, pas recréées pour 23 ; chaque
+test crée de nouveaux groupes. Les serveurs utilisent l'image `9b9d…`
+sans overlay applicatif, avec seuls settings de test wave15 montés selon
+le parent. PostgreSQL/Redis20 restent internes et privés, la passerelle
+edge est exposée sur `127.0.0.1:32490` ; API/passerelles arrêtées après les
+deux cas, PostgreSQL/Redis conservés pour le parent et le lot 24.
+
+Les dix artefacts sont hachés dans la matrice, répartis en **deux campagnes
+documentaires : backend commun 22/23, puis UI/builds/navigateurs 23**.
+Aucune exécution applicative pour cet import, aucun déploiement partagé,
+nouveau 500, pilote ou réception institutionnelle. **94 statuts inchangés**,
+IAM en cours, F07 ouvert, F09/10.7 partiels. Pas de preuve de vague 24 ;
+cutoffs et rouges antérieurs intacts, dont le dernier 500 (**500 timeouts,
+262 écritures indéterminées**).
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -952,6 +1022,12 @@ absence soit masquée par un lot plus large. Elles conditionnent F30.
   lots ajout/retrait, cible invalide 404 sans écriture partielle et apprenant
   authentifié refusé 403. Multi-tenant, parents/enseignants, MFA/SoD,
   versionnement et désactivation non exhaustifs ; **IAM reste en cours**.
+  `5a90d45`/`e495418` ajoutent l'audit transactionnel du cycle de vie **API**
+  et son historique filtré/paginé, avec contrôle d'accès, snapshots et
+  différentiel ; le navigateur vérifie trois événements du groupe source
+  et le refus apprenant. L'historique persiste après suppression API, mais
+  la console ne propose ni suppression ni désactivation ; pas d'audit
+  Django admin hors API qualifié, ni preuve du lot 24.
   **Les groupes ne sont pas des rôles métier** :
   le formulaire utilisateurs conserve ses rôles fixes.
   **Reste :** le cycle complet de rôle métier permettant à l'admin *habilité* d'un établissement
