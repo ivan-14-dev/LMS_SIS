@@ -128,7 +128,15 @@ du frontend : elle est accessible au navigateur.
 L'onglet « Groupes et permissions » des utilisateurs permet de créer, modifier
 et dupliquer un groupe avec les permissions délégables du catalogue serveur.
 La duplication prépare un nouveau groupe, sans modifier l'original ni copier
-ses membres. Ces groupes restent distincts des rôles métier.
+ses membres, et conserve son état actif ou désactivé. Ces groupes restent
+distincts des rôles métier.
+
+La case « Groupe actif », enregistrée avec les autres champs, désactive ou
+réactive ses droits sans effacer ses membres ni ses permissions. Les autres
+groupes actifs et les permissions directes continuent de s'appliquer ; le rôle
+métier et `is_staff` ne changent pas. Une ancienne API ne fournissant pas `actif`
+ne permet pas cette bascule ; une réponse ne confirmant pas le statut demandé
+affiche une erreur, jamais une confirmation d'enregistrement.
 
 L'affectation individuelle reste disponible. L'affectation en lot accepte
 de 1 à 100 comptes : ajouter ou retirer la sélection effectue une seule requête
@@ -158,7 +166,8 @@ n'est pas conservé dans le cache après fermeture du panneau et disparaît si
 l'autorisation est retirée ou si le serveur refuse sa lecture. Les groupes
 supprimés restent consultables dans le journal global via
 `core/workflow-events/?app_label=auth&model=group&object_id={id}` ; la console ne
-propose toujours pas leur suppression ni leur désactivation.
+propose toujours pas leur suppression. L'historique affiche aussi l'état
+actif avant/après lorsqu'il a été enregistré.
 
 ### Recherche de dossiers
 

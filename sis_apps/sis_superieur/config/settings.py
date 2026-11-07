@@ -204,8 +204,8 @@ LOGOUT_REDIRECT_URL = "/comptes/connexion/"
 
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
-    "django.contrib.auth.backends.ModelBackend",
-    "guardian.backends.ObjectPermissionBackend",
+    "sis_common.group_backends.ActiveGroupModelBackend",
+    "sis_common.group_backends.ActiveGroupObjectPermissionBackend",
 ]
 
 # Password

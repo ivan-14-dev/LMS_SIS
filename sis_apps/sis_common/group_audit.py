@@ -4,12 +4,14 @@ from copy import copy
 
 from django.db import transaction
 
+from sis_common.group_backends import group_is_active
 from sis_common.workflow_tracking import record_workflow_event
 
 
 def _group_snapshot(group):
     return {
         "name": group.name,
+        "actif": group_is_active(group),
         "permissions": [
             {"id": permission.pk, "code": f"{permission.content_type.app_label}.{permission.codename}"}
             for permission in group.permissions.select_related("content_type").order_by("pk")

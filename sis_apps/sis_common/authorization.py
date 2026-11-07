@@ -43,7 +43,9 @@ def _group_names(user):
         return []
     groups = user.groups
     if hasattr(groups, "order_by"):
-        return list(groups.order_by("name").values_list("name", flat=True))
+        from sis_common.group_backends import active_groups
+
+        return list(groups.filter(pk__in=active_groups()).order_by("name").values_list("name", flat=True))
     if isinstance(groups, (list, tuple, set)):
         return list(groups)
     return []

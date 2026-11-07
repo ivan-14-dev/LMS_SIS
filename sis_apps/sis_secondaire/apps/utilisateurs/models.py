@@ -3,11 +3,19 @@
 import uuid
 
 from apps.etablissement.models import Etablissement
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, Group
 from django.contrib.postgres.functions import RandomUUID
 from django.db import models
 
 from sis_common.encryption import EncryptedCharField
+
+
+class GroupLifecycle(models.Model):
+    group = models.OneToOneField(Group, on_delete=models.CASCADE, primary_key=True, related_name="permission_lifecycle")
+    actif = models.BooleanField(default=True)
+
+    class Meta:
+        default_permissions = ()
 
 
 class Utilisateur(AbstractUser):

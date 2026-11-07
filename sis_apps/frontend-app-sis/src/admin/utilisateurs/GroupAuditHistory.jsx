@@ -51,6 +51,12 @@ const GroupAuditHistory = ({ variant, groupId }) => {
                 <Typography component="summary" variant="body2">Voir les changements</Typography>
                 {metadata.before !== undefined && <Typography variant="body2">Avant : {snapshotText(metadata.before)}</Typography>}
                 {metadata.after !== undefined && <Typography variant="body2">Après : {snapshotText(metadata.after)}</Typography>}
+                {typeof metadata.before?.actif === 'boolean' && (
+                  <Typography variant="body2">Statut avant : {metadata.before.actif ? 'Actif' : 'Désactivé'}</Typography>
+                )}
+                {typeof metadata.after?.actif === 'boolean' && (
+                  <Typography variant="body2">Statut après : {metadata.after.actif ? 'Actif' : 'Désactivé'}</Typography>
+                )}
                 {targets && <Typography variant="body2">Comptes demandés : {targets.join(', ')}</Typography>}
                 {Array.isArray(metadata.added_user_ids) && (
                   <Typography variant="body2">Ajouts effectifs : {metadata.added_user_ids.join(', ') || 'Aucun'}</Typography>

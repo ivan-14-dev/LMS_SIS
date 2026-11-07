@@ -24,6 +24,8 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [name, setName] = useState('');
   const [permissionIds, setPermissionIds] = useState([]);
+  const [active, setActive] = useState(true);
+  const [original, setOriginal] = useState(null);
   const [userId, setUserId] = useState('');
   const [batchIds, setBatchIds] = useState([]);
   const [notice, setNotice] = useState('');
@@ -59,8 +61,14 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
   const membership = ids(selectedUser?.groups);
   const member = membership?.some(id => String(id) === String(selectedId));
   const save = useMutation({
-    mutationFn: payload => (selectedId === 'new'
-      ? postApi(groupsUrl, payload) : patchApi(`${groupsUrl}${selectedId}/`, payload)),
+    mutationFn: async (payload) => {
+      const saved = await (selectedId === 'new'
+        ? postApi(groupsUrl, payload) : patchApi(`${groupsUrl}${selectedId}/`, payload));
+      if (payload.actif !== undefined && saved.actif !== payload.actif) {
+        throw new Error('Le serveur n’a pas confirmé le statut du groupe. Actualisez la page avant toute nouvelle tentative.');
+      }
+      return saved;
+    },
     onSuccess: async () => {
       await client.invalidateQueries({ queryKey: ['institutional-groups', groupsUrl] });
       setSelectedId(null);
@@ -112,6 +120,10 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
     setSelectedId(duplicate ? 'new' : item?.id ?? 'new');
     setName(duplicate ? `${item.name} (copie)` : item?.name ?? '');
     setPermissionIds(ids(item?.permissions) ?? []);
+    setActive(item?.actif ?? true);
+    setOriginal(item && !duplicate ? {
+      name: item.name, permissions: ids(item.permissions), actif: item.actif,
+    } : null);
     setUserId('');
     setBatchIds([]);
     setSelectionError('');
@@ -121,6 +133,7 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
     assignMany.reset();
   };
   const permissionsAvailable = selectedId === 'new' || Array.isArray(group?.permissions);
+  const lifecycleAvailable = selectedId === 'new' || typeof group?.actif === 'boolean';
   const editable = (selectedId === 'new' ? canAdd : canChange) && permissionsAvailable;
   const busy = save.isPending || assign.isPending || assignMany.isPending;
   const permissionsByApp = permissions.data.reduce((result, permission) => ({
@@ -134,7 +147,8 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
         Les groupes sont distincts du rôle métier des comptes. Les permissions proposées proviennent du serveur.
       </Typography>
       <Alert severity="info" sx={{ mb: 2 }}>
-        L’API ne permet pas de désactiver un groupe. La suppression, irréversible, n’est pas proposée ici.
+        Désactiver un groupe conserve ses membres et ses permissions, mais retire les droits qu’il accorde.
+        La suppression, irréversible, n’est pas proposée ici.
       </Alert>
       {notice && <Alert severity="success" sx={{ mb: 2 }}>{notice}</Alert>}
       <Stack direction="row" useFlexGap sx={{ gap: 1, flexWrap: 'wrap', mb: 3 }}>
@@ -144,7 +158,7 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
             variant={selectedId === item.id ? 'contained' : 'outlined'}
             disabled={busy}
             onClick={() => choose(item)}
-          >{item.name}
+          >{item.name}{item.actif === false ? ' (désactivé)' : ''}
           </Button>
         ))}
         {groups.data.length === 0 && <Typography>Aucun groupe disponible.</Typography>}
@@ -158,7 +172,14 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
             setNotice('');
             if (!name.trim()) { setSelectionError('Le nom du groupe est requis.'); return; }
             setSelectionError('');
-            save.mutate({ name: name.trim(), permissions: permissionIds });
+            const creating = selectedId === 'new';
+            const payload = {};
+            if (creating || name.trim() !== original?.name) { payload.name = name.trim(); }
+            if (creating || permissionIds.map(String).sort().join(',') !== (original?.permissions || []).map(String).sort().join(',')) {
+              payload.permissions = permissionIds;
+            }
+            if (lifecycleAvailable && (creating || active !== original?.actif)) { payload.actif = active; }
+            save.mutate(payload);
           }}
         >
           <Typography component="h3" variant="subtitle1" gutterBottom>
@@ -178,6 +199,28 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
             fullWidth
             sx={{ mb: 2 }}
           />
+          {lifecycleAvailable ? (
+            <FormControlLabel
+              label="Groupe actif"
+              control={(
+                <Checkbox
+                  checked={active}
+                  disabled={!editable || busy}
+                  onChange={event => setActive(event.target.checked)}
+                />
+              )}
+            />
+          ) : (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              État non fourni par le serveur : désactivation indisponible.
+            </Alert>
+          )}
+          {group?.actif === false && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Ce groupe est désactivé : ses affectations sont conservées, sans accorder de droits.
+              Les autres groupes actifs et les permissions directes restent applicables.
+            </Alert>
+          )}
           {Object.entries(permissionsByApp).map(([app, items]) => (
             <Box key={app} sx={{ mb: 2 }}>
               <Typography component="h4" variant="subtitle2">{app}</Typography>

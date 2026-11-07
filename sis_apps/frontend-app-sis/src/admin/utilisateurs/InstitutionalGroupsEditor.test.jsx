@@ -66,7 +66,9 @@ beforeEach(() => {
   fetchResourcePage.mockResolvedValue({
     count: 0, results: [], next: null, previous: null,
   });
-  groups = [{ id: 7, name: 'Équipe examens', permissions: [11] }];
+  groups = [{
+    id: 7, name: 'Équipe examens', permissions: [11], actif: true,
+  }];
   users = [{
     id: 5, username: 'jane', full_name: 'Jane Doe', groups: [3],
   }];
@@ -95,7 +97,7 @@ beforeEach(() => {
       ));
     }
     return url === groupsUrl
-      ? { id: 8, name: 'Nouveau groupe', permissions: [12] } : data;
+      ? { id: 8, ...data } : data;
   });
 });
 
@@ -106,16 +108,18 @@ it('loads the API catalogue, edits a group and creates one without preset role n
   fireEvent.click(screen.getByRole('checkbox', { name: /Modifier les notes/ }));
   fireEvent.change(screen.getByRole('textbox', { name: 'Nom du groupe' }), { target: { value: 'Équipe concours' } });
   fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le groupe' }));
-  await waitFor(() => expect(patchApi).toHaveBeenCalledWith(`${groupsUrl}7/`, { name: 'Équipe concours', permissions: [11, 12] }));
+  await waitFor(() => expect(patchApi).toHaveBeenCalledWith(`${groupsUrl}7/`, {
+    name: 'Équipe concours', permissions: [11, 12],
+  }));
   await screen.findByText('Groupe enregistré.');
   fireEvent.click(screen.getByRole('button', { name: 'Créer un groupe' }));
   fireEvent.change(screen.getByRole('textbox', { name: 'Nom du groupe' }), { target: { value: 'Nouveau groupe' } });
   fireEvent.click(screen.getByRole('checkbox', { name: /Modifier les notes/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le groupe' }));
   await waitFor(() => expect(postApi).toHaveBeenCalledWith(groupsUrl, {
-    name: 'Nouveau groupe', permissions: [12],
+    name: 'Nouveau groupe', permissions: [12], actif: true,
   }));
-  expect(screen.getByText(/L’API ne permet pas de désactiver un groupe/)).toBeVisible();
+  expect(screen.getByText(/Désactiver un groupe conserve ses membres/)).toBeVisible();
 });
 
 it('adds and removes a user through the group assignment endpoints without PATCHing accounts', async () => {
@@ -132,6 +136,80 @@ it('adds and removes a user through the group assignment endpoints without PATCH
   expect(patchApi).not.toHaveBeenCalled();
 });
 
+it('deactivates and reactivates a group without editing its permissions or memberships', async () => {
+  users[0].groups = [3, 7];
+  renderEditor();
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  expect(screen.getByRole('checkbox', { name: 'Groupe actif' })).toBeChecked();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Groupe actif' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le groupe' }));
+  await screen.findByText('Groupe enregistré.');
+  expect(patchApi).toHaveBeenLastCalledWith(`${groupsUrl}7/`, { actif: false });
+  fireEvent.click(screen.getByRole('button', { name: 'Équipe examens (désactivé)' }));
+  expect(screen.getByRole('checkbox', { name: 'Groupe actif' })).not.toBeChecked();
+  expect(screen.getByText(/Ce groupe est désactivé : ses affectations sont conservées/)).toBeVisible();
+  expect(screen.getByRole('checkbox', { name: /Voir les notes/ })).toBeChecked();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Groupe actif' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le groupe' }));
+  await screen.findByText('Groupe enregistré.');
+  expect(patchApi).toHaveBeenLastCalledWith(`${groupsUrl}7/`, { actif: true });
+  expect(users[0].groups).toEqual([3, 7]);
+  expect(postApi).not.toHaveBeenCalled();
+});
+
+it('does not overwrite a concurrent name or permission change when only toggling activation', async () => {
+  renderEditor();
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  groups[0].name = 'Nom modifié ailleurs';
+  groups[0].permissions = [12];
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Groupe actif' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le groupe' }));
+  await screen.findByText('Groupe enregistré.');
+  expect(patchApi).toHaveBeenLastCalledWith(`${groupsUrl}7/`, { actif: false });
+  expect(groups[0]).toMatchObject({ name: 'Nom modifié ailleurs', permissions: [12], actif: false });
+});
+
+it('keeps an inactive source and its copy inactive until an explicit activation', async () => {
+  groups[0].actif = false;
+  renderEditor(['auth.view_group', 'auth.add_group']);
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens (désactivé)' }));
+  expect(screen.getByRole('checkbox', { name: 'Groupe actif' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Dupliquer le groupe' }));
+  expect(screen.getByRole('checkbox', { name: 'Groupe actif' })).toBeEnabled();
+  expect(screen.getByRole('checkbox', { name: 'Groupe actif' })).not.toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le groupe' }));
+  await screen.findByText('Groupe enregistré.');
+  expect(postApi).toHaveBeenLastCalledWith(groupsUrl, {
+    name: 'Équipe examens (copie)', permissions: [11], actif: false,
+  });
+  expect(groups[0].actif).toBe(false);
+  expect(patchApi).not.toHaveBeenCalled();
+});
+
+it('does not offer deactivation when an older server omits the lifecycle field', async () => {
+  delete groups[0].actif;
+  renderEditor();
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  expect(screen.queryByRole('checkbox', { name: 'Groupe actif' })).not.toBeInTheDocument();
+  expect(screen.getByText('État non fourni par le serveur : désactivation indisponible.')).toBeVisible();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Nom du groupe' }), { target: { value: 'Ancien serveur' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le groupe' }));
+  await screen.findByText('Groupe enregistré.');
+  expect(patchApi).toHaveBeenLastCalledWith(`${groupsUrl}7/`, { name: 'Ancien serveur' });
+});
+
+it('never reports a saved activation state if the server does not confirm it', async () => {
+  postApi.mockResolvedValueOnce({ id: 8, name: 'Sans confirmation', permissions: [] });
+  renderEditor();
+  fireEvent.click(await screen.findByRole('button', { name: 'Créer un groupe' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Nom du groupe' }), { target: { value: 'Sans confirmation' } });
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Groupe actif' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le groupe' }));
+  expect(await screen.findByText(/Le serveur n’a pas confirmé le statut du groupe/)).toBeVisible();
+  expect(screen.queryByText('Groupe enregistré.')).not.toBeInTheDocument();
+  expect(screen.getByRole('textbox', { name: 'Nom du groupe' })).toHaveValue('Sans confirmation');
+});
+
 it('reads paginated audit snapshots for the selected group and resets on group changes', async () => {
   groups.push({ id: 8, name: 'Autre équipe', permissions: [] });
   const created = {
@@ -142,7 +220,7 @@ it('reads paginated audit snapshots for the selected group and resets on group c
     created_at: '2026-11-07T10:00:00Z',
     object_repr: 'Lecteurs',
     metadata: {
-      before: null, after: { name: 'Lecteurs', permissions: [{ id: 11, code: 'notes.view_note' }] },
+      before: null, after: { name: 'Lecteurs', permissions: [{ id: 11, code: 'notes.view_note' }], actif: false },
     },
   };
   const assigned = {
@@ -167,6 +245,7 @@ it('reads paginated audit snapshots for the selected group and resets on group c
   fireEvent.click(screen.getByText('Voir les changements'));
   expect(screen.getByText('Avant : Groupe absent')).toBeVisible();
   expect(screen.getByText('Après : Lecteurs — notes.view_note')).toBeVisible();
+  expect(screen.getByText('Statut après : Désactivé')).toBeVisible();
   expect(screen.getByText(/Auditeur local/)).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Historique suivant' }));
   await screen.findByRole('heading', { name: 'Affectation de groupe' });
@@ -341,10 +420,12 @@ it('duplicates readable permissions into a new editable group without modifying 
   fireEvent.click(screen.getByRole('checkbox', { name: /Modifier les notes/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le groupe' }));
   await waitFor(() => expect(postApi).toHaveBeenCalledWith(groupsUrl, {
-    name: 'Équipe corrections', permissions: [11, 12],
+    name: 'Équipe corrections', permissions: [11, 12], actif: true,
   }));
   expect(patchApi).not.toHaveBeenCalled();
-  expect(groups).toEqual([{ id: 7, name: 'Équipe examens', permissions: [11] }]);
+  expect(groups).toEqual([{
+    id: 7, name: 'Équipe examens', permissions: [11], actif: true,
+  }]);
   expect(fetchAllResourcePages).not.toHaveBeenCalledWith(usersUrl);
 });
 

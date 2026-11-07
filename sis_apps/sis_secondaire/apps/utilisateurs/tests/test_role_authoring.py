@@ -4,12 +4,13 @@ from unittest.mock import patch
 
 from apps.core.models import WorkflowEvent
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
-from apps.utilisateurs.models import Utilisateur
+from apps.utilisateurs.models import GroupLifecycle, Utilisateur
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission
 from django.db import connection
 from django.test import override_settings
 from django_tenants.utils import get_tenant_domain_model, schema_context
+from guardian.shortcuts import assign_perm
 from rest_framework.test import APIClient
 
 from sis_common.workflow_tracking import record_workflow_event
@@ -45,6 +46,7 @@ class GroupAuthoringTests(TenantAPITestCase):
         view_group = Permission.objects.get(content_type__app_label="auth", codename="view_group")
         before = {
             "name": "local-academic-readers",
+            "actif": True,
             "permissions": sorted(
                 [
                     {"id": self.grant.pk, "code": "utilisateurs.view_utilisateur"},
@@ -55,6 +57,7 @@ class GroupAuthoringTests(TenantAPITestCase):
         }
         after = {
             "name": "local-readers",
+            "actif": True,
             "permissions": sorted(
                 [
                     {"id": self.grant.pk, "code": "utilisateurs.view_utilisateur"},
@@ -72,6 +75,8 @@ class GroupAuthoringTests(TenantAPITestCase):
         )
         assert response.status_code == 201, response.data
         group = Group.objects.get(pk=response.data["id"])
+        assert response.data["actif"] is True
+        assert GroupLifecycle.objects.get(group=group).actif is True
         group_id = group.pk
         assert list(group.permissions.order_by("pk").values_list("pk", flat=True)) == [
             item["id"] for item in before["permissions"]
@@ -149,6 +154,7 @@ class GroupAuthoringTests(TenantAPITestCase):
                     self.student.groups.add(group)
                 before_members = list(group.user_set.values_list("pk", flat=True))
                 before_ids = set(Group.objects.values_list("pk", flat=True))
+                before_states = list(GroupLifecycle.objects.order_by("pk").values())
                 event_count = WorkflowEvent.objects.count()
                 name = group.name
                 payload = {
@@ -184,7 +190,141 @@ class GroupAuthoringTests(TenantAPITestCase):
                 assert list(group.permissions.values_list("pk", flat=True)) == [self.grant.pk]
                 assert list(group.user_set.values_list("pk", flat=True)) == before_members
                 assert set(Group.objects.values_list("pk", flat=True)) == before_ids
+                assert list(GroupLifecycle.objects.order_by("pk").values()) == before_states
                 assert WorkflowEvent.objects.count() == event_count
+
+    def test_group_activation_changes_effective_permissions_in_existing_session(self):
+        group = Group.objects.create(name="legacy-lifecycle")
+        group.permissions.add(self.grant)
+        self.student.groups.add(group)
+        other = Group.objects.create(name="still-active")
+        other.permissions.add(Permission.objects.get(content_type__app_label="auth", codename="view_group"))
+        self.student.groups.add(other)
+        self.student.user_permissions.add(Permission.objects.get(content_type__app_label="auth", codename="add_group"))
+        member_client = SecureAPIClient(SERVER_NAME=self.get_test_tenant_domain())
+        member_client.force_login(self.student, backend="sis_common.group_backends.ActiveGroupModelBackend")
+        session_key = member_client.cookies[settings.SESSION_COOKIE_NAME].value
+        role, staff = self.student.role, self.student.is_staff
+        assert not GroupLifecycle.objects.filter(group=group).exists()
+        assert self.client.get(f"{BASE}groupes/{group.pk}/").data["actif"] is True
+        assert (
+            next(row for row in self.client.get(f"{BASE}groupes/").data["results"] if row["id"] == group.pk)["actif"]
+            is True
+        )
+
+        for actif in (True, False, True):
+            with self.subTest(actif=actif):
+                if GroupLifecycle.objects.filter(group=group).exists() or not actif:
+                    self.client.force_authenticate(Utilisateur.objects.get(pk=self.admin.pk))
+                    response = self.client.patch(f"{BASE}groupes/{group.pk}/", {"actif": actif}, format="json")
+                    assert response.status_code == 200, response.data
+                    assert response.data["actif"] is actif
+                    event = self._batch_events(group).latest("pk")
+                    assert event.metadata["before"]["actif"] is not actif
+                    assert event.metadata["after"]["actif"] is actif
+                assert list(group.permissions.values_list("pk", flat=True)) == [self.grant.pk]
+                assert list(group.user_set.values_list("pk", flat=True)) == [self.student.pk]
+                current = Utilisateur.objects.get(pk=self.student.pk)
+                assert current.has_perm("utilisateurs.view_utilisateur") is actif
+                assert current.has_module_perms("utilisateurs") is actif
+                assert ("utilisateurs.view_utilisateur" in current.get_group_permissions()) is actif
+                assert current.has_perm("auth.view_group")
+                assert current.has_perm("auth.add_group")
+                profile = member_client.get(f"{BASE}comptes/me/")
+                assert profile.status_code == 200, profile.data
+                assert set(profile.data["groups"]) == {group.pk, other.pk}
+                assert (profile.data["role"], profile.data["is_staff"]) == (role, staff)
+                snapshot = member_client.get(f"{BASE}comptes/capabilities/")
+                assert snapshot.status_code == 200, snapshot.data
+                assert ("utilisateurs.view_utilisateur" in snapshot.data["permissions"]) is actif
+                assert {"auth.view_group", "auth.add_group"} <= set(snapshot.data["permissions"])
+                assert (group.name in snapshot.data["groups"]) is actif
+                assert member_client.cookies[settings.SESSION_COOKIE_NAME].value == session_key
+
+    def test_inactive_group_authoring_preserves_state_and_restores_only_current_grants(self):
+        group = Group.objects.create(name="disabled-editable")
+        group.permissions.add(self.grant)
+        self.student.groups.add(group)
+        GroupLifecycle.objects.create(group=group, actif=False)
+        replacement = Permission.objects.get(content_type__app_label="auth", codename="view_group")
+        for method in ("patch", "put"):
+            self.client.force_authenticate(Utilisateur.objects.get(pk=self.admin.pk))
+            response = getattr(self.client, method)(
+                f"{BASE}groupes/{group.pk}/",
+                {"name": group.name, "permissions": [replacement.pk]},
+                format="json",
+            )
+            assert response.status_code == 200, response.data
+            assert response.data["actif"] is False
+            assert not Utilisateur.objects.get(pk=self.student.pk).has_perm("auth.view_group")
+        response = self.client.patch(f"{BASE}groupes/{group.pk}/", {"actif": True}, format="json")
+        assert response.status_code == 200, response.data
+        current = Utilisateur.objects.get(pk=self.student.pk)
+        assert current.has_perm("auth.view_group")
+        assert not current.has_perm("utilisateurs.view_utilisateur")
+        assert list(group.user_set.values_list("pk", flat=True)) == [self.student.pk]
+        response = self.client.post(f"{BASE}groupes/", {"name": "born-disabled", "actif": False}, format="json")
+        assert response.status_code == 201, response.data
+        assert response.data["actif"] is False
+        assert GroupLifecycle.objects.get(group_id=response.data["id"]).actif is False
+
+    def test_activation_guards_include_membership_scopes_and_object_grants(self):
+        group = Group.objects.create(name="guarded-lifecycle")
+        group.permissions.add(self.grant)
+        self.admin.groups.add(group)
+        event_count = WorkflowEvent.objects.count()
+        for actif in (False, True):
+            GroupLifecycle.objects.update_or_create(group=group, defaults={"actif": not actif})
+            assert self.client.patch(f"{BASE}groupes/{group.pk}/", {"actif": actif}).status_code == 403
+            assert GroupLifecycle.objects.get(group=group).actif is not actif
+        GroupLifecycle.objects.filter(group=group).delete()
+        self.admin.groups.remove(group)
+        group.permissions.add(self.forbidden)
+        for actif in (False, True):
+            assert self.client.patch(f"{BASE}groupes/{group.pk}/", {"actif": actif}).status_code == 403
+        group.permissions.remove(self.forbidden)
+        self.admin.attributs_acces = {"permission_scopes": {"utilisateurs.view_utilisateur": {"classes": [1]}}}
+        self.admin.save(update_fields=["attributs_acces"])
+        self.client.force_authenticate(Utilisateur.objects.get(pk=self.admin.pk))
+        assert self.client.patch(f"{BASE}groupes/{group.pk}/", {"actif": False}).status_code == 403
+        self.admin.attributs_acces = {}
+        self.admin.save(update_fields=["attributs_acces"])
+        self.client.force_authenticate(Utilisateur.objects.get(pk=self.admin.pk))
+        assign_perm(self.forbidden, group, self.forbidden)
+        for actif in (False, True):
+            assert self.client.patch(f"{BASE}groupes/{group.pk}/", {"actif": actif}).status_code == 400
+        assert not GroupLifecycle.objects.filter(group=group).exists()
+        assert WorkflowEvent.objects.count() == event_count
+
+    def test_lifecycle_audit_failure_rolls_back_state_and_memberships(self):
+        group = Group.objects.create(name="activation-audit-atomic")
+        group.permissions.add(self.grant)
+        self.student.groups.add(group)
+        for previous in (None, True, False):
+            if previous is not None:
+                GroupLifecycle.objects.update_or_create(group=group, defaults={"actif": previous})
+            desired = previous is False
+            event_count = WorkflowEvent.objects.count()
+
+            def failing_audit(request, instance, *args, **kwargs):
+                assert GroupLifecycle.objects.get(group=group).actif is desired
+                assert kwargs["metadata"]["before"]["actif"] is (previous is not False)
+                assert kwargs["metadata"]["after"]["actif"] is desired
+                record_workflow_event(request, instance, *args, **kwargs)
+                raise RuntimeError("lifecycle audit failure")
+
+            with patch("sis_common.group_audit.record_workflow_event", side_effect=failing_audit):
+                with self.assertRaisesMessage(RuntimeError, "lifecycle audit failure"):
+                    self.client.patch(f"{BASE}groupes/{group.pk}/", {"actif": desired}, format="json")
+            assert GroupLifecycle.objects.filter(group=group).exists() is (previous is not None)
+            if previous is not None:
+                assert GroupLifecycle.objects.get(group=group).actif is previous
+            assert list(group.user_set.values_list("pk", flat=True)) == [self.student.pk]
+            assert list(group.permissions.values_list("pk", flat=True)) == [self.grant.pk]
+            assert Utilisateur.objects.get(pk=self.student.pk).has_perm("utilisateurs.view_utilisateur") is (
+                previous is not False
+            )
+            assert WorkflowEvent.objects.count() == event_count
 
     def test_out_of_scope_and_scoped_permissions_cannot_be_delegated(self):
         event_count = WorkflowEvent.objects.count()
@@ -249,6 +389,7 @@ class GroupAuthoringTests(TenantAPITestCase):
                 response = self.client.post(f"{BASE}groupes/{group.pk}/{action}/", {"user_id": target.pk})
                 assert response.status_code == 404, response.data
         self.client.force_authenticate(outsider)
+        assert self.client.patch(f"{BASE}groupes/{group.pk}/", {"actif": False}).status_code == 403
         assert self.client.post(f"{BASE}groupes/", {"name": "foreign-write"}).status_code == 403
         assert self.client.get(f"{BASE}groupes/").status_code == 403
         assert not Group.objects.filter(name="foreign-write").exists()
@@ -500,12 +641,21 @@ class GroupSchemaIsolationTests(TenantAPITestCase):
             super().tearDownClass()
 
     def test_groups_are_isolated_between_real_tenant_schemas(self):
-        Group.objects.create(name="only-in-primary")
+        primary_group = Group.objects.create(name="only-in-primary")
+        GroupLifecycle.objects.create(group=primary_group, actif=False)
+        primary_user = Utilisateur.objects.create_user("primary-lifecycle-member", etablissement=self.tenant)
+        primary_user.groups.add(primary_group)
+        primary_group.permissions.add(Permission.objects.get(content_type__app_label="auth", codename="view_group"))
         with schema_context(self.peer.schema_name):
             peer_admin = Utilisateur.objects.create_superuser(
                 "peer-group-admin", role="super_admin", etablissement=self.peer
             )
-            Group.objects.create(name="only-in-peer")
+            peer_group = Group.objects.create(name="only-in-peer", pk=primary_group.pk)
+            peer_user = Utilisateur.objects.create_user("peer-lifecycle-member", etablissement=self.peer)
+            peer_user.groups.add(peer_group)
+            peer_group.permissions.add(Permission.objects.get(content_type__app_label="auth", codename="view_group"))
+            assert not GroupLifecycle.objects.filter(group=peer_group).exists()
+            assert Utilisateur.objects.get(pk=peer_user.pk).has_perm("auth.view_group")
         with override_settings(ALLOWED_HOSTS=[*settings.ALLOWED_HOSTS, self.domain]):
             client = APIClient(SERVER_NAME=self.domain)
             client.force_authenticate(peer_admin)
@@ -514,7 +664,12 @@ class GroupSchemaIsolationTests(TenantAPITestCase):
             names = {item["name"] for item in response.data["results"]}
             assert "only-in-peer" in names
             assert "only-in-primary" not in names
+            response = client.patch(f"{BASE}groupes/{peer_group.pk}/", {"actif": True}, secure=True)
+            assert response.status_code == 200, response.data
+            assert response.data["actif"] is True
         connection.set_tenant(self.tenant)
+        assert GroupLifecycle.objects.get(group=primary_group).actif is False
+        assert not Utilisateur.objects.get(pk=primary_user.pk).has_perm("auth.view_group")
         admin = Utilisateur.objects.create_superuser(
             "primary-group-admin", role="super_admin", etablissement=self.tenant
         )

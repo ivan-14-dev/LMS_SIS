@@ -14,6 +14,9 @@ class FakeGroups:
     def __init__(self, names):
         self.names = names
 
+    def filter(self, **_lookups):
+        return self
+
     def order_by(self, _field):
         return self
 
@@ -171,7 +174,12 @@ class AuthorizationTests(SimpleTestCase):
         }
         user = FakeUser(permissions=["diplomes.change_cessiondiplome"])
 
-        assert has_business_permission_or_role(user, "releves.change_transcript", configuration=configuration, tenant_group_codes=("document_signatory_superieur",))
+        assert has_business_permission_or_role(
+            user,
+            "releves.change_transcript",
+            configuration=configuration,
+            tenant_group_codes=("document_signatory_superieur",),
+        )
 
     def test_request_helper_reads_tenant_configuration(self):
         configuration = {
@@ -189,7 +197,9 @@ class AuthorizationTests(SimpleTestCase):
             configuration,
         )
 
-        assert request_has_business_access(request, "examens.view_convocationexamen", tenant_group_codes=("exam_manager_secondary",))
+        assert request_has_business_access(
+            request, "examens.view_convocationexamen", tenant_group_codes=("exam_manager_secondary",)
+        )
 
     def test_request_helper_supports_new_workflow_groups(self):
         configuration = {
@@ -207,7 +217,9 @@ class AuthorizationTests(SimpleTestCase):
             configuration,
         )
 
-        assert request_has_business_access(request, "memoires.change_jurymemoire", tenant_group_codes=("memoire_manager_superieur",))
+        assert request_has_business_access(
+            request, "memoires.change_jurymemoire", tenant_group_codes=("memoire_manager_superieur",)
+        )
 
     def test_request_helper_supports_core_management_groups(self):
         configuration = {
@@ -225,7 +237,9 @@ class AuthorizationTests(SimpleTestCase):
             configuration,
         )
 
-        assert request_has_business_access(request, "etudiants.change_inscriptionadministrative", tenant_group_codes=("student_manager_superieur",))
+        assert request_has_business_access(
+            request, "etudiants.change_inscriptionadministrative", tenant_group_codes=("student_manager_superieur",)
+        )
 
     def test_request_helper_supports_remaining_management_groups(self):
         configuration = {
@@ -243,7 +257,9 @@ class AuthorizationTests(SimpleTestCase):
             configuration,
         )
 
-        assert request_has_business_access(request, "recherche.change_these", tenant_group_codes=("research_manager_superieur",))
+        assert request_has_business_access(
+            request, "recherche.change_these", tenant_group_codes=("research_manager_superieur",)
+        )
 
     def test_request_helper_supports_legacy_read_roles(self):
         request = FakeRequest(FakeUser())

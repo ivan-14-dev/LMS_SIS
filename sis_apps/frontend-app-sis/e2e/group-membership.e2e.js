@@ -51,6 +51,21 @@ async function postBatch(page, apiOrigin, groupId, ids) {
   });
 }
 
+async function setGroupActive(page, group, active) {
+  const label = `${group.name}${active ? ' (désactivé)' : ''}`;
+  await page.getByRole('button', { name: label, exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Groupe actif', exact: true }).setChecked(active);
+  const response = page.waitForResponse(item => (
+    item.request().method() === 'PATCH'
+    && new URL(item.url()).pathname === `/api/v1/utilisateurs/groupes/${group.id}/`
+  ));
+  await page.getByRole('button', { name: 'Enregistrer le groupe', exact: true }).click();
+  const result = await response;
+  expect(result.status(), await result.text()).toBe(200);
+  expect((await result.json()).actif).toBe(active);
+  await expect(page.getByText('Groupe enregistré.', { exact: true })).toBeVisible();
+}
+
 for (const variant of variants) {
   test(`${variant}: real group audit, duplication, atomic batches and learner denial`, async ({
     page, browser,
@@ -124,6 +139,65 @@ for (const variant of variants) {
       expect(await accountGroups()).toEqual(before);
     } finally {
       await context.close();
+    }
+  });
+
+  test(`${variant}: group deactivation revokes an existing learner session without removing memberships`, async ({
+    page, browser,
+  }) => {
+    const { fixture, credentials, apiOrigin } = loadGradeFixture(variant);
+    await login(page, variant, credentials.username, credentials.password);
+    await page.goto(`/admin/utilisateurs?sis=${variant}`);
+    await page.getByRole('tab', { name: 'Groupes et permissions', exact: true }).click();
+    await page.getByRole('button', { name: 'Créer un groupe', exact: true }).click();
+    await page.getByRole('checkbox', { name: /\(view_utilisateur\)$/ }).check();
+    const group = await saveGroup(page, `Reversible group ${variant} ${Date.now()}`);
+    expect(group.actif).toBe(true);
+    const api = authenticatedApi(page, variant);
+    const context = await browser.newContext({ baseURL: process.env.SIS_E2E_URL });
+    try {
+      const learnerPage = await context.newPage();
+      await login(learnerPage, variant, fixture.learnerUsername, credentials.password);
+      const capabilities = async () => {
+        const result = await learnerPage.request.get(`${apiOrigin}/api/v1/utilisateurs/comptes/capabilities/`);
+        expect(result.status()).toBe(200);
+        return result.json();
+      };
+      expect((await capabilities()).permissions).not.toContain('utilisateurs.view_utilisateur');
+      await page.getByRole('button', { name: group.name, exact: true }).click();
+      await selectBatch(page, fixture.groupUserNames);
+      await page.getByRole('button', { name: 'Ajouter la sélection au groupe', exact: true }).click();
+      await expect(page.getByText('Affectation en lot enregistrée.', { exact: true })).toBeVisible();
+      const memberGroups = (await api(`utilisateurs/comptes/${fixture.groupUserIds[0]}/`)).groups;
+      expect(memberGroups).toContain(group.id);
+      const peerUrl = `${apiOrigin}/api/v1/utilisateurs/comptes/${fixture.groupUserIds[1]}/`;
+      expect((await learnerPage.request.get(peerUrl)).status()).toBe(200);
+      const activeCapabilities = await capabilities();
+      expect(activeCapabilities.permissions).toContain('utilisateurs.view_utilisateur');
+      expect(activeCapabilities.groups).toContain(group.name);
+
+      await setGroupActive(page, group, false);
+      expect((await learnerPage.request.get(peerUrl)).status()).toBe(404);
+      const disabledCapabilities = await capabilities();
+      expect(disabledCapabilities.permissions).not.toContain('utilisateurs.view_utilisateur');
+      expect(disabledCapabilities.groups).not.toContain(group.name);
+      expect((await api(`utilisateurs/comptes/${fixture.groupUserIds[0]}/`)).groups).toEqual(memberGroups);
+      const disabled = await api(`utilisateurs/groupes/${group.id}/`);
+      expect(disabled.actif).toBe(false);
+      expect(disabled.permissions).toEqual(group.permissions);
+
+      await setGroupActive(page, group, true);
+      expect((await learnerPage.request.get(peerUrl)).status()).toBe(200);
+      const restoredCapabilities = await capabilities();
+      expect(restoredCapabilities.permissions).toContain('utilisateurs.view_utilisateur');
+      expect(restoredCapabilities.groups).toContain(group.name);
+      expect((await api(`utilisateurs/comptes/${fixture.groupUserIds[0]}/`)).groups).toEqual(memberGroups);
+    } finally {
+      try {
+        await api(`utilisateurs/groupes/${group.id}/unassign_many/`, 'POST', { user_ids: fixture.groupUserIds });
+      } finally {
+        await context.close();
+      }
     }
   });
 }

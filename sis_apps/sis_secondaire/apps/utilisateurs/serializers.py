@@ -2,12 +2,14 @@
 
 from django.contrib.auth.models import Group, Permission
 from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 from rest_framework import serializers
 
 from sis_common.authorization import can_delegate_permissions, validate_account_authorization_changes
+from sis_common.group_backends import group_is_active, group_object_permissions
 from sis_common.serializers import TenantBoundSerializerMixin
 
-from .models import Utilisateur
+from .models import GroupLifecycle, Utilisateur
 
 
 class PermissionSerializer(serializers.ModelSerializer):
@@ -19,9 +21,38 @@ class PermissionSerializer(serializers.ModelSerializer):
 
 
 class GroupSerializer(serializers.ModelSerializer):
+    actif = serializers.BooleanField(required=False)
+
     class Meta:
         model = Group
-        fields = ["id", "name", "permissions"]
+        fields = ["id", "name", "permissions", "actif"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["actif"] = group_is_active(instance)
+        return data
+
+    def validate_actif(self, value):
+        if self.instance is not None and not can_delegate_permissions(
+            self.context["request"].user, group_object_permissions(self.instance)
+        ):
+            raise serializers.ValidationError("Les permissions objet de ce groupe dépassent votre périmètre.")
+        return value
+
+    @transaction.atomic
+    def create(self, validated_data):
+        actif = validated_data.pop("actif", True)
+        group = super().create(validated_data)
+        GroupLifecycle.objects.create(group=group, actif=actif)
+        return group
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        actif = validated_data.pop("actif", None)
+        group = super().update(instance, validated_data)
+        if actif is not None:
+            GroupLifecycle.objects.update_or_create(group=group, defaults={"actif": actif})
+        return group
 
     def validate_permissions(self, permissions):
         if not can_delegate_permissions(self.context["request"].user, permissions):

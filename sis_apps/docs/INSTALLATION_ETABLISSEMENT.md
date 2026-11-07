@@ -1558,6 +1558,52 @@ sur la nouvelle base**. Restaurer le snapshot complet dans un projet isolé avec
 la version précédente, vérifier les données puis basculer le routage. Documenter
 les écritures effectuées depuis le snapshot avant de décider du retour arrière.
 
+### Désactivation réversible des groupes
+
+La migration `utilisateurs.0006_group_lifecycle` des deux SIS ajoute l'état
+`actif` des groupes de permissions. L'absence de ligne pour un ancien groupe
+signifie **actif** : aucun membre ni droit configuré n'est supprimé ou recopié.
+Appliquer la migration dans tous les schémas concernés, applications arrêtées,
+avant de démarrer la nouvelle image. Une table manquante est une erreur de
+migration, pas une raison de rétablir les anciens backends.
+
+Les nouveaux backends `sis_common.group_backends.ActiveGroupModelBackend` et
+`ActiveGroupObjectPermissionBackend` filtrent les groupes désactivés dans les
+contrôles Django et les permissions objet Guardian. Ne pas ajouter les backends
+standards en parallèle : ils réaccorderaient les droits désactivés. Les anciennes
+sessions Django contenant l'ancien chemin de backend nécessitent une nouvelle
+connexion ; prévenir les utilisateurs avant la bascule. Les droits sont recalculés
+à chaque requête avec un utilisateur fraîchement chargé, sans changer le rôle
+métier, `is_staff`, les permissions directes ou les autres groupes actifs.
+Cela ne révoque pas des privilèges LMS attribués indépendamment.
+
+La version de Guardian livrée ne reconnaît que le chemin exact de son backend
+standard : `manage.py check` signale donc `guardian.W001` pour ce backend dérivé.
+Ne pas appliquer sa suggestion d'ajouter le backend standard. Cet avertissement
+ne remplace pas la qualification des droits modèle et objet décrite ci-dessous.
+
+Les caches Django restent locaux à une instance utilisateur. Un traitement long
+doit recharger cette instance avant une nouvelle décision d'accès. Les raccourcis
+Guardian appelés directement, tels que `get_objects_for_user` ou
+`ObjectPermissionChecker`, ne passent pas par ces backends : ne pas les introduire
+comme substituts aux contrôles de l'application sans intégrer ce filtrage.
+
+Le snapshot de capacités exclut également les noms des groupes Django désactivés,
+pour ne pas les présenter aux écrans comme des capacités actives. Les listes
+d'appartenance des comptes conservent leurs identifiants. Les groupes définis dans
+la configuration académique restent calculés à partir de leurs propres conditions
+(permissions et attributs) : un droit direct ou un autre groupe actif peut donc
+continuer de les satisfaire.
+
+Qualifier sur la copie isolée : groupe ancien actif, désactivation avec conservation
+des membres/permissions, refus d'accès dans une session déjà ouverte, puis
+réactivation et audit avant/après. **Un retour à une image antérieure ignore cet
+état et peut réaccorder les droits des groupes désactivés**. Conserver en maintenance
+l'ensemble données/image compatible jusqu'à validation d'une restauration et
+d'une revue des révocations ; ne pas annuler cette migration pour contourner un refus.
+
+### Dépendances applicatives
+
 Le backend utilise Python 3.12, Django 5.2 LTS et `requirements.lock` avec
 empreintes de tous les paquets. Pour une mise à jour de dépendances en développement :
 
