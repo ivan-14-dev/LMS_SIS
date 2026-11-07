@@ -577,6 +577,20 @@ Les deux anciens fichiers Studio examinés par un agent distinct sont
 rapports rouges et le dernier essai à 500 (**500 timeouts,
 262 écritures indéterminées**) restent intacts ; aucun statut n'est promu.
 
+**Complément Studio du 7 novembre 2026 à 07:00:50 UTC : qualification
+bloquée, pas de livraison.** Deux approches sur un réseau interne et une
+base MySQL jetables ont échoué avant l'exécution des tests : les migrations
+CMS complètes exigent MongoDB, absent de cette fixture ; la synchronisation
+des modèles sans migrations dépasse la limite MySQL de longueur d'index
+pour `oel_tagging_tag.lineage`. **12 tests détectés, aucun exécuté** :
+ni le refus de reprise après révocation des droits Studio, ni les verrous
+consultatifs ne sont qualifiés. Les deux fichiers existants restent
+inchangés et non publiés. Conteneurs, volume, réseau et dossier temporaires
+ont été supprimés ; aucun service partagé n'a été modifié.
+Le rapport de session `wave18-cms-qualification-d0c25c75/report.json`
+(SHA-256 `2a0171010d4725fdb52a983de1edd9ea7b8fce039c016be0103350945c19b752`)
+conserve commandes, erreurs et limites. F07 n'est pas clôturé.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
