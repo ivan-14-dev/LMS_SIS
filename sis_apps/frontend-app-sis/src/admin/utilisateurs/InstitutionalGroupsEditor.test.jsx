@@ -118,6 +118,42 @@ it('adds and removes a user through the group assignment endpoints without PATCH
   expect(patchApi).not.toHaveBeenCalled();
 });
 
+it('duplicates readable permissions into a new editable group without modifying the source or copying members', async () => {
+  renderEditor(['auth.view_group', 'auth.add_group']);
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  expect(screen.getByRole('textbox', { name: 'Nom du groupe' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Dupliquer le groupe' }));
+  expect(screen.getByRole('textbox', { name: 'Nom du groupe' })).toHaveValue('Équipe examens (copie)');
+  expect(screen.getByRole('checkbox', { name: /Voir les notes/ })).toBeChecked();
+  expect(screen.queryByRole('region', { name: 'Affectation des comptes' })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Nom du groupe' }), { target: { value: 'Équipe corrections' } });
+  fireEvent.click(screen.getByRole('checkbox', { name: /Modifier les notes/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le groupe' }));
+  await waitFor(() => expect(postApi).toHaveBeenCalledWith(groupsUrl, {
+    name: 'Équipe corrections', permissions: [11, 12],
+  }));
+  expect(patchApi).not.toHaveBeenCalled();
+  expect(groups).toEqual([{ id: 7, name: 'Équipe examens', permissions: [11] }]);
+  expect(fetchAllResourcePages).not.toHaveBeenCalledWith(usersUrl);
+});
+
+it.each([
+  [['auth.view_group'], {}],
+  [allowed, { permission_scopes: { 'auth.add_group': { etablissement: [1] } } }],
+])('does not offer duplication without an unrestricted group creation grant', async (grants, attributes) => {
+  renderEditor(grants, attributes);
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  expect(screen.queryByRole('button', { name: 'Dupliquer le groupe' })).not.toBeInTheDocument();
+});
+
+it('refuses to duplicate a group whose permission list was not supplied by the server', async () => {
+  groups = [{ id: 7, name: 'Équipe examens' }];
+  renderEditor();
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  expect(screen.getByText(/Les permissions de ce groupe ne sont pas disponibles/)).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Dupliquer le groupe' })).not.toBeInTheDocument();
+});
+
 it('preserves the accounts tab and refuses unauthorized group and membership changes', async () => {
   renderPage({ capabilities: { permissions: ['auth.view_group'] } });
   fireEvent.click(screen.getByRole('tab', { name: 'Comptes' }));

@@ -87,9 +87,9 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
     );
   }
 
-  const choose = (item) => {
-    setSelectedId(item?.id ?? 'new');
-    setName(item?.name ?? '');
+  const choose = (item, duplicate = false) => {
+    setSelectedId(duplicate ? 'new' : item?.id ?? 'new');
+    setName(duplicate ? `${item.name} (copie)` : item?.name ?? '');
     setPermissionIds(ids(item?.permissions) ?? []);
     setUserId('');
     setSelectionError('');
@@ -140,6 +140,11 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
           <Typography component="h3" variant="subtitle1" gutterBottom>
             {selectedId === 'new' ? 'Nouveau groupe' : `Modifier ${group?.name || 'le groupe'}`}
           </Typography>
+          {selectedId !== 'new' && group && canAdd && permissionsAvailable && (
+            <Button type="button" disabled={busy} onClick={() => choose(group, true)} sx={{ mb: 2 }}>
+              Dupliquer le groupe
+            </Button>
+          )}
           <TextField
             label="Nom du groupe"
             value={name}
