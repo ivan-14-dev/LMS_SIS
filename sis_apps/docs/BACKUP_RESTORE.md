@@ -135,3 +135,37 @@ valider régulièrement (au minimum trimestriellement) le cycle complet :
   stockage distant) n'est fournie ici : ces scripts sont le socle à intégrer
   dans l'outillage d'exploitation (cron, CI/CD, opérateur Kubernetes) propre à
   chaque environnement de déploiement.
+
+## Qualification ciblée des projets entre établissements
+
+`sis_common/tests/test_project_tenant_isolation.py` crée deux schémas PostgreSQL
+réellement migrés et peuplés, avec des identifiants utilisateurs entiers
+volontairement identiques, des gestionnaires, évaluateurs et apprenants nonstaff.
+Il contrôle les Hosts, les candidats, les commandes, les fichiers privés, le
+rejeu de session et la désactivation locale du module. Son nettoyage cible
+uniquement ses deux schémas à nom unique et leurs propres lignes de registre ;
+il ne lance aucun `flush` et ne réutilise pas `fast_test`.
+
+Dans l'environnement de tests PostgreSQL configuré de **chaque** variante :
+
+```bash
+# Depuis sis_apps/sis_secondaire, puis sis_apps/sis_superieur :
+python manage.py test sis_common.tests.test_project_tenant_isolation --noinput
+```
+
+Cette régression ne prouve pas une restauration. Pour la qualifier séparément,
+figer les écritures, comparer par SHA les tables brutes de tous les schémas
+(comptes, droits, MFA comprise), sauvegarder puis restaurer la base entière
+**et** `PRIVATE_EXAM_STORAGE_ROOT` dans une base et un volume indépendants.
+La comparaison MFA doit inclure un compte synthétique sans droit métier,
+réellement enrôlé par `sis_common.mfa.begin_enrollment` puis
+`confirm_enrollment` avec un TOTP valide. Conserver la clé de chiffrement
+synthétique nécessaire à sa lecture, sans l'inclure dans les reçus.
+
+Comparer les empreintes **avant** les vérifications HTTP : les connexions
+modifient légitimement les données de session et les téléchargements privés
+ajoutent de vrais événements d'audit. Après ces contrôles positifs, relever une
+nouvelle référence pour vérifier que les demandes refusées ne changent ni
+projets, ni versions, ni historique. Les tests de code seuls, ou une recréation
+avec les mêmes volumes, ne constituent pas une preuve de restauration et ne
+changent pas le statut de recette.
