@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-07T15:48:28+00:00",
+  "last_evidence_update_at": "2026-11-07T16:46:20+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -3439,10 +3439,327 @@
         "Vague25projets en implémentation/revue dans worktreeisolé,SQL/UIencours selonparent :aucun fichier consulté,aucunequalification25 importée.",
         "Politiques,preuves22/23 et rapportsrougeshistoriques conservés ;premier full24 reste rouge,aucun500neuf,dernier500 rouge500timeouts/262écritures indéterminées."
       ]
+    },
+    {
+      "id": "EXEC-20261107-wave25-projects-provisional-qualification",
+      "evidence_cutoff_at": "2026-11-07T16:35:02+00:00",
+      "qualification_status": "in_progress_not_published",
+      "scope": "Préparation des preuves projets25 dans le seul worktree dédié ; passage explicitement autorisé de10.5 absent à partial, aucune autre promotion. Code non committé, image standard de base qualifiée partiellement, correction ultérieure du manifeste et qualification finale attendues.",
+      "provenance": "Artefacts session lus/hachés et critères confrontés au code/tests/contrat de travail, sans les modifier. Base worktree a5e0797, pas SHA de l'incrément25. Rapport image-source à12 fichiers conservé ;relecture actuelle11/12 identiques, seule ligne ui=(projets,) ajoutée à module_registry.py confirmée par hash après retrait en mémoire. Aucun test/build/lint/service/commit/push lancé pour cet import ;infrastructure/qualité sans log dédié attribuées au parent.",
+      "source_worktree": "/home/mr-dev/work/lms_sis/LMS_SIS-wave25-projects",
+      "source_base_commit": "a5e079716cd0bc6c551c0c094da1681c0df516bf",
+      "code_commit": null,
+      "application_changes_committed": false,
+      "published_commits": [],
+      "count_policy": "Quatre campagnes documentaires provisoires :backend standard de base,UI/build,navigateurs de base,persistance après recréation.23tests/2sous-tests ciblés parSIS et intégrale secondaire830/496 se chevauchent ;supérieur intégral en cours. PremierUI117verts/1échec puis24/24 sur2suites,pas relance5suites. Un browser par variante ;six rouges secondaires antérieurs conservés. Aucun total dédupliqué ni succès final de vague25 déduit.",
+      "requirement_status_transition": {
+        "requirement_id": "10.5",
+        "from": "absent",
+        "to": "partial",
+        "authority": "Passage explicitement autorisé par le parent pour la fonction principale réellement implémentée ;pas verified,ni clôture des F-lots ou des autres exigences.",
+        "previous_assessment": {
+          "id": "10.5",
+          "title": "Gestion des projets",
+          "source_lines": [918, 918],
+          "source_id_kind": "synthetic_row_id",
+          "required_behaviors": ["Organise les projets individuels et collectifs, leurs étapes, livrables et évaluations."],
+          "f_lots": ["F08", "F18", "F25"],
+          "existing_evidence": ["sis_apps/sis_superieur/apps/memoires/models.py:64", "sis_apps/sis_superieur/apps/recherche/models.py:51"],
+          "test_evidence": [],
+          "existing_scope": "Mémoires et projets de recherche sont des domaines voisins; aucun gestionnaire de projets pédagogiques individuels/collectifs avec jalons/livrables identifié.",
+          "test_scope": "Aucun scénario directement probant identifié dans le périmètre inspecté; aucun test exécuté.",
+          "status": "absent",
+          "top_missing_pieces": ["Projets pédagogiques, équipes, étapes/échéances, livrables et évaluations.", "Lien cours/compétences/notes, contributions individuelles et permissions de groupe."],
+          "acceptance_checks": ["Créer un projet collectif, assigner jalons, déposer livrables et évaluer contributions et groupe.", "Un membre d'autre équipe ne peut consulter ni modifier les livrables privés."],
+          "execution_evidence": [],
+          "acceptance_execution_status": "not_run"
+        },
+        "required_behavior_assessment": "Projetsindividuels/collectifs,équipes,jalons/échéances,PDFprivés/révisions,évaluations/contributions/publication humaine implémentés danslesdeuxSIS. Modeindividuel testéAPI ;collectif exercéAPI/UI/browser,aucun browserindividuel revendiqué.",
+        "acceptance_check_assessments": [
+          {"check": "Créer un projet collectif, assigner jalons, déposer livrables et évaluer contributions et groupe.", "result": "bounded_base_image_api_and_browser_passed", "evidence": "test_projects.py:306 et projects.e2e.js:92 ;deuxéquipes,membres,jalon,PDFxref/SHA/remisetardive,brouilloninvisible,publicationhumaine,seulecontributionpropre. GETaprèsrecréation confirme les objets/fichier/évaluation."},
+          {"check": "Un membre d'autre équipe ne peut consulter ni modifier les livrables privés.", "result": "bounded_same_project_cross_team_read_and_post_denial_passed", "evidence": "test_projects.py:355 refuseGETfichier/listes etPOSTprivé avantparsing ;browserautreéquipe404,mêmeprojet,aucune fuite du PDF/contribution. Pas preuve exhaustive tousrôles/multi-tenant au navigateur."}
+        ],
+        "not_verified_reason": "Lienscours/classes/ECUE/compétences/notesofficielles/LMS non réalisés. Qualification finale en attente :intégralesupérieure,SHAcode,image après ui=(projets,),recontrôlesmodules/registre/projets et nouveauxnavigateurs. Pas réceptionétablissement ni déploiementpartagé.",
+        "current_counts": {"verified": 1, "partial": 72, "absent": 19, "unverified": 2},
+        "other_93_statuses_unchanged": true
+      },
+      "qualification_environment": {
+        "backend_image": "lms-sis:qualification-wave25-release-d0c25c75",
+        "backend_image_digest": "sha256:febf3c0fffb0a3ed540a0e84526807883a82eec05d9292820c3d2e0de46da391",
+        "backend_image_scope": "standard_base_before_manifest_ui_registration_not_final",
+        "standard_dockerfile_changed": false,
+        "standard_runner_has_tmpdir_override": false,
+        "backend_application_source_overlay": false,
+        "suite_runner_mounts": ["scripts:/app/scripts:ro", "frontend-app-sis/src/services/api.js:/app/frontend-app-sis/src/services/api.js:ro"],
+        "browser_server_mounts": "private_data_volume_and_synthetic_settings_only",
+        "image_source_files_matched_at_report_cutoff": 12,
+        "image_source_files_matching_current_worktree": 11,
+        "sole_known_backend_difference": "sis_common/module_registry.py :ui=(\"projets\",) ;retirer cette seule ligne en mémoire restitue exactement le hash du rapport.",
+        "frontend_bundle_after_manifest_fix": "unchanged_parent_attestation",
+        "pending_final_image": "lms-sis:qualification-wave25-final-d0c25c75",
+        "final_image_digest": null,
+        "fixture_databases": "dedicated_synthetic_wave25_clones_of_wave21_not_shared",
+        "restart_scope": "API_containers_stopped_and_recreated_on_same_private_volumes_base_image",
+        "api_nginx_helpers_stopped": "attested_by_parent_not_reprobed_here",
+        "full_school_base_suite": "passed",
+        "full_university_base_suite": "in_progress_result_not_imported",
+        "shared_deployment_or_institutional_acceptance": false,
+        "limits": "febf3c0 et ses navigateurs/persistance sont preuves de base,non preuve de l'image finale après correction du manifeste. Ancienne imageSQL dérivée et TMPDIR ne qualifient pas l'installation standard."
+      },
+      "f_lot_links": [
+        {"id": "F08", "scope": "Projets pédagogiques bornés implémentés,lienscours/classes/ECUE/compétences/LMS encore absents.", "roadmap_status_unchanged": true},
+        {"id": "F18", "scope": "Jalons/livrables/évaluations de projets,distincts des notesofficielles et du cycle complet des stages.", "roadmap_status_unchanged": true},
+        {"id": "F25", "scope": "Accès privé paréquipe et contributionpersonnelle testés,aucune clôture du lot ni recetteinstitutionnelle.", "roadmap_status_unchanged": true}
+      ],
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "standard-runner": {"path": "wave25-standard-container.sh", "sha256": "fe05c27bad01eeddac4adeeeca844e42e8e5f58ce20ad20fb1253b14553f9cc9", "source_lines": [1, 20], "scope": "Runner observé au cutoff,sansTMPDIR,avec override WAVE25_IMAGE ;ne prouve pas une exécution sur l'image finale."},
+        "base-image-source-comparison": {"path": "wave25-image-source-comparison.json", "sha256": "6a96c2a594ddea58020f3a93c3bea1d98c7e562eb5edfdedfea0ed3dd9d53f3b", "source_lines": [1, 19]},
+        "school-standard-targeted": {"path": "wave25-secondaire-standard.log", "sha256": "90400c985c855d9aa05c9a696e46fd614b62b6ae8124211749cf39df99430264", "source_lines": [1, 13]},
+        "university-standard-targeted": {"path": "wave25-superieur-standard.log", "sha256": "ce644af4b13d87741b5c2eba1d1a17fa298b36394fa57f7a7f728ed0db425282", "source_lines": [1, 13]},
+        "school-full-base": {"path": "wave25-secondaire-full-standard.log", "sha256": "497dd17a76f23e9b4dfd7a045d953193553c659398be097c47388214066b18c4", "source_lines": [1, 12]},
+        "derived-sql-provenance-intermediate": {"path": "wave25-projects-sql-provenance.json", "sha256": "a17d26492b3ece1debb03addc025c8b6c0f6261c1cc5b4cc4dcf5420b355f37b", "source_lines": [1, 53]},
+        "ui-first-failure": {"path": "wave25-projects-ui-parent.log", "sha256": "cd2ecf6724d5ba57fa8279cc8d71ea43e5a6bfa14c4e0a5941af834c09c1f865", "source_lines": [1, 2657]},
+        "ui-targeted-recheck": {"path": "wave25-projects-ui-final.log", "sha256": "437e382d4fca1f90a6a75936e1ebf5b1027b281733492d6c3658bfaa665dc133", "source_lines": [1, 159]},
+        "frontend-build": {"path": "wave25-projects-frontend-build-final.log", "sha256": "fd67bfcdddc24133c0ea6f34895aea6b0b29029ccb1c25678efef08edf9b4ced", "source_lines": [1, 68]},
+        "school-browser-base": {"path": "wave25-browser-projects-secondaire-r7.log", "sha256": "b992bcc009b213713cd489f7f68d1fd7da69779a24e64954b2bb5e92ecc23f23", "source_lines": [1, 6]},
+        "university-browser-base": {"path": "wave25-browser-projects-superieur.log", "sha256": "dca04631515cf6ed3df27cd1d595d9d14b8747b7c070e985639617cf5b24c7b9", "source_lines": [1, 6]},
+        "school-browser-receipt": {"path": "wave25-browser-projects-secondaire-r7/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]},
+        "university-browser-receipt": {"path": "wave25-browser-projects-superieur/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]},
+        "school-project-receipt": {"path": "wave25-browser-projects-secondaire-r7/projects.e2e.js-secondaire-1b969-tion-and-module-restoration-learning-projects/project-receipt.json", "sha256": "8cf81b090d4b04ff0c100c4191c035933782ff61eb9002ec3e0dac8e1f70fac3", "source_lines": [1, 12]},
+        "university-project-receipt": {"path": "wave25-browser-projects-superieur/projects.e2e.js-superieur--78e5a-tion-and-module-restoration-learning-projects/project-receipt.json", "sha256": "ce766c8396fe6af18f821672d6041681789fe8ad7b4fa6afe3cd7b39ec61dc31", "source_lines": [1, 12]},
+        "school-browser-initial-red": {"path": "wave25-browser-projects-secondaire.log", "sha256": "0ed793103a3a9d44507ea91a877b82ad2dca976df7567903be736eecfff1949c", "source_lines": [1, 47]},
+        "school-browser-r2-red": {"path": "wave25-browser-projects-secondaire-r2.log", "sha256": "abc24bcaf543db807cd84c960de6fb4660e9d1b17b0b68dc031b902f18e365c3", "source_lines": [1, 34]},
+        "school-browser-r3-red": {"path": "wave25-browser-projects-secondaire-r3.log", "sha256": "1ab6be8a1c054426de97d803d12b8083f8f0b3d995b33e145169eac744d8758d", "source_lines": [1, 42]},
+        "school-browser-r4-red": {"path": "wave25-browser-projects-secondaire-r4.log", "sha256": "6e450e26264aecf0857da44c16fd07138ed36ea8e9727338e47e4724ddac9adf", "source_lines": [1, 33]},
+        "school-browser-r5-red": {"path": "wave25-browser-projects-secondaire-r5.log", "sha256": "b3c4e3728fc90ec1cb6ae847099349da1d24658e3eec720617b509d9a66e5251", "source_lines": [1, 34]},
+        "school-browser-r6-red": {"path": "wave25-browser-projects-secondaire-r6.log", "sha256": "fed130d9405142a808e76564c9cf6aeed36d3f9b9fa0b3e53988a2f38f3f26be", "source_lines": [1, 34]},
+        "school-before-restart": {"path": "wave25-secondaire-before-restart.log", "sha256": "1c361ffbac73497b0700c30cf01b06ea3c6257e9b24587b35d0b1b625f487656", "source_lines": [1, 1]},
+        "school-after-restart": {"path": "wave25-secondaire-after-restart.log", "sha256": "9babb7d00c778f876c0b9adf64d0820d195c3c1ad45f9e93e9bcc9ef8bd3e3c1", "source_lines": [1, 1]},
+        "university-before-restart": {"path": "wave25-superieur-before-restart.log", "sha256": "05e069373cb610f729d71693076a60cbf161fcf3e9744a9f23a1302f04cbabb9", "source_lines": [1, 1]},
+        "university-after-restart": {"path": "wave25-superieur-after-restart.log", "sha256": "096bfb10b06a46c39d8bf8cc31feaca5283f7272add912b4cdc7c82671de425c", "source_lines": [1, 1]},
+        "school-persistence": {"path": "wave25-projects-secondaire-persistence.json", "sha256": "ac7b2371aa2bbdea7e615362fc64272d0ef02d9b0183a5c4d76385593eafe755", "source_lines": [1, 1]},
+        "university-persistence": {"path": "wave25-projects-superieur-persistence.json", "sha256": "fa8e9fc0658458359b023894c281315036761568fcb0ec74495e2382d741ded6", "source_lines": [1, 1]},
+        "after-restart-checker": {"path": "wave25-projects-after-restart.cjs", "sha256": "5045786e279151f732ae09a630428c5bdee089785065a8dbf49e2a1dcd1819b6", "source_lines": [1, 88]}
+      },
+      "campaigns": [
+        {
+          "id": "wave25-standard-base-backend-provisional",
+          "result": "standard_targeted_both_variants_and_school_full_passed_university_full_pending_final_image_pending",
+          "artifact_refs": ["standard-runner", "base-image-source-comparison", "school-standard-targeted", "university-standard-targeted", "school-full-base", "derived-sql-provenance-intermediate"],
+          "source_refs": ["sis_apps/sis_common/project_models.py", "sis_apps/sis_common/projects.py", "sis_apps/sis_common/project_serializers.py", "sis_apps/sis_common/tests/test_projects.py", "sis_apps/sis_common/module_registry.py", "sis_apps/sis_secondaire/apps/core/migrations/0010_pedagogical_projects.py", "sis_apps/sis_superieur/apps/core/migrations/0010_pedagogical_projects.py", "sis_apps/README.md"],
+          "counts": {"secondaire_targeted": {"tests_passed": 23, "subtests_passed": 2}, "superieur_targeted": {"tests_passed": 23, "subtests_passed": 2}, "secondaire_full_base": {"tests_passed": 830, "subtests_passed": 496, "duration_seconds": 571.83}, "superieur_full_base": null},
+          "verification": "Moduleoffpardéfaut/failclosed,projetsindividuels/collectifs,équipes/jalons/PDFprivésrévisionnés,évaluations/contributions/publi humaine,frontièreséquipe/tenant/scopes,refusPOSTautreéquipeavantparsing. Checksstandard sans erreur,migrationssansdérive,warningguardian.W001 connu,nepasajouterbackendsstandards. Baseimagefebf3c0,nonfinale ;seulecorrectionbackend ultérieure ui=(projets,) dans registre attendnouvelleimage/recontrôles.",
+          "targeted_quality": {"black": "passed_parent_attestation", "isort": "passed_parent_attestation", "flake8": "passed_parent_attestation", "dedicated_quality_log_claimed": false},
+          "historical_derived_sql_boundary": "wave25-projects-sql-provenance.json conservé :Dockerfiledérivé+TMPDIR sans essai/échecstandardpréalable,standard_build_attempted=false. Résultatsintermédiaires ne qualifientpasinstallationstandard ;premier22verts/1échec liéàdouble réponse streaming y reste. Leparentreprendstandard séparément.",
+          "limits": "Intégralesupérieure en cours au cutoff,aucun résultatimporté. SHAcode/nouvelleimagefinale/recontrôles attendus ;ni suitefinalebothvariants ni publication/déploiement revendiqués. PDFsignatureformat n'est pas antivirus/signatureélectronique ;aucune noteofficielle/liencours/classes/ECUE/compétences/LMS."
+        },
+        {
+          "id": "wave25-project-ui-recheck-and-build-provisional",
+          "result": "first_five_suite_run_failed_then_two_targeted_suites_passed_frontend_build_passed",
+          "artifact_refs": ["ui-first-failure", "ui-targeted-recheck", "frontend-build"],
+          "source_refs": ["sis_apps/frontend-app-sis/src/projects/ProjectsPage.jsx", "sis_apps/frontend-app-sis/src/projects/ProjectsPage.test.jsx", "sis_apps/frontend-app-sis/src/components/layout/navigation.projects.test.js", "sis_apps/frontend-app-sis/src/App.jsx"],
+          "counts": {"initial_tests_passed": 117, "initial_tests_failed": 1, "initial_tests_total": 118, "initial_suites_passed": 4, "initial_suites_failed": 1, "targeted_recheck_tests_passed": 24, "targeted_recheck_suites_passed": 2, "frontend_build_warnings": 3},
+          "verification": "UIdeuxSIS offpardéfaut et capacitésserveur,409conservesaisies/rechargement/nouvelleconfirmation,sansrejeuauto. Premieréchec findByRole1s recherchetemporisée ;helpertest attendchampactif puisoption5s,ProjectsPage/navigation.projects24/24verts. Quatreautressuites initialesvertes,pas relance5suitescomplète. Buildvert3warningsWebpack.",
+          "targeted_eslint": {"initial_scope_gap": "agent_command_fedx-scripts_eslint_src/projects_without_ext_omitted_JSX", "corrected_scope": "--ext .js,.jsx", "result": "passed_after_formatting_parent_attestation", "dedicated_log_claimed": false},
+          "limits": "PremierrougeUI conservé,composants/services simulés ne remplacentpasbrowser. Bundleinchangé aprèscorrectionmanifest selonparent ;pas suitefrontendintégrale ni publication."
+        },
+        {
+          "id": "wave25-base-real-project-browser-provisional",
+          "result": "one_base_image_real_browser_case_per_variant_passed_six_school_preliminary_failures_preserved",
+          "artifact_refs": ["school-browser-base", "university-browser-base", "school-browser-receipt", "university-browser-receipt", "school-project-receipt", "university-project-receipt", "school-browser-initial-red", "school-browser-r2-red", "school-browser-r3-red", "school-browser-r4-red", "school-browser-r5-red", "school-browser-r6-red"],
+          "source_refs": ["sis_apps/frontend-app-sis/e2e/projects.e2e.js", "sis_apps/frontend-app-sis/e2e/projects.config.js"],
+          "counts": {"secondaire_base_browser_cases_passed": 1, "superieur_base_browser_cases_passed": 1, "school_preliminary_failed_runs": 6},
+          "verification": "Collectif/deuxéquipesmêmeprojet/deuxmembresA/jalon/PDFxrefvalide+SHA/remisetardive/dépôt+téléchargementréels/brouilloninvisible/publicationhumaine/contributionprivée/autreéquipe404/retrait404+rétablissement/désactivationmodule403+réactivation200. Aucunmockréseau ;basesclonées21dédiées25. Supérieurpremierpassagevert,secondaire r7vert.",
+          "historical_school_failures": "Sixrouges conservés :Escapefermedialog,libellésMUIrequis,fixturemotdepasseuser5,lecturecorpsauthaprèsnavigation,data-testidMUIabsentprod,rafraîchissementdéjàferméparrévocation. Causesharness/fixture attribuées au parent,pas conversion de leurs rapports en succès.",
+          "limits": "Navigateurs surimagefebf3c0 deBASE,avantcorrectionmanifest ;aucun parcours de nouvelleimagefinale revendiqué. Un cascollectifparSIS,pas browserindividuel/tousrôles/multi-tenant exhaustif."
+        },
+        {
+          "id": "wave25-base-private-volume-restart-persistence",
+          "result": "base_image_recreated_api_containers_http_records_and_pdf_hash_persisted",
+          "artifact_refs": ["school-before-restart", "school-after-restart", "university-before-restart", "university-after-restart", "school-project-receipt", "university-project-receipt", "school-persistence", "university-persistence", "after-restart-checker"],
+          "verification": "IDsconteneursAPIavant/après distincts,mêmeimagefebf3c0 et mêmesvolumesprivés. GETHTTPaprèsrecréation vérifieprojet/équipe/jalon/livrable/PDFSHAidentique/évaluationpubliée+seulecontributionpropre ;JSONpersistences rapprochés auxreçusprojetsbrowser. Script lu,nonexécutéici ;helpersAPI/nginxarrêtés selonparent.",
+          "limits": "Persistancebornée surbaseimagesynthétique,basesdédiées25clonées21 ;pas restauration/sauvegardeinstitutionnelle ni qualificationredéploiementproduction/imagefinale."
+        }
+      ],
+      "pending_final_evidence": [
+        "Résultat intégral supérieur standard de base,encoreencours selonparent au cutoff.",
+        "SHA final du code25 et état de publication ;a5e0797 n'est que la base,code actuellementnoncommitté.",
+        "Digest/provenance de qualification-wave25-final-d0c25c75 après ui=(projets,),puis recontrôles modules/registre/projets danslesdeuxSIS.",
+        "Nouveaux parcours navigateur surle digestfinal ;les parcoursfebf3c0 restent preuvesdebase,nonfinaux."
+      ],
+      "qualification_limits": [
+        "10.5 seule passe absent→partial surautorisationexplicite ;1verified,72partial,19absent,2unverified sur94. Aucunautrestatut/F-lot promu,100%nonatteint.",
+        "Lienscours/classes/ECUE/compétences/notesofficielles/LMS nonréalisés. Aucuntransfertautomatiquenote ;PDFformatvalidé,pas antivirus ni signatureélectroniqued'auteur.",
+        "Qualificationencours/codeuncommitté :baseimagefebf3c0 nonfinale,manifestcorrigé,nouvelleimage/recontrôles/browsers/SHAetfullsupérieur attendus.",
+        "Aucune réceptionétablissement/déploiementpartagé/pilote/production ni charge500 corrigée ;dernierrouge500timeouts/262écrituresindéterminées inchangé.",
+        "Ancienshistoriques/cutoffs/chiffres et rougesUI/browser/SQLdérivé intacts ;aucun service/test/build/commit/push pourcetimport."
+      ]
+    },
+    {
+      "id": "EXEC-20261107-wave25-base-integrals-final-image-browser-provisional",
+      "evidence_cutoff_at": "2026-11-07T16:42:03+00:00",
+      "qualification_status": "in_progress_final_targeted_checks_persistence_and_code_sha_pending",
+      "scope": "Complément provisoire25 :deux intégrales BASE confirmées,provenance12Python et deux nouveaux parcours navigateur surimageFINALE. Aucun résultat anticipé des recontrôles courts/persistance finale/SHAcode.",
+      "provenance": "Artefacts session lus/hachés,12empreintesimagefinale comparées auxfichiers du worktree25 et auxempreintesbase ;seulmodule_registry.py diffère. Parentatteste l'exécutionbrowser sur488312. Aucun test/service/build/commit/push lancé ici ;code toujours noncommitté surbasea5e0797.",
+      "source_worktree": "/home/mr-dev/work/lms_sis/LMS_SIS-wave25-projects",
+      "source_base_commit": "a5e079716cd0bc6c551c0c094da1681c0df516bf",
+      "code_commit": null,
+      "published_commits": [],
+      "count_policy": "Deux campagnes documentaires :intégralesBASE,repriseprovenance/navigateursFINALE. Le résultatsecondaire830/496 déjàimporté est rappelé,pas de nouveauxtestsuniques ;834/430supérieur complèteBASE. Un navigateur parSIS surFINALE. Sélectioncourte26encours,sans nombrepassé importé. Ne sommer ni variantes ni campagnes ni recontrôles.",
+      "qualification_environment": {
+        "integral_base_image": "lms-sis:qualification-wave25-release-d0c25c75",
+        "integral_base_digest": "sha256:febf3c0fffb0a3ed540a0e84526807883a82eec05d9292820c3d2e0de46da391",
+        "final_image": "lms-sis:qualification-wave25-final-d0c25c75",
+        "final_image_digest": "sha256:488312ed06d9dba5b27d47fc8284786448cc2b06cdd92854f9e31c1f39421add",
+        "final_python_files_matched": 12,
+        "changed_python_file_from_base": "sis_common/module_registry.py",
+        "sole_change": "ui=(\"projets\",)",
+        "frontend_bundle": "unchanged_parent_attestation",
+        "full_suites_on_final_image_claimed": false,
+        "final_browser_image_binding": "attested_by_parent_with_distinct_project_receipts",
+        "final_targeted_test_selection_expected": 26,
+        "final_targeted_result": null,
+        "final_check_and_migration_result": null,
+        "final_persistence_result": null,
+        "existing_persistence_scope": "base_febf3c0_only",
+        "shared_deployment_or_institutional_acceptance": false
+      },
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "school-full-base": {"path": "wave25-secondaire-full-standard.log", "sha256": "497dd17a76f23e9b4dfd7a045d953193553c659398be097c47388214066b18c4", "source_lines": [1, 12]},
+        "university-full-base": {"path": "wave25-superieur-full-standard.log", "sha256": "f6b4b73809f946572d8c2361867baf33518b91f698dd3581d390f2b889b2107a", "source_lines": [1, 15]},
+        "final-image-source-comparison": {"path": "wave25-image-source-comparison-final.json", "sha256": "0bfda81bd24d56df310c7bd7a8de946deaf5948816f94d28089dbca39c2d43d7", "source_lines": [1, 22]},
+        "school-final-browser": {"path": "wave25-browser-projects-secondaire-final.log", "sha256": "b992bcc009b213713cd489f7f68d1fd7da69779a24e64954b2bb5e92ecc23f23", "source_lines": [1, 6]},
+        "university-final-browser": {"path": "wave25-browser-projects-superieur-final.log", "sha256": "af557315e5e532cfce490aa74786da74d28656e10f601b07cf0e4ae3c98714cb", "source_lines": [1, 6]},
+        "school-final-run-receipt": {"path": "wave25-browser-projects-secondaire-final/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]},
+        "university-final-run-receipt": {"path": "wave25-browser-projects-superieur-final/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]},
+        "school-final-project-receipt": {"path": "wave25-browser-projects-secondaire-final/projects.e2e.js-secondaire-1b969-tion-and-module-restoration-learning-projects/project-receipt.json", "sha256": "66dfe2ae63a3db4257ef8c49c60311c676fbdc7892f76755dfabb325781832b5", "source_lines": [1, 12]},
+        "university-final-project-receipt": {"path": "wave25-browser-projects-superieur-final/projects.e2e.js-superieur--78e5a-tion-and-module-restoration-learning-projects/project-receipt.json", "sha256": "38a019170f6a32676fe18e419dd0aad77ca12374a6d821edf10a3325d334a4de", "source_lines": [1, 12]}
+      },
+      "campaigns": [
+        {
+          "id": "wave25-standard-base-integral-suites-confirmed",
+          "result": "both_full_suites_passed_on_base_image_only",
+          "artifact_refs": ["school-full-base", "university-full-base"],
+          "counts": {"secondaire": {"tests_passed": 830, "subtests_passed": 496, "duration_seconds": 571.83}, "superieur": {"tests_passed": 834, "subtests_passed": 430, "duration_seconds": 755.45}},
+          "verification": "DeuxintégralesSTANDARDvertes surBASEfebf3c0,exécutéesensérie selonparent ;supérieur auparavantencours désormaisconfirmé. Résultatsecondaire rappeléhistorique,pas nouvelrun.",
+          "limits": "Pas intégrales surFINALE488312 ;seulmanifestui=(projets,)diffère,ceci ne transformepaslesrésultatsBASE en exécutionFINALE. Aucun totaltestsuniques/charge500."
+        },
+        {
+          "id": "wave25-final-image-provenance-and-browser-provisional",
+          "result": "final_image_twelve_source_hashes_and_one_real_browser_per_variant_passed_other_final_checks_pending",
+          "artifact_refs": ["final-image-source-comparison", "school-final-browser", "university-final-browser", "school-final-run-receipt", "university-final-run-receipt", "school-final-project-receipt", "university-final-project-receipt"],
+          "source_refs": ["sis_apps/sis_common/module_registry.py", "sis_apps/frontend-app-sis/e2e/projects.e2e.js"],
+          "counts": {"python_files_matched": 12, "secondaire_browser_cases_passed": 1, "superieur_browser_cases_passed": 1},
+          "verification": "Image488312STANDARD :12fichiersPythonidentiquesworktree,seulregistre diffèredeBASE(ui=(projets,)),bundlefrontinchangé. Deuxnouveauxparcourscollectifsréelsverts surimagefinale selonparent :PDFprivé/publicationhumaine/contributionprivée/frontièreséquipes/révocation/module403-200. ReçusprojetsIDsdistinctsdesparcoursBASE,aucunmockrevendiqué.",
+          "receipt_limit": "Logsecondairefinal identiqueoctetspour octets au logBASE (libellés/duréesarrondies identiques) ;hashseul ne distinguepasruns. Reçusprojetsdistincts constatés,rattachement audigestfinal attestéparent. .last-run.json seuls ne prouventpas scénario/image.",
+          "limits": "Checks/migrationset26testsprojets/modules/registreencours,aucunrésultat importé ;persistanceFINALEencours,SHAcodeattendu. Preuvespersistancesprécédentes restentBASEfebf3c0,nepaslestransférer."
+        }
+      ],
+      "pending_final_evidence": [
+        "Résultats checks/migrations et recontrôles ciblés26 projets/modules/module_registry des deuxSIS sur488312.",
+        "Résultat complémentaire de persistance surimageFINALE ;premièrespersistances confirmées uniquementBASEfebf3c0.",
+        "SHAcode final et étatdepublication,aucun SHAimplémentation transmis."
+      ],
+      "qualification_limits": [
+        "Vague25 encoreenqualification,nonpubliée ;codeSHAabsent,aucuneconclusionfinale.",
+        "10.5partial et94statuts1/72/19/2 inchangés ;lienscours/classes/ECUE/compétences/notesofficielles/LMSnonréalisés.",
+        "Séparation stricte intégralesBASE/recontrôlesFINALE,nonsommés ;historiqueprovisoire16:35 et rougespréservés.",
+        "Aucune réceptionétablissement,déploiementpartagé,pilote/production ni charge500corrigée ;dernierrouge500timeouts/262écrituresindéterminées."
+      ]
+    },
+    {
+      "id": "EXEC-20261107-wave25-published-final-checks-and-persistence",
+      "evidence_cutoff_at": "2026-11-07T16:46:20+00:00",
+      "qualification_status": "bounded_qualification_completed_code_published_requirement_partial",
+      "scope": "Vague25 publiée13e99f5 :recontrôles ciblés et persistance surimageFINALE488312 confirmés. Clôture documentaire des attentes de publication/qualification bornée,pas de10.5 ni des F-lots. IntégralesBASE conservées distinctes.",
+      "provenance": "HEAD/main/origin-main identiques13e99f5 vérifiés dans le worktree25 ;push/fast-forward attestésparent. Journaux/reçus lus/hachés,12empreintesPython du rapport final rapprochées au commit publié. Arrêt/recréation secondairefinal sans capturebefore :attestationparent explicitement bornée. Aucun test/build/lint/service/commit/push lancé ici ;seulslesdeuxregistres modifiés.",
+      "source_worktree": "/home/mr-dev/work/lms_sis/LMS_SIS-wave25-projects",
+      "code_commit": "13e99f55454d90645edf16f93f2fee7f4e52d859",
+      "published_commits": ["13e99f5"],
+      "publication": {"head_equals_main_equals_origin_main": true, "commit_files": 25, "insertions": 4423, "deletions": 6, "commit_at": "2026-11-07T17:45:28+01:00"},
+      "count_policy": "Deux campagnes documentaires supplémentaires :publication/recontrôlesFINALE,persistanceFINALE.26tests/15sous-tests parSIS sur488312 sont des sélections projets/modules/module_registry,pas intégrales ;nepas sommer avec les830/496 et834/430 BASE ni les autres campagnes. Les deuxnavigateursFINALE sont déjà importés dans le complément16:42,pas nouveauxruns ici.",
+      "prior_evidence_refs": [
+        {"update_id": "EXEC-20261107-wave25-projects-provisional-qualification", "campaign_ids": ["wave25-project-ui-recheck-and-build-provisional", "wave25-base-real-project-browser-provisional", "wave25-base-private-volume-restart-persistence"]},
+        {"update_id": "EXEC-20261107-wave25-base-integrals-final-image-browser-provisional", "campaign_ids": ["wave25-standard-base-integral-suites-confirmed", "wave25-final-image-provenance-and-browser-provisional"]}
+      ],
+      "qualification_environment": {
+        "backend_image": "lms-sis:local-20261107-13e99f5",
+        "backend_image_digest": "sha256:488312ed06d9dba5b27d47fc8284786448cc2b06cdd92854f9e31c1f39421add",
+        "qualification_image": "lms-sis:qualification-wave25-final-d0c25c75",
+        "local_tag_alias": "attested_by_parent_digest_and_published_source_hashes_verified",
+        "published_python_files_matching_image_report": 12,
+        "integral_base_digest": "sha256:febf3c0fffb0a3ed540a0e84526807883a82eec05d9292820c3d2e0de46da391",
+        "only_python_change_from_integral_base": "module_registry.py :ui=(\"projets\",)",
+        "frontend_bundle": "unchanged_parent_attestation",
+        "backend_application_source_overlay": false,
+        "full_suites_on_final_image_claimed": false,
+        "final_targeted_selection": "projects_modules_module_registry",
+        "fixture_databases": "dedicated_synthetic_wave25_clones_of_wave21_not_shared",
+        "final_persistence": "http_records_and_pdf_hash_confirmed_after_api_recreation_both_variants",
+        "university_final_before_after_capture": true,
+        "school_final_before_capture_available": false,
+        "school_stop_recreate_evidence": "parent_attestation_plus_final_after_capture_and_http_persistence_receipt",
+        "school_initial_pair_substituted_for_final_before": false,
+        "api_nginx_helpers_stopped": "attested_by_parent_not_reprobed_here",
+        "postgres_redis": "private_services_retained_for_next_wave_no_next_wave_qualification_imported",
+        "shared_deployment_or_institutional_acceptance": false
+      },
+      "f_lot_links": [
+        {"id": "F08", "scope": "Projets pédagogiques publiés,lienscours/classes/ECUE/compétences/LMS nonréalisés.", "roadmap_status_unchanged": true},
+        {"id": "F18", "scope": "Équipes/jalons/PDF/évaluations/contributions/publication bornés,pas notesofficielles ni cyclecompletstages.", "roadmap_status_unchanged": true},
+        {"id": "F25", "scope": "Confidentialité/persistance projets qualifiées dans fixtures dédiées,pas réceptioninstitutionnelle.", "roadmap_status_unchanged": true}
+      ],
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "final-image-source-comparison": {"path": "wave25-image-source-comparison-final.json", "sha256": "0bfda81bd24d56df310c7bd7a8de946deaf5948816f94d28089dbca39c2d43d7", "source_lines": [1, 22]},
+        "school-final-checks": {"path": "wave25-secondaire-final.log", "sha256": "d479d65ea6418a0f668fe30e02843557a963864af49e1abd7430f7cd90057929", "source_lines": [1, 13]},
+        "university-final-checks": {"path": "wave25-superieur-final.log", "sha256": "f1862561b301ba2ffc747e9294fd426688ce4d6da604765a14ff4487cca277b8", "source_lines": [1, 13]},
+        "school-final-persistence": {"path": "wave25-projects-secondaire-persistence-final.json", "sha256": "8a6dfa9a5e2eafcb9875ec328f330d5e79418ebdfb01720a2db826bc1773c406", "source_lines": [1, 1]},
+        "university-final-persistence": {"path": "wave25-projects-superieur-persistence-final.json", "sha256": "853eaac42b405bf5805b5ec6a996448a59d38f66505d4c98f0fda9f64e2a0368", "source_lines": [1, 1]},
+        "university-final-before-restart": {"path": "wave25-superieur-final-before-restart.log", "sha256": "af7b02f0b19b9deab2d5beb231b69cc6535c108727a3686188aa56c8de42da1b", "source_lines": [1, 1]},
+        "university-final-after-restart": {"path": "wave25-superieur-final-after-restart.log", "sha256": "21420b2b91fd05d1bdf2d7567892a7d97c5982db078ae5e944d395135f35dfed", "source_lines": [1, 1]},
+        "school-final-after-restart": {"path": "wave25-secondaire-final-after-restart.log", "sha256": "4f88b87be20fd886152a66171660df7134b399b40980adf2b8df6c60287b710b", "source_lines": [1, 1]},
+        "school-final-project-receipt": {"path": "wave25-browser-projects-secondaire-final/projects.e2e.js-secondaire-1b969-tion-and-module-restoration-learning-projects/project-receipt.json", "sha256": "66dfe2ae63a3db4257ef8c49c60311c676fbdc7892f76755dfabb325781832b5", "source_lines": [1, 12]},
+        "university-final-project-receipt": {"path": "wave25-browser-projects-superieur-final/projects.e2e.js-superieur--78e5a-tion-and-module-restoration-learning-projects/project-receipt.json", "sha256": "38a019170f6a32676fe18e419dd0aad77ca12374a6d821edf10a3325d334a4de", "source_lines": [1, 12]},
+        "after-restart-checker": {"path": "wave25-projects-after-restart.cjs", "sha256": "5045786e279151f732ae09a630428c5bdee089785065a8dbf49e2a1dcd1819b6", "source_lines": [1, 88]}
+      },
+      "campaigns": [
+        {
+          "id": "wave25-published-final-targeted-backend-checks",
+          "result": "published_source_matches_final_image_targeted_both_variants_passed_with_known_guardian_warning",
+          "commit": "13e99f5",
+          "artifact_refs": ["final-image-source-comparison", "school-final-checks", "university-final-checks"],
+          "source_refs": ["sis_apps/sis_common/module_registry.py", "sis_apps/sis_common/projects.py", "sis_apps/sis_common/tests/test_projects.py", "sis_apps/sis_common/tests/test_modules.py", "sis_apps/sis_common/tests/test_module_registry.py"],
+          "counts": {"secondaire": {"tests_passed": 26, "subtests_passed": 15, "duration_seconds": 110.22}, "superieur": {"tests_passed": 26, "subtests_passed": 15, "duration_seconds": 150.52}, "published_python_files_matching_image_report": 12},
+          "verification": "13e99f5 publié,12empreintesPython exactesducommit dansrapportimageFINALE488312. Checks sans erreur,migrationssansdérive,26tests/15sous-tests projets/modules/module_registry parSIS verts surFINALE. SeulécartPythonvsBASEintégrales :ui=(projets,)dansmodule_registry ;bundlefrontinchangé.",
+          "checks": {"django_check_errors": 0, "migration_drift_detected": false, "known_warning": "guardian.W001", "warning_limit": "Guardian ne reconnaît pas le chemin du backend dérivé ;nepas ajouterlesbackendsstandards qui réaccorderaientlesdroitsfiltrés. Avertissement conservé,pas checks sanswarning."},
+          "limits": "SélectioncibléeFINALE,pas intégrales488312. Les830/496et834/430 restentBASEfebf3c0,nonadditionnés ;pas suitefrontendintégrale/déploiementpartagé ni réceptionétablissement."
+        },
+        {
+          "id": "wave25-final-image-private-persistence-after-recreation",
+          "result": "both_final_project_receipts_and_http_persistence_matched_school_before_capture_unavailable",
+          "commit": "13e99f5",
+          "artifact_refs": ["school-final-persistence", "university-final-persistence", "university-final-before-restart", "university-final-after-restart", "school-final-after-restart", "school-final-project-receipt", "university-final-project-receipt", "after-restart-checker"],
+          "verification": "NouveauxprojetsdesnavigateursFINALE retrouvésaprèsarrêt/recréationAPI :GETHTTPprojet/équipe/jalon/PDFmêmeSHA/évaluationpubliée+seulecontributionpropre. Supérieur :pairebefore/afterFINALEIDsconteneursdistincts,mêmeimage488312/mêmevolumeprivé. Secondaire :afterFINALEcapturé etGETpersistants rapprochésaureçufinal ;arrêt/recréation attestésparent,sanscapturebeforeFINALE. Scriptlu/nonexécutéici.",
+          "capture_limit": "Aucun fichierbeforeFINALEsecondaire inventé ou référencé. LapaireinitialesurBASE existe maisn'est pas substituée à lacapturefinalemanquante ;preuvephysiquebefore/afterFINALEdisponibleseulementpourlesupérieur.",
+          "limits": "Continuitébornéedesobjets/PDFcontrôlésdansfixturesdédiées25,mêmesvolumesprivés ;pas sauvegarde/restaurationexhaustive ni qualificationredéploiementproduction. ToushelpersAPI/nginxarrêtésselonparent,PostgreSQL/Redisprivésrestentpourprochainevague,sanspreuvedecelle-ci."
+        }
+      ],
+      "pending_final_evidence": [],
+      "qualification_limits": [
+        "Qualificationvague25achevéedanscepérimètreetcodepublié ;10.5restepartial,94statuts1verified/72partial/19absent/2unverified,93autresstatutsinchangés.100%nonatteint.",
+        "Cours/classes/ECUE/compétences/notesofficielles/LMSnonraccordés ;PDFvalidéextension/MIME/signatureformat,pasantivirus,notesprojetsnonofficielles.",
+        "IntégralesBASEfebf3c0 distinctesdesrecontrôlesciblésFINALE488312 ;pas cumulunique ni intégralesFINALErevendiquées.",
+        "CapturebeforeFINALEsecondairemanquante :arrêt/recréation attestésparent,afteretGETpersistantscapturés ;nepas remplacerparpaireBASE.",
+        "Aucune réceptionétablissement/déploiementpartagé/pilote/production ni500corrigé ;dernierrouge500timeouts/262écrituresindéterminées. IAMencours,F07ouvert,F09/10.7partiels.",
+        "Cutoffsprovisoires16:35/16:42 et leursattentesalorsouvertes,rougesUI/browser/SQLdérivé etpolitiqueshistoriques intacts ;aucunequalificationvaguesuivante."
+      ]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-07T15:48:28+00:00",
+    "as_of": "2026-11-07T16:46:20+00:00",
     "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
     "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
     "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
@@ -3452,6 +3769,9 @@
     "wave21_qualification_reference": {"update_id": "EXEC-20261107-wave21-group-membership-browser-qualification", "campaign_ids": ["wave21-real-group-copy-batches-and-learner-denial"]},
     "waves22_23_qualification_reference": {"update_id": "EXEC-20261107-waves22-23-group-audit-history-qualification", "campaign_ids": ["waves22-23-packaged-api-group-audit-and-history-filters", "wave23-group-history-ui-builds-and-real-browser"]},
     "wave24_qualification_reference": {"update_id": "EXEC-20261107-wave24-reversible-group-deactivation-qualification", "campaign_ids": ["wave24-packaged-full-backend-group-lifecycle", "wave24-group-lifecycle-ui-and-build", "wave24-release-real-browser-session-revocation"]},
+    "wave25_provisional_qualification_reference": {"update_id": "EXEC-20261107-wave25-projects-provisional-qualification", "campaign_ids": ["wave25-standard-base-backend-provisional", "wave25-project-ui-recheck-and-build-provisional", "wave25-base-real-project-browser-provisional", "wave25-base-private-volume-restart-persistence"]},
+    "wave25_base_integrals_final_browser_reference": {"update_id": "EXEC-20261107-wave25-base-integrals-final-image-browser-provisional", "campaign_ids": ["wave25-standard-base-integral-suites-confirmed", "wave25-final-image-provenance-and-browser-provisional"]},
+    "wave25_published_qualification_reference": {"update_id": "EXEC-20261107-wave25-published-final-checks-and-persistence", "campaign_ids": ["wave25-published-final-targeted-backend-checks", "wave25-final-image-private-persistence-after-recreation"]},
     "wave15_bounded_sis_qualification": "35ef40c,d9ca357,c1eac39,06b55e8 publiés dans origin/main; image backend local-20261107-06b55e8@sha256:956bf0382d5b42b527080d27c937ca6b5622dfda4c22881a87aa99b5cae7f917 sans montage de code applicatif backend :762tests/305sous-tests secondaire et781/300 supérieur verts,check et migrations sans dérive. Chauffeurs protégés/anti-chevauchement, migrations sous propriétaireDB non superutilisateur selon parent; queryset de factures scolaires verrouillable corrigé. Aucun déploiement partagé.",
     "lms_grade_review_bounded": "F09 partiel : proposition obligatoire avant approbation/rejet nominatif audité.11tests par variante dont concurrence réelle200/409,1note/1audit; snapshot période/année et événement retenu plus récent opposables. Navigateur réel sur fixtures loopback des deux SIS, webhook signé synthétique traité en Celery eager, note absente avant approbation,rejet motivé,onglet obsolète409,rejeu,non-écrasement. Pas de vrai LMS natif ni réception humaine institutionnelle; boucle permissions EvaluationsManager corrigée par refetchOnMount:false.",
     "wave16_bounded_frontend_qualification": "ae86edd publié dans origin/main : palette métier/fiches sans cache partagé. Premier Jest400passés/2timeouts sur402tests,34suites passées/2échouées sur36; seulement2cas relancés avec20s passent,78ignorés. Pas de suite complète entièrement verte revendiquée. Lint0erreur/8warnings,build-r2 vert avec3warnings taille/performance. Navigateurs de recherche élèves/étudiants,factures25pagination20+5 et attestation universitaire passent sur fixtures loopback.",
@@ -3467,8 +3787,11 @@
     "wave24_qualified_backend": "9f432e3=HEAD=origin/main vérifié surmain. Image lms-sis:local-20261107-9f432e3=qualification-wave24-release-d0c25c75@sha256:12bd66a6402e7a3987b866ac04c6a9a3a25958f066ac96b4b2d7e0f8ed8dec6f ;15empreintesPython rapportimage-source concordent au commitpublié. Sansoverlaybackend,intégralesrelease814tests/496sous-tests/574.20ssecondaire et818/430/707.37ssupérieur. Checksans erreur,migrationssansdérive,warningguardian.W001 connuàconserver sansajoutbackendstandard. Premierfull24image91652… rouge1échecFakeGroups+813/496,corrigé doubletestseulement,recheck15verts puis nouvellesintégralesvertes ;pas cumulunique.",
     "wave24_group_lifecycle_bounded": "GroupLifecycleOneToOnepartenant,migrations0006,anciensgroupessansétatactifs ;actifAPIbooléen création/PATCH/PUT,omissionpréserve. Backendsfiltrés sync/async/with_perm/préfetchGuardian,droitsdirects/autresgroupesactifs/role/is_staff préservés ;gardesdélégabilité/scopes/tenant/propregroupe et droitsobjetàbascule,rollbackaudit. CapabilitiesretirepermissionetNOMDjango,inventaireappartenancegardeIDs,groupesconfigacadémique indépendants. UIactif/copieétat/suffixe/audit,ancienneAPIrefusbascule/réponsenonconfirméeerreur,PATCHsnapshotinitialfigé sansécraserchampsinchangés ;31testsUI etbuild3warnings. DeuxcasbrowserfinauxparSIS audit/copiebatch/refusapprenant puis mêmesession200→404→200 et noms/droits rétablis,sansretraitmembres/perms. Pas versionnementoptimistecomplet,SSO/LMSnouvelle ou IAMcomplet.",
     "wave24_operational_limits": "AuditAPIgroupes uniquement,pas ORM/adminuniversel ;appelsdirectsauxbackends/raccourcis natifsGuardian non couverts. CachesDjangoparinstance,rechargeruserpourtraitementlong ;anciennes sessions ancienbackend nécessitentreconnexion. Migrertousschémasavanttrafic,pasqualificationpartiellementmigrée ;retouranciencodepeutréaccorderdroits. Pas tousmenus/tousrôles,MFA/SoD,datesdélégation/rôlesmétier,pilote/production/réception ou500neuf.94statuts inchangés,100%nonatteint.",
-    "wave25_in_progress": "Projets25 en implémentation/revue dans worktreeisolé,SQL/UIencours selonparent ;aucun fichier consulté ni preuve/qualification25 importée.",
-    "shared_deployment_scope": "Aucun déploiement partagé des vagues15à24,pilote ou réception externe/institutionnelle. Les champs de livraison/main/fixture historiques conservent leurs cutoffs ;image reconstruite24 qualifiée ne remplace pas current_user_backend/current_user_frontend. Vague24 réutilise bases synthétiques sis_wave21_browser_* migrées0006 sur PostgreSQL/Redis20 privés,non basesneuves24. API/passerelle24 arrêtées selonparent,PostgreSQL/Redis20conservés pour25 ;aucun sondage/arrêt/nettoyage ici. Dernier500 rougeinchangé,aucune nouvellecharge.",
+    "wave25_published_qualification": "13e99f5=HEAD=main=origin/main vérifié,codepublié/qualificationbornéeachevée.10.5partial seulement. IntégralesBASEfebf3c0 :830/496secondaire571.83s et834/430supérieur755.45s ;FINALE488312 :26tests/15sous-testsciblésparSIS110.22s/150.52s,checksans erreur/migrationssansdérive avecguardian.W001connu. DeuxnavigateursFINALEverts etpersistanceHTTPaprèsrecréationconfirmée ;pas intégralesFINALE ni cumulunique. UIpremier117/1rougepuis24/24sur2suites,build3warnings etanciensrougesconservés.",
+    "wave25_final_image_qualified": "lms-sis:local-20261107-13e99f5=qualification-wave25-final-d0c25c75@sha256:488312ed06d9dba5b27d47fc8284786448cc2b06cdd92854f9e31c1f39421add selonparent ;12Pythonrapportfinalidentiquescommitpublié,seulregistreui=(projets,)diffèreBASE,bundlefrontinchangé. PersistanceFINALErapprochéereçusprojetsfinaux :projet/équipe/jalon/PDFSHA/évaluationpubliée/seulecontributionpropre. Supérieurpairebefore/afterIDsdistinctsmêmevolume/digest ;secondaireafterseul,arrêt/recréationattestésparent,sansbeforefinalinventé/substitutionBASE.",
+    "projects_bounded": "10.5partial,pasverified :individuel/collectifAPI2SIS/offpardéfaut/failclosed,équipes/jalons/PDFprivés25Mio/révisions/évaluations/contributions/publihumaine,409saisiesconservées/nouvelleconfirmation,autreéquipeGETetPOST404,révocation/rétablissement,module403/200. Code13e99f5publié,intégralesBASE830/496et834/430,recontrôlesFINALE26/15parSIS,1browserFINALEparSIS,persistanceHTTPFINALEaprèsrecréation. CapturebeforeFINALEsecondaireabsente,attestationparentexplicite. Lienscours/classes/ECUE/compétences/notesofficielles/LMSnonréalisés,PDFsignatureformatpasantivirus ;pasréceptionétablissement.",
+    "current_requirement_status_counts": {"verified": 1, "partial": 72, "absent": 19, "unverified": 2, "change": "10.5_absent_to_partial_only_explicit_parent_authorization"},
+    "shared_deployment_scope": "Aucun déploiementpartagédesvagues15à25,pilote/réceptionétablissement. Champsdelivraison/main/fixturehistoriquesconservés ;imagefinale25qualifiée ne remplacepas current_user_backend/current_user_frontend.25clonessynthétiquesdédiésdesbases21,volumesprivés,persistanceHTTPaprèsrecréationFINALEbornée,pasqualificationredéploiementproduction. ToushelpersAPI/nginxarrêtésselonparent,PostgreSQL/Redisprivésconservéspourprochainevague sansqualificationdecelle-ci. Aucunservice/sondage/arrêt/nettoyageici ;dernier500rougeinchangé.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -4099,8 +4422,8 @@
     "chapter10_features": 14,
     "chapter11_cycle_and_steps": 10,
     "counts_by_status": {
-      "partial": 71,
-      "absent": 20,
+      "partial": 72,
+      "absent": 19,
       "unverified": 2,
       "verified": 1,
       "external_credentials_blocked": 0
@@ -4109,9 +4432,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 151,
-    "requirements_with_new_increment_evidence": 24,
-    "conclusion": "151campagnes documentaires non sommées (148 au cutoff22/23,3pour24),24exigences avec preuves ;1verified,71partial,20absent,2unverified sur94 inchangés.9f432e3 publié :désactivationréversible groupesAPI/UI sansretraitmembres/perms,backendsfiltrés et nomsDjango excluscapabilities,auditactif et PATCHseulschampsmodifiés. Image12bd locale-9f432e3 :15fichiersPython rapportimage-source identiquescommit,sansoverlaybackend,intégrales814/496secondaire et818/430supérieur ;checksans erreur/migrationssansdérive maisguardian.W001 connu,nepasajouterbackendstandard. Premierfull24rougeFakeGroups1échec+813/496 préservé,doubletestcorrigé15verts puis nouvellesintégralesreleasevertes. UI31verts,buildbrowser3warnings,qualitéciblée attestéeparent.2casbrowserfinauxparSIS dontsessionexistante200→404→200,permission/NOM retirés/rétablis,membres/permsinchangés ;bases21synthétiquesréutiliséesmigrées0006. API/passerelle24arrêtées,PGRedis20privésgardéspour25selonparent. Pas auditORM/adminuniversel,Guardian natifdirect,cacheslongsansrechargement ;sessionsancienbackendàreconnecter,tousschémasavanttrafic,rollbackanciencodepeutréaccorderdroits. Pas IAMcomplet/versionnementoptimistecomplet/tousmenus/rôles/MFA/SoD/datesdélégation/SSO-LMSnouvelle,pilote/production/déploiementpartagé/réception. IAMencours,F07ouvert,F09/10.7partiels,100%nonatteint ;25nonqualifiéici. Politiques/preuves22/23/rougesintacts,dernier500rouge500timeouts/262écrituresindéterminées."
+    "imported_evidence_campaign_records": 159,
+    "requirements_with_new_increment_evidence": 25,
+    "conclusion": "159campagnesdocumentairesnonsommées(157avantclôturebornée25,2nouvelles),25exigencesavecpreuves.94statuts1verified/72partial/19absent/2unverified ;10.5partial autorisée,93autresinchangés.25publiée13e99f5/qualificationbornéeachevée :imagefinalelocal-20261107-13e99f5@488312,12empreintesPythonexactescommit,seulregistreui=(projets,)diffèreBASE,bundlefrontinchangé. IntégralesBASEfebf3c0830/496secondaire et834/430supérieur,pasintégrales488312 ;FINALE26tests/15sous-testsparSIS110.22s/150.52s,checksans erreur/migrationssansdérive,guardian.W001connu nepasajouterbackendsstandards. UnbrowserFINALEvertparSIS etpersistanceHTTPFINALErapprochéeauxnouveauxreçusprojets/PDFSHA/évaluationpubliée/seulecontributionpropre. Supérieurpairebefore/afterIDsdistinctsmêmedigest/volume ;secondaireafterseul,arrêt/recréationattestésparent,sansbeforeinventé/substitutionBASE. ToushelpersAPI/nginxarrêtés,PGRedisprivésrestentpourprochainevague. UIpremier117/1rougepuis24/24sur2suites,build3warnings,6rougesbrowser/SQLdérivé/cutoffs16:35et16:42préservés. Lienscours/classes/ECUE/compétences/notesofficielles/LMSnonréalisés,PDFpas antivirus,10.5nonverified ;pasréceptionétablissement/déploiementpartagé/pilote/production/500corrigé. IAMencours,F07ouvert,F09/10.7partiels,100%nonatteint ;dernier500rouge500timeouts/262écrituresindéterminées."
   },
   "requirements": [
     {
@@ -9291,23 +9614,70 @@
         "F25"
       ],
       "existing_evidence": [
-        "sis_apps/sis_superieur/apps/memoires/models.py:64",
-        "sis_apps/sis_superieur/apps/recherche/models.py:51"
+        "sis_apps/sis_common/project_models.py:17",
+        "sis_apps/sis_common/project_models.py:45",
+        "sis_apps/sis_common/project_models.py:85",
+        "sis_apps/sis_common/project_models.py:106",
+        "sis_apps/sis_common/project_models.py:129",
+        "sis_apps/sis_common/project_models.py:159",
+        "sis_apps/sis_common/projects.py:111",
+        "sis_apps/sis_common/project_serializers.py:84",
+        "sis_apps/sis_secondaire/apps/core/migrations/0010_pedagogical_projects.py",
+        "sis_apps/sis_superieur/apps/core/migrations/0010_pedagogical_projects.py",
+        "sis_apps/frontend-app-sis/src/projects/ProjectsPage.jsx",
+        "sis_apps/README.md:204"
       ],
-      "test_evidence": [],
-      "existing_scope": "Mémoires et projets de recherche sont des domaines voisins; aucun gestionnaire de projets pédagogiques individuels/collectifs avec jalons/livrables identifié.",
-      "test_scope": "Aucun scénario directement probant identifié dans le périmètre inspecté; aucun test exécuté.",
-      "status": "absent",
+      "test_evidence": [
+        "sis_apps/sis_common/tests/test_projects.py:306",
+        "sis_apps/sis_common/tests/test_projects.py:355",
+        "sis_apps/sis_common/tests/test_projects.py:386",
+        "sis_apps/sis_common/tests/test_projects.py:406",
+        "sis_apps/sis_common/tests/test_projects.py:452",
+        "sis_apps/sis_common/tests/test_projects.py:643",
+        "sis_apps/sis_common/tests/test_projects.py:756",
+        "sis_apps/frontend-app-sis/src/projects/ProjectsPage.test.jsx",
+        "sis_apps/frontend-app-sis/src/components/layout/navigation.projects.test.js",
+        "sis_apps/frontend-app-sis/e2e/projects.e2e.js:92"
+      ],
+      "assessment_cutoff_at": "2026-11-07T16:46:20+00:00",
+      "assessment_scope": "Exception explicite à l'inventaire statique pour10.5,seule exigence réévaluée surautorisationparent ;ancienobjet intégral archivé dans requirement_status_transition.previous_assessment de EXEC-20261107-wave25-projects-provisional-qualification. Sourcesettests ci-dessus désormais rattachés au commitpublié13e99f5 ;qualificationbornée surservicesprivés,pas livraisonpartagée.",
+      "existing_scope": "Au cutoff25 :gestionnaire pédagogique intégré danslesdeuxSIS pour projetsindividuels/collectifs,équipes/appartenances,jalons/échéances/barèmes,PDFprivésrévisionnés,évaluations/contributions etpublicationhumaine. Moduleoffpardéfaut/API+UIcapacitésserveur ;mémoires/recherche ne sont plus les seules briques voisines.",
+      "current_scope": "10.5partielle,pasvérifiée :fonctionprincipaleprojetsindividuels/collectifs publiée13e99f5,qualificationbornéeachevée. Lienscours/classes/ECUE/compétences/notesofficielles/LMSnonréalisés. IntégralesBASEfebf3c0deuxSISvertes ;FINALE48831212sourcesPythonexactescommit,26/15ciblésparSIS,1browserparSIS etpersistanceHTTPaprèsrecréation. CapturebeforeFINALEsecondaireabsente,attestationparentexplicite ;pasréceptionétablissement/déploiementpartagé.",
+      "test_scope": "Importdocumentaire,seulementlecture. IntégralesBASE830/496secondaire et834/430supérieur,pasintégralesFINALE. FINALE48831226tests/15sous-testsprojets/modules/registreparSIS110.22s/150.52s,checksans erreur/migrationssansdérive avecguardian.W001. UIpremier117/1rougepuis24/24sur2suites,pasrelance5suites ;1browsercollectifFINALEparSIS,autreéquipeGET404/POST404API. PersistanceHTTPFINALEaprèsrecréation/PDFSHA/évaluationpubliée/seulecontributionpropre ;supérieurpairebefore/after,secondaireafterseul+attestationparent. ModeindividuelAPItesté,pasbrowserindividuel. Résultatsnonadditionnésen testsuniques.",
+      "status": "partial",
       "top_missing_pieces": [
-        "Projets pédagogiques, équipes, étapes/échéances, livrables et évaluations.",
-        "Lien cours/compétences/notes, contributions individuelles et permissions de groupe."
+        "Rattachements réels aux cours/classes/ECUE et compétences, non implémentés.",
+        "Circuit des notes officielles SIS et synchronisation LMS, non réalisés ; les évaluations de projets restent distinctes.",
+        "Recette d'établissement et déploiement partagé non qualifiés ; preuves navigateur bornées collectives, non exhaustives sur tous profils/tenants."
       ],
       "acceptance_checks": [
         "Créer un projet collectif, assigner jalons, déposer livrables et évaluer contributions et groupe.",
         "Un membre d'autre équipe ne peut consulter ni modifier les livrables privés."
       ],
-      "execution_evidence": [],
-      "acceptance_execution_status": "not_run"
+      "execution_evidence": [
+        {
+          "update_id": "EXEC-20261107-wave25-projects-provisional-qualification",
+          "campaign_ids": ["wave25-standard-base-backend-provisional", "wave25-project-ui-recheck-and-build-provisional", "wave25-base-real-project-browser-provisional", "wave25-base-private-volume-restart-persistence"],
+          "result": "core_projects_implemented_partial_status_authorized_final_qualification_pending",
+          "verified_scope": "Preuvesbornées surimageSTANDARDdeBASEfebf3c0 :individuel/collectifAPI,équipes/jalons/PDFprivésrévisions/évaluations/contributions/publicationhumaine ;23/2parSIS,intégralesecondaire830/496. UIrecheck24/24après117/1initialrouge ;browsercollectif1parSIS etGETaprèsrecréationmêmesvolumes/PDFSHA/évaluationpubliée/contributionpropre. AutreéquipeGETetPOST404,retrait/rétablissement,désactivation403/réactivation200.",
+          "remaining_scope": "10.5partial seulement,93autresstatutsinchangés. Lienscours/classes/ECUE/compétences/notesofficielles/LMSnonréalisés. Qualificationencours :fullsupérieur,SHAcode,nouvelleimageaprèsmanifestui=(projets,),recontrôlesmodules/registre/projets etbrowsersfinauxattendus. Premiersnavigateursnonfinaux,rougesintacts ;pasdéploiementpartagé/réceptionétablissement/charge500corrigée."
+        },
+        {
+          "update_id": "EXEC-20261107-wave25-base-integrals-final-image-browser-provisional",
+          "campaign_ids": ["wave25-standard-base-integral-suites-confirmed", "wave25-final-image-provenance-and-browser-provisional"],
+          "result": "base_full_suites_and_final_image_browsers_passed_final_short_checks_persistence_code_sha_pending",
+          "verified_scope": "IntégralesBASEfebf3c0 confirmées830/496secondaire et834/430supérieur. FINALE48831212Pythonidentiquesworktree,seulregistreui=(projets,)diffère ;1nouveaubrowsercollectifréelparSISvert,reçusprojetsdistinctsdesparcoursBASE. Aucuneaddition en testsuniques ni intégralesFINALErevendiquées.",
+          "remaining_scope": "10.5partial inchangée,94statuts1/72/19/2. Recontrôleschecks/migrations+26ciblésprojets/modules/registre2SIS,persistanceFINALEetSHAcodeencoreattendus ;premièrespersistances restentBASE. Lienscours/classes/ECUE/compétences/notesofficielles/LMSnonréalisés,paspublication/conclusionfinale/réceptionétablissement/déploiementpartagé/500corrigé."
+        },
+        {
+          "update_id": "EXEC-20261107-wave25-published-final-checks-and-persistence",
+          "campaign_ids": ["wave25-published-final-targeted-backend-checks", "wave25-final-image-private-persistence-after-recreation"],
+          "result": "published_bounded_project_qualification_completed_requirement_remains_partial",
+          "verified_scope": "13e99f5publié,12empreintesPythonrapportFINALE488312identiquescommit.26tests/15sous-testsciblésparSIS verts,checksans erreur/migrationssansdérive avecguardian.W001connu. IntégralesBASE830/496et834/430 etnavigateursFINALEdéjàimportés gardentleurprovenance. GETHTTPaprèsrecréationFINALErapprochésauxreçusfinaux :projet/équipe/jalon/PDFmêmeSHA/évaluationpubliée/seulecontributionpropre.",
+          "remaining_scope": "10.5partial,93autresstatutsinchangés :lienscours/classes/ECUE/compétences/notesofficielles/LMSnonréalisés. PasintégralesFINALE ou cumulunique ;beforeFINALEsecondaireabsent,arrêt/recréationattestésparent,after/GETcapturés,sanssubstitutionparBASE. Pasbrowserindividuel/tousprofils/tenants exhaustif,réceptionétablissement/déploiementpartagé/pilote/production/charge500corrigée."
+        }
+      ],
+      "acceptance_execution_status": "increments_passed_requirement_incomplete"
     },
     {
       "id": "10.6",

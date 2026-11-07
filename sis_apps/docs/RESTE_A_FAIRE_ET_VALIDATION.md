@@ -9,10 +9,15 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 15:48:28 UTC**, vagues
-15 à 24 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
-État officiel inchangé : **1 vérifiée, 71 partielles, 20 absentes et
-2 non vérifiées sur 94**. Le blocage de qualification Studio a été levé
+**Dernier cutoff documentaire : 7 novembre 2026 à 16:46:20 UTC** :
+vagues 15 à 25 publiées et qualifiées dans leurs périmètres bornés ;
+**vague25 publiée en `13e99f5`, vérifié égal à `HEAD`, `main` et `origin/main`**.
+Le parent autorise
+le seul passage de **10.5 d'absente à partielle**, au vu du gestionnaire
+de projets effectivement implémenté et des preuves bornées ci-dessous :
+**1 vérifiée, 72 partielles, 19 absentes et 2 non vérifiées sur 94**.
+Les 93 autres statuts et les chiffres historiques restent inchangés.
+Le blocage de qualification Studio a été levé
 vers 07:30 UTC : le correctif est publié, avec une preuve ciblée limitée
 décrite en vague 19, **sans clôture de F07**. Après les lots et parcours
 groupes 20/21, les vagues 22/23 ajoutent l'audit du cycle de vie **via API**
@@ -21,8 +26,14 @@ des groupes sans retirer membres ou permissions, avec suites backend
 intégrales sur l'image reconstruite du commit publié, 31 tests UI et deux parcours
 navigateur par SIS, dont révocation/rétablissement dans une même session.
 IAM reste en cours, sans recette exhaustive multi-tenant, tous menus/rôles,
-MFA/SoD ou versionnement. **Vague 25 en implémentation/revue isolée, sans
-qualification revendiquée** ; aucun de ses fichiers de travail n'est inspecté.
+MFA/SoD ou versionnement. Pour25, les deux intégrales standard sont vertes
+sur la **base `febf3c0…`**, pas sur l'image finale. L'image **`488312…`**
+associée à `local-20261107-13e99f5` inclut `ui=("projets",)` au manifeste :
+recontrôles **26 tests/15 sous-tests par SIS**, deux parcours navigateur et
+persistance HTTP après recréation qualifiés. La capture « before » finale
+secondaire manque ; son arrêt/recréation est attesté par le parent, non
+remplacé par l'ancienne paire de captures. **10.5 reste partielle** :
+pas de liens cours/classes/ECUE/compétences/notes officielles/LMS réalisés.
 **Le 100 % n'est pas atteint.**
 Les bilans datés antérieurs conservent leurs cutoffs, blocages et rouges.
 
@@ -909,6 +920,220 @@ Aucune qualification25 importée ; politiques, preuves22/23 et rouges
 historiques intacts, dont le dernier500 (**500 timeouts, 262 écritures
 indéterminées**). Aucun test ni service lancé pour cet import documentaire.
 
+**Vague 25, preuve provisoire au cutoff du 7 novembre 2026 à
+16:35:02 UTC — qualification en cours, non publiée :** préparation limitée
+aux deux registres du worktree `LMS_SIS-wave25-projects`, base `a5e0797`.
+Le code projets n'est pas committé ; ce SHA de base **n'est pas le SHA
+du nouvel incrément**. Le parent autorise **10.5 : absente → partielle**,
+pas vérifiée, après confrontation de son obligation et de ses deux critères.
+L'ancienne évaluation de 10.5 est archivée dans l'update JSON ; les 94 IDs,
+les 93 autres statuts, les politiques et tous anciens cutoffs sont conservés.
+
+Le gestionnaire couvre les projets **individuels et collectifs**, équipes,
+appartenances historisées, jalons/échéances/barèmes, livrables PDF privés
+révisionnés, évaluations de groupe, contributions individuelles privées et
+publication humaine. Le contrat est décrit dans `sis_apps/README.md:204` ;
+API `/api/v1/core/projets/` dans les deux SIS, migrations
+`0010_pedagogical_projects`, pages `/secondaire/projets` et `/superieur/projets`.
+`sis.projects` est **désactivé par défaut** ; capacités serveur et refus par
+défaut contrôlent routes, fichiers et UI. Un conflit **409** conserve les
+saisies et impose rechargement puis nouvelle confirmation, sans rejeu
+automatique. Stockage privé persistant, limite PDF **25 Mio** par défaut ;
+extension/type MIME/signature PDF ne constituent **ni antivirus ni signature
+électronique d'auteur**. Les évaluations ne sont pas des notes officielles.
+**Restent non réalisés : liens cours/classes/ECUE/compétences, notes
+officielles et synchronisation LMS.** Aucun de ces liens n'est inféré du
+seul usage des mots « projet », « évaluation » ou « publication ».
+
+**Confrontation des critères de 10.5 :** création collective, équipes,
+jalons, dépôt et évaluations de groupe/contributions sont exercés par
+API et navigateur ; le mode individuel est couvert par les tests API,
+pas par un parcours navigateur individuel revendiqué. Deux équipes du
+**même projet**, dont deux membres dans A, permettent de vérifier les
+frontières : l'autre équipe reçoit 404 en lecture ; le test
+`sis_common/tests/test_projects.py:355` couvre aussi le refus du POST privé
+avant parsing. Brouillon invisible, publication humaine et seule contribution
+personnelle visible sont testés. Ces acquis retirent la fonction principale
+de la catégorie « absente », sans satisfaire toute l'exigence ni une recette
+institutionnelle ; les limites et attentes empêchent « vérifiée ».
+
+Le parent a repris la qualification avec le **Dockerfile standard inchangé**
+et `wave25-standard-container.sh` **sans TMPDIR**. L'image de base
+`lms-sis:qualification-wave25-release-d0c25c75` a le digest
+`sha256:febf3c0fffb0a3ed540a0e84526807883a82eec05d9292820c3d2e0de46da391`.
+Le rapport `wave25-image-source-comparison.json` atteste 12 fichiers Python
+identiques à l'image à son cutoff. Depuis, le parent a ajouté seulement
+`ui=("projets",)` à `module_registry.py` : relecture **11/12 identiques**,
+le douzième retrouvant exactement l'empreinte du rapport en retirant
+uniquement cette ligne, sans modifier le fichier. Le bundle frontend reste
+inchangé selon le parent. **L'image febf3c0 n'est donc pas l'image finale.**
+La nouvelle image standard `qualification-wave25-final-d0c25c75` est en
+construction selon le parent ; aucun digest ni résultat final n'est importé.
+
+`wave25-secondaire-standard.log` et `wave25-superieur-standard.log`
+contiennent chacun **23 tests et 2 sous-tests verts**, checks sans erreur
+et migrations sans dérive, **avec `guardian.W001` connu depuis24** :
+ne pas ajouter les backends standards qui réaccorderaient les droits filtrés.
+Black/isort/flake8 ciblés sont verts selon le parent, sans journal dédié
+inventé. L'intégrale de base `wave25-secondaire-full-standard.log` passe
+**830 tests et 496 sous-tests en 571,83 s** ; **l'intégrale supérieure reste
+en cours au cutoff**, aucun résultat supposé. Les campagnes se chevauchent :
+ne sommer ni variantes ni sélections en tests uniques.
+
+Le premier `wave25-projects-ui-parent.log` reste **rouge : 117 passés,
+1 échec sur 118, quatre suites vertes et une rouge sur cinq**. L'attente
+`findByRole` de 1 s pour une recherche temporisée a été corrigée dans le
+helper de test : champ actif puis option attendue jusqu'à 5 s.
+`wave25-projects-ui-final.log` recontrôle seulement `ProjectsPage` et
+`navigation.projects` : **24/24 verts sur deux suites**, pas une relance
+verte des cinq suites. Le premier lint agent omettait JSX
+(`fedx-scripts eslint src/projects` sans `--ext`) ; le parent atteste le
+contrôle corrigé `--ext .js,.jsx` vert après formatage. Le build
+`wave25-projects-frontend-build-final.log` passe avec **3 avertissements
+Webpack habituels**, sans déduire une suite frontend complète.
+
+Sur l'image **de base**, `wave25-browser-projects-secondaire-r7.log` et
+`wave25-browser-projects-superieur.log` passent chacun **un parcours réel** :
+collectif, deux équipes, jalon, PDF avec xref valide et SHA, remise tardive,
+dépôt/téléchargement réels, brouillon invisible, publication humaine,
+contribution privée, autre équipe404, retrait404 puis rétablissement,
+désactivation du module403 puis réactivation200. Pas de réponse simulée.
+Les six essais secondaires préliminaires restent rouges et hachés :
+Escape fermant le dialogue, libellés MUI requis, mot de passe de fixture5,
+lecture de réponse d'authentification après navigation, `data-testid` MUI
+absent en production, rafraîchissement déjà fermé par révocation ;
+causes de harness/fixture rapportées par le parent. Le supérieur passe au
+premier essai. **Ces parcours ne qualifient pas la future image finale.**
+
+Les bases sont des **clones synthétiques dédiés25 des bases21**, pas des
+bases partagées. Les logs `wave25-{secondaire,superieur}-{before,after}-restart.log`
+montrent des identifiants de conteneur différents, même image et mêmes
+volumes privés. Le script `wave25-projects-after-restart.cjs` effectue de
+vrais GET HTTP après recréation : projet, équipe, jalon, livrable/PDF au
+**même SHA**, évaluation publiée et **seule contribution propre**.
+Les deux `wave25-projects-*-persistence.json` concordent avec les reçus de
+projet navigateur. Les helpers API/nginx sont arrêtés selon le parent.
+Cette persistance bornée sur l'image de base **n'est pas une qualification
+de redéploiement en production**, ni une nouvelle sauvegarde/restauration
+institutionnelle.
+
+`wave25-projects-sql-provenance.json` est conservé comme **intermédiaire** :
+ancien Dockerfile dérivé et TMPDIR ajoutés sans essai ni échec standard
+préalable. Ses résultats ne prouvent pas l'installation standard ; il garde
+aussi son premier 22-passés/1-échec de double de réponse streaming. Les
+preuves standard reprises par le parent sont distinctes et ne réécrivent
+ni cet artefact, ni les rouges UI/navigateur.
+
+**Attentes bloquant la conclusion de vague25 :** résultat intégral supérieur
+sur la base, SHA final du code, digest/provenance de la nouvelle image
+standard, recontrôles modules/registre/projets des deux SIS et nouveaux
+parcours navigateur sur cette image après correction du manifeste. Pas de
+publication/qualification finale déclarée avant transmission du parent.
+**État courant : 1 vérifiée, 72 partielles, 19 absentes, 2 non vérifiées** ;
+10.5 partielle seulement, F-lots non clos, F07 ouvert, F09/10.7 partiels,
+IAM en cours, **100 % non atteint**. Aucun déploiement partagé, réception
+d'établissement ou charge500 corrigée : dernier rouge **500 timeouts,
+262 écritures indéterminées**. Aucun test/service/commit/push pour cet import.
+
+**Vague 25, complément provisoire au cutoff du 7 novembre 2026 à
+16:42:03 UTC :** les deux intégrales standard sont maintenant confirmées
+sur l'image **de base `febf3c0…`** : secondaire **830 tests et 496 sous-tests,
+571,83 s**, supérieur **834 tests et 430 sous-tests, 755,45 s**.
+`wave25-superieur-full-standard.log` apporte le résultat auparavant attendu ;
+le log secondaire et le cutoff provisoire précédent restent intacts.
+**Ces intégrales n'ont pas été réexécutées sur la nouvelle image finale.**
+
+L'image standard `lms-sis:qualification-wave25-final-d0c25c75` porte le digest
+`sha256:488312ed06d9dba5b27d47fc8284786448cc2b06cdd92854f9e31c1f39421add`.
+`wave25-image-source-comparison-final.json` et la relecture du worktree
+confirment **12 fichiers Python identiques** ; seul `module_registry.py`
+diffère de l'image des intégrales, avec `ui=("projets",)`. Ce contrôle lie
+l'image aux fichiers de travail observés, **pas encore à un SHA code publié**.
+Le bundle frontend est inchangé selon le parent.
+
+`wave25-browser-projects-secondaire-final.log` et
+`wave25-browser-projects-superieur-final.log` passent chacun **un parcours**
+sur `488312…` selon le parent, avec reçus `.last-run.json` verts et nouveaux
+reçus de projets dont les IDs diffèrent des parcours de base. Le scénario
+reste collectif : dépôt/téléchargement PDF, brouillon/publication humaine,
+contribution privée, autre équipe404, retrait/rétablissement et module403/200.
+Le log secondaire a les mêmes octets que le précédent (mêmes libellés et
+durées arrondies) : son hash seul ne distingue pas les exécutions. Les
+reçus de projets sont distincts ; le rattachement au digest final est
+attesté par le parent. Les anciens parcours restent des preuves de **base**.
+
+**Toujours en cours au cutoff :** checks/migrations et sélection de
+**26 tests** projets/modules/registre sur l'image finale dans les deux SIS,
+**sans résultat importé**, contrôle complémentaire de persistance sur cette
+image, puis SHA code. Les premières persistances réussies restent attachées
+à `febf3c0…` ; ne pas les transférer à `488312…`. Deux campagnes documentaires
+supplémentaires distinguent intégrales **BASE** et provenance/navigateurs
+**FINALE**, sans addition en tests uniques ni conclusion anticipée.
+Statuts **1/72/19/2** inchangés depuis la réévaluation autorisée de10.5 ;
+liens académiques/notes officielles/LMS toujours absents, aucune publication,
+réception d'établissement, livraison partagée ou réparation de charge500.
+
+**Vague 25, qualification bornée achevée et publication confirmée au cutoff
+du 7 novembre 2026 à 16:46:20 UTC :** le commit **`13e99f5`**
+(« Add private pedagogical projects with teams, deliveries and human
+assessment », 25 fichiers, 4423 ajouts/6 suppressions) est vérifié égal à
+`HEAD`, `main` et `origin/main` ; fast-forward/push attestés par le parent.
+Le tag local **`lms-sis:local-20261107-13e99f5`** désigne selon le parent
+l'image standard finale `qualification-wave25-final-d0c25c75`, digest
+`sha256:488312ed06d9dba5b27d47fc8284786448cc2b06cdd92854f9e31c1f39421add`.
+Les **12 empreintes Python** du rapport final correspondent au commit
+publié, et pas seulement aux fichiers de travail. L'unique différence
+Python avec la base des intégrales demeure `module_registry.py`,
+`ui=("projets",)` ; le bundle frontend reste inchangé.
+
+**BASE et FINALE restent séparées :** les intégrales **830 tests/496
+sous-tests secondaire, 571,83 s**, et **834/430 supérieur, 755,45 s** ont
+été exécutées sur `febf3c0…`. Les recontrôles de l'image **FINALE `488312…`**
+sont dans `wave25-secondaire-final.log` et `wave25-superieur-final.log` :
+checks sans erreur, migrations sans dérive, **26 tests et 15 sous-tests
+verts chacun**, respectivement **110,22 s et 150,52 s**, pour
+projets/modules/module_registry. `guardian.W001` reste présent et documenté :
+**ne pas ajouter les backends standards**. Ces sélections finales ne sont
+pas des suites intégrales ; aucun cumul avec les campagnes de base en
+tests uniques. Les deux parcours navigateur finaux déjà importés restent
+rattachés à `488312…`, sans transformer les premiers parcours de base.
+
+La persistance sur l'image **FINALE** est désormais rapprochée des
+**nouveaux reçus de projets finaux**, pas des reçus de base :
+`wave25-projects-secondaire-persistence-final.json` et
+`wave25-projects-superieur-persistence-final.json` confirment par GET HTTP
+après arrêt/recréation API le projet, l'équipe, le jalon, le PDF au même
+SHA, l'évaluation publiée et **seule contribution propre**.
+Pour le supérieur, `wave25-superieur-final-before-restart.log` et
+`wave25-superieur-final-after-restart.log` montrent des IDs de conteneur
+distincts, même digest final et même volume privé. Pour le secondaire,
+**seul `wave25-secondaire-final-after-restart.log` est capturé** :
+les commandes d'arrêt/recréation sont attestées par le parent, mais aucune
+capture « before » finale n'est disponible ni inventée. L'ancienne paire
+avant/après sur `febf3c0…` reste historique et **ne remplace pas** cette
+capture manquante. Les GET et le reçu final prouvent la continuité bornée
+des objets/fichier contrôlés, pas une restauration ou un redéploiement
+institutionnel exhaustif.
+
+Tous les helpers API/nginx sont arrêtés selon le parent ; PostgreSQL/Redis
+privés restent pour la prochaine vague. Aucun sondage ou arrêt de service
+effectué pour cet import. Onze artefacts sont référencés/hachés dans ce
+dernier update, réparti en **deux campagnes : publication/recontrôles
+ciblés FINALE, puis persistance FINALE avec sa limite de capture**.
+Les cutoffs provisoires 16:35 et 16:42, leurs attentes alors ouvertes,
+les premiers rouges et la provenance SQL dérivée sont conservés intacts.
+
+**Conclusion bornée : 10.5 partielle**, pas vérifiée ; **1 vérifiée,
+72 partielles, 19 absentes et 2 non vérifiées sur94**, les 93 autres
+statuts inchangés. La fonction projets est livrée et qualifiée dans les
+périmètres décrits ; les liens cours/classes/ECUE/compétences/notes officielles
+et LMS restent non réalisés. PDF validé par format/signature, **pas antivirus**.
+Pas de réception d'établissement, déploiement partagé, pilote/production
+ou charge500 corrigée ; dernier rouge **500 timeouts, 262 écritures
+indéterminées**. F07 ouvert, F09/10.7 partiels, IAM en cours, **pas100 %**.
+Aucune qualification de la vague suivante importée ; aucun commit/push
+effectué par cet import documentaire.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -1129,7 +1354,7 @@ absence soit masquée par un lot plus large. Elles conditionnent F30.
   permission et nom du groupe. Warning `guardian.W001` documenté, anciennes
   sessions à reconnecter, caches par instance et migration de tous les
   schémas avant trafic ; pas d'audit ORM/Django admin universel ni de
-  versionnement optimiste complet, aucune qualification25 importée.
+  versionnement optimiste complet ; la qualification projets25 est distincte.
   **Les groupes ne sont pas des rôles métier** :
   le formulaire utilisateurs conserve ses rôles fixes.
   **Reste :** le cycle complet de rôle métier permettant à l'admin *habilité* d'un établissement
@@ -1188,7 +1413,7 @@ absence soit masquée par un lot plus large. Elles conditionnent F30.
   stock/actif/journal réconciliés ; dotation correcte sur cas limites,
   double immobilisation et écriture sur période close refusées.
 
-### Exigences initiales encore absentes ou non vérifiées (23 sur 94)
+### Exigences encore absentes ou non vérifiées (21 sur 94) et domaines devenus partiels
 
 Le reste des 94 exigences est **partiel**, sauf 1.2 déjà vérifiée. Leurs
 conditions propres (deux ou trois contrôles par exigence) sont conservées dans
@@ -1197,6 +1422,8 @@ conditions propres (deux ou trois contrôles par exigence) sont conservées dans
 ci-dessus ne remplace jamais leur validation individuelle. Les lacunes les
 plus nettes sont détaillées ici, avec les identifiants **du cahier initial**
 (indépendants des sections 1–10 du cahier complémentaire ci-dessous).
+Le tableau conserve aussi 10.5 et 10.7, désormais partielles, pour suivre
+leurs limites ; elles ne sont pas comprises dans les 21 absentes/non vérifiées.
 
 | Exigence initiale / statut | Condition de validation propre |
 |---|---|
@@ -1217,7 +1444,7 @@ plus nettes sont détaillées ici, avec les identifiants **du cahier initial**
 | 9.1 Super Admin — absent | Console plateforme gère deux établissements et abonnements sans accorder d'accès métier aux dossiers des tenants. |
 | 10.1 Mobile — absent | Installation Android **et** iOS, tâches apprenant/enseignant/parent réelles ; session/appareil révoqué ne révèle plus les données privées. |
 | 10.2 Hors ligne — absent | Cours téléchargé sous droit, travail préparé hors réseau puis synchronisé une fois ; conflit et accès révoqué/expiré bloquent les données privées. |
-| 10.5 Projets — absents | Équipe, jalons, livrables et évaluations individuelles/collectives ; autre équipe interdite en lecture et écriture. |
+| 10.5 Projets — partiels | Créer des projets individuels/collectifs avec équipes, jalons, livrables et évaluations du groupe/contributions ; refuser à une autre équipe la lecture **et** la modification des livrables privés. Acquis bornés publiés en `13e99f5` : voir le bilan détaillé de vague25 et ses limites de preuve ci-dessus. Restent les liens cours/classes/ECUE/compétences/notes officielles/LMS et la recette d'établissement ; exigence non vérifiée. |
 | 10.7 Recherche globale — partielle | Preuves de recherche au cutoff vague 18 : apprenants, factures, vrais cours et évaluations SIS reliées au LMS dans les deux SIS, documents sources universitaires et bulletins scolaires `BUL-<id>` ; palette/fiches sans cache partagé, parcours staff et apprenant qualifiés sur fixtures, facture d'autrui absente de la recherche et détail 404 sans numéro. Restent catalogue LMS natif exhaustif et parcours parents/enseignants/multi-tenant/révocations exhaustifs ; la garde Studio ciblée de vague 19 ne clôt pas la recherche, aucun statut promu. |
 | 10.9 Portail public — absent | Formations publiées, actualités et procédure consultables sans connexion ; candidature démarrée, brouillons et dossiers privés inaccessibles. |
 | 10.10 Signature — non vérifiée | Habilitation approuvée par tiers, signature, archive et notification ; auto-approbation, mandat révoqué et document altéré refusés. |
