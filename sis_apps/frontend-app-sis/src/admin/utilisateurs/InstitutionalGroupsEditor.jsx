@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import {
-  Alert, Box, Button, Checkbox, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography,
+  Alert, Autocomplete, Box, Button, Checkbox, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { patchApi, postApi } from '../../services/api';
@@ -24,6 +24,7 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
   const [name, setName] = useState('');
   const [permissionIds, setPermissionIds] = useState([]);
   const [userId, setUserId] = useState('');
+  const [batchIds, setBatchIds] = useState([]);
   const [notice, setNotice] = useState('');
   const [selectionError, setSelectionError] = useState('');
   const canView = can(capabilities, 'auth.view_group');
@@ -31,6 +32,11 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
   const canChange = can(capabilities, 'auth.change_group');
   const canAssign = canChange && can(capabilities, 'utilisateurs.change_utilisateur')
     && can(capabilities, 'utilisateurs.view_utilisateur');
+  const scopedPermissions = Object.keys(capabilities?.attributes?.permission_scopes || {});
+  const canAssignMany = canAssign && (capabilities?.permissions?.includes('*')
+    || [
+      'auth.change_group', 'utilisateurs.change_utilisateur', 'utilisateurs.view_utilisateur',
+    ].every(permission => !scopedPermissions.includes(permission)));
   const groups = useQuery({
     queryKey: ['institutional-groups', groupsUrl],
     queryFn: () => fetchAllResourcePages(groupsUrl),
@@ -69,6 +75,17 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
       setNotice('Affectation du compte enregistrée.');
     },
   });
+  const assignMany = useMutation({
+    mutationFn: add => postApi(
+      `${groupsUrl}${selectedId}/${add ? 'assign_many' : 'unassign_many'}/`,
+      { user_ids: batchIds },
+    ),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ['institutional-group-users', usersUrl] });
+      setBatchIds([]);
+      setNotice('Affectation en lot enregistrée.');
+    },
+  });
 
   if (!capabilities) { return <Alert severity="warning">Chargement des autorisations…</Alert>; }
   if (!canView) {
@@ -92,14 +109,16 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
     setName(duplicate ? `${item.name} (copie)` : item?.name ?? '');
     setPermissionIds(ids(item?.permissions) ?? []);
     setUserId('');
+    setBatchIds([]);
     setSelectionError('');
     setNotice('');
     save.reset();
     assign.reset();
+    assignMany.reset();
   };
   const permissionsAvailable = selectedId === 'new' || Array.isArray(group?.permissions);
   const editable = (selectedId === 'new' ? canAdd : canChange) && permissionsAvailable;
-  const busy = save.isPending || assign.isPending;
+  const busy = save.isPending || assign.isPending || assignMany.isPending;
   const permissionsByApp = permissions.data.reduce((result, permission) => ({
     ...result, [permission.app_label]: [...(result[permission.app_label] || []), permission],
   }), {});
@@ -119,12 +138,13 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
           <Button
             key={item.id}
             variant={selectedId === item.id ? 'contained' : 'outlined'}
+            disabled={busy}
             onClick={() => choose(item)}
           >{item.name}
           </Button>
         ))}
         {groups.data.length === 0 && <Typography>Aucun groupe disponible.</Typography>}
-        {canAdd && <Button onClick={() => choose(null)}>Créer un groupe</Button>}
+        {canAdd && <Button disabled={busy} onClick={() => choose(null)}>Créer un groupe</Button>}
       </Stack>
       {selectedId !== null && (
         <Box
@@ -243,12 +263,65 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
                           </Button>
                         </Stack>
                       )}
+                      {canAssignMany ? (
+                        <>
+                          <Typography component="h4" variant="subtitle2" sx={{ mt: 3 }}>
+                            Affectation en lot
+                          </Typography>
+                          <Autocomplete
+                            multiple
+                            disableCloseOnSelect
+                            disabled={busy}
+                            options={users.data}
+                            value={users.data.filter(user => batchIds.includes(user.id))}
+                            getOptionLabel={user => `${user.full_name || user.username} (${user.username})`}
+                            isOptionEqualToValue={(option, value) => option.id === value.id}
+                            onChange={(_event, selected) => {
+                              setBatchIds(selected.map(user => user.id));
+                              assignMany.reset();
+                              setNotice('');
+                            }}
+                            renderInput={params => (
+                              <TextField
+                                {...params}
+                                label="Comptes du lot"
+                                helperText="De 1 à 100 comptes. Si un compte est refusé, aucun compte du lot n’est modifié."
+                                error={batchIds.length > 100}
+                              />
+                            )}
+                            sx={{ my: 2 }}
+                          />
+                          <Stack direction="row" useFlexGap sx={{ gap: 1, flexWrap: 'wrap' }}>
+                            <Button
+                              type="button"
+                              disabled={busy || batchIds.length === 0 || batchIds.length > 100}
+                              onClick={() => { setNotice(''); assignMany.mutate(true); }}
+                            >Ajouter la sélection au groupe
+                            </Button>
+                            <Button
+                              type="button"
+                              disabled={busy || batchIds.length === 0 || batchIds.length > 100}
+                              onClick={() => { setNotice(''); assignMany.mutate(false); }}
+                            >Retirer la sélection du groupe
+                            </Button>
+                          </Stack>
+                        </>
+                      ) : (
+                        <Alert severity="warning" sx={{ mt: 2 }}>
+                          L’affectation en lot exige des permissions sans périmètre configuré.
+                        </Alert>
+                      )}
                       {users.data.length === 0 && <Typography>Aucun compte disponible.</Typography>}
                     </>
                   )}
                   {assign.isError && (
                     <Alert severity="error" sx={{ mt: 2 }}>
                       {denied(assign.error) ? 'Affectation non autorisée.' : apiErrorMessage(assign.error)}
+                    </Alert>
+                  )}
+                  {assignMany.isError && (
+                    <Alert severity="error" sx={{ mt: 2 }}>
+                      {denied(assignMany.error) ? 'Affectation en lot non autorisée.' : apiErrorMessage(assignMany.error)}
                     </Alert>
                   )}
                 </>

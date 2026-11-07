@@ -33,6 +33,17 @@ class GroupAssignmentSerializer(serializers.Serializer):
     user_id = serializers.IntegerField(min_value=1)
 
 
+class GroupBatchAssignmentSerializer(serializers.Serializer):
+    user_ids = serializers.ListField(min_length=1, max_length=100)
+
+    def validate_user_ids(self, user_ids):
+        if any(not isinstance(user_id, int) or isinstance(user_id, bool) or user_id < 1 for user_id in user_ids):
+            raise serializers.ValidationError("Chaque identifiant doit être un entier strictement positif.")
+        if len(set(user_ids)) != len(user_ids):
+            raise serializers.ValidationError("Les identifiants doivent être uniques.")
+        return user_ids
+
+
 class UtilisateurListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les listes."""
 

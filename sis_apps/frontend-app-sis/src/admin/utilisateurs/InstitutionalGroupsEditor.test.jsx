@@ -79,6 +79,14 @@ beforeEach(() => {
       users = [{ ...users[0], groups: [...users[0].groups, 7] }];
     } else if (url === `${groupsUrl}7/unassign/`) {
       users = [{ ...users[0], groups: users[0].groups.filter(group => group !== 7) }];
+    } else if ([`${groupsUrl}7/assign_many/`, `${groupsUrl}7/unassign_many/`].includes(url)) {
+      users = users.map(user => (
+        !data.user_ids.includes(user.id) ? user : {
+          ...user,
+          groups: url.endsWith('/assign_many/')
+            ? [...new Set([...user.groups, 7])] : user.groups.filter(group => group !== 7),
+        }
+      ));
     }
     return url === groupsUrl
       ? { id: 8, name: 'Nouveau groupe', permissions: [12] } : data;
@@ -116,6 +124,93 @@ it('adds and removes a user through the group assignment endpoints without PATCH
   await waitFor(() => expect(postApi).toHaveBeenLastCalledWith(`${groupsUrl}7/unassign/`, { user_id: 5 }));
   expect(users[0].groups).toEqual([3]);
   expect(patchApi).not.toHaveBeenCalled();
+});
+
+const selectBatch = async () => {
+  const input = await screen.findByRole('combobox', { name: 'Comptes du lot' });
+  ['Jane Doe (jane)', 'John Roe (john)'].forEach(label => {
+    fireEvent.change(input, { target: { value: label } });
+    fireEvent.click(screen.getByRole('option', { name: label }));
+  });
+  fireEvent.keyDown(input, { key: 'Escape' });
+};
+
+it('adds and removes a selected batch through one atomic request and preserves unrelated memberships', async () => {
+  users.push({
+    id: 6, username: 'john', full_name: 'John Roe', groups: [4],
+  });
+  renderEditor();
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  expect(await screen.findByRole('button', { name: 'Ajouter la sélection au groupe' })).toBeDisabled();
+  await selectBatch();
+  fireEvent.click(screen.getByRole('button', { name: 'Ajouter la sélection au groupe' }));
+  await screen.findByText('Affectation en lot enregistrée.');
+  expect(postApi).toHaveBeenCalledTimes(1);
+  expect(postApi).toHaveBeenCalledWith(`${groupsUrl}7/assign_many/`, { user_ids: [5, 6] });
+  expect(users.map(user => user.groups)).toEqual([[3, 7], [4, 7]]);
+  expect(screen.getByRole('button', { name: 'Retirer la sélection du groupe' })).toBeDisabled();
+  await selectBatch();
+  fireEvent.click(screen.getByRole('button', { name: 'Retirer la sélection du groupe' }));
+  await screen.findByText('Affectation en lot enregistrée.');
+  expect(postApi).toHaveBeenCalledTimes(2);
+  expect(postApi).toHaveBeenLastCalledWith(`${groupsUrl}7/unassign_many/`, { user_ids: [5, 6] });
+  expect(users.map(user => user.groups)).toEqual([[3], [4]]);
+  expect(patchApi).not.toHaveBeenCalled();
+});
+
+it('keeps the selection and shows an explicit refused batch without a success notice', async () => {
+  users.push({
+    id: 6, username: 'john', full_name: 'John Roe', groups: [4],
+  });
+  postApi.mockRejectedValueOnce({ response: { status: 403 } });
+  renderEditor();
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  await selectBatch();
+  fireEvent.click(screen.getByRole('button', { name: 'Ajouter la sélection au groupe' }));
+  expect(await screen.findByText('Affectation en lot non autorisée.')).toBeVisible();
+  expect(screen.queryByText('Affectation en lot enregistrée.')).not.toBeInTheDocument();
+  expect(users.map(user => user.groups)).toEqual([[3], [4]]);
+  expect(screen.getByText('Jane Doe (jane)')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Ajouter la sélection au groupe' })).toBeEnabled();
+});
+
+it('clears a batch when switching groups instead of silently assigning the prior selection', async () => {
+  users.push({
+    id: 6, username: 'john', full_name: 'John Roe', groups: [4],
+  });
+  groups.push({ id: 8, name: 'Autre équipe', permissions: [11] });
+  renderEditor();
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  await selectBatch();
+  fireEvent.click(screen.getByRole('button', { name: 'Autre équipe' }));
+  expect(screen.getByRole('button', { name: 'Ajouter la sélection au groupe' })).toBeDisabled();
+  expect(postApi).not.toHaveBeenCalled();
+});
+
+it('prevents switching the destination group while a batch request is pending', async () => {
+  users.push({
+    id: 6, username: 'john', full_name: 'John Roe', groups: [4],
+  });
+  groups.push({ id: 8, name: 'Autre équipe', permissions: [11] });
+  let finish;
+  postApi.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  renderEditor();
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  await selectBatch();
+  fireEvent.click(screen.getByRole('button', { name: 'Ajouter la sélection au groupe' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Autre équipe' })).toBeDisabled());
+  expect(screen.getByRole('button', { name: 'Créer un groupe' })).toBeDisabled();
+  finish({ group_id: 7, user_ids: [5, 6] });
+  await screen.findByText('Affectation en lot enregistrée.');
+  expect(screen.getByRole('button', { name: 'Autre équipe' })).toBeEnabled();
+});
+
+it('keeps individual assignment but hides batches when an explicit empty scope is configured', async () => {
+  renderEditor(allowed, { permission_scopes: { 'auth.change_group': {} } });
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  expect(await screen.findByRole('combobox', { name: 'Compte' })).toBeVisible();
+  expect(screen.queryByRole('combobox', { name: 'Comptes du lot' })).not.toBeInTheDocument();
+  expect(screen.getByText('L’affectation en lot exige des permissions sans périmètre configuré.')).toBeVisible();
 });
 
 it('duplicates readable permissions into a new editable group without modifying the source or copying members', async () => {

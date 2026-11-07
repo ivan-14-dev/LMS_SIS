@@ -21,6 +21,7 @@ from sis_common.authorization import (
     permission_snapshot,
 )
 from sis_common.branding import branding_snapshot
+from sis_common.group_assignment import can_change_group_assignments, change_group_assignments
 from sis_common.module_registry import module_snapshot
 from sis_common.session_security import (
     list_active_sessions,
@@ -32,6 +33,7 @@ from .models import Utilisateur
 from .serializers import (
     ChangePasswordSerializer,
     GroupAssignmentSerializer,
+    GroupBatchAssignmentSerializer,
     GroupSerializer,
     MFACodeSerializer,
     MFADisableSerializer,
@@ -83,6 +85,8 @@ class CanManageAuthorization(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view) or not is_current_tenant_user(request):
             return False
+        if view.action in ("assign_many", "unassign_many"):
+            return can_change_group_assignments(request.user)
         if view.action in ("assign", "unassign"):
             return has_business_permission(request.user, "auth.change_group") and has_business_permission(
                 request.user, "utilisateurs.change_utilisateur"
@@ -339,6 +343,14 @@ class GroupesPermissionsViewSet(viewsets.ModelViewSet):
         user = self._assignment_target(request, serializer.validated_data["user_id"])
         user.groups.remove(group)
         return Response({"user_id": user.pk, "group_id": group.pk})
+
+    @action(detail=True, methods=["post"])
+    def assign_many(self, request, pk=None):
+        return Response(change_group_assignments(self, request, GroupBatchAssignmentSerializer))
+
+    @action(detail=True, methods=["post"])
+    def unassign_many(self, request, pk=None):
+        return Response(change_group_assignments(self, request, GroupBatchAssignmentSerializer, remove=True))
 
     def _assignment_target(self, request, user_id):
         user = get_object_or_404(Utilisateur.objects.select_for_update(), pk=user_id, etablissement=request.tenant)

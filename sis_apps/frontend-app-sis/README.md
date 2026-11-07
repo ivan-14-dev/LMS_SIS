@@ -123,6 +123,27 @@ du frontend : elle est accessible au navigateur.
 - Une erreur d'authentification ou d'API ne provoque jamais un basculement automatique
   vers les données simulées.
 
+### Groupes et permissions
+
+L'onglet « Groupes et permissions » des utilisateurs permet de créer, modifier
+et dupliquer un groupe avec les permissions délégables du catalogue serveur.
+La duplication prépare un nouveau groupe, sans modifier l'original ni copier
+ses membres. Ces groupes restent distincts des rôles métier.
+
+L'affectation individuelle reste disponible. L'affectation en lot accepte
+de 1 à 100 comptes : ajouter ou retirer la sélection effectue une seule requête
+vers `utilisateurs/groupes/{id}/assign_many/` ou `unassign_many/`, avec
+`{"user_ids": [1, 2]}`. Les identifiants doivent être des entiers positifs uniques.
+Le serveur exige les permissions non restreintes `auth.change_group`,
+`utilisateurs.change_utilisateur` et `utilisateurs.view_utilisateur`, puis
+revérifie les comptes, le tenant et les droits délégables du groupe.
+
+Un refus dans le lot ou un échec de journalisation annule toute l'opération.
+Le rejeu ne duplique pas les membres ; l'audit conserve l'auteur et les
+identifiants réellement ajoutés ou retirés. Les autres groupes sont préservés.
+L'interface conserve la sélection après une erreur et interdit de changer le
+groupe de destination pendant la requête.
+
 ### Recherche de dossiers
 
 La palette existante (bouton « Rechercher », `Ctrl+K` / `⌘K`) conserve la
