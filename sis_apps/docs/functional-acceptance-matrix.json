@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-07T08:12:15+00:00",
+  "last_evidence_update_at": "2026-11-07T08:52:32+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -3166,15 +3166,73 @@
         }
       ],
       "qualification_limits": ["94statuts inchangés :1verified,71partial,20absent,2unverified;F07 non clos,F09 et10.7 partiels.", "Ancien blocage Studio07:00:50 et rouges intermédiaires conservés;ils ne décrivent plus le résultat ciblé publié de56c3b33.", "Aucune nouvelle image LMS,déploiement partagé,pilote ou réception externe/humaine;deux conteneurs natifs arrêtés selon parent,réseau vide/nettoyage en suivi.", "Dernier500 rouge500timeouts/262écritures indéterminées inchangé. Vague20 batchgroupes EN COURS NON QUALIFIÉE,sans preuve revendiquée."]
+    },
+    {
+      "id": "EXEC-20261107-wave20-published-group-batch-qualification",
+      "evidence_cutoff_at": "2026-11-07T08:52:32+00:00",
+      "scope": "Vague20 publiée :affectation/retrait atomique et audité de groupes à des lots bornés dans les deux SIS,avec interface batch conservant les actions individuelles. Tests API/UI ciblés,aucun statut de recette promu;IAM reste en cours.",
+      "provenance": "Journaux existants lus/hachés,2ade295 vérifié dans origin/main,helper/contrats/tests publiés rapprochés des résultats du parent. Cutoff relevé sur l'horloge hôte. Aucun test,build,lint,backend,Docker ou sondage de service lancé ici.",
+      "count_policy": "Secondaire62tests/108sous-tests et supérieur63/108,sélections utilisateurs+authorization+business_role_separation exécutées en série sur PostgreSQL selon parent.21tests du composant InstitutionalGroupsEditor,non toute la suite frontend. Campagnes ciblées chevauchantes non additionnées comme couverture globale;ni suite backend complète ni navigateur batch revendiqués.",
+      "published_commits": ["2ade295"],
+      "source_change_scope": {"backend_files": 7, "frontend_component_and_test_files": 2, "frontend_readme_files": 1, "shared_helper": "sis_apps/sis_common/group_assignment.py", "helper_scope": "Transaction,différentiel réel et audit communs aux deux variantes."},
+      "qualification_environment": {
+        "database": "PostgreSQL",
+        "variant_api_runs": "serialized_reported_by_parent",
+        "postgres_redis": "disposable_internal_network_no_published_ports",
+        "containers_retained": "kept_for_parent_browser21_integration_not_stopped_or_probed_here",
+        "rebuilt_backend_image_claimed": false,
+        "full_backend_suites_claimed": false,
+        "browser_batch_claimed": false,
+        "shared_deployment_or_pilot": false,
+        "limits": "Conservation des services jetables de vague20 distincte d'un déploiement partagé;aucune preuve du raccordement navigateur21. Pas de nettoyage ou arrêt revendiqué."
+      },
+      "f_lot_links": [
+        {"id": "F02", "scope": "Affectation/retrait de groupes en lots1à100 qualifiés par tests API/UI;IAM toujours en cours,groupes distincts des rôles métier.", "roadmap_status_unchanged": true},
+        {"id": "F05", "scope": "Trois permissions non scopées,clé de scope vide comprise,prévalidation et refus des droits non délégables;pas MFA/SoD ou cycle IAM complet.", "roadmap_status_unchanged": true},
+        {"id": "F23", "scope": "WorkflowEvent nominatif au différentiel réel et rollback si échec d'audit;pas qualification exhaustive de l'audit/rétention.", "roadmap_status_unchanged": true}
+      ],
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "school-group-api": {"path": "wave20-school-group-api.log", "sha256": "c1f06318625780468175f8aa7cefc9e276f45ee016d92c7eaf81041aec43d8db", "source_lines": [1, 2]},
+        "university-group-api": {"path": "wave20-university-group-api.log", "sha256": "2c4538d3e86a58d13cd1879a85a49a7a1fdd421471ec696dc6fd293322234223", "source_lines": [1, 2]},
+        "group-batch-ui": {"path": "wave20-group-batch-ui-final2.log", "sha256": "c12359d609cf5de6678f2c5da8382eefc701e88b0bb42ad05ef1f06257a77e95", "source_lines": [1, 15]},
+        "frontend-build": {"path": "wave20-frontend-build-final2.log", "sha256": "7e1465c7fa4091588d4bf95fc9f278e02fb46bf026fc46b46f3bf42ae4125d6e", "source_lines": [1, 68]}
+      },
+      "campaigns": [
+        {
+          "id": "wave20-atomic-audited-group-batch-api",
+          "result": "targeted_both_variant_group_batches_permissions_and_rollback_passed",
+          "commit": "2ade295",
+          "artifact_refs": ["school-group-api", "university-group-api"],
+          "source_refs": ["sis_apps/sis_common/group_assignment.py", "sis_apps/sis_secondaire/apps/utilisateurs/api.py", "sis_apps/sis_secondaire/apps/utilisateurs/serializers.py", "sis_apps/sis_secondaire/apps/utilisateurs/tests/test_role_authoring.py", "sis_apps/sis_superieur/apps/utilisateurs/api.py", "sis_apps/sis_superieur/apps/utilisateurs/serializers.py", "sis_apps/sis_superieur/apps/utilisateurs/tests/test_role_authoring.py"],
+          "counts": {"secondaire": {"tests_passed": 62, "subtests_passed": 108}, "superieur": {"tests_passed": 63, "subtests_passed": 108}},
+          "verification": "POST utilisateurs/groupes/{id}/assign_many/ et unassign_many/ :user_ids de1à100entiers strictement positifs uniques,sans coercition,réponse triée. Transaction groupe+verrous comptes triés,toutes cibles prévalidées avantM2M. WorkflowEvent acteur/tenant/group_id/user_ids/diff réel;erreur de cible ou d'audit annule toute opération. Rejeu sans doublon de membres mais nouvel audit au diff vide,autres groupes intacts. auth.change_group+utilisateurs.change_utilisateur+utilisateurs.view_utilisateur non scopées,même clé scope{} refusée,hors exception superutilisateur existante;tenant actif,groupe du bon périmètre et grants non délégables protégés.",
+          "quality_checks": {"flake8": "passed_on_seven_backend_files_parent_attestation", "isort": "passed_on_seven_backend_files_parent_attestation", "black": "passed_on_shared_helper_only_parent_attestation", "scope": "Contrôles ciblés rapportés par le parent,sans journal dédié fourni;pas de lint/format global déduit."},
+          "limits": "Sélections ciblées exécutées en série sur PostgreSQL,pas suites backend complètes ni campagne de concurrence/charge exhaustive. Aucune image backend reconstruite,recette navigateur batch,MFA/SoD,désactivation/versionnement des groupes ou réception institutionnelle."
+        },
+        {
+          "id": "wave20-group-batch-ui-and-build",
+          "result": "component_batch_controls_and_production_build_passed",
+          "commit": "2ade295",
+          "artifact_refs": ["group-batch-ui", "frontend-build"],
+          "source_refs": ["sis_apps/frontend-app-sis/src/admin/utilisateurs/InstitutionalGroupsEditor.jsx", "sis_apps/frontend-app-sis/src/admin/utilisateurs/InstitutionalGroupsEditor.test.jsx", "sis_apps/frontend-app-sis/README.md"],
+          "counts": {"component_tests_passed": 21, "component_suites_passed": 1, "test_timeout_ms": 20000, "build_warnings": 3},
+          "verification": "Affectation individuelle conservée;Autocomplete batch avec contrat1à100 visible,refus affiché/sélection conservée,reset après succès/changement de groupe. Navigation/changement du groupe bloqués pendant mutation;garde UI alignée sur clé de scope mêmevide.21tests InstitutionalGroupsEditor verts;build-final2 compilé avec3warnings taille/performance.",
+          "targeted_eslint": {"errors": 0, "warnings": null, "evidence_origin": "Attestation du parent :0erreur sur les fichiers ciblés,sans journal dédié ni nombre de warnings fourni."},
+          "limits": "Tests de composant/services simulés,aucun parcours navigateur batch encore qualifié. Pas suite frontend complète,déploiement partagé,pilote ou clôture IAM;vague21 hors preuve."
+        }
+      ],
+      "qualification_limits": ["94statuts inchangés :1verified,71partial,20absent,2unverified;F07 ouvert,F09/10.7 partiels,IAM en cours.", "Pas navigateur batch,image backend reconstruite ou suites backend complètes. PostgreSQL/Redis jetables internes sansports conservés pour le parent et le raccordement navigateur21,sans preuve21.", "Pas de pilote/déploiement partagé/réception humaine;MFA/SoD,versionnement/désactivation des groupes et cycle rôle métier restent ouverts.", "Tous cutoffs et rapports rouges historiques conservés,dernier500 rouge500timeouts/262écritures indéterminées inchangé."]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-07T08:12:15+00:00",
+    "as_of": "2026-11-07T08:52:32+00:00",
     "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
     "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
     "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
     "wave18_qualification_reference": {"update_id": "EXEC-20261107-wave18-published-learner-search-qualification", "campaign_ids": ["wave18-school-mapped-evaluation-search", "wave18-search-ui-and-build", "wave18-staff-and-learner-search-browser"]},
     "wave19_qualification_reference": {"update_id": "EXEC-20261107-wave19-native-guard-and-group-copy-qualification", "campaign_ids": ["wave19-native-cms-fixture-and-suite", "wave19-interrupted-course-baseline-and-guard", "wave19-permission-group-duplication-ui"]},
+    "wave20_qualification_reference": {"update_id": "EXEC-20261107-wave20-published-group-batch-qualification", "campaign_ids": ["wave20-atomic-audited-group-batch-api", "wave20-group-batch-ui-and-build"]},
     "wave15_bounded_sis_qualification": "35ef40c,d9ca357,c1eac39,06b55e8 publiés dans origin/main; image backend local-20261107-06b55e8@sha256:956bf0382d5b42b527080d27c937ca6b5622dfda4c22881a87aa99b5cae7f917 sans montage de code applicatif backend :762tests/305sous-tests secondaire et781/300 supérieur verts,check et migrations sans dérive. Chauffeurs protégés/anti-chevauchement, migrations sous propriétaireDB non superutilisateur selon parent; queryset de factures scolaires verrouillable corrigé. Aucun déploiement partagé.",
     "lms_grade_review_bounded": "F09 partiel : proposition obligatoire avant approbation/rejet nominatif audité.11tests par variante dont concurrence réelle200/409,1note/1audit; snapshot période/année et événement retenu plus récent opposables. Navigateur réel sur fixtures loopback des deux SIS, webhook signé synthétique traité en Celery eager, note absente avant approbation,rejet motivé,onglet obsolète409,rejeu,non-écrasement. Pas de vrai LMS natif ni réception humaine institutionnelle; boucle permissions EvaluationsManager corrigée par refetchOnMount:false.",
     "wave16_bounded_frontend_qualification": "ae86edd publié dans origin/main : palette métier/fiches sans cache partagé. Premier Jest400passés/2timeouts sur402tests,34suites passées/2échouées sur36; seulement2cas relancés avec20s passent,78ignorés. Pas de suite complète entièrement verte revendiquée. Lint0erreur/8warnings,build-r2 vert avec3warnings taille/performance. Navigateurs de recherche élèves/étudiants,factures25pagination20+5 et attestation universitaire passent sur fixtures loopback.",
@@ -3182,9 +3240,10 @@
     "wave17_bounded_search_qualification": "1be9eaa,bae0bd4,f24fd4f désormais publiés dans origin/main. Backend17 monté RO sur image06b55e8 :premier secondaire85tests/73sous-tests verts et1échec429 de fixture,cache isolé uniquement en tests puis10/19verts;pas de relance intégrale verte. Supérieur70/25verts. Workspace75tests seul fichier à20s,lint0erreur/8warnings,build3warnings. Deux parcours navigateur réels sans réponse réseau simulée,cours/bulletin/évaluation mappée;API/passerelles arrêtées ensuite selon parent. Pas d'image17 reconstruite ni suite complète17.",
     "wave18_bounded_search_qualification": "9ff9752 publié dans origin/main. Recherche evaluations_lms secondaire qualifiée69tests/87sous-tests(core+intégrationAPI+protectionsnotesLMS);UI37verts/42non sélectionnés sur79,build3warnings. Lint ciblé0erreur/0warning et Black/isort/flake8 API/testssecondaires verts selon parent,sans journal dédié. Deux parcours staff+apprenant par SIS sur vraie base de fixture,sans réponse réseau simulée :facture personnelle visible,facture d'autrui absente/requête détail404sansnuméro,typesCours/Évaluations administratifs absents et URLévaluation refusée sansdd. API/passerelles arrêtées selon parent;pas image18 reconstruite ni suite complète18.",
     "studio_bounded_native_qualification": "Blocage levé vers07:30UTC selon parent,56c3b33 publié :image native de base local-20261105-access-ownership2,MySQL8.4.11+MongoDB7.0.39 jetables réseauinterne sansports,1188migrations CMS. Deux runs12tests/2erreursfixture(assets puis URLMFE) conservés,ajustementsfixture seuls puis12/12verts. Baseline exacte200!=403,puis cas candidatvert;SQL0binding/0serviceuserdetest,51GET_LOCK+51RELEASE_LOCKcours cumulés sans preuve de concurrence. Force_authenticate,modulestore/create_new_course/resume_initialization/droits simulés :pas création Mongo réelle ni révocation Studio native. Correctif2lignes+test17lignes+docopérateur publiés,qualitéciblée verte selon parent. Pas nouvelle imageLMS/déploiement;F07 ouvert. Ancien état07:00:50 archivé dans nouvel update et Markdown.",
-    "permission_group_console_bounded": "63949d1 publié :console groupes création/édition/affectation déjà présente,copie des permissions lisibles en brouillon éditable viaPOSTexistant,sans membres ni mutation source;auth.add_group non scopé,permissions absentes refusées.16testsUI dont4nouveaux verts,ESLint2fichiers0diagnostic selon parent,build3warnings. Pas navigateur clonage ni nouvelle capacité backend/rôle métier;cycle métier,désactivation/versionnement,MFA/SoD ouverts.",
-    "wave20_groups_in_progress": "Batchgroupes EN COURS NON QUALIFIÉ au cutoff;aucune preuve ni promotion revendiquée.",
-    "shared_deployment_scope": "Aucun déploiement partagé des vagues15à19,pilote ou réception externe/humaine. Les champs de livraison/main/fixture plus anciens conservent leurs cutoffs propres;aucune qualification ciblée ne remplace current_user_backend/current_user_frontend. API/passerelles de fixtures18 arrêtées selon parent;deux conteneurs natifs19 arrêtés,réseau vide/nettoyage en suivi,achèvement non revendiqué. Aucun sondage de service ici,pas nouvelle imageLMS19. Dernier500 rouge conservé,aucune nouvelle charge.",
+    "permission_group_console_bounded": "Console groupes création/édition/affectation/copie existante;copie63949d1 conserve source et exclut membres.2ade295 publié ajoute assign_many/unassign_many atomiques et audités1à100 dans les deux SIS,UI batch conservant singleassign. Tests ciblés API62/108secondaire et63/108supérieur,composant21verts,build3warnings;ESLintciblé0erreur et qualitéPythonciblée verts selon parent. Pas navigateur clonage/batch,imagebackend reconstruite ou suitebackend complète. Groupes distincts des rôles métier;IAM en cours,cycle métier,désactivation/versionnement,MFA/SoD ouverts.",
+    "wave20_bounded_group_batch_qualification": "2ade295 publié origin/main :7fichiersbackend dont helpergroup_assignment,2frontend+README. user_ids1à100entiers strictement positifs uniques,réponse triée;transaction groupe/comptes verrouillés parPK,toutes cibles prévalidées,puisM2M+WorkflowEvent acteur/tenant/groupe/cibles/diff réel. Cible/audit refusé=>rollbacktout;rejeu sans doublon de membres mais nouvel auditdiffvide,autresgroupes intacts. Trois permissions d'affectation non scopées,même clé{} refusée,hors exception superutilisateur existante;tenant/groupe/grants protégés. UIcontrat/refus/reset/garde{} et navigationbloquée pendantmutation qualifiés par21tests composant,aucun navigateurbatch.",
+    "wave21_browser_follow_up": "Raccordement navigateur envisagé par le parent avec PostgreSQL/Redis jetables20 conservés sur réseauinterne sansports;aucune preuve de vague21 revendiquée au cutoff.",
+    "shared_deployment_scope": "Aucun déploiement partagé des vagues15à20,pilote ou réception externe/humaine. Les champs de livraison/main/fixture plus anciens conservent leurs cutoffs propres;aucune qualification ciblée ne remplace current_user_backend/current_user_frontend. Services PostgreSQL/Redis20 isolés internes sansports conservés pour le parent/browser21,pas arrêt/nettoyage revendiqué. Dernier état19 :deux conteneurs natifs arrêtés,réseau vide/nettoyage en suivi,non resondé ici. Pas imagebackend20 reconstruite ni nouvelle imageLMS19. Dernier500 rouge conservé,aucune nouvelle charge.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -3825,9 +3884,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 143,
+    "imported_evidence_campaign_records": 145,
     "requirements_with_new_increment_evidence": 24,
-    "conclusion": "143campagnes documentaires non sommées (140 au cutoff18,3ajouts19),24exigences avec preuves ciblées;1verified,71partial,20absent,2unverified sur94 inchangés.56c3b33 publié après levée du blocageCMS vers07:30UTC :vrais MySQL/MongoDB jetables,1188migrations,12/12verts après2runs avec2erreursfixture chacun;baseline200!=403 et recheckcandidatvert. SQL0binding/0serviceuserdetest,51GET_LOCK+51RELEASE_LOCKcumulés sans preuve de concurrence. Tests force_authenticate et cours/droits simulés,pas créationMongo réelle/révocationStudio native,nouvelleimageLMS ou déploiement;F07 reste ouvert.63949d1 copie les permissions de groupe en brouillon éditable sans membres ni mutation source :16testsUI dont4nouveaux verts,ESLintciblé0diagnostic selon parent,build3warnings;pas browserclonage ni capacitébackend/rôlemétier nouvelle. Groupes création/édition/affectation/copie existent,cycle rôle métier/versionnement/désactivation/MFA/SoD ouverts.10.7 etF09 restent partiels;cutoffs,blocage07:00:50 et rouges antérieurs intacts. Deux conteneurs natifs19 arrêtés selon parent,réseau vide/nettoyage en suivi;aucun pilote/réception externe/humaine. Dernier500 rouge500timeouts/262écritures indéterminées inchangé. Batchgroupes20 en cours non qualifié,sans preuve. Aucune promotion ni couverture100%."
+    "conclusion": "145campagnes documentaires non sommées (143 au cutoff19,2ajouts20),24exigences avec preuves ciblées;1verified,71partial,20absent,2unverified sur94 inchangés.2ade295 publié :lotsgroupes assign_many/unassign_many1à100entiers positifs uniques,transaction/verrous triés/prévalidation complète,auditnominatifdiff réel et rollback cible/audit,rejeu sans doublon de membres mais nouvel auditdiffvide. Trois permissions non scopées,même clé{} refusée,hors exception superutilisateur préexistante. APIciblées62tests/108sous-testssecondaire et63/108supérieur vertes en sériePostgreSQL;UIbatch21testscomposantverts,build3warnings,ESLintciblé0erreur et qualitéPythonciblée verts selon parent. Pas navigateurbatch,imagebackend reconstruite,suitesbackendcomplètes ou déploiement partagé. PostgreSQL/Redis20 internes sansports conservés pour parent/browser21,aucune preuve21. IAM toujours en cours,MFA/SoD/versionnement/désactivation/cycle rôlemétier ouverts;F07 non clos,F09/10.7 partiels. Preuves19Studio bornées/publiées et tous cutoffs/rapports rouges antérieurs intacts,non transférés. Pas pilote/réception humaine;dernier500 rouge500timeouts/262écritures indéterminées inchangé. Aucune promotion ni couverture100%."
   },
   "requirements": [
     {
@@ -4404,6 +4463,13 @@
           "result": "bounded_editable_permission_group_copy_ui_passed",
           "verified_scope": "63949d1 :console groupes existante création/édition/affectation,copie de permissions lisibles en brouillon éditable viaPOSTexistant,sans membres ni mutation du groupe source. Habilitation auth.add_group non scopée,liste de permissions manquante refusée.16testsUI InstitutionalGroupsEditor dont4nouveaux verts;build vert avec3warnings.",
           "remaining_scope": "1.4 reste partial :groupes distincts des rôles métier,pas navigateur de clonage ni nouvelle capacitébackend. Désactivation/versionnement,cycle de rôle métier,MFA/SoD,audit et révocations exhaustifs encore ouverts;batchgroupes20 en cours non qualifié exclu."
+        },
+        {
+          "update_id": "EXEC-20261107-wave20-published-group-batch-qualification",
+          "campaign_ids": ["wave20-atomic-audited-group-batch-api", "wave20-group-batch-ui-and-build"],
+          "result": "bounded_atomic_group_batch_assignment_and_component_controls_passed",
+          "verified_scope": "2ade295 :ajout/retrait1à100comptes par groupe dans les deux SIS,identifiants strictspositifsuniques/réponse triée,prévalidation complète/verrous triés/transaction/audit nominatifdiff réel. Erreurcible/audit rollbacktout,rejeu sans doublon de membres mais nouvel auditdiffvide,autres groupes préservés. UIbatch conserve singleassign,sélection après refus,reset après succès/changement et navigationbloquée;API62/108et63/108,composant21verts.",
+          "remaining_scope": "1.4 reste partial,IAM en cours :groupes distincts des rôles métier,pas navigateurbatch/clonage,imagebackend reconstruite ou suitesbackendcomplètes. MFA/SoD,désactivation/versionnement et cycle rôlemétier encore ouverts;aucune preuvebrowser21,pilote ou réception humaine."
         }
       ],
       "acceptance_execution_status": "increment_evidence_with_unresolved_failures"
@@ -7388,6 +7454,13 @@
           "result": "bounded_authoring_guard_and_group_copy_permission_checks_passed",
           "verified_scope": "RepriseCMS après perte simulée des droits :baseline200!=403 puis garde403 sans reprise/update_item. CopieUI d'un groupe lisible soumise à auth.add_group non scopé et liste de permissions disponible,sans copier membres ni modifier source;16testsUI dont4nouveaux verts.",
           "remaining_scope": "8.1 reste partial. Force_authenticate/droitsCMS simulés et servicesUI simulés,pas révocationStudio native ni navigateurclonage. Cycle rôlemétier,désactivation/versionnement,MFA/SoD et sécuritéglobale non qualifiés;vague20 en cours exclue,aucun déploiement."
+        },
+        {
+          "update_id": "EXEC-20261107-wave20-published-group-batch-qualification",
+          "campaign_ids": ["wave20-atomic-audited-group-batch-api", "wave20-group-batch-ui-and-build"],
+          "result": "bounded_batch_permission_scope_and_target_guards_passed",
+          "verified_scope": "auth.change_group+utilisateurs.change_utilisateur+utilisateurs.view_utilisateur non scopées pour les lots,même présence de clé scope{} refusée,hors exception superutilisateur existante. Tenant actif,groupe propre,cibles et grants non délégables prévalidés avantM2M;refus annule lelot. GardeUI alignée,refus visible et sélection conservée.",
+          "remaining_scope": "8.1 reste partial :tests API/UI ciblés,pas parcours navigateurbatch ni qualification IAM/MFA/SoD/révocations exhaustive. Services jetables20 conservés pour raccordement21 sans preuve21;aucun déploiement partagé,pilote ou réception humaine."
         }
       ],
       "acceptance_execution_status": "increment_evidence_with_unresolved_failures"
@@ -7617,6 +7690,13 @@
           "result": "bounded_lms_review_decision_audit_passed",
           "verified_scope": "Approbation/rejet de proposition LMS nominatif audité; concurrence réelle dans chaque variante avec réponses200/409,une note et un seul WorkflowEvent lms_grade_review,reviewed_by lié à l'acteur gagnant.",
           "remaining_scope": "8.3 reste partial : preuve bornée à la décision LMS, pas qualification de toutes opérations,échecs,rétention,confidentialité ou inaltérabilité des journaux."
+        },
+        {
+          "update_id": "EXEC-20261107-wave20-published-group-batch-qualification",
+          "campaign_ids": ["wave20-atomic-audited-group-batch-api"],
+          "result": "bounded_group_batch_named_diff_audit_and_rollback_passed",
+          "verified_scope": "WorkflowEvent d'assign_many/unassign_many avec acteur,tenant,group_id,user_ids triés et added_user_ids/removed_user_ids réellement modifiés. Audit dans la transactionM2M :échec d'audit annule membres et événement. Rejeu sans doublon de membres mais nouvel événement au diffvide;autresgroupes intacts,testé dans les deux variantes.",
+          "remaining_scope": "8.3 reste partial :preuve ciblée d'audit/rollback des lotsgroupes,pas rétention/confidentialité/inaltérabilité exhaustive,journalisation de toutes opérations ou recette navigateur. Pas suitebackendcomplète,image reconstruite ou réception institutionnelle."
         }
       ],
       "acceptance_execution_status": "increments_passed_requirement_incomplete"

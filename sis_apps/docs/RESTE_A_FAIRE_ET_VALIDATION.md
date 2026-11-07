@@ -9,14 +9,16 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 08:12:15 UTC**, vagues
-15 à 19 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
+**Dernier cutoff documentaire : 7 novembre 2026 à 08:52:32 UTC**, vagues
+15 à 20 publiées et qualifiées dans les seuls périmètres décrits ci-dessous.
 État officiel inchangé : **1 vérifiée, 71 partielles, 20 absentes et
 2 non vérifiées sur 94**. Le blocage de qualification Studio a été levé
 vers 07:30 UTC : le correctif est publié, avec une preuve ciblée limitée
 décrite en vague 19, **sans clôture de F07**. Le batch groupes de vague 20
-est **en cours, non qualifié**, sans preuve revendiquée. Les bilans datés
-antérieurs conservent leurs cutoffs, blocages et rapports rouges historiques.
+est publié et qualifié par tests ciblés, **sans parcours navigateur batch** ;
+IAM reste en cours. Aucun acquis du raccordement navigateur de vague 21
+n'est revendiqué. Les bilans datés antérieurs conservent leurs cutoffs,
+blocages et rapports rouges historiques.
 
 **État historique au 5 novembre :** 5 tâches en cours, 31 à démarrer, 3 bloquées ; 170 tâches
 terminées dans la TODO, mais seulement **1 exigence vérifiée sur 94**
@@ -651,6 +653,55 @@ restent inchangés**, F09 et 10.7 partiels. Le dernier essai à 500 reste
 rouge (**500 timeouts, 262 écritures indéterminées**). **Vague 20 groupes
 en cours, non qualifiée : aucune preuve importée ici.**
 
+**Vingtième vague, publiée et qualifiée au cutoff du 7 novembre 2026
+à 08:52:32 UTC :** `2ade295`, présent dans `origin/main`, ajoute dans
+les deux SIS les POST `utilisateurs/groupes/{id}/assign_many/` et
+`unassign_many/`. `user_ids` accepte **1 à 100 entiers strictement positifs,
+uniques**, sans coercition des types ; la réponse trie les identifiants.
+La transaction verrouille le groupe et les comptes dans l'ordre des clés,
+prévalide **toutes les cibles avant la mutation M2M**, puis conserve un
+`WorkflowEvent` nominatif avec acteur, tenant, `group_id`, `user_ids` et
+différentiel des membres réellement ajoutés ou retirés. Une cible refusée
+ou un échec d'audit annule toute l'opération. Le rejeu ne duplique pas les
+membres, **mais crée un nouvel événement d'audit au différentiel vide** ;
+les autres groupes restent intacts.
+
+Les permissions `auth.change_group`, `utilisateurs.change_utilisateur` et
+`utilisateurs.view_utilisateur` doivent être non scopées : **la présence
+d'une clé de scope, même `{}`, est refusée**, hors exception superutilisateur
+préexistante. Tenant actif, groupe du bon périmètre et droits non délégables
+restent protégés. Le helper commun `sis_common/group_assignment.py`
+mutualise transaction, différentiel et audit ; la publication comprend sept
+fichiers backend, deux fichiers frontend et le README frontend.
+
+L'interface conserve l'affectation individuelle et ajoute une sélection
+multiple Autocomplete avec contrat 1–100 visible. Un refus est affiché et
+conserve la sélection ; succès ou changement de groupe la réinitialisent.
+Les commandes de navigation/changement de groupe sont bloquées pendant
+la mutation ; la garde UI est alignée sur le refus d'une clé de scope vide.
+`wave20-school-group-api.log` passe **62 tests et 108 sous-tests**,
+`wave20-university-group-api.log` **63 tests et 108 sous-tests** :
+sélections utilisateurs, autorisations et séparation des rôles métier,
+exécutées en série sur PostgreSQL selon le parent, **pas les suites backend
+complètes**. `wave20-group-batch-ui-final2.log` passe les **21 tests du seul
+composant InstitutionalGroupsEditor**. `wave20-frontend-build-final2.log`
+compile avec **3 avertissements de taille/performance**. Le parent atteste
+ESLint ciblé sans erreur, flake8/isort verts sur les sept fichiers backend
+et Black vert sur le helper commun ; aucun journal dédié n'a été fourni
+pour ces contrôles, ni nombre d'avertissements ESLint.
+
+Les quatre journaux sont hachés dans la matrice. **Pas encore de parcours
+navigateur batch, d'image backend reconstruite ni de suite backend complète**
+pour ce lot. Les conteneurs PostgreSQL/Redis de vague 20 sont isolés sur
+réseau interne sans ports publiés et **conservés pour le parent**, en vue du
+raccordement navigateur 21 ; aucun arrêt, nettoyage ou sondage n'est effectué
+par cet import documentaire. Aucune preuve de vague 21 n'est revendiquée.
+Pas de déploiement partagé, pilote ou réception humaine ; **IAM reste en
+cours**, désactivation/versionnement des groupes et MFA/SoD ouverts.
+Les **94 statuts restent inchangés**, F07 ouvert, F09/10.7 partiels.
+Les cutoffs et rapports rouges antérieurs restent intacts ; dernier essai
+à 500 toujours rouge (**500 timeouts, 262 écritures indéterminées**).
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -853,7 +904,11 @@ absence soit masquée par un lot plus large. Elles conditionnent F30.
   affectation des groupes existe, avec copie en brouillon éditable ajoutée
   par `63949d1` (16 tests UI, dont 4 nouveaux). Elle ne copie pas les membres
   et ne modifie pas le groupe source ; aucun parcours navigateur de clonage
-  n'est encore qualifié. **Les groupes ne sont pas des rôles métier** :
+  n'est encore qualifié. `2ade295` ajoute l'ajout/retrait transactionnel et
+  audité de 1 à 100 comptes dans les deux SIS, avec UI batch et refus des
+  scopes même vides ; tests API/UI ciblés qualifiés, **pas encore de parcours
+  navigateur batch**. IAM reste en cours.
+  **Les groupes ne sont pas des rôles métier** :
   le formulaire utilisateurs conserve ses rôles fixes.
   **Reste :** le cycle complet de rôle métier permettant à l'admin *habilité* d'un établissement
   de créer, cloner, modifier, désactiver et attribuer un rôle à plusieurs
