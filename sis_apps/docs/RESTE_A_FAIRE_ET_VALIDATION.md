@@ -9,12 +9,11 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 7 novembre 2026 à 16:46:20 UTC** :
-vagues 15 à 25 publiées et qualifiées dans leurs périmètres bornés ;
-**vague25 publiée en `13e99f5`, vérifié égal à `HEAD`, `main` et `origin/main`**.
-Le parent autorise
-le seul passage de **10.5 d'absente à partielle**, au vu du gestionnaire
-de projets effectivement implémenté et des preuves bornées ci-dessous :
+**Dernier cutoff documentaire : 7 novembre 2026 à 17:47:21 UTC** :
+vagues 15 à 26 publiées et qualifiées dans leurs périmètres bornés ;
+**vague26 publiée en `4f282a2`, vérifié égal à `HEAD` et `origin/main` sur main**.
+Le passage autorisé de **10.5 d'absente à partielle** appartient à la
+vague25. **Aucun statut promu en vague26** :
 **1 vérifiée, 72 partielles, 19 absentes et 2 non vérifiées sur 94**.
 Les 93 autres statuts et les chiffres historiques restent inchangés.
 Le blocage de qualification Studio a été levé
@@ -26,14 +25,15 @@ des groupes sans retirer membres ou permissions, avec suites backend
 intégrales sur l'image reconstruite du commit publié, 31 tests UI et deux parcours
 navigateur par SIS, dont révocation/rétablissement dans une même session.
 IAM reste en cours, sans recette exhaustive multi-tenant, tous menus/rôles,
-MFA/SoD ou versionnement. Pour25, les deux intégrales standard sont vertes
-sur la **base `febf3c0…`**, pas sur l'image finale. L'image **`488312…`**
-associée à `local-20261107-13e99f5` inclut `ui=("projets",)` au manifeste :
-recontrôles **26 tests/15 sous-tests par SIS**, deux parcours navigateur et
-persistance HTTP après recréation qualifiés. La capture « before » finale
-secondaire manque ; son arrêt/recréation est attesté par le parent, non
-remplacé par l'ancienne paire de captures. **10.5 reste partielle** :
-pas de liens cours/classes/ECUE/compétences/notes officielles/LMS réalisés.
+MFA/SoD ou versionnement. La vague26 ajoute un **lien optionnel à un mapping
+de cours local préexistant** (classe/matière ou ECUE), autorisé à la fois
+au gestionnaire et au responsable, avec permission cours explicite et
+prérequis staff hérité. Image corrigée **`e89d…`** : 40 tests/17 sous-tests
+secondaire et40/20 supérieur, 32 tests UI, deux parcours navigateur parSIS
+et persistance HTTP après recréation avec quatre captures avant/après.
+**Aucune intégrale26** ; les intégrales25 restent uniquement25 BASE.
+**10.5 reste partielle** : compétences, notes officielles, opérations LMS
+distantes, parcours enseignants non staff et réception complète restent ouverts.
 **Le 100 % n'est pas atteint.**
 Les bilans datés antérieurs conservent leurs cutoffs, blocages et rouges.
 
@@ -1134,6 +1134,109 @@ indéterminées**. F07 ouvert, F09/10.7 partiels, IAM en cours, **pas100 %**.
 Aucune qualification de la vague suivante importée ; aucun commit/push
 effectué par cet import documentaire.
 
+**Vague 26, publiée et qualifiée au cutoff du 7 novembre 2026 à
+17:47:21 UTC :** `4f282a20bf474bcf37fbfab7cb2d99c44badd7b6`, vérifié
+égal à `HEAD` et `origin/main` sur le principal propre avant cet import ;
+comparaison `ls-remote` et publication attestées par le parent. Le lien
+optionnel `cours` est une **FK PROTECT vers `EdxCourseMapping` local
+préexistant**, via les migrations `0011_project_course` des deux SIS.
+Il fournit le contexte classe/matière au secondaire, ECUE au supérieur,
+**sans créer un cours LMS, inscrire un apprenant ou écrire une note officielle**.
+
+La recherche paginée ne propose que l'intersection des cours actifs
+accessibles au gestionnaire **et** au responsable. Elle réutilise sans les
+modifier les helpers `apps.integration.api.visible_course_mappings` :
+tenant, classe/niveau/année/matière au secondaire, années de semestre
+**et** de maquette au supérieur, scopes reconnus et prérequis `is_staff`.
+La permission explicite `integration.view_edxcoursemapping` est exigée
+pour chacun des deux comptes ; staff ou rôle enseignant seul ne suffit pas.
+**Aucun enseignant non staff n'est promu implicitement** ; les projets non
+rattachés restent utilisables selon leurs permissions projets existantes.
+Un lecteur sans droit voit `{disponible:false}`, sans ID, nom ni contexte.
+
+Omettre `cours` conserve le lien, `null` le retire explicitement ;
+réaffecter le responsable revalide le mapping conservé. Un mapping inconnu,
+inactif, étranger ou hors périmètre produit un **400 générique** sans mutation
+ni audit de succès ; une version obsolète produit **409**. L'UI conserve
+les saisies, recharge la version sans rejouer la commande puis exige
+une nouvelle confirmation humaine. Retirer le lien ne supprime pas l'équipe.
+
+Le correctif final protège aussi l'historique après déplacement du contexte
+académique **même si les IDs classe/ECUE restent identiques** : chaque
+snapshot porte une empreinte interne versionnée des dimensions tenant et
+académiques, comparée au contexte courant. Noms et codes descriptifs en
+sont exclus : un simple renommage garde les libellés historiques lisibles.
+Empreinte absente, inconnue ou malformée : contexte masqué, sans réécriture
+des preuves persistées. Les champs internes ne sont jamais exposés, y
+compris dans `metadata.avant.cours`. Les tests couvrent les changements
+de niveau/année et UE/formation/années de maquette et semestre.
+
+Image standard corrigée **`lms-sis:local-20261107-4f282a2`**, digest
+`sha256:e89d28822086501f1442b973184e729e81f80bd10462d270920f47621c871ac7`.
+Le rapport `wave26-image-source-comparison-final.json` conserve **7 fichiers
+Python source/image identiques**, également rapprochés au commit publié.
+Dockerfile standard, aucun overlay backend ni TMPDIR selon le parent ;
+les captures navigateur ne montrent que volume privé et settings synthétiques.
+`wave26-secondaire-final.log` passe **40 tests/17 sous-tests en127,31 s**,
+`wave26-superieur-final.log` **40/20 en152,76 s**, avec checks sans erreur
+et migrations sans dérive. **`guardian.W001` connu reste présent : ne pas
+ajouter les backends standards**. L'ancienne image `47a…` et les anciens
+37/15 sont antérieurs au correctif, pas des substituts à ces résultats.
+**Aucune suite intégrale26** : les intégrales25 ne qualifient que25 BASE,
+sans total de tests uniques additionnant variantes ou campagnes.
+
+`wave26-projects-ui-parent.log` passe **32/32 sur deux suites**
+(`ProjectsPage` et navigation), pas toute la suite frontend.
+`wave26-frontend-browser-build.log` compile avec **3 avertissements
+habituels de taille/performance** ; UI inchangée depuis selon le parent.
+Black/isort/flake8 des sept Python, ESLint `src/projects --ext .js,.jsx`
+et quatre fichiers E2E, ainsi que diff-check : verts attestés dans le
+terminal parent `wave26-final-quality`, **sans journal local inventé**.
+`project-helpers.js` et `project-courses.e2e.js` sont publiés ; le scénario
+collectif25 reste exercé, sans réponse réseau simulée.
+
+Le premier `wave26-browser-projects-secondaire.log` reste **rouge :
+1 passé/1 échec sur2**, assertion de visibilité à5 s alors que le chargement
+n'était pas achevé. Sa trace, lue sans extraction, contient des GET projet
+HTTP200 ; elle ne constitue pas un parcours réussi. Correction du **harness
+seulement** : attendre explicitement le heading jusqu'à20 s.
+`wave26-browser-projects-secondaire-recheck.log` et
+`wave26-browser-projects-superieur.log` passent ensuite **2/2 chacun**.
+Chaque variante vérifie création avecA, contexte apprenant masqué, omission
+conservant le cours, choixB avec409/saisies conservées/sans rejeu/confirmation,
+ID inconnu400 sans mutation, retrait explicite conservant l'équipe puis
+rattachementA. Le second scénario conserve le collectif PDF/SHA, contributions,
+publication, retrait d'accès et désactivation/réactivation du module.
+
+Les quatre captures `wave26-{secondaire,superieur}-{before,after}-restart.json`
+sont présentes : IDs de conteneur différents, mêmes images et volumes privés.
+Les quatre reçus `wave26-course-*-persistence.json` et
+`wave26-projects-*-persistence.json` sont rapprochés aux nouveaux reçus
+navigateur : vrais GET HTTP authentifiés après recréation vérifient
+cours/version, masquage apprenant, équipe conservée, PDF au même SHA,
+évaluation publiée et seule contribution propre. Le script cours26 est
+lu ; `wave25-projects-after-restart.cjs` est réutilisé **sans modification**,
+empreinte25 identique. Ce ne sont ni une restauration exhaustive ni une
+qualification de déploiement institutionnel.
+
+Les fixtures `wave26-browser-fixture-{secondaire,superieur}.log/.json`
+attestent les mappings locaux **2 et3**, anciens mappings/outbox/accès
+inchangés, **aucun provisioning** ; bases `sis_wave26_browser_*` isolées.
+Helpers API/nginx26 explicitement arrêtés selon le parent ; codes137 observés
+après ces arrêts Docker, **sans diagnostic OOM supplémentaire**. PostgreSQL/Redis
+historiques privés restent disponibles, aucun service partagé touché.
+Les **29 artefacts lus puis hachés** sont répartis en quatre campagnes :
+backend corrigé, UI/build, navigateurs avec rouge préservé, fixtures/persistance.
+
+**10.5 reste partielle**, avec interdiction conservée de **lecture ET écriture
+des livrables d'une autre équipe**. Restent compétences, notes officielles,
+provisioning/inscriptions/synchronisation LMS, parcours enseignants non staff
+et réception complète. **1 vérifiée,72 partielles,19 absentes,2 non vérifiées
+sur94**, aucun statut/F-lot promu, aucun lot27 qualifié. Pas de déploiement
+institutionnel, nouvelle charge500 ou100 % : dernier rouge **500 timeouts,
+262 écritures indéterminées**. Politiques, cutoffs et preuves historiques
+intacts ; aucun test/service/commit/push pour cet import documentaire.
+
 ## Règle de clôture commune
 
 Pour cocher un point : conserver le scénario de départ et les preuves de
@@ -1444,7 +1547,7 @@ leurs limites ; elles ne sont pas comprises dans les 21 absentes/non vérifiées
 | 9.1 Super Admin — absent | Console plateforme gère deux établissements et abonnements sans accorder d'accès métier aux dossiers des tenants. |
 | 10.1 Mobile — absent | Installation Android **et** iOS, tâches apprenant/enseignant/parent réelles ; session/appareil révoqué ne révèle plus les données privées. |
 | 10.2 Hors ligne — absent | Cours téléchargé sous droit, travail préparé hors réseau puis synchronisé une fois ; conflit et accès révoqué/expiré bloquent les données privées. |
-| 10.5 Projets — partiels | Créer des projets individuels/collectifs avec équipes, jalons, livrables et évaluations du groupe/contributions ; refuser à une autre équipe la lecture **et** la modification des livrables privés. Acquis bornés publiés en `13e99f5` : voir le bilan détaillé de vague25 et ses limites de preuve ci-dessus. Restent les liens cours/classes/ECUE/compétences/notes officielles/LMS et la recette d'établissement ; exigence non vérifiée. |
+| 10.5 Projets — partiels | Créer des projets individuels/collectifs avec équipes, jalons, livrables et évaluations du groupe/contributions ; refuser à une autre équipe la lecture **et** la modification des livrables privés. Acquis25 conservés ; `4f282a2` ajoute le lien optionnel PROTECT à un mapping local classe/matière ou ECUE, intersection gestionnaire/responsable avec droit cours explicite et prérequis staff, retrait explicite/409/historique protégé et persistance bornée. Aucun provisioning/inscription/note officielle induit. Restent compétences, notes officielles, opérations LMS distantes, enseignants non staff et réception complète ; exigence non vérifiée. |
 | 10.7 Recherche globale — partielle | Preuves de recherche au cutoff vague 18 : apprenants, factures, vrais cours et évaluations SIS reliées au LMS dans les deux SIS, documents sources universitaires et bulletins scolaires `BUL-<id>` ; palette/fiches sans cache partagé, parcours staff et apprenant qualifiés sur fixtures, facture d'autrui absente de la recherche et détail 404 sans numéro. Restent catalogue LMS natif exhaustif et parcours parents/enseignants/multi-tenant/révocations exhaustifs ; la garde Studio ciblée de vague 19 ne clôt pas la recherche, aucun statut promu. |
 | 10.9 Portail public — absent | Formations publiées, actualités et procédure consultables sans connexion ; candidature démarrée, brouillons et dossiers privés inaccessibles. |
 | 10.10 Signature — non vérifiée | Habilitation approuvée par tiers, signature, archive et notification ; auto-approbation, mandat révoqué et document altéré refusés. |

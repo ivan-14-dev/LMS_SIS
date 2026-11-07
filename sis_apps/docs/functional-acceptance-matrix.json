@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-07T16:46:20+00:00",
+  "last_evidence_update_at": "2026-11-07T17:47:21+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -3756,10 +3756,132 @@
         "Aucune réceptionétablissement/déploiementpartagé/pilote/production ni500corrigé ;dernierrouge500timeouts/262écrituresindéterminées. IAMencours,F07ouvert,F09/10.7partiels.",
         "Cutoffsprovisoires16:35/16:42 et leursattentesalorsouvertes,rougesUI/browser/SQLdérivé etpolitiqueshistoriques intacts ;aucunequalificationvaguesuivante."
       ]
+    },
+    {
+      "id": "EXEC-20261107-wave26-published-project-course-binding",
+      "evidence_cutoff_at": "2026-11-07T17:47:21+00:00",
+      "qualification_status": "bounded_qualification_completed_code_published_requirement_partial",
+      "scope": "Vague26 publiée :rattachement optionnel de projets à des mappings cours locaux existants et autorisés,masquage des contextes historiques déplacés,recontrôles corrigés/UI/navigateurs/persistance. Seule10.5 actualisée,aucun statut promu.",
+      "provenance": "Principal propre avant import,HEAD=origin/main=4f282a2 vérifié ;comparaisonls-remote/push attestésparent. Sources26 consultées,artefacts lus avant hachage,traceZIPinspectéeenmémoire,sans extraction. SeptempreintesPython rapportimage rapprochées au commitpublié. Qualité/infrastructure sansloglocal attribuées au parent ;aucun test/build/lint/service/commit/push ni autreagent/sibling sollicité ici.",
+      "code_commit": "4f282a20bf474bcf37fbfab7cb2d99c44badd7b6",
+      "published_commits": ["4f282a2"],
+      "publication": {"head_equals_origin_main": true, "branch": "main", "commit_at": "2026-11-07T18:45:04+01:00", "remote_ls_remote_comparison": "attested_by_parent"},
+      "count_policy": "Quatre campagnesdocumentaires :backendcorrigé,UI/build,navigateursavecrougepréservé,fixtures/persistance.40tests/17sous-testssecondaire et40/20supérieur ciblés ;32testsUI/2suites ;2casbrowserparSISaprès premiersecondaire1passé/1échec. Aucuneintégrale26,ni addition en testsuniques. Intégrales25 restentexclusivement25BASE.",
+      "qualification_environment": {
+        "backend_image": "lms-sis:local-20261107-4f282a2",
+        "backend_image_digest": "sha256:e89d28822086501f1442b973184e729e81f80bd10462d270920f47621c871ac7",
+        "local_tag_alias": "attested_by_parent_image_digest_and_published_python_hashes_verified",
+        "published_python_files_matching_image_report": 7,
+        "standard_dockerfile": true,
+        "tmpdir_override": false,
+        "backend_application_source_overlay": false,
+        "browser_mounts": "private_data_volume_and_read_only_synthetic_settings_only",
+        "frontend_unchanged_since_qualified_build": "attested_by_parent",
+        "full_backend_suites_claimed": false,
+        "previous_image_boundary": "Ancienneimage47a et anciens37/15 antérieurs au correctifhistorique,non substituésaux40/17et40/20finaux.",
+        "fixture_databases": ["sis_wave26_browser_secondaire", "sis_wave26_browser_superieur"],
+        "fixture_scope": "synthetic_isolated_local_mappings_2_and_3_no_remote_provisioning",
+        "before_after_captures": "four_captures_both_variants_distinct_container_ids_same_image_and_mounts",
+        "api_nginx_helpers_stopped": "attested_by_parent_not_reprobed_here",
+        "exit_code_137": "explicit_docker_stop_not_oom_parent_attestation",
+        "postgres_redis": "historical_private_services_retained",
+        "shared_service_modified_or_institutional_deployment": false
+      },
+      "f_lot_links": [
+        {"id": "F08", "scope": "Référence locale cours/classe-matière/ECUE autorisée ;pas créationcoursLMS/inscription/noteofficielle.", "roadmap_status_unchanged": true},
+        {"id": "F18", "scope": "Contexteprojet rattaché et auditborné,opérationsprojets25préservées ;compétences/notesofficiellesrestentouverts.", "roadmap_status_unchanged": true},
+        {"id": "F25", "scope": "Confidentialitéhistorique,conflit409 et persistanceHTTPbornés ;pas réceptioncomplète.", "roadmap_status_unchanged": true}
+      ],
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "school-final-checks": {"path": "wave26-secondaire-final.log", "sha256": "5e4e948d0dc68c52560bf10d099feb0181543ce4e55fd52097e71ebc2434f926", "source_lines": [1, 13]},
+        "university-final-checks": {"path": "wave26-superieur-final.log", "sha256": "8586dc5f3404ddd4f686f359ddbf851b0533b4932dfcc1cb01ddc8089a854bea", "source_lines": [1, 13]},
+        "final-image-source-comparison": {"path": "wave26-image-source-comparison-final.json", "sha256": "bf7f71e79f67235539b482e7e7f3916b9f0088fb41bc482cfe9c4413380d7978", "source_lines": [1, 42]},
+        "projects-ui": {"path": "wave26-projects-ui-parent.log", "sha256": "b348bb033012ea7e6f9f8d6f237a9ff66e3b1bc35b253118824047772dd49d73", "source_lines": [1, 159]},
+        "frontend-browser-build": {"path": "wave26-frontend-browser-build.log", "sha256": "f9fca89e286401e12e218cd7fffb0f36f5fd9d9316323c52f82abd1b2197a921", "source_lines": [1, 68]},
+        "school-browser-first-red": {"path": "wave26-browser-projects-secondaire.log", "sha256": "0f547fee19a31ee9e151dd89033e2db634e138c9095c73f6a38df316d4ee4ffe", "source_lines": [1, 43]},
+        "school-browser-red-trace": {"path": "wave26-browser-projects-secondaire/project-courses.e2e.js-sec-1ae79-removal-and-private-context-learning-projects/trace.zip", "sha256": "0ad7afa72db93e9b7803fdf997dd86a0146183e9930ee1a1491ff8aa49253848", "format": "playwright_trace_zip", "inspected_members": ["test.trace", "1-trace.trace", "1-trace.network", "3-trace.network"]},
+        "school-browser-recheck": {"path": "wave26-browser-projects-secondaire-recheck.log", "sha256": "0714460fbf93d8b0732e66b7531e4d735155d5f5168aed9e07839b50c71f19c0", "source_lines": [1, 7]},
+        "university-browser": {"path": "wave26-browser-projects-superieur.log", "sha256": "1767724d3b53367da5ee8f56d068d4ae3b52c5be3d874c610f31d1b9e7b3fed9", "source_lines": [1, 7]},
+        "school-browser-receipt": {"path": "wave26-browser-projects-secondaire-recheck/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]},
+        "university-browser-receipt": {"path": "wave26-browser-projects-superieur/.last-run.json", "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903", "source_lines": [1, 4]},
+        "school-project-receipt": {"path": "wave26-browser-projects-secondaire-recheck/projects.e2e.js-secondaire-1b969-tion-and-module-restoration-learning-projects/project-receipt.json", "sha256": "cb51580b596e92508db862d608e1651b68521ee7ac1090f44ce3a79c96aa300d", "source_lines": [1, 12]},
+        "university-project-receipt": {"path": "wave26-browser-projects-superieur/projects.e2e.js-superieur--78e5a-tion-and-module-restoration-learning-projects/project-receipt.json", "sha256": "002465de9642e0099317db9792f357a7801dde7ed4081871b8e06c0a88c0d433", "source_lines": [1, 12]},
+        "school-course-receipt": {"path": "wave26-browser-projects-secondaire-recheck/project-courses.e2e.js-sec-1ae79-removal-and-private-context-learning-projects/project-course-receipt.json", "sha256": "b4bfc4e5010c24acc1844319762152d213e5024457df144ad47c51bf06ed2065", "source_lines": [1, 21]},
+        "university-course-receipt": {"path": "wave26-browser-projects-superieur/project-courses.e2e.js-sup-b55fe-removal-and-private-context-learning-projects/project-course-receipt.json", "sha256": "23fcabbf4d45e843db1e5cdacb9341f915fee2356531a166189b925b80792f7e", "source_lines": [1, 18]},
+        "school-before-restart": {"path": "wave26-secondaire-before-restart.json", "sha256": "0d48ccc9cfff5fe7f946de6cc6f5df58c100e4bdafdb982afead2eb2c947b199", "source_lines": [1, 1]},
+        "school-after-restart": {"path": "wave26-secondaire-after-restart.json", "sha256": "ace0342c1d55930fbfb5404de7be7e5ed404de7e3d978ce2601445129e2a8208", "source_lines": [1, 1]},
+        "university-before-restart": {"path": "wave26-superieur-before-restart.json", "sha256": "11fe30df5e6cba25f56fde3fab54ca294fe42bd451ab9cc56de0d90c4abb289b", "source_lines": [1, 1]},
+        "university-after-restart": {"path": "wave26-superieur-after-restart.json", "sha256": "609587af73f76c3946daf2dde4481f3b9c8a0b28457a446778230f60981e5e99", "source_lines": [1, 1]},
+        "school-course-persistence": {"path": "wave26-course-secondaire-persistence.json", "sha256": "01a6f48b4a84857ea93374208de11dccf966fcb50eff845228678c3a34ad392b", "source_lines": [1, 1]},
+        "university-course-persistence": {"path": "wave26-course-superieur-persistence.json", "sha256": "4b3363d2b5d2264ced26e2581003c8882f3cbf9a52ff367da1c4fed151632445", "source_lines": [1, 1]},
+        "school-project-persistence": {"path": "wave26-projects-secondaire-persistence.json", "sha256": "182d62e6f1e20460fc4e3f103b86d23fdd69a048a52634774176e24d9a9bff89", "source_lines": [1, 1]},
+        "university-project-persistence": {"path": "wave26-projects-superieur-persistence.json", "sha256": "8e31230b36de0dbd6badcd3519dd8b934b040d9425224bb30a6276a673a8c737", "source_lines": [1, 1]},
+        "school-fixture-log": {"path": "wave26-browser-fixture-secondaire.log", "sha256": "e9b507ebd3dc1e34de2ee265e1443bff190d174046b315a6ddb952568d20fadf", "source_lines": [1, 3]},
+        "school-fixture": {"path": "wave26-browser-fixture-secondaire.json", "sha256": "fe980c83849434a7b088eb0fad0cc78bb6a1cef5e5f60d943338e5645e32a37d", "source_lines": [1, 47]},
+        "university-fixture-log": {"path": "wave26-browser-fixture-superieur.log", "sha256": "f7d395d1fa1637cd61a4ad0b70b8448b06c11f0d43ae3385faefaca887d035b2", "source_lines": [1, 3]},
+        "university-fixture": {"path": "wave26-browser-fixture-superieur.json", "sha256": "95a436755ec1a0755a8ea8325fd20b5e18c84292512c44cda3dea50762450c15", "source_lines": [1, 41]},
+        "course-after-restart-checker": {"path": "wave26-course-after-restart.cjs", "sha256": "a9092e3f71f22f236938034f06a6c35a8e64412dd3bc16da4bb8ce8634929104", "source_lines": [1, 62]},
+        "unchanged-project-after-restart-checker": {"path": "wave25-projects-after-restart.cjs", "sha256": "5045786e279151f732ae09a630428c5bdee089785065a8dbf49e2a1dcd1819b6", "source_lines": [1, 88]}
+      },
+      "campaigns": [
+        {
+          "id": "wave26-corrected-local-course-binding-backend",
+          "result": "targeted_both_variants_and_historical_context_fingerprint_protection_passed",
+          "commit": "4f282a2",
+          "artifact_refs": ["school-final-checks", "university-final-checks", "final-image-source-comparison"],
+          "source_refs": ["sis_apps/sis_common/project_courses.py", "sis_apps/sis_common/project_models.py", "sis_apps/sis_common/project_serializers.py", "sis_apps/sis_common/projects.py", "sis_apps/sis_common/tests/test_project_courses.py", "sis_apps/sis_secondaire/apps/core/migrations/0011_project_course.py", "sis_apps/sis_superieur/apps/core/migrations/0011_project_course.py", "sis_apps/sis_secondaire/apps/integration/api.py", "sis_apps/sis_superieur/apps/integration/api.py", "sis_apps/README.md"],
+          "counts": {"secondaire": {"tests_passed": 40, "subtests_passed": 17, "duration_seconds": 127.31}, "superieur": {"tests_passed": 40, "subtests_passed": 20, "duration_seconds": 152.76}, "published_python_files_matching_image_report": 7},
+          "verification": "FKoptionnellePROTECTEdxCourseMappinglocalpréexistant,contexteclasse/matièreouECUE. Recherchepaginéeintersectiongestionnaire/responsable viahelpersnatifsvisible_course_mappings inchangés,permissionexpliciteintegration.view_edxcoursemapping+prérequisstaffhérité,tenant/scopes/classe-niveau-année etdeuxannéesECUE. Omissionconserve,nullretire,réaffectationrevalide,400génériquehorspérimètreet409avantmutation. Aucunaccèscoursinduitàapprenant,projetnonrattachérestesoumisàsesdroitspropres.",
+          "history_protection": "Empreinteinterneversionnéedesdimensions tenant/académiques,sansnoms/codesdescriptifs. Déplacementclasse/ECUEàIDsinchangésmasqueanciencontexte ;absence/versioninconnue/malformationmasque sansréécrirelespreuves. Renommagesansdéplacementlaissehistorique lisible. Champsinternesjamaisexposés,ycomprismetadata.avant.cours etsélecteur.",
+          "checks": {"django_check_errors": 0, "migration_drift_detected": false, "known_warning": "guardian.W001", "warning_limit": "Ne pas ajouter les backends standards ;avertissement connu du backend dérivé,checks non présentés sans avertissement."},
+          "quality": {"black_isort_flake8_seven_python_files": "passed_parent_terminal_attestation_wave26-final-quality", "git_diff_check": "passed_parent_terminal_attestation", "dedicated_local_log_claimed": false},
+          "limits": "Sélectioncorrigéee89d,pas intégrale26 ;anciens47a/37-15non substitués. PasprovisioningcoursLMS/inscription/noteofficielle ni promotionenseignantnonstaff. Intégrales25restent25BASE."
+        },
+        {
+          "id": "wave26-course-selection-ui-and-browser-build",
+          "result": "two_component_suites_and_browser_build_passed",
+          "commit": "4f282a2",
+          "artifact_refs": ["projects-ui", "frontend-browser-build"],
+          "source_refs": ["sis_apps/frontend-app-sis/src/projects/ProjectCommandDialog.jsx", "sis_apps/frontend-app-sis/src/projects/ProjectCourseCandidates.jsx", "sis_apps/frontend-app-sis/src/projects/ProjectDetail.jsx", "sis_apps/frontend-app-sis/src/projects/ProjectsPage.test.jsx", "sis_apps/frontend-app-sis/src/projects/projectUi.js", "sis_apps/frontend-app-sis/src/components/layout/navigation.projects.test.js"],
+          "counts": {"tests_passed": 32, "suites_passed": 2, "build_warnings": 3},
+          "verification": "Sélecteurcoursfacultatif,omissionconserve/retraitexplicite,contexteindisponiblemasqué ;409préservebrouillon,versionàrechargeretconfirmationhumaine,sansrejeuautomatique. ProjectsPage+navigation32/32verts,buildbrowservert3warningstaille/performance ;UIinchangéedepuisselonparent.",
+          "quality": {"eslint_projects": "src/projects --ext .js,.jsx passed_parent_terminal_attestation", "eslint_e2e_files": 4, "terminal": "wave26-final-quality", "dedicated_local_log_claimed": false},
+          "limits": "Deuxsuitescomposants,pasfrontendintégral ;aucunélargissementimplicitedesdroitsenseignantniéchangeLMSdistant."
+        },
+        {
+          "id": "wave26-real-course-binding-and-project-browser",
+          "result": "two_cases_per_variant_passed_after_school_harness_recheck_first_red_preserved",
+          "commit": "4f282a2",
+          "artifact_refs": ["school-browser-first-red", "school-browser-red-trace", "school-browser-recheck", "university-browser", "school-browser-receipt", "university-browser-receipt", "school-project-receipt", "university-project-receipt", "school-course-receipt", "university-course-receipt"],
+          "source_refs": ["sis_apps/frontend-app-sis/e2e/project-helpers.js", "sis_apps/frontend-app-sis/e2e/project-courses.e2e.js", "sis_apps/frontend-app-sis/e2e/projects.e2e.js", "sis_apps/frontend-app-sis/e2e/projects.config.js"],
+          "counts": {"first_school_cases_passed": 1, "first_school_cases_failed": 1, "school_recheck_cases_passed": 2, "university_cases_passed": 2},
+          "verification": "ChaqueSIS :créationavecA,contexteapprenantmasqué,omissioncoursconserve,choixB+conflit409/saisiesconservées/sansrejeu/confirmation,IDinconnu400sansmutationniaudit,retraitexplicitegardeéquipe,puisrattachementA. Scénariocollectif25préservéPDFSHA/contributions/publication/retrait/module. Aucunmockréseau ;scénariospubliés,reçusprojets/coursdistincts etlast-runpassedrapprochés.",
+          "historical_failure": "Premiersecondaire1passé/1échec,assertionvisibilité5spendantchargement. TraceZIPinspectéeenmémoire :GETprojetapprenantHTTP200 constaté,desrequêtesannuléesàlafindutest ne sontpasconvertiesensuccès. Parentcorrigeharnessuniquement parattenteheading20s,aucuncorrectifproduitdéduit ;premierrougeintact.",
+          "limits": "DeuxcasbornésparSIS,pastousprofils/tenants ni parcoursenseignantnonstaff. HTTP200danslatraceinitialeneprouvepasunparcoursréussi ;rattachementaudigeste89d attestéparentetrapprochéauxcapturesderecréation."
+        },
+        {
+          "id": "wave26-isolated-fixtures-and-http-restart-persistence",
+          "result": "both_variants_before_after_captures_and_four_authenticated_http_receipts_passed",
+          "commit": "4f282a2",
+          "artifact_refs": ["school-before-restart", "school-after-restart", "university-before-restart", "university-after-restart", "school-course-persistence", "university-course-persistence", "school-project-persistence", "university-project-persistence", "school-fixture-log", "school-fixture", "university-fixture-log", "university-fixture", "school-course-receipt", "university-course-receipt", "school-project-receipt", "university-project-receipt", "course-after-restart-checker", "unchanged-project-after-restart-checker"],
+          "counts": {"before_after_capture_files": 4, "http_persistence_receipts": 4},
+          "verification": "QuatreJSONavant/après :IDsconteneursdifférents,mêmedigeste89detmêmesvolumes/settingsprivés. QuatreGETreçusHTTPauthentifiésrapprochésauxreçusnavigateurs :cours/version/masquageapprenant/équipe,puisPDFmêmeSHA/évaluationpubliée+seulecontributionpropre. Fixturesmapping2/3locaux,anciensmappings/outbox/accèsinchangés,remote_provisioning=false. Scriptcours26lu ;scriptprojets25réutilisésansmodification,hash25identique.",
+          "limits": "Persistancebornée surfixturesisoléespasrestaurationexhaustive/déploiementinstitutionnel. HelpersAPI/nginx26arrêtésselonparent,codes137observésaprèscesarrêtsDocker,sansdiagnosticOOMsupplémentaire ;PGRedisprivéshistoriquesconservés. Aucunservicepartagétouché/sondéici."
+        }
+      ],
+      "qualification_limits": [
+        "94statutsinchangés1verified/72partial/19absent/2unverified ;10.5partial,aucuneautreexigenceactualisée,F-lotsnonclos,100%nonatteint.",
+        "Lienlocalpréexistantseulement :pasprovisioningLMS/inscription/notesofficielles,compétencesetparcoursenseignantsnonstaffrestentouverts ;permissioncours+staffhérités,paspromotionimplicite.",
+        "InterdictionlectureETécritureautreéquipeconservée ;recettecomplète,tousrôles/tenants etréceptionétablissementnonqualifiés.",
+        "Aucuneintégrale26,anciens47a/37-15intermédiairesnon substitués,intégrales25restent25BASE,nonsomméesentestsuniques.",
+        "Aucundéploiementpartagé/nouvellecharge500 :dernierrouge500timeouts/262écrituresindéterminées inchangé ;aucunlot27qualifié.",
+        "Tousupdates/cutoffs/critèreshistoriques etpremierbrowserrougepréservés ;29artefactsluspuishachés,aucunlogqualitélocalinventé."
+      ]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-07T16:46:20+00:00",
+    "as_of": "2026-11-07T17:47:21+00:00",
     "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
     "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
     "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
@@ -3772,6 +3894,7 @@
     "wave25_provisional_qualification_reference": {"update_id": "EXEC-20261107-wave25-projects-provisional-qualification", "campaign_ids": ["wave25-standard-base-backend-provisional", "wave25-project-ui-recheck-and-build-provisional", "wave25-base-real-project-browser-provisional", "wave25-base-private-volume-restart-persistence"]},
     "wave25_base_integrals_final_browser_reference": {"update_id": "EXEC-20261107-wave25-base-integrals-final-image-browser-provisional", "campaign_ids": ["wave25-standard-base-integral-suites-confirmed", "wave25-final-image-provenance-and-browser-provisional"]},
     "wave25_published_qualification_reference": {"update_id": "EXEC-20261107-wave25-published-final-checks-and-persistence", "campaign_ids": ["wave25-published-final-targeted-backend-checks", "wave25-final-image-private-persistence-after-recreation"]},
+    "wave26_published_qualification_reference": {"update_id": "EXEC-20261107-wave26-published-project-course-binding", "campaign_ids": ["wave26-corrected-local-course-binding-backend", "wave26-course-selection-ui-and-browser-build", "wave26-real-course-binding-and-project-browser", "wave26-isolated-fixtures-and-http-restart-persistence"]},
     "wave15_bounded_sis_qualification": "35ef40c,d9ca357,c1eac39,06b55e8 publiés dans origin/main; image backend local-20261107-06b55e8@sha256:956bf0382d5b42b527080d27c937ca6b5622dfda4c22881a87aa99b5cae7f917 sans montage de code applicatif backend :762tests/305sous-tests secondaire et781/300 supérieur verts,check et migrations sans dérive. Chauffeurs protégés/anti-chevauchement, migrations sous propriétaireDB non superutilisateur selon parent; queryset de factures scolaires verrouillable corrigé. Aucun déploiement partagé.",
     "lms_grade_review_bounded": "F09 partiel : proposition obligatoire avant approbation/rejet nominatif audité.11tests par variante dont concurrence réelle200/409,1note/1audit; snapshot période/année et événement retenu plus récent opposables. Navigateur réel sur fixtures loopback des deux SIS, webhook signé synthétique traité en Celery eager, note absente avant approbation,rejet motivé,onglet obsolète409,rejeu,non-écrasement. Pas de vrai LMS natif ni réception humaine institutionnelle; boucle permissions EvaluationsManager corrigée par refetchOnMount:false.",
     "wave16_bounded_frontend_qualification": "ae86edd publié dans origin/main : palette métier/fiches sans cache partagé. Premier Jest400passés/2timeouts sur402tests,34suites passées/2échouées sur36; seulement2cas relancés avec20s passent,78ignorés. Pas de suite complète entièrement verte revendiquée. Lint0erreur/8warnings,build-r2 vert avec3warnings taille/performance. Navigateurs de recherche élèves/étudiants,factures25pagination20+5 et attestation universitaire passent sur fixtures loopback.",
@@ -3789,9 +3912,12 @@
     "wave24_operational_limits": "AuditAPIgroupes uniquement,pas ORM/adminuniversel ;appelsdirectsauxbackends/raccourcis natifsGuardian non couverts. CachesDjangoparinstance,rechargeruserpourtraitementlong ;anciennes sessions ancienbackend nécessitentreconnexion. Migrertousschémasavanttrafic,pasqualificationpartiellementmigrée ;retouranciencodepeutréaccorderdroits. Pas tousmenus/tousrôles,MFA/SoD,datesdélégation/rôlesmétier,pilote/production/réception ou500neuf.94statuts inchangés,100%nonatteint.",
     "wave25_published_qualification": "13e99f5=HEAD=main=origin/main vérifié,codepublié/qualificationbornéeachevée.10.5partial seulement. IntégralesBASEfebf3c0 :830/496secondaire571.83s et834/430supérieur755.45s ;FINALE488312 :26tests/15sous-testsciblésparSIS110.22s/150.52s,checksans erreur/migrationssansdérive avecguardian.W001connu. DeuxnavigateursFINALEverts etpersistanceHTTPaprèsrecréationconfirmée ;pas intégralesFINALE ni cumulunique. UIpremier117/1rougepuis24/24sur2suites,build3warnings etanciensrougesconservés.",
     "wave25_final_image_qualified": "lms-sis:local-20261107-13e99f5=qualification-wave25-final-d0c25c75@sha256:488312ed06d9dba5b27d47fc8284786448cc2b06cdd92854f9e31c1f39421add selonparent ;12Pythonrapportfinalidentiquescommitpublié,seulregistreui=(projets,)diffèreBASE,bundlefrontinchangé. PersistanceFINALErapprochéereçusprojetsfinaux :projet/équipe/jalon/PDFSHA/évaluationpubliée/seulecontributionpropre. Supérieurpairebefore/afterIDsdistinctsmêmevolume/digest ;secondaireafterseul,arrêt/recréationattestésparent,sansbeforefinalinventé/substitutionBASE.",
-    "projects_bounded": "10.5partial,pasverified :individuel/collectifAPI2SIS/offpardéfaut/failclosed,équipes/jalons/PDFprivés25Mio/révisions/évaluations/contributions/publihumaine,409saisiesconservées/nouvelleconfirmation,autreéquipeGETetPOST404,révocation/rétablissement,module403/200. Code13e99f5publié,intégralesBASE830/496et834/430,recontrôlesFINALE26/15parSIS,1browserFINALEparSIS,persistanceHTTPFINALEaprèsrecréation. CapturebeforeFINALEsecondaireabsente,attestationparentexplicite. Lienscours/classes/ECUE/compétences/notesofficielles/LMSnonréalisés,PDFsignatureformatpasantivirus ;pasréceptionétablissement.",
+    "wave26_published_qualification": "4f282a2=HEAD=origin/main vérifié surmain,ls-remotepubliéattestéparent. Imagecorrigéelocal-20261107-4f282a2@sha256:e89d28822086501f1442b973184e729e81f80bd10462d270920f47621c871ac7,7Pythonidentiquescommit/image,standard/sansoverlaybackend/sansTMPDIR. Ciblés40/17secondaire127.31s et40/20supérieur152.76s,checksans erreur/migrationssansdérive,guardian.W001connu. UI32/32sur2suites,build3warnings,qualitécibléeterminalparent ;browserpremiersecondaire1/1rougepuis2/2et supérieur2/2verts. Aucuneintégrale26 ;anciens47a/37-15nonsubstitués,intégrales25seulement25BASE.",
+    "wave26_course_binding_and_history": "FKPROTECToptionnellemappinglocalEdxCourseMappingpréexistant,classe/matièreouECUE. Recherchepaginéeintersectiongestionnaire/responsable avecpermissionexpliciteview_edxcoursemapping+staffhéritédeshelpersnatifs,tenant/scopes/deuxannéesECUE. Omissionconserve,nullretire,réaffectationrevalide,400génériquehorspérimètre,409brouillonconservé/nouvelleconfirmation,sansrejeu. Historiqueempreinteinterneversionnéedimensionssansnoms :déplacementàIDsclasse/ECUEinchangésmasqueanciencontexte,empreinteabsente/inconnue/malforméemasque,renommagesimplegardelisibilité,champsinternesjamaisexposés. Pasprovisioning/inscription/noteofficielle/promotionenseignant.",
+    "wave26_persistence_bounded": "Quatrecapturesavant/après2SIS,IDsconteneursdistincts,mêmeimagee89d/mêmesvolumesprivés. QuatrereçusHTTPauthentifiésrapprochésauxnouveauxprojetsnavigateurs :cours/version/masquageapprenant/équipe etPDFSHA/évaluationpubliée/seulecontributionpropre aprèsrecréation. Scriptcours26 etscriptprojets25inchangé. Fixtures2/3locales,anciensmappings/outbox/accèsinchangés,noprovisioning. HelpersAPI/nginx26arrêtésselonparent,137observésaprèscesarrêtsDocker,sansdiagnosticOOMsupplémentaire,PGRedisprivésconservés. Preuve26nedoitpasréécrirelacapturebefore25manquante.",
+    "projects_bounded": "10.5partial,pasverified :acquisprojets25conservés(individuel/collectif/équipes/jalons/PDFprivés/révisions/évaluations/contributions/publication),interdictionlectureETécritureautreéquipepréservée.26publiée4f282a2ajoutelienlocalcourspréexistantclasse-matière/ECUE,intersectiondroitscoursgestionnaire/responsable+prérequisstaff,409confirmationhumaine ethistoriqueprotégécontrecontexte déplacé.40/17et40/20ciblés,32UI,2browserparSIS,persistanceHTTP4reçus. Restentcompétences/notesofficielles/opérationsLMSdistantes/enseignantsnonstaff/réceptioncomplète ;aucuneintégrale26,déploiementpartagéoustatutpromu.",
     "current_requirement_status_counts": {"verified": 1, "partial": 72, "absent": 19, "unverified": 2, "change": "10.5_absent_to_partial_only_explicit_parent_authorization"},
-    "shared_deployment_scope": "Aucun déploiementpartagédesvagues15à25,pilote/réceptionétablissement. Champsdelivraison/main/fixturehistoriquesconservés ;imagefinale25qualifiée ne remplacepas current_user_backend/current_user_frontend.25clonessynthétiquesdédiésdesbases21,volumesprivés,persistanceHTTPaprèsrecréationFINALEbornée,pasqualificationredéploiementproduction. ToushelpersAPI/nginxarrêtésselonparent,PostgreSQL/Redisprivésconservéspourprochainevague sansqualificationdecelle-ci. Aucunservice/sondage/arrêt/nettoyageici ;dernier500rougeinchangé.",
+    "shared_deployment_scope": "Aucun déploiementpartagédesvagues15à26,pilote/réceptionétablissement. Champsdelivraison/main/fixturehistoriquesconservés ;image26qualifiée ne remplacepas current_user_backend/current_user_frontend.26utilisebasesisoléessis_wave26_browser_*,volumesprivés,recréationAPI+HTTPbornés,pasrestaurationexhaustive/production. HelpersAPI/nginx26arrêtésselonparent,137observésaprèscesarrêtsDocker,sansdiagnosticOOMsupplémentaire,PGRedisprivéshistoriquesconservés. Aucunservicepartagétouché,aucunsondage/arrêt/testici ;aucunequalification27,dernier500rougeinchangé.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -4432,9 +4558,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 159,
+    "imported_evidence_campaign_records": 163,
     "requirements_with_new_increment_evidence": 25,
-    "conclusion": "159campagnesdocumentairesnonsommées(157avantclôturebornée25,2nouvelles),25exigencesavecpreuves.94statuts1verified/72partial/19absent/2unverified ;10.5partial autorisée,93autresinchangés.25publiée13e99f5/qualificationbornéeachevée :imagefinalelocal-20261107-13e99f5@488312,12empreintesPythonexactescommit,seulregistreui=(projets,)diffèreBASE,bundlefrontinchangé. IntégralesBASEfebf3c0830/496secondaire et834/430supérieur,pasintégrales488312 ;FINALE26tests/15sous-testsparSIS110.22s/150.52s,checksans erreur/migrationssansdérive,guardian.W001connu nepasajouterbackendsstandards. UnbrowserFINALEvertparSIS etpersistanceHTTPFINALErapprochéeauxnouveauxreçusprojets/PDFSHA/évaluationpubliée/seulecontributionpropre. Supérieurpairebefore/afterIDsdistinctsmêmedigest/volume ;secondaireafterseul,arrêt/recréationattestésparent,sansbeforeinventé/substitutionBASE. ToushelpersAPI/nginxarrêtés,PGRedisprivésrestentpourprochainevague. UIpremier117/1rougepuis24/24sur2suites,build3warnings,6rougesbrowser/SQLdérivé/cutoffs16:35et16:42préservés. Lienscours/classes/ECUE/compétences/notesofficielles/LMSnonréalisés,PDFpas antivirus,10.5nonverified ;pasréceptionétablissement/déploiementpartagé/pilote/production/500corrigé. IAMencours,F07ouvert,F09/10.7partiels,100%nonatteint ;dernier500rouge500timeouts/262écrituresindéterminées."
+    "conclusion": "163campagnesdocumentairesnonsommées(159avant26,4nouvelles),25exigencesavecpreuves.94statutsinchangés1verified/72partial/19absent/2unverified,10.5partial,seuleportée10.5actualisée.26publiée4f282a2 :imagecorrigéee89dstandard,sansoverlaybackendetsansTMPDIR,7Pythonidentiquescommit/image,ciblés40/17secondaire et40/20supérieur,checksans erreur/migrationssansdérive avecguardian.W001connu. LienFKPROTECTmappinglocalpréexistantclasse-matière/ECUE,intersectiongestionnaire/responsable+permissioncoursexplicite+staffhérité ;pasprovisioning/inscription/noteofficielle/promotionenseignant. Historiqueempreinteinterneversionnéedimensionssansnoms,contexte déplacéàIDsinchangésmasqué,empreinteabsente/inconnue/malforméemasquée,renommagesimplelisible,champsinternesnonexposés. UI32/32sur2suites,build3warnings,qualitéfinaleterminalparent ;premierbrowsersecondaire1passé/1échecpréservé puis2/2et supérieur2/2verts,sansmock. Quatrecapturesrecréation et4reçusHTTPcours/version/masquageapprenant/équipe/PDFSHA/évaluationpersonnelle,fixtures2/3préserventanciensmappings/outbox/accès. HelpersAPI/nginxarrêtés,137suitearrêtDockerpasOOMselonparent,PGRedisprivésconservés. Pasintégrale26,anciens47a/37-15nonsubstitués,intégrales25restent25BASE. Restentcompétences/notesofficielles/opérationsLMSdistantes/enseignantsnonstaff/réceptioncomplète ;lectureETécritureautreéquipeinterdites. Historiquesintacts,paslot27/déploiementpartagé/500corrigé ;dernierrouge500timeouts/262écrituresindéterminées,F07ouvert,F09/10.7partiels,IAMencours,100%nonatteint."
   },
   "requirements": [
     {
@@ -9615,17 +9741,23 @@
       ],
       "existing_evidence": [
         "sis_apps/sis_common/project_models.py:17",
-        "sis_apps/sis_common/project_models.py:45",
-        "sis_apps/sis_common/project_models.py:85",
-        "sis_apps/sis_common/project_models.py:106",
-        "sis_apps/sis_common/project_models.py:129",
-        "sis_apps/sis_common/project_models.py:159",
-        "sis_apps/sis_common/projects.py:111",
-        "sis_apps/sis_common/project_serializers.py:84",
+        "sis_apps/sis_common/project_models.py:48",
+        "sis_apps/sis_common/project_models.py:88",
+        "sis_apps/sis_common/project_models.py:109",
+        "sis_apps/sis_common/project_models.py:132",
+        "sis_apps/sis_common/project_models.py:162",
+        "sis_apps/sis_common/projects.py:119",
+        "sis_apps/sis_common/project_serializers.py:87",
+        "sis_apps/sis_common/project_courses.py",
         "sis_apps/sis_secondaire/apps/core/migrations/0010_pedagogical_projects.py",
         "sis_apps/sis_superieur/apps/core/migrations/0010_pedagogical_projects.py",
+        "sis_apps/sis_secondaire/apps/core/migrations/0011_project_course.py",
+        "sis_apps/sis_superieur/apps/core/migrations/0011_project_course.py",
         "sis_apps/frontend-app-sis/src/projects/ProjectsPage.jsx",
-        "sis_apps/README.md:204"
+        "sis_apps/frontend-app-sis/src/projects/ProjectCourseCandidates.jsx",
+        "sis_apps/README.md:204",
+        "sis_apps/README.md:290",
+        "sis_apps/README.md:336"
       ],
       "test_evidence": [
         "sis_apps/sis_common/tests/test_projects.py:306",
@@ -9635,19 +9767,22 @@
         "sis_apps/sis_common/tests/test_projects.py:452",
         "sis_apps/sis_common/tests/test_projects.py:643",
         "sis_apps/sis_common/tests/test_projects.py:756",
+        "sis_apps/sis_common/tests/test_project_courses.py",
         "sis_apps/frontend-app-sis/src/projects/ProjectsPage.test.jsx",
         "sis_apps/frontend-app-sis/src/components/layout/navigation.projects.test.js",
-        "sis_apps/frontend-app-sis/e2e/projects.e2e.js:92"
+        "sis_apps/frontend-app-sis/e2e/projects.e2e.js:32",
+        "sis_apps/frontend-app-sis/e2e/project-courses.e2e.js:14"
       ],
-      "assessment_cutoff_at": "2026-11-07T16:46:20+00:00",
-      "assessment_scope": "Exception explicite à l'inventaire statique pour10.5,seule exigence réévaluée surautorisationparent ;ancienobjet intégral archivé dans requirement_status_transition.previous_assessment de EXEC-20261107-wave25-projects-provisional-qualification. Sourcesettests ci-dessus désormais rattachés au commitpublié13e99f5 ;qualificationbornée surservicesprivés,pas livraisonpartagée.",
-      "existing_scope": "Au cutoff25 :gestionnaire pédagogique intégré danslesdeuxSIS pour projetsindividuels/collectifs,équipes/appartenances,jalons/échéances/barèmes,PDFprivésrévisionnés,évaluations/contributions etpublicationhumaine. Moduleoffpardéfaut/API+UIcapacitésserveur ;mémoires/recherche ne sont plus les seules briques voisines.",
-      "current_scope": "10.5partielle,pasvérifiée :fonctionprincipaleprojetsindividuels/collectifs publiée13e99f5,qualificationbornéeachevée. Lienscours/classes/ECUE/compétences/notesofficielles/LMSnonréalisés. IntégralesBASEfebf3c0deuxSISvertes ;FINALE48831212sourcesPythonexactescommit,26/15ciblésparSIS,1browserparSIS etpersistanceHTTPaprèsrecréation. CapturebeforeFINALEsecondaireabsente,attestationparentexplicite ;pasréceptionétablissement/déploiementpartagé.",
-      "test_scope": "Importdocumentaire,seulementlecture. IntégralesBASE830/496secondaire et834/430supérieur,pasintégralesFINALE. FINALE48831226tests/15sous-testsprojets/modules/registreparSIS110.22s/150.52s,checksans erreur/migrationssansdérive avecguardian.W001. UIpremier117/1rougepuis24/24sur2suites,pasrelance5suites ;1browsercollectifFINALEparSIS,autreéquipeGET404/POST404API. PersistanceHTTPFINALEaprèsrecréation/PDFSHA/évaluationpubliée/seulecontributionpropre ;supérieurpairebefore/after,secondaireafterseul+attestationparent. ModeindividuelAPItesté,pasbrowserindividuel. Résultatsnonadditionnésen testsuniques.",
+      "assessment_cutoff_at": "2026-11-07T17:47:21+00:00",
+      "assessment_scope": "Seuleportée10.5actualiséeen26,statutpartialinchangé ;ancienobjetavant25archivé dans requirement_status_transition.previous_assessment de EXEC-20261107-wave25-projects-provisional-qualification. Référencescourantesci-dessus rattachées au commitpublié4f282a2,lignesdéplacéesactualisées ;preuves25conserventleurscommits/cutoffs,aucunhistorique ni critère supprimé.",
+      "existing_scope": "Gestionnaireprojetsindividuels/collectifs2SIS :équipes/appartenances,jalons/échéances/barèmes,PDFprivésrévisionnés,évaluations/contributions/publicationhumaine.26ajoutelienoptionnelPROTECTmappinglocalEdxCourseMappingpréexistant(classe/matièreouECUE),sansprovisioning/inscription/noteofficielle. Moduleoffpardéfaut/API+UIcapacitésserveur etdroitsprojetspropresconservés.",
+      "current_scope": "10.5partial,pasverified :4f282a2publié,référencecourslocale autoriséeintersectiongestionnaire/responsable parpermissionexpliciteview_edxcoursemapping+staffhérité,tenant/scopes/deuxannéesECUE. Omissionconserve,nullretire,réaffectationrevalide,400générique,409saisiesconservées/confirmationhumaine. Historiqueprotégéparempreinteinterneversionnéedesdimensionssansnoms,déplacementsàIDsinchangésmasqués,renommagesimpleslisibles,champsinternesnonexposés. Restentcompétences/notesofficielles/opérationsLMSdistantes/enseignantsnonstaff/réceptioncomplète ;interdictionlectureETécritureautreéquipepréservée.",
+      "test_scope": "Importdocumentaire,seulementlecture.26imagecorrigéee89d :40tests/17sous-testssecondaire127.31s,40/20supérieur152.76s,checksans erreur/migrationssansdérive avecguardian.W001. UI32/32sur2suites,build3warnings ;premierbrowsersecondaire1passé/1échec5sconservé,harnessheading20spuis2/2,superieur2/2. Quatrecapturesavant/aprèset4reçusHTTPcours/version/masquageapprenant/équipe/PDFSHA/évaluationpersonnelle aprèsrecréation. SeptempreintesPythoncommit/imageidentiques,scriptpersistance25inchangé. Aucuneintégrale26,anciens47a/37-15nonsubstitués,intégrales25restent25BASE,nonsomméesentestsuniques.",
       "status": "partial",
       "top_missing_pieces": [
-        "Rattachements réels aux cours/classes/ECUE et compétences, non implémentés.",
-        "Circuit des notes officielles SIS et synchronisation LMS, non réalisés ; les évaluations de projets restent distinctes.",
+        "Rattachement aux compétences non réalisé ; le lien cours26 reste une référence locale à un mapping existant classe/matière ou ECUE, pas une intégration pédagogique exhaustive.",
+        "Circuit des notes officielles SIS et opérations LMS distantes (provisioning, inscription, synchronisation) non réalisés ; les évaluations de projets restent distinctes.",
+        "Parcours de rattachement pour enseignants non staff non couvert : permission cours explicite et frontière administrateur LMS héritée, aucune promotion implicite.",
         "Recette d'établissement et déploiement partagé non qualifiés ; preuves navigateur bornées collectives, non exhaustives sur tous profils/tenants."
       ],
       "acceptance_checks": [
@@ -9675,6 +9810,13 @@
           "result": "published_bounded_project_qualification_completed_requirement_remains_partial",
           "verified_scope": "13e99f5publié,12empreintesPythonrapportFINALE488312identiquescommit.26tests/15sous-testsciblésparSIS verts,checksans erreur/migrationssansdérive avecguardian.W001connu. IntégralesBASE830/496et834/430 etnavigateursFINALEdéjàimportés gardentleurprovenance. GETHTTPaprèsrecréationFINALErapprochésauxreçusfinaux :projet/équipe/jalon/PDFmêmeSHA/évaluationpubliée/seulecontributionpropre.",
           "remaining_scope": "10.5partial,93autresstatutsinchangés :lienscours/classes/ECUE/compétences/notesofficielles/LMSnonréalisés. PasintégralesFINALE ou cumulunique ;beforeFINALEsecondaireabsent,arrêt/recréationattestésparent,after/GETcapturés,sanssubstitutionparBASE. Pasbrowserindividuel/tousprofils/tenants exhaustif,réceptionétablissement/déploiementpartagé/pilote/production/charge500corrigée."
+        },
+        {
+          "update_id": "EXEC-20261107-wave26-published-project-course-binding",
+          "campaign_ids": ["wave26-corrected-local-course-binding-backend", "wave26-course-selection-ui-and-browser-build", "wave26-real-course-binding-and-project-browser", "wave26-isolated-fixtures-and-http-restart-persistence"],
+          "result": "bounded_existing_course_reference_historical_context_masking_and_persistence_passed_status_unchanged",
+          "verified_scope": "4f282a2publié,imagee89d7Pythonidentiquescommit. LienFKPROTECTmappinglocalpréexistantclasse/matièreouECUE,intersectiongestionnaire/responsablepermissionexplicite+staffhérité ;omissionconserve/nullretire/réaffectationrevalide/400générique/409confirmationhumaine. Empreinteinterneversionnéehistorique dimensionssansnoms protègeanciencontexte déplacémêmeIDs,enmasquantempreintesabsentes/inconnues/malformées,sanschampsinternesexposés.40/17et40/20ciblés,UI32/32,2browserparSISaprèsrougesecondaireconservé,4capturesrecréation+4reçusHTTP. Acquiscollectifs25/PDFSHA/contributions/publication/retrait/moduleconservés,lectureETécritureautreéquipeinterdites.",
+          "remaining_scope": "10.5reste partial,94statuts1/72/19/2 inchangés. Compétences,notesofficielles,provisioning/inscription/synchronisationLMS,enseignantsnonstaffetrecettecomplèteouverts. Aucuneintégrale26/intégrale25réattribuée,réceptionétablissement/déploiementpartagé/nouvellecharge500 ;aucunlot27qualifié."
         }
       ],
       "acceptance_execution_status": "increments_passed_requirement_incomplete"
