@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-08T00:01:24.356434+00:00",
+  "last_evidence_update_at": "2026-11-08T01:07:25.737594+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -6725,10 +6725,697 @@
         "Targeted suites overlap author/parent checks; no deduplicated grand total or full-suite claim.",
         "The original load500 remains red; F-lots and the global programme remain open."
       ]
+    },
+    {
+      "id": "EXEC-20261108-wave35-published-authenticated-partners",
+      "evidence_cutoff_at": "2026-11-08T01:07:25.737594+00:00",
+      "qualification_status": "four_audiences_passed_independent_restore_pending_10_12_partial",
+      "scope": "Partenaire authentifie sans privileges implicites, quatre publics ; aucun statut global promu.",
+      "code_commit": "1da6905cffad3b9b67bb6bb98abc3bfe4b28aebe",
+      "published_commits": [
+        "1da6905cffad3b9b67bb6bb98abc3bfe4b28aebe"
+      ],
+      "qualification_environment": {
+        "image": "sha256:0506a40d6a08d86f2caac6e03b35c3ea00a4032844526acb99652fda24ea7571",
+        "database": "sis_wave35_source_{secondaire,superieur}, copies isolees des sources34 finales.",
+        "client": "Chromium puis Node HTTP natif ; loopback32490, vrais Hosts, cookies/CSRF/login.",
+        "frontend": "176 sources et23 fichiers HTTP identiques au build et au principal publie."
+      },
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "parent-qualification": {
+          "path": "wave35-parent-qualification.json",
+          "sha256": "c231e41390d41c42100fd7e096c6aadac6b83ee963e9c1817d123c42c948aee9"
+        },
+        "wave35-image-model-fix-python-hashes.json": {
+          "path": "wave35-image-model-fix-python-hashes.json",
+          "sha256": "c977fd2377eb1a818f46ebe171686cd5bca983d64508444bde366dd63946d002"
+        },
+        "wave35-frontend-build-provenance.json": {
+          "path": "wave35-frontend-build-provenance.json",
+          "sha256": "194b63112c2c922c0a36c0fea89e3a3564e4ceba7b6622a04d31407ad239a119"
+        },
+        "wave35-source-preparation-comparison.json": {
+          "path": "wave35-source-preparation-comparison.json",
+          "sha256": "c2147126f36b89ac95bcce989ac3292a3221f6f1ed8a9e4448ae2cdc47002073"
+        },
+        "wave34-source-secondaire-database-after-reopen.json": {
+          "path": "wave34-source-secondaire-database-after-reopen.json",
+          "sha256": "36643c6fc0ea46a95874ba10ef6bab2fd45f1b678c1632a4a6e5b2c820769789"
+        },
+        "wave35-source-secondaire-database-before-upgrade.json": {
+          "path": "wave35-source-secondaire-database-before-upgrade.json",
+          "sha256": "b03442a547f1f6bbe0fbcdd4bfb82c8dfbf9f61894cfcd9669af8ef4d1995f97"
+        },
+        "wave34-source-secondaire-mfa-after-reopen.json": {
+          "path": "wave34-source-secondaire-mfa-after-reopen.json",
+          "sha256": "e7370c502f29982b56191f857a7b8be6c042c44f2bf30c9ba44fd9a61e999ea1"
+        },
+        "wave35-source-secondaire-mfa-before-upgrade.json": {
+          "path": "wave35-source-secondaire-mfa-before-upgrade.json",
+          "sha256": "0a2b336145349cfcc98f771a634fd079c89bd4ed155bfee63e85cb1f6631fbc3"
+        },
+        "wave34-source-secondaire-volume-after-reopen.json": {
+          "path": "wave34-source-secondaire-volume-after-reopen.json",
+          "sha256": "44e49e516739eb567e52d72512ffb03ab9aa4b344dfbb8a41258da4941f66ac6"
+        },
+        "wave35-source-secondaire-volume-before-upgrade.json": {
+          "path": "wave35-source-secondaire-volume-before-upgrade.json",
+          "sha256": "95eda06849732ca1b1e59858c56ff1295ef28b4eb4e0b71a6a57a54e06e4824a"
+        },
+        "wave34-source-superieur-database-after-reopen.json": {
+          "path": "wave34-source-superieur-database-after-reopen.json",
+          "sha256": "0b20a39a0c945cfeeae6aad9d9bc582799b88c6df3309f6c77827802bb0f8774"
+        },
+        "wave35-source-superieur-database-before-upgrade.json": {
+          "path": "wave35-source-superieur-database-before-upgrade.json",
+          "sha256": "0a6a838629f3455e094c669e8329d22a6923d04711120272968326c3860dfbff"
+        },
+        "wave34-source-superieur-mfa-after-reopen.json": {
+          "path": "wave34-source-superieur-mfa-after-reopen.json",
+          "sha256": "b52c85d7a07c20822d1458ddee96075591c021ca4fd88a7687df3b012f793b11"
+        },
+        "wave35-source-superieur-mfa-before-upgrade.json": {
+          "path": "wave35-source-superieur-mfa-before-upgrade.json",
+          "sha256": "5eaf19554f2c175822dba570213dc1d4550ad30fc28a197223cde02e9ed7164e"
+        },
+        "wave34-source-superieur-volume-after-reopen.json": {
+          "path": "wave34-source-superieur-volume-after-reopen.json",
+          "sha256": "d12475ca4f35b35c61f97a6e9fc763a9a8ca525d4d0bcc3a6ef017e1239f0e5e"
+        },
+        "wave35-source-superieur-volume-before-upgrade.json": {
+          "path": "wave35-source-superieur-volume-before-upgrade.json",
+          "sha256": "88e6d4e4a70586b0f8f41710187f8636cf685f6c31418f289f5221ede94dbc07"
+        },
+        "wave35-upgrade-preservation.json": {
+          "path": "wave35-upgrade-preservation.json",
+          "sha256": "7c7853ca0b0931325b9d2c44564f773f7c146942b90318f8634a716ea5a279fa"
+        },
+        "wave35-source-secondaire-database-after-upgrade.json": {
+          "path": "wave35-source-secondaire-database-after-upgrade.json",
+          "sha256": "d47649754bcca9a4e7ce8818fb559ccb1b9d455289c1096fdcffef174de2ab1a"
+        },
+        "wave35-source-secondaire-mfa-after-upgrade.json": {
+          "path": "wave35-source-secondaire-mfa-after-upgrade.json",
+          "sha256": "0a2b336145349cfcc98f771a634fd079c89bd4ed155bfee63e85cb1f6631fbc3"
+        },
+        "wave35-source-secondaire-volume-after-upgrade.json": {
+          "path": "wave35-source-secondaire-volume-after-upgrade.json",
+          "sha256": "95eda06849732ca1b1e59858c56ff1295ef28b4eb4e0b71a6a57a54e06e4824a"
+        },
+        "wave35-source-superieur-database-after-upgrade.json": {
+          "path": "wave35-source-superieur-database-after-upgrade.json",
+          "sha256": "136a30c338d4facf3bbf9e2ccf7d08ed02058aaae266785628cd4aa0bb23e248"
+        },
+        "wave35-source-superieur-mfa-after-upgrade.json": {
+          "path": "wave35-source-superieur-mfa-after-upgrade.json",
+          "sha256": "5eaf19554f2c175822dba570213dc1d4550ad30fc28a197223cde02e9ed7164e"
+        },
+        "wave35-source-superieur-volume-after-upgrade.json": {
+          "path": "wave35-source-superieur-volume-after-upgrade.json",
+          "sha256": "88e6d4e4a70586b0f8f41710187f8636cf685f6c31418f289f5221ede94dbc07"
+        },
+        "wave35-image-model-fix-lineage.json": {
+          "path": "wave35-image-model-fix-lineage.json",
+          "sha256": "b629f27531138d11ebf2f480c09e3de132e0dc902bf1fcee496be5020ab8ee18"
+        },
+        "wave35-image-python-hashes.json": {
+          "path": "wave35-image-python-hashes.json",
+          "sha256": "6da806f9912a95c84df48156083bfdf9b8ca3869fd4958e8fcde568806fb88c2"
+        },
+        "wave35-secondaire-backend.log": {
+          "path": "wave35-secondaire-backend.log",
+          "sha256": "a7f84c0986dd1c6aa63dbc5e9584af1d23405bdf49e927265511cd2a6039c32e"
+        },
+        "wave35-secondaire-model-fix.log": {
+          "path": "wave35-secondaire-model-fix.log",
+          "sha256": "c52afe68298d5c36856a43819f3087fc7cb382b01c26ff150c16722d82ec8273"
+        },
+        "wave35-superieur-model-fix.log": {
+          "path": "wave35-superieur-model-fix.log",
+          "sha256": "c44386b255ce5ec71488391bbe47cde905fd76dc71fda03621f6a00dbdbcc0ff"
+        },
+        "wave35-frontend-parent-jest.log": {
+          "path": "wave35-frontend-parent-jest.log",
+          "sha256": "554fdcf299f98480b52de41b0c65c059aa8143e13255945c8bb279cfb38420b3"
+        },
+        "wave35-parent-python-static-final.log": {
+          "path": "wave35-parent-python-static-final.log",
+          "sha256": "79e6e1527d833734aa1a1af90712949b3da9326cbde2ba4c9bd49c2365f0ae8a"
+        },
+        "wave35-survey-secondaire-fixture.json": {
+          "path": "wave35-survey-secondaire-fixture.json",
+          "sha256": "1d1c060316d7d2ca336cff95bbdd17827d4addf6ec4cc0666751a887e0cccbd0"
+        },
+        "wave35-survey-secondaire-browser/receipt.json": {
+          "path": "wave35-survey-secondaire-browser/receipt.json",
+          "sha256": "49efb518294ee39d436272467bdbf2f88d14c73bd3c2467e1b92ce86c9dcdff5"
+        },
+        "wave35-survey-secondaire-browser/primary-draft.png": {
+          "path": "wave35-survey-secondaire-browser/primary-draft.png",
+          "sha256": "9e329ae7ff8d30b75b6f2bbb2e37e03c685f05e293d2bcf21798ff806b0c4feb"
+        },
+        "wave35-survey-secondaire-browser/primary-learner-saved.png": {
+          "path": "wave35-survey-secondaire-browser/primary-learner-saved.png",
+          "sha256": "a9c991102725343711da57fdfa9305b8910f8754a7e8395397629d6286cb9acc"
+        },
+        "wave35-survey-secondaire-browser/primary-teacher-saved.png": {
+          "path": "wave35-survey-secondaire-browser/primary-teacher-saved.png",
+          "sha256": "1f9d578685a5ed63451ba6814bb659d38e7224db334d7e639ca94c1f82f2ca92"
+        },
+        "wave35-survey-secondaire-browser/primary-parent-saved.png": {
+          "path": "wave35-survey-secondaire-browser/primary-parent-saved.png",
+          "sha256": "b72d1b6a8a8d4610ba104354fa25011abdc9b840011e208d797c68ebcaa60a0d"
+        },
+        "wave35-survey-secondaire-browser/primary-partner-saved.png": {
+          "path": "wave35-survey-secondaire-browser/primary-partner-saved.png",
+          "sha256": "5845862d4b49c07bad81759bffa3d071fe93a56171034aaed275de5c56fae815"
+        },
+        "wave35-survey-secondaire-browser/primary-outsider-empty.png": {
+          "path": "wave35-survey-secondaire-browser/primary-outsider-empty.png",
+          "sha256": "5ccb78c911031d34d2706f43d96f24aaa82810fa9708cc7408dcbdcb898cd0f2"
+        },
+        "wave35-survey-secondaire-browser/primary-results-before-revocation.png": {
+          "path": "wave35-survey-secondaire-browser/primary-results-before-revocation.png",
+          "sha256": "d5f283da710368ca66db9333fd15443654bf2b5a462014fbcdd9d79632e1ef7d"
+        },
+        "wave35-survey-secondaire-browser/primary-partner-revoked-same-session-no-stale-data.png": {
+          "path": "wave35-survey-secondaire-browser/primary-partner-revoked-same-session-no-stale-data.png",
+          "sha256": "24ceba3b244ed118b68f5b0a25e2e75455043fe2b43133279b11eedd0f18e968"
+        },
+        "wave35-survey-secondaire-browser/primary-closed-unanswered.png": {
+          "path": "wave35-survey-secondaire-browser/primary-closed-unanswered.png",
+          "sha256": "67ccae5e8994a10542e1fcb057629e4a82fd7cf81ef7002192042e19c8856f53"
+        },
+        "wave35-survey-secondaire-persistence.json": {
+          "path": "wave35-survey-secondaire-persistence.json",
+          "sha256": "b63b45f0387bb077741f574628365a389a10a00030d8b71b00bb321c7df208cb"
+        },
+        "wave35-secondaire-recreation-comparison.json": {
+          "path": "wave35-secondaire-recreation-comparison.json",
+          "sha256": "0a001022e05cb190509f5d2b7c942f1b3dd0da18eaeb5bb5da20de7696366ad4"
+        },
+        "wave35-source-secondaire-database-before-recreation.json": {
+          "path": "wave35-source-secondaire-database-before-recreation.json",
+          "sha256": "fcc7884c854d1bcc7942f0fb3bec4f1f33520b6b339b403e154abc95b8579232"
+        },
+        "wave35-source-secondaire-database-after-recreation.json": {
+          "path": "wave35-source-secondaire-database-after-recreation.json",
+          "sha256": "88a3be28254745374838d9848a60c354d5b102feefddce78971a2479660eaad6"
+        },
+        "wave35-source-secondaire-mfa-before-recreation.json": {
+          "path": "wave35-source-secondaire-mfa-before-recreation.json",
+          "sha256": "0a2b336145349cfcc98f771a634fd079c89bd4ed155bfee63e85cb1f6631fbc3"
+        },
+        "wave35-source-secondaire-mfa-after-recreation.json": {
+          "path": "wave35-source-secondaire-mfa-after-recreation.json",
+          "sha256": "0a2b336145349cfcc98f771a634fd079c89bd4ed155bfee63e85cb1f6631fbc3"
+        },
+        "wave35-source-secondaire-volume-before-recreation.json": {
+          "path": "wave35-source-secondaire-volume-before-recreation.json",
+          "sha256": "cad795dea6895cd90a00f270d500e10443bfbbad5ca6bce1723a23d311409c47"
+        },
+        "wave35-source-secondaire-volume-after-recreation.json": {
+          "path": "wave35-source-secondaire-volume-after-recreation.json",
+          "sha256": "cad795dea6895cd90a00f270d500e10443bfbbad5ca6bce1723a23d311409c47"
+        },
+        "wave35-source-secondaire-runtime-before-browser.json": {
+          "path": "wave35-source-secondaire-runtime-before-browser.json",
+          "sha256": "bec2f2140ab6b347a391a4a771520e3762cce81b648a8ba80d029510753577be"
+        },
+        "wave35-source-secondaire-runtime-after-recreation.json": {
+          "path": "wave35-source-secondaire-runtime-after-recreation.json",
+          "sha256": "d95810ff4041cd82294795c6e9181bfd531ffda664a2dd6981d410c73b52f3e1"
+        },
+        "wave35-survey-secondaire-reopen.json": {
+          "path": "wave35-survey-secondaire-reopen.json",
+          "sha256": "53d15a1ee8481e704d8069ba2f1175032349f8f2791cdea0b7d34cf22d119963"
+        },
+        "wave35-survey-secondaire-post-reopen-persistence.json": {
+          "path": "wave35-survey-secondaire-post-reopen-persistence.json",
+          "sha256": "6a2f6018130f5783a5bc9c4d1d8b93c91740002889281421f3e7c04c865a2ce3"
+        },
+        "wave35-source-secondaire-database-after-reopen.json": {
+          "path": "wave35-source-secondaire-database-after-reopen.json",
+          "sha256": "2c12a20f0417eb47b4956e5e316d73e401a123da0088a27f5e49177e49f2e6ae"
+        },
+        "wave35-source-secondaire-mfa-after-reopen.json": {
+          "path": "wave35-source-secondaire-mfa-after-reopen.json",
+          "sha256": "0a2b336145349cfcc98f771a634fd079c89bd4ed155bfee63e85cb1f6631fbc3"
+        },
+        "wave35-source-secondaire-browser-file-preservation.json": {
+          "path": "wave35-source-secondaire-browser-file-preservation.json",
+          "sha256": "f7f32ff64c981bfba2b8f28feff74c714344c0b36980fa937d3568b783d75f81"
+        },
+        "wave35-source-secondaire-reopen-file-preservation.json": {
+          "path": "wave35-source-secondaire-reopen-file-preservation.json",
+          "sha256": "3720fb6e5153fc551eb287f3ea1a27a539d54c0893f47ed24d0dcd32b162fc4b"
+        },
+        "wave35-source-secondaire-database-before-browser.json": {
+          "path": "wave35-source-secondaire-database-before-browser.json",
+          "sha256": "94c0e8d713538d3b0c6c8964194e2a180d5fb57296674931f03fbfd25a2577ff"
+        },
+        "wave35-source-secondaire-mfa-before-browser.json": {
+          "path": "wave35-source-secondaire-mfa-before-browser.json",
+          "sha256": "0a2b336145349cfcc98f771a634fd079c89bd4ed155bfee63e85cb1f6631fbc3"
+        },
+        "wave35-source-secondaire-volume-before-browser.json": {
+          "path": "wave35-source-secondaire-volume-before-browser.json",
+          "sha256": "95eda06849732ca1b1e59858c56ff1295ef28b4eb4e0b71a6a57a54e06e4824a"
+        },
+        "wave35-source-secondaire-volume-after-reopen.json": {
+          "path": "wave35-source-secondaire-volume-after-reopen.json",
+          "sha256": "0ec433d80aaa3afc0fc91b68be4c1b7d016d38ffe26fc89346bcc29e189300c3"
+        },
+        "wave35-survey-superieur-fixture.json": {
+          "path": "wave35-survey-superieur-fixture.json",
+          "sha256": "ec1acf6eaab14d3b4e57ba0cfc22a577526bb0dfbf31170214ddca33144c3b8d"
+        },
+        "wave35-survey-superieur-browser/receipt.json": {
+          "path": "wave35-survey-superieur-browser/receipt.json",
+          "sha256": "58cae35daf9c1a83a494e9f7074d9d66637fd690fb4af36ba00b4609f8293417"
+        },
+        "wave35-survey-superieur-browser/primary-draft.png": {
+          "path": "wave35-survey-superieur-browser/primary-draft.png",
+          "sha256": "5f8f323b2fdd4d83e26e23fb21c6ab3b9346f4757bf1d2fb74e81b2961ee11c6"
+        },
+        "wave35-survey-superieur-browser/primary-learner-saved.png": {
+          "path": "wave35-survey-superieur-browser/primary-learner-saved.png",
+          "sha256": "5616d9ba989f9ce949b93881783158f7ccae4ce1976be4523d5d37cbd9c53c96"
+        },
+        "wave35-survey-superieur-browser/primary-teacher-saved.png": {
+          "path": "wave35-survey-superieur-browser/primary-teacher-saved.png",
+          "sha256": "fbc2f9aacc763b55aabbe11fa0b9d084cd1bc781a675fc3d194ac040612da1af"
+        },
+        "wave35-survey-superieur-browser/primary-parent-saved.png": {
+          "path": "wave35-survey-superieur-browser/primary-parent-saved.png",
+          "sha256": "762bedff011d4c0f4e0ff311209f56230875ea4f4e4d0cd0be1f1ba0bd0caff6"
+        },
+        "wave35-survey-superieur-browser/primary-partner-saved.png": {
+          "path": "wave35-survey-superieur-browser/primary-partner-saved.png",
+          "sha256": "77f029612d6244c019af9045cf86507573b3bf4b2910fa951ca75f412bd7fe12"
+        },
+        "wave35-survey-superieur-browser/primary-outsider-empty.png": {
+          "path": "wave35-survey-superieur-browser/primary-outsider-empty.png",
+          "sha256": "a0e79d6ecea73d8f7ce7f6d2b0675ad1b284154d39b1dd73d66a213be4e707f4"
+        },
+        "wave35-survey-superieur-browser/primary-results-before-revocation.png": {
+          "path": "wave35-survey-superieur-browser/primary-results-before-revocation.png",
+          "sha256": "4404daadc1eb55d732ab79ee69ae1dc7ebf8a886c4a4c25d5d9e70ab27aca544"
+        },
+        "wave35-survey-superieur-browser/primary-partner-revoked-same-session-no-stale-data.png": {
+          "path": "wave35-survey-superieur-browser/primary-partner-revoked-same-session-no-stale-data.png",
+          "sha256": "f95ec5d929355aae430ee820f34139c941b7a7f4862539a3eeaeaf92904f6d93"
+        },
+        "wave35-survey-superieur-browser/primary-closed-unanswered.png": {
+          "path": "wave35-survey-superieur-browser/primary-closed-unanswered.png",
+          "sha256": "370f64ba1fc7dc70ed30d979c78a52500b4bb8199ddec205271c6fd6fa4f8a92"
+        },
+        "wave35-survey-superieur-persistence.json": {
+          "path": "wave35-survey-superieur-persistence.json",
+          "sha256": "4b65b370da76a4d396bacb1b097054bccdfc792a84287f9f3c606cff872af21c"
+        },
+        "wave35-superieur-recreation-comparison.json": {
+          "path": "wave35-superieur-recreation-comparison.json",
+          "sha256": "31dee1b5528ec1bb72c22127e94d03d9b2e665941025a632655edcd45aeab517"
+        },
+        "wave35-source-superieur-database-before-recreation.json": {
+          "path": "wave35-source-superieur-database-before-recreation.json",
+          "sha256": "b16622412ad0b35ec88ba222ef4ce0ba242956069b6988fdf8642f1b1744607f"
+        },
+        "wave35-source-superieur-database-after-recreation.json": {
+          "path": "wave35-source-superieur-database-after-recreation.json",
+          "sha256": "7549c287bcb7a35d941c6e7ad1abcb620aa6e459742a91dc99b4398c2e8e59a8"
+        },
+        "wave35-source-superieur-mfa-before-recreation.json": {
+          "path": "wave35-source-superieur-mfa-before-recreation.json",
+          "sha256": "5eaf19554f2c175822dba570213dc1d4550ad30fc28a197223cde02e9ed7164e"
+        },
+        "wave35-source-superieur-mfa-after-recreation.json": {
+          "path": "wave35-source-superieur-mfa-after-recreation.json",
+          "sha256": "5eaf19554f2c175822dba570213dc1d4550ad30fc28a197223cde02e9ed7164e"
+        },
+        "wave35-source-superieur-volume-before-recreation.json": {
+          "path": "wave35-source-superieur-volume-before-recreation.json",
+          "sha256": "4bcfe2c6bcd10ba9a5e7d7afd25f80decb0684124090bfd6e6cf0d6c4a4030cb"
+        },
+        "wave35-source-superieur-volume-after-recreation.json": {
+          "path": "wave35-source-superieur-volume-after-recreation.json",
+          "sha256": "4bcfe2c6bcd10ba9a5e7d7afd25f80decb0684124090bfd6e6cf0d6c4a4030cb"
+        },
+        "wave35-source-superieur-runtime-before-browser.json": {
+          "path": "wave35-source-superieur-runtime-before-browser.json",
+          "sha256": "a74c4a6dbd83e987f77871bf60419125d2478d9a591f3c2e95bd38b79d06f4c1"
+        },
+        "wave35-source-superieur-runtime-after-recreation.json": {
+          "path": "wave35-source-superieur-runtime-after-recreation.json",
+          "sha256": "32fd33fa6248962c2ee75e3a6f79252cc3e79a4a3cefa3acd82a1c17dec47b63"
+        },
+        "wave35-survey-superieur-reopen.json": {
+          "path": "wave35-survey-superieur-reopen.json",
+          "sha256": "87a4e2c21d8b2a45cbb74ac5c756513cd1bc660e8a4f437682a74b601e8e78ce"
+        },
+        "wave35-survey-superieur-post-reopen-persistence.json": {
+          "path": "wave35-survey-superieur-post-reopen-persistence.json",
+          "sha256": "3307d79634e3b25aa21b9d0395a8fbaa6a741ce19fb6135e6e61cfa714e1dc7f"
+        },
+        "wave35-source-superieur-database-after-reopen.json": {
+          "path": "wave35-source-superieur-database-after-reopen.json",
+          "sha256": "eafbf24ad33a0854d4555e0a809a624fcdc58f688274487a941b07bc06009922"
+        },
+        "wave35-source-superieur-mfa-after-reopen.json": {
+          "path": "wave35-source-superieur-mfa-after-reopen.json",
+          "sha256": "5eaf19554f2c175822dba570213dc1d4550ad30fc28a197223cde02e9ed7164e"
+        },
+        "wave35-source-superieur-browser-file-preservation.json": {
+          "path": "wave35-source-superieur-browser-file-preservation.json",
+          "sha256": "045ac700b4d4b07c0a9f192f9e06edd49facac93ac0c9c06d627c8711014103c"
+        },
+        "wave35-source-superieur-reopen-file-preservation.json": {
+          "path": "wave35-source-superieur-reopen-file-preservation.json",
+          "sha256": "355dae90bdec8035857e9d7f6b9cd3fc6b9225875d6019c8e49d065d186f87db"
+        },
+        "wave35-source-superieur-database-before-browser.json": {
+          "path": "wave35-source-superieur-database-before-browser.json",
+          "sha256": "67df0a0d43ced59137635a0516879c9e49c2aef7318c918fbeb7d2d041595191"
+        },
+        "wave35-source-superieur-mfa-before-browser.json": {
+          "path": "wave35-source-superieur-mfa-before-browser.json",
+          "sha256": "5eaf19554f2c175822dba570213dc1d4550ad30fc28a197223cde02e9ed7164e"
+        },
+        "wave35-source-superieur-volume-before-browser.json": {
+          "path": "wave35-source-superieur-volume-before-browser.json",
+          "sha256": "88e6d4e4a70586b0f8f41710187f8636cf685f6c31418f289f5221ede94dbc07"
+        },
+        "wave35-source-superieur-volume-after-reopen.json": {
+          "path": "wave35-source-superieur-volume-after-reopen.json",
+          "sha256": "6f0d04906bbc1d3df6bc8ccc7dcc05fc9c6749d83bccc24556dc2063c4063545"
+        },
+        "wave35-survey-fixture.py": {
+          "path": "wave35-survey-fixture.py",
+          "sha256": "d176c099847a7e3f58ec5ad4760e72d0e262c84cefa0fa7cd83910c776715156"
+        },
+        "wave35-survey-browser.cjs": {
+          "path": "wave35-survey-browser.cjs",
+          "sha256": "c549f81986c895a30725125070afa3e463e547b31747e07eb1ead98909bb92b2"
+        },
+        "wave35-survey-persistence.py": {
+          "path": "wave35-survey-persistence.py",
+          "sha256": "d3472f50a4f200a756d87ceaa5e507d430553e3d9f163a439c3dbd9ff7a33218"
+        },
+        "wave35-survey-reopen.cjs": {
+          "path": "wave35-survey-reopen.cjs",
+          "sha256": "c2094a9f0dec369dfeee3c55a3ad650800400579f72ef61bc1ebd92b56e2c7a7"
+        },
+        "wave35-survey-handoff.json": {
+          "path": "wave35-survey-handoff.json",
+          "sha256": "3e1c18dcf91940ddc7a5acb98f5a59f0ad2e8504e2e8b670c8581009ed607e6a"
+        },
+        "wave35-authenticated-partners-handoff.json": {
+          "path": "wave35-authenticated-partners-handoff.json",
+          "sha256": "4e3d184d3f6d9ed0ce0c6e2474ff9a49537fa2ab805ec65760263b05a5848c2d"
+        },
+        "wave35-browser-container.sh": {
+          "path": "wave35-browser-container.sh",
+          "sha256": "537ac1717777264c5586d61945db407e9add8ab1e85b77c0cb9e53ee4ed48788"
+        },
+        "wave35-standard-container.sh": {
+          "path": "wave35-standard-container.sh",
+          "sha256": "1d71de01cb9f45cf1180d7ab7ab803bb22655878da3576cca039ff1fd708bf84"
+        },
+        "wave35-browser-nginx.conf": {
+          "path": "wave35-browser-nginx.conf",
+          "sha256": "250b3ed9b99be4e48795bf8c98d00bd0210e62c60f1357a940b97d78df621676"
+        },
+        "wave35_browser_settings.py": {
+          "path": "wave35_browser_settings.py",
+          "sha256": "19b416942901edfdffc9673828f8b845bda5bf9e153fd3e198d30d277e2ccb45"
+        },
+        "wave35-database-fingerprint.py": {
+          "path": "wave35-database-fingerprint.py",
+          "sha256": "88b0716499cec8aa5c3aa97be1867cce7e91b0dbeb3e1ddb641026089aba7826"
+        },
+        "wave35-volume-fingerprint.py": {
+          "path": "wave35-volume-fingerprint.py",
+          "sha256": "8ff55914199ffe430e71c53d2ea0262e81bd655c949ef6962ca9f0ffeae6da1b"
+        },
+        "wave34-volume-append-check.py": {
+          "path": "wave34-volume-append-check.py",
+          "sha256": "f3113a0c3f3964da947d31847b7d7db70d0c91e4d2f6fe5158236aad6eefd4db"
+        },
+        "wave35-mfa-readonly.py": {
+          "path": "wave35-mfa-readonly.py",
+          "sha256": "ba426f3b1ec7483943f7ac2d7118c7405b9b98961c34045555c05703fde6ca61"
+        },
+        "wave35-runtime-attestation.py": {
+          "path": "wave35-runtime-attestation.py",
+          "sha256": "e366cb04698e34df3c3bf05229e1538031bb2b6d53213d067f25603376680946"
+        },
+        "wave35-recreation-compare.py": {
+          "path": "wave35-recreation-compare.py",
+          "sha256": "72b2d93a3c18ce365e300ee7f93cb16f166f1f728370a19acd00c49d89468eb5"
+        },
+        "wave35-parent-qualification.py": {
+          "path": "wave35-parent-qualification.py",
+          "sha256": "c39f0d3916c77337f3b650850af2b0e4ae1d1a395f7c585e7f21269ba56cd16f"
+        },
+        "wave35-update-register.py": {
+          "path": "wave35-update-register.py",
+          "sha256": "3932d309cb61605259e3b69ce09dfb1e0671804005aa96614db4e21ea443e37a"
+        },
+        "wave35-superieur-backend.log": {
+          "path": "wave35-superieur-backend.log",
+          "sha256": "2c764c587074a5f158664ba022e97a1a00a7a14f7dd36819653109faa9b37782"
+        },
+        "wave35-image-build.log": {
+          "path": "wave35-image-build.log",
+          "sha256": "50cd5def95e08eb8f2a7856f26ead597e9cf170aaec5097fde3bcaa86a024223"
+        },
+        "wave35-image-model-fix-build.log": {
+          "path": "wave35-image-model-fix-build.log",
+          "sha256": "f29933bb7dadf36723c97aa834f437ceaf1fb34084eecb8cef836be9de7ee674"
+        },
+        "wave35-frontend-parent-jest-initial.log": {
+          "path": "wave35-frontend-parent-jest-initial.log",
+          "sha256": "5cdf8b8f94e99cbd3177c858d9ec01646d1e2371664d674d005a4e122477e73c"
+        },
+        "wave35-frontend-tests.log": {
+          "path": "wave35-frontend-tests.log",
+          "sha256": "7db05bc6b6bea7238818a569fe414104b8130a94e6690686e47ce351c16a5335"
+        },
+        "wave35-frontend-browser-build.log": {
+          "path": "wave35-frontend-browser-build.log",
+          "sha256": "be8fc9bf7183db66bc967c3f64f27dd0f6da70c3dff901d005aad59660db9ba9"
+        },
+        "wave35-frontend-parent-eslint.log": {
+          "path": "wave35-frontend-parent-eslint.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "campaigns": [
+        {
+          "id": "wave35-secondaire-backend-targeted",
+          "result": "112_passed_initial_image_3_affected_tests_passed_final_image_not_added",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave35-secondaire-backend.log",
+            "wave35-secondaire-model-fix.log",
+            "wave35-image-model-fix-lineage.json"
+          ],
+          "counts": {
+            "secondaire-backend": {
+              "passed": 112,
+              "seconds": 124.168,
+              "image": "sha256:8b099e366efa4806e962f9108d2ec50bc6c53d63b2ece6303b25bfac4d976395",
+              "migration_drift_check": true
+            },
+            "secondaire-model-fix": {
+              "passed": 3,
+              "seconds": 56.612,
+              "image": "sha256:0506a40d6a08d86f2caac6e03b35c3ea00a4032844526acb99652fda24ea7571",
+              "migration_drift_check": false
+            }
+          },
+          "verification": "Partenaire sans privilege implicite, repertoire scolaire avec droit explicite, acces personnel eleve/tuteur conserve, recherche tenant/ABAC et cycle quatre publics.",
+          "limits": "112 et3 se recouvrent, pas115 tests distincts. Seul un fichier de test change entre images ; configuration et couches de dependances identiques. Pas suite integrale."
+        },
+        {
+          "id": "wave35-superieur-backend-targeted",
+          "result": "76_tests_and_migration_drift_check_passed_final_image",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave35-superieur-model-fix.log",
+            "wave35-superieur-backend.log"
+          ],
+          "counts": {
+            "passed": 76,
+            "seconds": 117.998,
+            "image": "sha256:0506a40d6a08d86f2caac6e03b35c3ea00a4032844526acb99652fda24ea7571",
+            "migration_drift_check": true
+          },
+          "verification": "Role natif, creation sans privileges/affiliations, autorisations, enquetes et modules.",
+          "limits": "Premier passage76 avec une erreur de nom de modele dans un test conserve ; pas suite integrale."
+        },
+        {
+          "id": "wave35-frontend-targeted-and-production-build",
+          "result": "143_jest_tests_5_suites_lint_and_build_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave35-frontend-parent-jest.log",
+            "wave35-frontend-parent-eslint.log",
+            "wave35-frontend-browser-build.log",
+            "wave35-frontend-build-provenance.json"
+          ],
+          "counts": {
+            "tests": 143,
+            "suites": 5,
+            "seconds": 392.083
+          },
+          "verification": "Formulaire Partenaire, navigation sans privilege implicite et regressions ciblees.",
+          "limits": "Mocks Jest distincts de Chromium ; passages auteur/parent non additionnes,3 warnings de taille."
+        },
+        {
+          "id": "wave35-native-upgrade-and-protected-fixtures",
+          "result": "two_sis_old_data_mfa_rights_flags_and_files_preserved_without_migration",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave35-source-preparation-comparison.json",
+            "wave35-upgrade-preservation.json",
+            "wave35-survey-secondaire-fixture.json",
+            "wave35-survey-superieur-fixture.json"
+          ],
+          "counts": {
+            "secondary_tables": 579,
+            "university_tables": 630,
+            "new_accounts_each_sis": 10
+          },
+          "verification": "Copies des sources34 finales ; anciens comptes, donnees, MFA/TOTP, droits, flags et fichiers preserves. Dix nouveaux comptes par SIS, sans enquete creee par fixture ni privileges partenaires.",
+          "limits": "Clonage de preparation seulement, aucune restauration independante du nouvel increment."
+        },
+        {
+          "id": "wave35-secondaire-native-browser-partners",
+          "result": "four_authenticated_audiences_and_cross_host_denials_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave35-survey-secondaire-browser/receipt.json",
+            "wave35-survey-secondaire-persistence.json"
+          ],
+          "counts": {
+            "browser_ui_actors": 7,
+            "browser_ui_commands": 8,
+            "browser_native_api_checks": 41,
+            "cross_host_replays_401": 14,
+            "browser_screenshots": 9,
+            "browser_duration_ms": 488127
+          },
+          "verification": "Apprenant, enseignant, parent et partenaire ; selection, reponses privees, comptages, doublons, non-destinataire, revocation partenaire et fermeture. Deux tenants peuples ; cookies sources inchanges pour14 rejeux inter-Host401.",
+          "limits": "Politique nominative explicite ; UI principale et API native du pair, pas invitation publique."
+        },
+        {
+          "id": "wave35-secondaire-recreation-reopen-and-preservation",
+          "result": "exact_recreation_native_reopen_and_strict_two_window_preservation_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave35-secondaire-recreation-comparison.json",
+            "wave35-survey-secondaire-reopen.json",
+            "wave35-survey-secondaire-post-reopen-persistence.json"
+          ],
+          "counts": {
+            "all_protected_tables": 579,
+            "recreation_sequences_exact": 523,
+            "recreation_volume_entries": 32,
+            "reopened_actors": 10,
+            "reopen_business_get_checks": 86,
+            "reopen_total_http_requests": 288,
+            "reopen_duration_ms": 426419
+          },
+          "verification": "API/proxy recrees ; toutes tables/sequences, fichiers, MFA/TOTP exacts avant connexion. Dix vrais logins ;86 GET scolaires ou84 universitaires. Deux refus scolaires du repertoire au partenaire sur une base d'eleves non vide. Six tables auth seules changent ; deux fenetres bornees, anciens comptes/droits/octets preserves.",
+          "limits": "Les connexions ecrivent l'authentification ; aucune ecriture metier a la reouverture. Pas restauration independante. Pas de protection universelle de toutes les autres API annoncee."
+        },
+        {
+          "id": "wave35-superieur-native-browser-partners",
+          "result": "four_authenticated_audiences_and_cross_host_denials_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave35-survey-superieur-browser/receipt.json",
+            "wave35-survey-superieur-persistence.json"
+          ],
+          "counts": {
+            "browser_ui_actors": 7,
+            "browser_ui_commands": 8,
+            "browser_native_api_checks": 41,
+            "cross_host_replays_401": 14,
+            "browser_screenshots": 9,
+            "browser_duration_ms": 487916
+          },
+          "verification": "Apprenant, enseignant, parent et partenaire ; selection, reponses privees, comptages, doublons, non-destinataire, revocation partenaire et fermeture. Deux tenants peuples ; cookies sources inchanges pour14 rejeux inter-Host401.",
+          "limits": "Politique nominative explicite ; UI principale et API native du pair, pas invitation publique."
+        },
+        {
+          "id": "wave35-superieur-recreation-reopen-and-preservation",
+          "result": "exact_recreation_native_reopen_and_strict_two_window_preservation_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave35-superieur-recreation-comparison.json",
+            "wave35-survey-superieur-reopen.json",
+            "wave35-survey-superieur-post-reopen-persistence.json"
+          ],
+          "counts": {
+            "all_protected_tables": 630,
+            "recreation_sequences_exact": 574,
+            "recreation_volume_entries": 29,
+            "reopened_actors": 10,
+            "reopen_business_get_checks": 84,
+            "reopen_total_http_requests": 282,
+            "reopen_duration_ms": 419221
+          },
+          "verification": "API/proxy recrees ; toutes tables/sequences, fichiers, MFA/TOTP exacts avant connexion. Dix vrais logins ;86 GET scolaires ou84 universitaires. Deux refus scolaires du repertoire au partenaire sur une base d'eleves non vide. Six tables auth seules changent ; deux fenetres bornees, anciens comptes/droits/octets preserves.",
+          "limits": "Les connexions ecrivent l'authentification ; aucune ecriture metier a la reouverture. Pas restauration independante. Pas de protection universelle de toutes les autres API annoncee."
+        }
+      ],
+      "criteria_confrontation": {
+        "requirement": "10.12",
+        "status_before": "partial",
+        "status_after": "partial",
+        "criteria_unchanged": true,
+        "verified_audiences": [
+          "apprenants",
+          "enseignants",
+          "parents",
+          "partenaires_authentifies"
+        ],
+        "partner_role_without_implicit_privileges": true,
+        "school_directory_permission_and_personal_scope": true,
+        "nominative_policy_explicit_no_anonymity_claim": true,
+        "duplicates_nonrecipients_revocation_closure_results_qualified": true,
+        "two_real_populated_tenants_each_sis": true,
+        "old_accounts_mfa_rights_and_files_preserved": true,
+        "actual_recreation_and_reopen_qualified": true,
+        "independent_backup_restore_of_survey_increment_not_executed": true,
+        "preserve_old_updates": 52,
+        "preserve_other_requirements": 93,
+        "global_completion": false
+      },
+      "incidents_preserved": [
+        "Initial university suite: 76 tests with one error, wrong teacher model name in a new test. Corrected to EnseignantChercheur, rebuilt and reran all76; three affected school tests rerun.",
+        "Initial parent Jest launch failed before tests because fedx-scripts was missing. Identical lockfiles verified before reusing existing node_modules.",
+        "Intermediate author frontend suite had one failure; final parent143/5 passed, no totals combined.",
+        "Full Black formatting has pre-existing unrelated differences in two school files. Changed lines are conformant; full isort and flake8 pass on all seven Python files.",
+        "Image lineage diagnostic initially assumed one rebuilt layer; four application COPY layers changed. All nine base/dependency layers and image config are identical; only one Python test file changed."
+      ],
+      "qualification_limits": [
+        "Synthetic isolated local qualification, no institutional pilot or shared/production deployment.",
+        "No anonymous/public partner invitation, SMTP, export or advanced statistics qualified or newly required.",
+        "School directory protection is not a claim about all other authenticated APIs.",
+        "Read-only business reopen includes ten real authentication logins which write sessions/logs/last_login.",
+        "No independent backup/restore35 yet. Sequence equality is checked across recreation, not across business UI.",
+        "School112 and subsequent3 overlap; only the test file changed between their images. No combined total.",
+        "Targeted suites are not the full suite. Historical load500 remains red; F-lots and programme remain open."
+      ]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-08T00:01:24.356434+00:00",
+    "as_of": "2026-11-08T01:07:25.737594+00:00",
     "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
     "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
     "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
@@ -6816,7 +7503,7 @@
       "unverified": 2,
       "change": "10.7_partial_to_verified_only_explicit_parent_authorization_wave33"
     },
-    "shared_deployment_scope": "Aucun deploiement partage des vagues15a34, pilote institutionnel ou production. Les images de qualification ne remplacent pas les services partages ; lot35 non qualifie exclu.",
+    "shared_deployment_scope": "Aucun deploiement partage des vagues15a35, pilote institutionnel ou production. Les images de qualification ne remplacent pas les services partages ; restauration36 non qualifiee exclue.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -6882,7 +7569,21 @@
         "wave34-superieur-recreation-reopen-and-preservation"
       ]
     },
-    "wave34_nominative_surveys_bounded": "Module sis.surveys desactive par defaut ; droits explicites, aucun privilege par role/is_staff. Trois publics qualifies dans les deux SIS, deux tenants, preservation et recreation/reouverture prouvees. 10.12 reste partial : partenaire et restauration independante du nouvel increment a qualifier."
+    "wave34_nominative_surveys_bounded": "Module sis.surveys desactive par defaut ; droits explicites, aucun privilege par role/is_staff. Trois publics qualifies dans les deux SIS, deux tenants, preservation et recreation/reouverture prouvees. 10.12 reste partial : partenaire et restauration independante du nouvel increment a qualifier.",
+    "wave35_published_qualification_reference": {
+      "update_id": "EXEC-20261108-wave35-published-authenticated-partners",
+      "campaign_ids": [
+        "wave35-secondaire-backend-targeted",
+        "wave35-superieur-backend-targeted",
+        "wave35-frontend-targeted-and-production-build",
+        "wave35-native-upgrade-and-protected-fixtures",
+        "wave35-secondaire-native-browser-partners",
+        "wave35-secondaire-recreation-reopen-and-preservation",
+        "wave35-superieur-native-browser-partners",
+        "wave35-superieur-recreation-reopen-and-preservation"
+      ]
+    },
+    "wave35_authenticated_partners_bounded": "Profil Partenaire natif sans groupes/permissions/affiliations/LMS implicites. Quatre publics qualifies dans deux SIS et deux tenants, preservation et recreation/reouverture prouvees. Repertoire scolaire protege hors acces personnel autorise ; aucune generalisation a toutes les API. 10.12 reste partial : restauration independante du nouvel increment a qualifier."
   },
   "execution_status_policy": {
     "requirement_verified_in_declared_scope": "Toutes les obligations/critères de l'exigence sont rapprochés de preuves exécutées, persistantes et livrées dans le périmètre déclaré; promotion explicitement autorisée, sans propagation aux autres exigences/F-lots.",
@@ -7481,9 +8182,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 200,
+    "imported_evidence_campaign_records": 208,
     "requirements_with_new_increment_evidence": 26,
-    "conclusion": "200 campagnes documentaires non sommees,52 updates,26 exigences avec preuves ;132 artefacts34. 51 updates historiques et93 autres exigences strictement conserves. Aucun statut promu34 : 3 verifiees,70 partielles,19 absentes,2 non verifiees ;10.12 reste partielle. Aucun total deduplique d'executions, F-lots ouverts, charge500 rouge, pas100 %."
+    "conclusion": "208 campagnes documentaires non sommees,53 updates,26 exigences avec preuves ;117 artefacts35. 52 updates historiques et93 autres exigences strictement conserves. Aucun statut promu35 : 3 verifiees,70 partielles,19 absentes,2 non verifiees ;10.12 reste partielle. Aucun total deduplique d'executions, F-lots ouverts, charge500 rouge, pas100 %."
   },
   "requirements": [
     {
@@ -13207,6 +13908,23 @@
           "verified_scope": "Diffusion interne ciblee, collecte apprenants/enseignants/parents, resultats nominatifs et comptages. Doublons, non-destinataires, droits, tenants, revocation et fermeture refuses selon les regles. Politique nominative explicite : aucun anonymat annonce.",
           "preservation_scope": "Migration sur copies peuplees et preservation comptes/MFA/droits/fichiers ; 579/630 tables controlees, deux tenants, recreation reelle et reouverture native. Effets auth bornes et anciens octets verifies, pas restauration independante34.",
           "remaining_scope": "Quatrieme public partenaire authentifie et sauvegarde/restauration independante du nouvel increment a demontrer avant promotion. SMTP/export/anonymat non annonce ne deviennent pas de nouveaux criteres. F17/F20/F23 et programme global restent ouverts."
+        },
+        {
+          "update_id": "EXEC-20261108-wave35-published-authenticated-partners",
+          "campaign_ids": [
+            "wave35-secondaire-backend-targeted",
+            "wave35-superieur-backend-targeted",
+            "wave35-frontend-targeted-and-production-build",
+            "wave35-native-upgrade-and-protected-fixtures",
+            "wave35-secondaire-native-browser-partners",
+            "wave35-secondaire-recreation-reopen-and-preservation",
+            "wave35-superieur-native-browser-partners",
+            "wave35-superieur-recreation-reopen-and-preservation"
+          ],
+          "result": "four_audiences_qualified_independent_restore_pending_requirement_partial",
+          "verified_scope": "Quatre publics authentifies : apprenants, enseignants, parents, partenaires natifs sans droits implicites. Collecte et resultats nominatifs, comptages, doublons/non-destinataires, tenants, revocation et fermeture.",
+          "preservation_scope": "579/630 tables, anciens comptes/MFA/droits/flags/fichiers, deux tenants ; 523/574 sequences identiques a travers la recreation, reouverture de dix comptes par SIS. Effets auth bornes et anciens octets verifies.",
+          "remaining_scope": "Sauvegarde/restauration independante du nouvel increment selon les conditions communes avant promotion. SMTP/export/anonymat non annonce ne deviennent pas de nouveaux criteres. F17/F20/F23 et programme global restent ouverts."
         }
       ],
       "acceptance_execution_status": "bounded_increment_passed_requirement_remains_partial"

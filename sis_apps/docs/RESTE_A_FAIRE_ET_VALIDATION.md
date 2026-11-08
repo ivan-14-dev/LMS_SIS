@@ -9,12 +9,12 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 8 novembre 2026 à 00:01:24.356434 UTC** :
-vagues 15 à 34 qualifiées dans leurs périmètres bornés ;
-**vague34 publiée : `1850df4`**, enquêtes institutionnelles nominatives.
-132 artefacts hachés, huit campagnes documentaires supplémentaires ;
-52 updates, 200 campagnes non sommées, 26 exigences avec preuves.
-**Aucun statut promu34 : 10.12 reste partielle.**
+**Dernier cutoff documentaire : 8 novembre 2026 à 01:07:25.737594 UTC** :
+vagues 15 à 35 qualifiées dans leurs périmètres bornés ;
+**vague35 publiée : `1da6905`**, partenaires authentifiés et quatre publics d'enquêtes.
+117 artefacts hachés, huit campagnes documentaires supplémentaires ;
+53 updates, 208 campagnes non sommées, 26 exigences avec preuves.
+**Aucun statut promu35 : 10.12 reste partielle.**
 Pour la **vague33 sur backend32 `f3168ed` et frontend31 `605aab7` déjà publiés**,
 les sources avaient été rapprochées du principal et du distant `b5116ca` au moment de la
 qualification. Aucun comportement produit modifié33.
@@ -93,10 +93,39 @@ seules six tables auth changent à la réouverture, anciens octets conservés.
 Les incidents DRF, permissions du bundle et suivi d'ancien document par le
 banc sont corrigés ; rouges et copie scolaire échouée conservés.
 La recette scolaire finale repart d'une copie fraîche, pas d'une reprise partielle.
-**Restent pour10.12 : quatrième public partenaire authentifié et restauration
+**Au cutoff34, restaient pour10.12 : quatrième public partenaire authentifié et restauration
 indépendante du nouvel incrément.** Recréation/clonage ne valent pas restauration.
 SMTP/export/anonymat non annoncé ne deviennent pas des critères supplémentaires.
 F17/F20/F23 et les autres lots restent ouverts ; aucun déploiement partagé34.
+
+La vague35 ajoute le profil **Partenaire** dans les deux SIS et le formulaire
+administratif, sans groupe, permission, affiliation ou provisioning LMS implicite.
+Le répertoire scolaire exige un droit explicite hors accès personnel autorisé ;
+un élève non superutilisateur reste limité à son dossier en lecture même avec
+`is_staff` ou la permission de modèle. Aucune protection universelle de toutes
+les autres API n'est prétendue. **112 tests scolaires**, puis **trois tests
+affectés réexécutés sur l'image finale**, sans les additionner ;
+**76 tests universitaires** sur l'image finale et **143 Jest/cinq suites**.
+Le seul changement Python entre les deux images corrige un nom de modèle
+dans un test universitaire ; neuf couches de base/dépendances et configuration
+identiques. Rouge conservé, migrations sans divergence, build avec trois
+avertissements de taille. isort/flake8 conformes ; écarts Black historiques
+hors lignes modifiées conservés dans deux fichiers scolaires.
+Dans chaque SIS : **sept acteurs Chromium, huit commandes UI,41 contrôles API,
+14 rejeux inter-Host401 et neuf captures**. Les quatre publics répondent dans le
+tenant principal ; apprenant/partenaire dans le pair. Collecte, résultats,
+confidentialité nominative, doublons, non-destinataire, révocation et fermeture
+qualifiés. Anciennes enquêtes, comptes/MFA/droits/flags/fichiers intacts.
+Recréation réelle : **579/630 tables,523/574 séquences et32/29 entrées de volume**
+exactes avant login. Dix comptes réouverts par SIS : **86 GET/288 HTTP scolaires**
+et **84 GET/282 HTTP universitaires**, sans écriture métier ni retry.
+Les deux GET scolaires supplémentaires refusent le répertoire au partenaire
+sur une base d'élèves peuplée. Deux fenêtres auth strictes, seules six tables
+d'authentification changent ; anciens octets conservés, journal seul enrichi.
+**Reste pour10.12 : sauvegarde/restauration indépendante du nouvel incrément
+selon les conditions communes.** Les outils36 en préparation ne sont pas
+comptés comme une restauration réalisée. Aucun déploiement partagé35,
+pilote institutionnel, nouvelle charge500 ou F-lot global clos.
 **Le 100 % n'est pas atteint.**
 Les bilans datés antérieurs conservent leurs cutoffs, blocages et rouges.
 
@@ -2346,7 +2375,7 @@ elles ne sont pas comprises dans les21 absentes/non vérifiées.
 | 10.7 Recherche globale — vérifiée dans le périmètre déclaré | Rechercher apprenant, cours, document, facture et activité selon permissions, ouvrir les détails autorisés ; même requête/autre rôle/tenant après révocation sans titre, extrait ou compte inaccessible. UI17/18, même formulaire200→403 réel31, vrais schémas/rôles/révocations32,185/251 contrôles HTTP33 après restauration indépendante.567/618 tables, fichiers et MFA/TOTP comparés ; recréation API/proxy sans perte, effets de connexion/logs explicités. Promotion33 autorisée pour10.7 seule,93 autres exigences inchangées. Catalogue LMS natif exhaustif non imposé, documents JSON seulement en33, pas nouvelle UI33, pilote/production/F-lot clos ou100 %. Les bilans datés antérieurs conservent leurs lacunes aux cutoffs correspondants. |
 | 10.9 Portail public — absent | Formations publiées, actualités et procédure consultables sans connexion ; candidature démarrée, brouillons et dossiers privés inaccessibles. |
 | 10.10 Signature — non vérifiée | Habilitation approuvée par tiers, signature, archive et notification ; auto-approbation, mandat révoqué et document altéré refusés. |
-| 10.12 Enquêtes — partielle | Diffuser aux quatre publics autorisés, recueillir les réponses et analyser les résultats ; refuser doublons/non-destinataires, préserver l'anonymat s'il est annoncé. `1850df4` qualifie le cycle nominatif apprenants/enseignants/parents dans les deux SIS, droits/tenants, révocation/fermeture, résultats et refus. Migrations peuplées,579/630 tables, comptes/MFA/droits/fichiers préservés, recréation et64 contrôles GET par SIS. Restent un véritable partenaire authentifié et la sauvegarde/restauration indépendante du nouvel incrément selon les conditions communes. Pas de nouveau critère SMTP/export/anonymat non annoncé ; aucun F-lot clos ni promotion34. |
+| 10.12 Enquêtes — partielle | Diffuser aux quatre publics autorisés, recueillir les réponses et analyser les résultats ; refuser doublons/non-destinataires, préserver l'anonymat s'il est annoncé. `1850df4` puis `1da6905` qualifient le cycle nominatif apprenants/enseignants/parents/partenaires authentifiés dans les deux SIS et deux tenants : droits explicites, réponses privées, résultats/comptages, révocation/fermeture et refus.579/630 tables, comptes/MFA/droits/flags/fichiers préservés ; recréation exacte y compris523/574 séquences,86/84 GET métier après dix logins par SIS. Reste la sauvegarde/restauration indépendante du nouvel incrément selon les conditions communes. Pas de nouveau critère SMTP/export/anonymat non annoncé ; aucun F-lot clos ni promotion35. |
 | 11 Cycle candidat → alumni — non vérifié | Neuf étapes 11.1–11.9 sur un identifiant continu ; refus/doublons/clôtures/coupures et restauration isolée contrôlés, versions et preuves navigateur/API/BD conservées. |
 | 11.9 Après formation — absent | Portefeuille conservé et adhésion alumni volontaire ; refus hors tenant, historique/rejeu contrôlés avant clôture du cycle. |
 
