@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-07T22:34:18.809968+00:00",
+  "last_evidence_update_at": "2026-11-08T00:01:24.356434+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -5995,10 +5995,740 @@
         "Historical load500 remains red:500 timeouts,262 indeterminate writes. No new load campaign.",
         "Other requirements and F-lots remain open; global100% is not reached. Wave34 work is not included."
       ]
+    },
+    {
+      "id": "EXEC-20261108-wave34-published-institution-surveys",
+      "evidence_cutoff_at": "2026-11-08T00:01:24.356434+00:00",
+      "qualification_status": "bounded_surveys_passed_10_12_remains_partial",
+      "scope": "Enquetes institutionnelles nominatives, trois publics ; aucun statut global promu.",
+      "code_commit": "1850df4faf82c3ebfd737c040d74bc664b38ae3e",
+      "published_commits": [
+        "1850df4faf82c3ebfd737c040d74bc664b38ae3e"
+      ],
+      "qualification_environment": {
+        "image": "sha256:0a6032112eadf285974415485ab0df533180ca784ae2a51f3004362784e47fe7",
+        "database": "sis_wave34_source_{secondaire,superieur}, copies isolees issues des restaurations33.",
+        "client": "Chromium puis Node HTTP natif ; loopback32490, vrais Hosts, cookies/CSRF/login.",
+        "frontend": "176 sources et23 fichiers HTTP identiques au build et au principal publie."
+      },
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "parent-qualification": {
+          "path": "wave34-parent-qualification.json",
+          "sha256": "1c0067ba9a4ca7624f91202136d90f769f82d99a0bcef4827a8fbb7f3d7fc3d2"
+        },
+        "wave34-image-detail-fix-python-hashes.json": {
+          "path": "wave34-image-detail-fix-python-hashes.json",
+          "sha256": "a76ed3ea99219a18c488c286ac12a376f788e3f9cedba88e6f687a101f023063"
+        },
+        "wave34-frontend-build-provenance.json": {
+          "path": "wave34-frontend-build-provenance.json",
+          "sha256": "6eede2ae5cebfffbba4af8a44af842fb09bde1ebeb29a6ef945e156fca53cf11"
+        },
+        "wave34-migration-comparison.json": {
+          "path": "wave34-migration-comparison.json",
+          "sha256": "a9e86ce1d357bbd414cbf0334cad87cac9f0747f8422932a6c35e6a48b144f5b"
+        },
+        "wave34-source-secondaire-before-migration.json": {
+          "path": "wave34-source-secondaire-before-migration.json",
+          "sha256": "8a603adcc18bc3382dcd3a333bd6619ce2c154586ddbf441adc027cb32e4f655"
+        },
+        "wave34-source-secondaire-after-migration.json": {
+          "path": "wave34-source-secondaire-after-migration.json",
+          "sha256": "9bae4c071a4ab7d690c9023a1b63dccdd0d29bf3f18f785125b5179429922839"
+        },
+        "wave34-source-secondaire-mfa-before-migration.json": {
+          "path": "wave34-source-secondaire-mfa-before-migration.json",
+          "sha256": "e7370c502f29982b56191f857a7b8be6c042c44f2bf30c9ba44fd9a61e999ea1"
+        },
+        "wave34-source-secondaire-mfa-after-migration.json": {
+          "path": "wave34-source-secondaire-mfa-after-migration.json",
+          "sha256": "e7370c502f29982b56191f857a7b8be6c042c44f2bf30c9ba44fd9a61e999ea1"
+        },
+        "wave34-source-secondaire-volume-before-migration.json": {
+          "path": "wave34-source-secondaire-volume-before-migration.json",
+          "sha256": "448c4a161eb8ae8b62a277656cbfbeae1eb7a03606939800ce0c1cbbed2a27ac"
+        },
+        "wave34-source-secondaire-volume-after-migration.json": {
+          "path": "wave34-source-secondaire-volume-after-migration.json",
+          "sha256": "448c4a161eb8ae8b62a277656cbfbeae1eb7a03606939800ce0c1cbbed2a27ac"
+        },
+        "wave34-source-secondaire-migration0013.log": {
+          "path": "wave34-source-secondaire-migration0013.log",
+          "sha256": "2ff7e30a25cf0c767763b003435e1a4e322810164519d3ff94447d3305ae155a"
+        },
+        "wave34-source-superieur-before-migration.json": {
+          "path": "wave34-source-superieur-before-migration.json",
+          "sha256": "ac38501ee8b553cc64f2d321ca3d9b8d92e28720b91991a578de979d7831c3e0"
+        },
+        "wave34-source-superieur-after-migration.json": {
+          "path": "wave34-source-superieur-after-migration.json",
+          "sha256": "6adc2ab3593e8f64e23a72e0cddb10e9dfb8f4c5f4d96130d34890704e7b8336"
+        },
+        "wave34-source-superieur-mfa-before-migration.json": {
+          "path": "wave34-source-superieur-mfa-before-migration.json",
+          "sha256": "b52c85d7a07c20822d1458ddee96075591c021ca4fd88a7687df3b012f793b11"
+        },
+        "wave34-source-superieur-mfa-after-migration.json": {
+          "path": "wave34-source-superieur-mfa-after-migration.json",
+          "sha256": "b52c85d7a07c20822d1458ddee96075591c021ca4fd88a7687df3b012f793b11"
+        },
+        "wave34-source-superieur-volume-before-migration.json": {
+          "path": "wave34-source-superieur-volume-before-migration.json",
+          "sha256": "465b88a87eff1639bc2d1d4396b90b5547e5bedb57f2f06778f974f7c5605c8d"
+        },
+        "wave34-source-superieur-volume-after-migration.json": {
+          "path": "wave34-source-superieur-volume-after-migration.json",
+          "sha256": "465b88a87eff1639bc2d1d4396b90b5547e5bedb57f2f06778f974f7c5605c8d"
+        },
+        "wave34-source-superieur-migration0013.log": {
+          "path": "wave34-source-superieur-migration0013.log",
+          "sha256": "18ca1263c64f8d290a38f6ed6ad1fec63fa147c9e5864a509531d3b5b9ea75d1"
+        },
+        "wave34-reclone-migration-comparison.json": {
+          "path": "wave34-reclone-migration-comparison.json",
+          "sha256": "e38e2a760f7b83b438bd7e74444c02cd60a19a96cd1653de8553d98e1ea75eb3"
+        },
+        "wave34-source-secondaire-reclone-before-migration.json": {
+          "path": "wave34-source-secondaire-reclone-before-migration.json",
+          "sha256": "48fcc82f36c2a9a6d50db85c2ab3e6cf929e0f876fdd68ca13a0a2108217ca80"
+        },
+        "wave34-source-secondaire-reclone-after-migration.json": {
+          "path": "wave34-source-secondaire-reclone-after-migration.json",
+          "sha256": "ad720f9eb69e92f9ba1943391fb9fe946364d642fcac5cfdd56d323123ef2ef0"
+        },
+        "wave34-source-secondaire-reclone-mfa-before-migration.json": {
+          "path": "wave34-source-secondaire-reclone-mfa-before-migration.json",
+          "sha256": "e7370c502f29982b56191f857a7b8be6c042c44f2bf30c9ba44fd9a61e999ea1"
+        },
+        "wave34-source-secondaire-reclone-mfa-after-migration.json": {
+          "path": "wave34-source-secondaire-reclone-mfa-after-migration.json",
+          "sha256": "e7370c502f29982b56191f857a7b8be6c042c44f2bf30c9ba44fd9a61e999ea1"
+        },
+        "wave34-source-secondaire-reclone-volume-before-migration.json": {
+          "path": "wave34-source-secondaire-reclone-volume-before-migration.json",
+          "sha256": "448c4a161eb8ae8b62a277656cbfbeae1eb7a03606939800ce0c1cbbed2a27ac"
+        },
+        "wave34-source-secondaire-reclone-volume-after-migration.json": {
+          "path": "wave34-source-secondaire-reclone-volume-after-migration.json",
+          "sha256": "448c4a161eb8ae8b62a277656cbfbeae1eb7a03606939800ce0c1cbbed2a27ac"
+        },
+        "wave34-source-secondaire-reclone-migration0013.log": {
+          "path": "wave34-source-secondaire-reclone-migration0013.log",
+          "sha256": "2ff7e30a25cf0c767763b003435e1a4e322810164519d3ff94447d3305ae155a"
+        },
+        "wave34-secondaire-detail-fix.log": {
+          "path": "wave34-secondaire-detail-fix.log",
+          "sha256": "01186e703a75e0bf5e94c98a5efacdab7d87b22562ffad6bd15dcdf58b4a7426"
+        },
+        "wave34-superieur-detail-fix.log": {
+          "path": "wave34-superieur-detail-fix.log",
+          "sha256": "197c01d6f115110b3b9853854dd9836f03649269a7993e40ac21cee31973e52c"
+        },
+        "wave34-frontend-parent-jest.log": {
+          "path": "wave34-frontend-parent-jest.log",
+          "sha256": "b14365b0857d54365bef90c5068cbfc1cd1120803b87ce0b3831373ad7f49c21"
+        },
+        "wave34-parent-tools-final.log": {
+          "path": "wave34-parent-tools-final.log",
+          "sha256": "31c07d24d731171a964dcbe45020f634706763ceedc684ad30a4b79bee3309de"
+        },
+        "wave34-survey-secondaire-fixture.json": {
+          "path": "wave34-survey-secondaire-fixture.json",
+          "sha256": "95f5053002ef53b46ccfe48e85929e20d0c0869f8249e17d8adf99cf884e3eca"
+        },
+        "wave34-survey-secondaire-browser/receipt.json": {
+          "path": "wave34-survey-secondaire-browser/receipt.json",
+          "sha256": "0edef1a98f15e1ec73e7911ebe78973415b6dbcb880784c73b3941b1a2e4730a"
+        },
+        "wave34-survey-secondaire-browser/primary-draft.png": {
+          "path": "wave34-survey-secondaire-browser/primary-draft.png",
+          "sha256": "df75de6963aca3341cd3e445ed0bf5935f60a0926ebd9cca2491b573d24d2d8b"
+        },
+        "wave34-survey-secondaire-browser/primary-learner-saved.png": {
+          "path": "wave34-survey-secondaire-browser/primary-learner-saved.png",
+          "sha256": "340c9c1b31833c9c297c2af46bd55b39bfa1e7c1312bb92a4ebc928b373297ae"
+        },
+        "wave34-survey-secondaire-browser/primary-teacher-saved.png": {
+          "path": "wave34-survey-secondaire-browser/primary-teacher-saved.png",
+          "sha256": "cf96daba14b30d557c58c4ed913a4ea5b0615eddb858a7520033631618bdae38"
+        },
+        "wave34-survey-secondaire-browser/primary-parent-saved.png": {
+          "path": "wave34-survey-secondaire-browser/primary-parent-saved.png",
+          "sha256": "9dcafb718676836a968434c906a70de45735d31c73e57b28915ed7fb6586de01"
+        },
+        "wave34-survey-secondaire-browser/primary-outsider-empty.png": {
+          "path": "wave34-survey-secondaire-browser/primary-outsider-empty.png",
+          "sha256": "813c20fc8ac2a893e60480ad5c24c46db6115510b4f2247798633f1a560c8454"
+        },
+        "wave34-survey-secondaire-browser/primary-results-before-revocation.png": {
+          "path": "wave34-survey-secondaire-browser/primary-results-before-revocation.png",
+          "sha256": "13ae30e6d7ae2726ce11373246654703208ee21f560ae91f25adc7edae6c7149"
+        },
+        "wave34-survey-secondaire-browser/primary-revoked-same-session-no-stale-data.png": {
+          "path": "wave34-survey-secondaire-browser/primary-revoked-same-session-no-stale-data.png",
+          "sha256": "720f69d113541d3afd5796ddc68eff14e7c1bf3146dcc810a1e326c3614c5153"
+        },
+        "wave34-survey-secondaire-browser/primary-closed-unanswered.png": {
+          "path": "wave34-survey-secondaire-browser/primary-closed-unanswered.png",
+          "sha256": "4a91daa8e4d5096b3ee882e1607709135ef1f55c8319a6592c7e60492b234244"
+        },
+        "wave34-survey-secondaire-persistence.json": {
+          "path": "wave34-survey-secondaire-persistence.json",
+          "sha256": "e02811f8f483e9b08d192c6231feee0bbd85c5dc394a1bac498a3d917185209b"
+        },
+        "wave34-secondaire-recreation-comparison.json": {
+          "path": "wave34-secondaire-recreation-comparison.json",
+          "sha256": "3833883ead5b2664bf0dba78fbf02167e1c94cb40caa93ebe3ee7fc43b83dbfe"
+        },
+        "wave34-source-secondaire-database-before-recreation.json": {
+          "path": "wave34-source-secondaire-database-before-recreation.json",
+          "sha256": "eb7d713917596d0ea833d994cd86293468abca2617238ed15c2e57a7a768c577"
+        },
+        "wave34-source-secondaire-database-after-recreation.json": {
+          "path": "wave34-source-secondaire-database-after-recreation.json",
+          "sha256": "8df206347d97026d4fba85826348385f1a34e2ca7d4f486d61830744cd03d1c5"
+        },
+        "wave34-source-secondaire-mfa-before-recreation.json": {
+          "path": "wave34-source-secondaire-mfa-before-recreation.json",
+          "sha256": "e7370c502f29982b56191f857a7b8be6c042c44f2bf30c9ba44fd9a61e999ea1"
+        },
+        "wave34-source-secondaire-mfa-after-recreation.json": {
+          "path": "wave34-source-secondaire-mfa-after-recreation.json",
+          "sha256": "e7370c502f29982b56191f857a7b8be6c042c44f2bf30c9ba44fd9a61e999ea1"
+        },
+        "wave34-source-secondaire-volume-before-recreation.json": {
+          "path": "wave34-source-secondaire-volume-before-recreation.json",
+          "sha256": "2f4e9c286c115223c1e0952db907223510b22bc51775bcd152d594cf8de0656a"
+        },
+        "wave34-source-secondaire-volume-after-recreation.json": {
+          "path": "wave34-source-secondaire-volume-after-recreation.json",
+          "sha256": "2f4e9c286c115223c1e0952db907223510b22bc51775bcd152d594cf8de0656a"
+        },
+        "wave34-source-secondaire-runtime-before-browser.json": {
+          "path": "wave34-source-secondaire-runtime-before-browser.json",
+          "sha256": "2bff65cafddeb9f4002464839a2ec32f4dc19a2bd34b693704c39bb846ba29fd"
+        },
+        "wave34-source-secondaire-runtime-after-recreation.json": {
+          "path": "wave34-source-secondaire-runtime-after-recreation.json",
+          "sha256": "171c8fc147b4251248aa8c349632addb732432cd9a09ab0ea8fb610d61762dfe"
+        },
+        "wave34-survey-secondaire-reopen.json": {
+          "path": "wave34-survey-secondaire-reopen.json",
+          "sha256": "87fcd9465f131e99162093f01dd68cdd31fc1c77faac63b74378dacc5d8a20a9"
+        },
+        "wave34-survey-secondaire-post-reopen-persistence.json": {
+          "path": "wave34-survey-secondaire-post-reopen-persistence.json",
+          "sha256": "896f85f0bd73a6b4b702ea3b6aff4fff9750afda49ddb838a57dcaa720cab81d"
+        },
+        "wave34-source-secondaire-database-after-reopen.json": {
+          "path": "wave34-source-secondaire-database-after-reopen.json",
+          "sha256": "36643c6fc0ea46a95874ba10ef6bab2fd45f1b678c1632a4a6e5b2c820769789"
+        },
+        "wave34-source-secondaire-mfa-after-reopen.json": {
+          "path": "wave34-source-secondaire-mfa-after-reopen.json",
+          "sha256": "e7370c502f29982b56191f857a7b8be6c042c44f2bf30c9ba44fd9a61e999ea1"
+        },
+        "wave34-source-secondaire-browser-file-preservation.json": {
+          "path": "wave34-source-secondaire-browser-file-preservation.json",
+          "sha256": "965801a222e461e6094c0ac77bfa0aa6a25878b57fe3957997fafe776cccfc66"
+        },
+        "wave34-source-secondaire-reopen-file-preservation.json": {
+          "path": "wave34-source-secondaire-reopen-file-preservation.json",
+          "sha256": "8030d794926609a8d9960cdbf2eb98e899a0ac039ec16b35f23943e696bcf419"
+        },
+        "wave34-source-secondaire-database-before-browser.json": {
+          "path": "wave34-source-secondaire-database-before-browser.json",
+          "sha256": "fa7b0dbc07ff52a6bd412925ad29c4404ac94bce36c25286e0751b849f940273"
+        },
+        "wave34-source-secondaire-mfa-before-browser.json": {
+          "path": "wave34-source-secondaire-mfa-before-browser.json",
+          "sha256": "e7370c502f29982b56191f857a7b8be6c042c44f2bf30c9ba44fd9a61e999ea1"
+        },
+        "wave34-source-secondaire-volume-before-browser.json": {
+          "path": "wave34-source-secondaire-volume-before-browser.json",
+          "sha256": "448c4a161eb8ae8b62a277656cbfbeae1eb7a03606939800ce0c1cbbed2a27ac"
+        },
+        "wave34-source-secondaire-volume-after-reopen.json": {
+          "path": "wave34-source-secondaire-volume-after-reopen.json",
+          "sha256": "44e49e516739eb567e52d72512ffb03ab9aa4b344dfbb8a41258da4941f66ac6"
+        },
+        "wave34-survey-superieur-fixture.json": {
+          "path": "wave34-survey-superieur-fixture.json",
+          "sha256": "4edbdc78529ac56aaf414751eabe0703d8cb39e644f711b632ec2ce381cc548e"
+        },
+        "wave34-survey-superieur-browser/receipt.json": {
+          "path": "wave34-survey-superieur-browser/receipt.json",
+          "sha256": "52a376e4808eac58cdf38df69d6684b828a1f9452bb399826806714ce50bdc0f"
+        },
+        "wave34-survey-superieur-browser/primary-draft.png": {
+          "path": "wave34-survey-superieur-browser/primary-draft.png",
+          "sha256": "5ff3b7033d62da4de72e9ca7039c8736efa0153a4a860ff204dcbdf2268de26c"
+        },
+        "wave34-survey-superieur-browser/primary-learner-saved.png": {
+          "path": "wave34-survey-superieur-browser/primary-learner-saved.png",
+          "sha256": "e50b249aaa09a53b3f826677ce76980dd3a56042e4aa7df4b0d4818b04a52bb2"
+        },
+        "wave34-survey-superieur-browser/primary-teacher-saved.png": {
+          "path": "wave34-survey-superieur-browser/primary-teacher-saved.png",
+          "sha256": "9a98a394ff4e62e11b4996e4d4165d2edd86b9a7ae540398ddc1747ab7fd7781"
+        },
+        "wave34-survey-superieur-browser/primary-parent-saved.png": {
+          "path": "wave34-survey-superieur-browser/primary-parent-saved.png",
+          "sha256": "1594553637e77361fb6588e67b5112ddeb4811517682ab1dc4e1ba38e91cf830"
+        },
+        "wave34-survey-superieur-browser/primary-outsider-empty.png": {
+          "path": "wave34-survey-superieur-browser/primary-outsider-empty.png",
+          "sha256": "6dac8c76d42a5c2e44d560c74dcff368abb593ba1a732e49b58eca3cf19d3c9b"
+        },
+        "wave34-survey-superieur-browser/primary-results-before-revocation.png": {
+          "path": "wave34-survey-superieur-browser/primary-results-before-revocation.png",
+          "sha256": "51f0e04790b1b98b86f37b56deb0644918bf70dcca61b8908723742d7ad5a2ec"
+        },
+        "wave34-survey-superieur-browser/primary-revoked-same-session-no-stale-data.png": {
+          "path": "wave34-survey-superieur-browser/primary-revoked-same-session-no-stale-data.png",
+          "sha256": "365c169f9bf896044c1ef29d58fef5460810f2f94872f32ad603e995a854e735"
+        },
+        "wave34-survey-superieur-browser/primary-closed-unanswered.png": {
+          "path": "wave34-survey-superieur-browser/primary-closed-unanswered.png",
+          "sha256": "c3df756702ed7d973e0619fd4a537bc88203cf2cbf7ff22b49615d1292f568e7"
+        },
+        "wave34-survey-superieur-persistence.json": {
+          "path": "wave34-survey-superieur-persistence.json",
+          "sha256": "3754a0b4ce0162b051e728ddf9208c897b33a780cd8931a00b1ab06e483a794c"
+        },
+        "wave34-superieur-recreation-comparison.json": {
+          "path": "wave34-superieur-recreation-comparison.json",
+          "sha256": "3376363fdfa00e9f005f0efa8bc87aff8442220e7a5f9c8c63c575c3d3b71376"
+        },
+        "wave34-source-superieur-database-before-recreation.json": {
+          "path": "wave34-source-superieur-database-before-recreation.json",
+          "sha256": "a09de466a7bd12fe53928a5e8e2651b7978bbb9eb917a347f9f07d6f1804e9fd"
+        },
+        "wave34-source-superieur-database-after-recreation.json": {
+          "path": "wave34-source-superieur-database-after-recreation.json",
+          "sha256": "ba5a6f8f2427523678d8582292b11e6942d261f038ba5aa63e5553519329e853"
+        },
+        "wave34-source-superieur-mfa-before-recreation.json": {
+          "path": "wave34-source-superieur-mfa-before-recreation.json",
+          "sha256": "b52c85d7a07c20822d1458ddee96075591c021ca4fd88a7687df3b012f793b11"
+        },
+        "wave34-source-superieur-mfa-after-recreation.json": {
+          "path": "wave34-source-superieur-mfa-after-recreation.json",
+          "sha256": "b52c85d7a07c20822d1458ddee96075591c021ca4fd88a7687df3b012f793b11"
+        },
+        "wave34-source-superieur-volume-before-recreation.json": {
+          "path": "wave34-source-superieur-volume-before-recreation.json",
+          "sha256": "129839f9f881ac7332052abf02c09f36547dc4d3a9d47f08f7f84c4c90f6bdec"
+        },
+        "wave34-source-superieur-volume-after-recreation.json": {
+          "path": "wave34-source-superieur-volume-after-recreation.json",
+          "sha256": "129839f9f881ac7332052abf02c09f36547dc4d3a9d47f08f7f84c4c90f6bdec"
+        },
+        "wave34-source-superieur-runtime-before-browser.json": {
+          "path": "wave34-source-superieur-runtime-before-browser.json",
+          "sha256": "2a45bb5b493ab634a5d097611fd31051f578c7a120f0f3fab2d7011d921db509"
+        },
+        "wave34-source-superieur-runtime-after-recreation.json": {
+          "path": "wave34-source-superieur-runtime-after-recreation.json",
+          "sha256": "c9ea90a0d2d2e0fdc7fe97a88d9e5bbc6692cfcd25cca65936e5b592d551adc5"
+        },
+        "wave34-survey-superieur-reopen.json": {
+          "path": "wave34-survey-superieur-reopen.json",
+          "sha256": "bf3551c95741b4d9f13ccf2d6bee5231d817bc064cce3a6eb23f92d6a5a3f8ce"
+        },
+        "wave34-survey-superieur-post-reopen-persistence.json": {
+          "path": "wave34-survey-superieur-post-reopen-persistence.json",
+          "sha256": "52dafb67871519b01dec0b71cc4f10d7edac235e3d213b711f7472479abbfcfd"
+        },
+        "wave34-source-superieur-database-after-reopen.json": {
+          "path": "wave34-source-superieur-database-after-reopen.json",
+          "sha256": "0b20a39a0c945cfeeae6aad9d9bc582799b88c6df3309f6c77827802bb0f8774"
+        },
+        "wave34-source-superieur-mfa-after-reopen.json": {
+          "path": "wave34-source-superieur-mfa-after-reopen.json",
+          "sha256": "b52c85d7a07c20822d1458ddee96075591c021ca4fd88a7687df3b012f793b11"
+        },
+        "wave34-source-superieur-browser-file-preservation.json": {
+          "path": "wave34-source-superieur-browser-file-preservation.json",
+          "sha256": "714e4828c533b6696ba9f920b747f27f9e27d0679ce706f9aedb7172cc81934b"
+        },
+        "wave34-source-superieur-reopen-file-preservation.json": {
+          "path": "wave34-source-superieur-reopen-file-preservation.json",
+          "sha256": "afb79e544addba10e2b4657ae148e82417b490495a96f8227393310186f97b80"
+        },
+        "wave34-source-superieur-database-before-browser.json": {
+          "path": "wave34-source-superieur-database-before-browser.json",
+          "sha256": "a28407cdf67fe63ad9a472f4f545b2d9f901d5d9636fdd80ff2da13aaf218b35"
+        },
+        "wave34-source-superieur-mfa-before-browser.json": {
+          "path": "wave34-source-superieur-mfa-before-browser.json",
+          "sha256": "b52c85d7a07c20822d1458ddee96075591c021ca4fd88a7687df3b012f793b11"
+        },
+        "wave34-source-superieur-volume-before-browser.json": {
+          "path": "wave34-source-superieur-volume-before-browser.json",
+          "sha256": "465b88a87eff1639bc2d1d4396b90b5547e5bedb57f2f06778f974f7c5605c8d"
+        },
+        "wave34-source-superieur-volume-after-reopen.json": {
+          "path": "wave34-source-superieur-volume-after-reopen.json",
+          "sha256": "d12475ca4f35b35c61f97a6e9fc763a9a8ca525d4d0bcc3a6ef017e1239f0e5e"
+        },
+        "wave34-initial-login-attempt-preservation.json": {
+          "path": "wave34-initial-login-attempt-preservation.json",
+          "sha256": "4b0dab2e7a3060eba687b194e597f7265a76c8a6ab0de55d40c9460f893505d7"
+        },
+        "wave34-initial-login-attempt/wave34-survey-secondaire-fixture.stderr.log": {
+          "path": "wave34-initial-login-attempt/wave34-survey-secondaire-fixture.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wave34-initial-login-attempt/wave34-survey-secondaire-browser.stderr.log": {
+          "path": "wave34-initial-login-attempt/wave34-survey-secondaire-browser.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wave34-initial-login-attempt/wave34-source-secondaire-nginx.log": {
+          "path": "wave34-initial-login-attempt/wave34-source-secondaire-nginx.log",
+          "sha256": "07fdd5abff13b866580f746c174a001880b15909f46344ff4f488c8d46d51bcb"
+        },
+        "wave34-initial-login-attempt/wave34-survey-secondaire-fixture.stdout.json": {
+          "path": "wave34-initial-login-attempt/wave34-survey-secondaire-fixture.stdout.json",
+          "sha256": "73e16178d4388c824270c27f3d5041df8b1aec1fd7bc21083418bf93b7fd9387"
+        },
+        "wave34-initial-login-attempt/wave34-source-secondaire-runtime-before-browser.json": {
+          "path": "wave34-initial-login-attempt/wave34-source-secondaire-runtime-before-browser.json",
+          "sha256": "acfc6b420fef15a95d93d51432c9408cc3f115d9f6158c0284cf0cf7167ad51a"
+        },
+        "wave34-initial-login-attempt/wave34-survey-secondaire-fixture.json": {
+          "path": "wave34-initial-login-attempt/wave34-survey-secondaire-fixture.json",
+          "sha256": "73e16178d4388c824270c27f3d5041df8b1aec1fd7bc21083418bf93b7fd9387"
+        },
+        "wave34-initial-login-attempt/wave34-source-secondaire-api.log": {
+          "path": "wave34-initial-login-attempt/wave34-source-secondaire-api.log",
+          "sha256": "6409c84eb38523b5b6f2e358abd119a011ce42c5a2c136f9d2f1edd970d89d9d"
+        },
+        "wave34-initial-login-attempt/wave34-source-secondaire-volume-before-browser.json": {
+          "path": "wave34-initial-login-attempt/wave34-source-secondaire-volume-before-browser.json",
+          "sha256": "448c4a161eb8ae8b62a277656cbfbeae1eb7a03606939800ce0c1cbbed2a27ac"
+        },
+        "wave34-initial-login-attempt/wave34-survey-secondaire-browser.stdout.log": {
+          "path": "wave34-initial-login-attempt/wave34-survey-secondaire-browser.stdout.log",
+          "sha256": "032d07c4c3a340dc45e434d4922f77b454688b87afab23ae116424b7cbfec7c3"
+        },
+        "wave34-initial-login-attempt/wave34-source-secondaire-mfa-before-browser.json": {
+          "path": "wave34-initial-login-attempt/wave34-source-secondaire-mfa-before-browser.json",
+          "sha256": "e7370c502f29982b56191f857a7b8be6c042c44f2bf30c9ba44fd9a61e999ea1"
+        },
+        "wave34-initial-login-attempt/wave34-source-secondaire-database-before-browser.json": {
+          "path": "wave34-initial-login-attempt/wave34-source-secondaire-database-before-browser.json",
+          "sha256": "e5a6d5fba82bcbab88d9229123ac4a971df428251fcf8febddc96242cbab26ac"
+        },
+        "wave34-initial-login-attempt/wave34-fixture-output-secondaire/wave34-survey-secondaire-fixture.json": {
+          "path": "wave34-initial-login-attempt/wave34-fixture-output-secondaire/wave34-survey-secondaire-fixture.json",
+          "sha256": "73e16178d4388c824270c27f3d5041df8b1aec1fd7bc21083418bf93b7fd9387"
+        },
+        "wave34-initial-login-attempt/wave34-survey-secondaire-browser/receipt.json": {
+          "path": "wave34-initial-login-attempt/wave34-survey-secondaire-browser/receipt.json",
+          "sha256": "7a0a4366d14dfca20a1f0dd679201925dec36509aa4341a59b14316ec5a62f5c"
+        },
+        "wave34-survey-fixture.py": {
+          "path": "wave34-survey-fixture.py",
+          "sha256": "c2c911efacf12fc61a52aae1e86e459d0f7a02467c310a96e89535aefcafffdc"
+        },
+        "wave34-survey-browser.cjs": {
+          "path": "wave34-survey-browser.cjs",
+          "sha256": "7d01876f98ae81ab369b14f1e886490713bcf898da84e87f598b46237f822f80"
+        },
+        "wave34-survey-browser-initial.cjs": {
+          "path": "wave34-survey-browser-initial.cjs",
+          "sha256": "795ff2f47b075a2347d9e31fa8025c1cffd781f6f3a17346c12a4253230a6f1a"
+        },
+        "wave34-survey-persistence-original-campaign.py": {
+          "path": "wave34-survey-persistence-original-campaign.py",
+          "sha256": "6d165b4d7f024603f4e7170f7f6ddc723b5008ffe60688bf7ae268cde645d894"
+        },
+        "wave34-survey-persistence.py": {
+          "path": "wave34-survey-persistence.py",
+          "sha256": "8c63e51579ab41207b376444f7632a1c616811d27a0f1ea3d40647072ff1634b"
+        },
+        "wave34-survey-reopen.cjs": {
+          "path": "wave34-survey-reopen.cjs",
+          "sha256": "6f77b21b2ab91ffeea5dc56f586c07759b5e6861aab598fe24d3370b2377e3b2"
+        },
+        "wave34-survey-handoff.json": {
+          "path": "wave34-survey-handoff.json",
+          "sha256": "fe5a9eba97581ce426a392b37f046a6705650a68bbcd93bfaa3981cf4df1f79d"
+        },
+        "wave34-survey-persistence-handoff.json": {
+          "path": "wave34-survey-persistence-handoff.json",
+          "sha256": "109b0fc57343a04b2db81e6d05885fb9f68512bc154e1e3e6d60790f20b0aba5"
+        },
+        "wave34-browser-container.sh": {
+          "path": "wave34-browser-container.sh",
+          "sha256": "89921894296580879983cbb52ca9964603431eab259820db04d605e4c607c9af"
+        },
+        "wave34-browser-nginx.conf": {
+          "path": "wave34-browser-nginx.conf",
+          "sha256": "aa67e0a5a61ecdab8b69d82b797e31835fc7caa74ca2ca222334c6a99dcdeb66"
+        },
+        "wave34_browser_settings.py": {
+          "path": "wave34_browser_settings.py",
+          "sha256": "19b416942901edfdffc9673828f8b845bda5bf9e153fd3e198d30d277e2ccb45"
+        },
+        "wave34-database-fingerprint.py": {
+          "path": "wave34-database-fingerprint.py",
+          "sha256": "485fb5d8425b10df37eabc203328ea4a15a3ce1c1cf9e65b7c670edb48df5507"
+        },
+        "wave34-volume-fingerprint.py": {
+          "path": "wave34-volume-fingerprint.py",
+          "sha256": "1b09cb6623e9dacc25939cdc798aead49ab4276005ed701eefc1fcb763205fa6"
+        },
+        "wave34-volume-append-check.py": {
+          "path": "wave34-volume-append-check.py",
+          "sha256": "f3113a0c3f3964da947d31847b7d7db70d0c91e4d2f6fe5158236aad6eefd4db"
+        },
+        "wave34-mfa-readonly.py": {
+          "path": "wave34-mfa-readonly.py",
+          "sha256": "d251cd464dbac68d79eef055d4078e113da12d0c79c53dc9ea4ae97ef7882b75"
+        },
+        "wave34-migration-compare.py": {
+          "path": "wave34-migration-compare.py",
+          "sha256": "50d61bfd6188a87213a9b3c71d1f951acad2be87fe563413e46422323d3ec80e"
+        },
+        "wave34-runtime-attestation.py": {
+          "path": "wave34-runtime-attestation.py",
+          "sha256": "003307455e54f0b98483f9d232ed1a86c47d23342e6f01128d5af26dadbddc77"
+        },
+        "wave34-recreation-compare.py": {
+          "path": "wave34-recreation-compare.py",
+          "sha256": "e1b8a2f4eca6b7fef981e79badd1045111f9b150de74c89889e92bebac619959"
+        },
+        "wave34-parent-qualification.py": {
+          "path": "wave34-parent-qualification.py",
+          "sha256": "9b9da0c68e473bf5e3a66409209fd42413cd52f6c7f63020941bf6f7b7dfba60"
+        },
+        "wave34-secondaire-initial.log": {
+          "path": "wave34-secondaire-initial.log",
+          "sha256": "e200c82f8f63f2ce0cfd3e180a9068002f07bb524635a7c00b2a70893dbfef7c"
+        },
+        "wave34-image-initial-build.log": {
+          "path": "wave34-image-initial-build.log",
+          "sha256": "e3ffca1d2b9222242509c95ff6f44effb1f409ed8d8c0a2dd2eaa1fbeea46ff9"
+        },
+        "wave34-image-detail-fix-build.log": {
+          "path": "wave34-image-detail-fix-build.log",
+          "sha256": "30168726ef570ca612f0e3c5eb03fcfcbfadac37cf1ad8bd6c2d8e231dbf4ad3"
+        },
+        "wave34-frontend-browser-build.log": {
+          "path": "wave34-frontend-browser-build.log",
+          "sha256": "affee4d97c9b78c70d2c0994b5ec93ae1d48710bdc4aa3a1d8dbcf110e947b66"
+        },
+        "wave34-frontend-parent-eslint.log": {
+          "path": "wave34-frontend-parent-eslint.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wave34-public-bundle-permissions.json": {
+          "path": "wave34-public-bundle-permissions.json",
+          "sha256": "6f5c798faa4125382ca43e3294535dd4072481a19e4683a144e36c9762750c33"
+        },
+        "wave34-survey-secondaire-login-diagnostic-pending-red/receipt.json": {
+          "path": "wave34-survey-secondaire-login-diagnostic-pending-red/receipt.json",
+          "sha256": "3b628ddcdcc7676fae60c6defe533cba3b8cafdbf496b6fbfd3e9324eb4c11e0"
+        },
+        "wave34-survey-secondaire-login-diagnostic/receipt.json": {
+          "path": "wave34-survey-secondaire-login-diagnostic/receipt.json",
+          "sha256": "f71fe4f00f3326853a4c7a6845857e302b7541bb86053a82151a1394231db144"
+        },
+        "wave34-failed-login-secondaire-volume-preserved.json": {
+          "path": "wave34-failed-login-secondaire-volume-preserved.json",
+          "sha256": "27a9d1ef69301bd89296d9267d907b46927e0daa627ec758d639e7d9d3aba904"
+        }
+      },
+      "campaigns": [
+        {
+          "id": "wave34-secondaire-backend-targeted",
+          "result": "24_tests_passed_migration_drift_check_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave34-secondaire-detail-fix.log"
+          ],
+          "counts": {
+            "passed": 24,
+            "seconds": 83.499,
+            "migration_drift_check": true
+          },
+          "verification": "Commandes, permissions, tenants, cycle, contraintes, audit atomique et concurrence PostgreSQL.",
+          "limits": "Tests cibles Django, pas suite integrale ; force_authenticate ne prouve pas une connexion HTTP."
+        },
+        {
+          "id": "wave34-superieur-backend-targeted",
+          "result": "24_tests_passed_migration_drift_check_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave34-superieur-detail-fix.log"
+          ],
+          "counts": {
+            "passed": 24,
+            "seconds": 96.423,
+            "migration_drift_check": true
+          },
+          "verification": "Commandes, permissions, tenants, cycle, contraintes, audit atomique et concurrence PostgreSQL.",
+          "limits": "Tests cibles Django, pas suite integrale ; force_authenticate ne prouve pas une connexion HTTP."
+        },
+        {
+          "id": "wave34-frontend-targeted-and-production-build",
+          "result": "107_jest_tests_6_suites_lint_and_build_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave34-frontend-parent-jest.log",
+            "wave34-frontend-parent-eslint.log",
+            "wave34-frontend-browser-build.log",
+            "wave34-frontend-build-provenance.json"
+          ],
+          "counts": {
+            "tests": 107,
+            "suites": 6,
+            "seconds": 300.38
+          },
+          "verification": "UI enquetes, navigation et regressions ciblees ; nouveau bundle de production.",
+          "limits": "Mocks Jest distincts des parcours Chromium ; trois avertissements webpack de taille conserves."
+        },
+        {
+          "id": "wave34-native-migrations-and-protected-fixtures",
+          "result": "two_sis_migrations_old_data_mfa_rights_and_files_preserved",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave34-migration-comparison.json",
+            "wave34-reclone-migration-comparison.json",
+            "wave34-survey-secondaire-fixture.json",
+            "wave34-survey-superieur-fixture.json"
+          ],
+          "counts": {
+            "secondary_tables": 579,
+            "university_tables": 630,
+            "new_accounts_each_sis": 8
+          },
+          "verification": "Migration0013 sur copies des restaurations33 ; cinq schemas par SIS. Anciens comptes/MFA/droits/fichiers inchanges ; nouveaux comptes seuls, activation explicite sis.surveys.",
+          "limits": "Preparation par clonage, pas une nouvelle sauvegarde/restauration34."
+        },
+        {
+          "id": "wave34-secondaire-native-browser-surveys",
+          "result": "nominative_cycle_three_audiences_and_cross_host_denials_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave34-survey-secondaire-browser/receipt.json",
+            "wave34-survey-secondaire-persistence.json"
+          ],
+          "counts": {
+            "browser_ui_actors": 6,
+            "browser_ui_commands": 7,
+            "browser_native_api_checks": 24,
+            "cross_host_replays_401": 8,
+            "browser_screenshots": 8,
+            "browser_duration_ms": 293763
+          },
+          "verification": "Deux tenants peuples ; creation/publication, apprenant/enseignant/parent, resultats, doublons, non-destinataire, revocation et fermeture. Rejeux avec cookie source original :401.",
+          "limits": "UI principale et API native du pair ; partenaire authentifie non qualifie."
+        },
+        {
+          "id": "wave34-secondaire-recreation-reopen-and-preservation",
+          "result": "exact_recreation_native_reopen_and_strict_two_window_preservation_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave34-secondaire-recreation-comparison.json",
+            "wave34-survey-secondaire-reopen.json",
+            "wave34-survey-secondaire-post-reopen-persistence.json"
+          ],
+          "counts": {
+            "all_protected_tables": 579,
+            "recreation_volume_entries": 32,
+            "reopened_actors": 8,
+            "reopen_business_get_checks": 64,
+            "reopen_total_http_requests": 216,
+            "reopen_duration_ms": 312069
+          },
+          "verification": "API/proxy reellement remplaces ; tables, fichiers et MFA/TOTP exacts avant nouvelle connexion. Huit vrais logins puis64 controles GET ; six tables auth seules changent. Deux fenetres auth disjointes, une session/un log par acteur et fenetre ; fenetre metier originale stricte. Anciens octets et comptes/droits preserves.",
+          "limits": "GET metier seuls ; les logins ecrivent l'authentification. Pas restauration independante ni controle des sequences post-UI."
+        },
+        {
+          "id": "wave34-superieur-native-browser-surveys",
+          "result": "nominative_cycle_three_audiences_and_cross_host_denials_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave34-survey-superieur-browser/receipt.json",
+            "wave34-survey-superieur-persistence.json"
+          ],
+          "counts": {
+            "browser_ui_actors": 6,
+            "browser_ui_commands": 7,
+            "browser_native_api_checks": 24,
+            "cross_host_replays_401": 8,
+            "browser_screenshots": 8,
+            "browser_duration_ms": 294129
+          },
+          "verification": "Deux tenants peuples ; creation/publication, apprenant/enseignant/parent, resultats, doublons, non-destinataire, revocation et fermeture. Rejeux avec cookie source original :401.",
+          "limits": "UI principale et API native du pair ; partenaire authentifie non qualifie."
+        },
+        {
+          "id": "wave34-superieur-recreation-reopen-and-preservation",
+          "result": "exact_recreation_native_reopen_and_strict_two_window_preservation_passed",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave34-superieur-recreation-comparison.json",
+            "wave34-survey-superieur-reopen.json",
+            "wave34-survey-superieur-post-reopen-persistence.json"
+          ],
+          "counts": {
+            "all_protected_tables": 630,
+            "recreation_volume_entries": 29,
+            "reopened_actors": 8,
+            "reopen_business_get_checks": 64,
+            "reopen_total_http_requests": 216,
+            "reopen_duration_ms": 312097
+          },
+          "verification": "API/proxy reellement remplaces ; tables, fichiers et MFA/TOTP exacts avant nouvelle connexion. Huit vrais logins puis64 controles GET ; six tables auth seules changent. Deux fenetres auth disjointes, une session/un log par acteur et fenetre ; fenetre metier originale stricte. Anciens octets et comptes/droits preserves.",
+          "limits": "GET metier seuls ; les logins ecrivent l'authentification. Pas restauration independante ni controle des sequences post-UI."
+        }
+      ],
+      "criteria_confrontation": {
+        "requirement": "10.12",
+        "status_before": "partial",
+        "status_after": "partial",
+        "criteria_unchanged": true,
+        "verified_audiences": [
+          "apprenants",
+          "enseignants",
+          "parents"
+        ],
+        "partner_audience_not_yet_qualified": true,
+        "nominative_policy_explicit_no_anonymity_claim": true,
+        "duplicates_nonrecipients_revocation_closure_results_qualified": true,
+        "two_real_populated_tenants_each_sis": true,
+        "migration_old_accounts_mfa_rights_and_files_preserved": true,
+        "actual_recreation_and_reopen_qualified": true,
+        "independent_backup_restore_of_survey_increment_not_executed": true,
+        "preserve_old_updates": 51,
+        "preserve_other_requirements": 93,
+        "global_completion": false
+      },
+      "incidents_preserved": [
+        "Initial Django run: 24 tests,12 errors; DRF detail route attribute shadowed a method. Fixed as serialize_detail.",
+        "First fixture launcher was not executable; Bash refused before Docker/Python. Preserved; invoked with bash.",
+        "Public build inherited umask077; initial nginx500. Only generated public asset modes fixed; bytes unchanged.",
+        "First browser stopped before any survey command: old-document auth request tracked after reload.",
+        "Harness now retires old requests at the real document commit, never SPA navigation. Diagnostic not qualification.",
+        "Failed source DB/volume and red artifacts preserved; new scolaire source cloned and migration/fixture requalified."
+      ],
+      "qualification_limits": [
+        "Synthetic isolated local qualification; no institutional pilot, shared deployment or production change.",
+        "No partner audience, anonymity, SMTP, public invitation, export or advanced statistics qualified.",
+        "Read-only reopen means GET business operations; its eight real logins necessarily write authentication state.",
+        "No new independent backup/restore34, load campaign or post-UI sequence-preservation claim.",
+        "Targeted suites overlap author/parent checks; no deduplicated grand total or full-suite claim.",
+        "The original load500 remains red; F-lots and the global programme remain open."
+      ]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-07T22:34:18.809968+00:00",
+    "as_of": "2026-11-08T00:01:24.356434+00:00",
     "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
     "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
     "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
@@ -6086,7 +6816,7 @@
       "unverified": 2,
       "change": "10.7_partial_to_verified_only_explicit_parent_authorization_wave33"
     },
-    "shared_deployment_scope": "Aucun déploiement partagé des vagues15à33, pilote institutionnel ou production. Les images de qualification ne remplacent pas les services partagés ; lot34 non qualifié exclu.",
+    "shared_deployment_scope": "Aucun deploiement partage des vagues15a34, pilote institutionnel ou production. Les images de qualification ne remplacent pas les services partages ; lot35 non qualifie exclu.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -6138,7 +6868,21 @@
         "wave33-search-recreation-mfa-and-published-provenance"
       ]
     },
-    "wave33_search_recovery_verified": "185/251 contrôles HTTP natifs après restauration indépendante ;567/618 tables et32/29 entrées volumes exactes avant HTTP et après recréation API/proxy. Comptes/MFA/droits/données protégés, TOTP réel, logs enrichis sans perte.73 artefacts hachés ; backend32/imageb274 et frontend31 inchangés."
+    "wave33_search_recovery_verified": "185/251 contrôles HTTP natifs après restauration indépendante ;567/618 tables et32/29 entrées volumes exactes avant HTTP et après recréation API/proxy. Comptes/MFA/droits/données protégés, TOTP réel, logs enrichis sans perte.73 artefacts hachés ; backend32/imageb274 et frontend31 inchangés.",
+    "wave34_published_qualification_reference": {
+      "update_id": "EXEC-20261108-wave34-published-institution-surveys",
+      "campaign_ids": [
+        "wave34-secondaire-backend-targeted",
+        "wave34-superieur-backend-targeted",
+        "wave34-frontend-targeted-and-production-build",
+        "wave34-native-migrations-and-protected-fixtures",
+        "wave34-secondaire-native-browser-surveys",
+        "wave34-secondaire-recreation-reopen-and-preservation",
+        "wave34-superieur-native-browser-surveys",
+        "wave34-superieur-recreation-reopen-and-preservation"
+      ]
+    },
+    "wave34_nominative_surveys_bounded": "Module sis.surveys desactive par defaut ; droits explicites, aucun privilege par role/is_staff. Trois publics qualifies dans les deux SIS, deux tenants, preservation et recreation/reouverture prouvees. 10.12 reste partial : partenaire et restauration independante du nouvel increment a qualifier."
   },
   "execution_status_policy": {
     "requirement_verified_in_declared_scope": "Toutes les obligations/critères de l'exigence sont rapprochés de preuves exécutées, persistantes et livrées dans le périmètre déclaré; promotion explicitement autorisée, sans propagation aux autres exigences/F-lots.",
@@ -6737,9 +7481,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 192,
-    "requirements_with_new_increment_evidence": 25,
-    "conclusion": "192 campagnes documentaires non sommées,51 updates,25 exigences avec preuves ;73 artefacts33. 50 updates historiques et93 autres exigences strictement conservés. Seule10.7 promue après rapprochement des critères et reprise persistante ;3 vérifiées,70 partielles,19 absentes,2 non vérifiées. Aucun total dédupliqué d'exécutions, F-lots ouverts, charge500 rouge, pas100 %."
+    "imported_evidence_campaign_records": 200,
+    "requirements_with_new_increment_evidence": 26,
+    "conclusion": "200 campagnes documentaires non sommees,52 updates,26 exigences avec preuves ;132 artefacts34. 51 updates historiques et93 autres exigences strictement conserves. Aucun statut promu34 : 3 verifiees,70 partielles,19 absentes,2 non verifiees ;10.12 reste partielle. Aucun total deduplique d'executions, F-lots ouverts, charge500 rouge, pas100 %."
   },
   "requirements": [
     {
@@ -12446,8 +13190,26 @@
         "Diffuser une enquête aux quatre publics autorisés, recueillir réponses et analyser résultats.",
         "Refuser doublons ou non-destinataires selon règles; préserver anonymat si annoncé."
       ],
-      "execution_evidence": [],
-      "acceptance_execution_status": "not_run"
+      "execution_evidence": [
+        {
+          "update_id": "EXEC-20261108-wave34-published-institution-surveys",
+          "campaign_ids": [
+            "wave34-secondaire-backend-targeted",
+            "wave34-superieur-backend-targeted",
+            "wave34-frontend-targeted-and-production-build",
+            "wave34-native-migrations-and-protected-fixtures",
+            "wave34-secondaire-native-browser-surveys",
+            "wave34-secondaire-recreation-reopen-and-preservation",
+            "wave34-superieur-native-browser-surveys",
+            "wave34-superieur-recreation-reopen-and-preservation"
+          ],
+          "result": "three_audiences_nominative_surveys_qualified_requirement_partial",
+          "verified_scope": "Diffusion interne ciblee, collecte apprenants/enseignants/parents, resultats nominatifs et comptages. Doublons, non-destinataires, droits, tenants, revocation et fermeture refuses selon les regles. Politique nominative explicite : aucun anonymat annonce.",
+          "preservation_scope": "Migration sur copies peuplees et preservation comptes/MFA/droits/fichiers ; 579/630 tables controlees, deux tenants, recreation reelle et reouverture native. Effets auth bornes et anciens octets verifies, pas restauration independante34.",
+          "remaining_scope": "Quatrieme public partenaire authentifie et sauvegarde/restauration independante du nouvel increment a demontrer avant promotion. SMTP/export/anonymat non annonce ne deviennent pas de nouveaux criteres. F17/F20/F23 et programme global restent ouverts."
+        }
+      ],
+      "acceptance_execution_status": "bounded_increment_passed_requirement_remains_partial"
     },
     {
       "id": "10.13",
