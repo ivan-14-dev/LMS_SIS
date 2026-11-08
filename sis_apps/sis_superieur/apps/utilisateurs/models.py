@@ -41,6 +41,7 @@ class Utilisateur(AbstractUser):
         ("etudiant", "Étudiant"),
         ("doctorant", "Doctorant"),
         ("parent", "Parent"),
+        ("partenaire", "Partenaire"),
     ]
     etablissement = models.ForeignKey(
         "etablissement.Universite",

@@ -1348,6 +1348,40 @@ un enseignant ne gagne pas accès à un autre périmètre parce qu'il est `staff
 Les changements ne réattribuent pas automatiquement les permissions des
 comptes existants.
 
+#### Compte nominatif d'un partenaire
+
+Dans les deux SIS, **Administration → Utilisateurs → Comptes → Ajouter**
+propose le rôle **Partenaire** (`partenaire`). Créez un compte nominatif rattaché
+à l'établissement, et non un administrateur renommé. L'API existante
+`POST /api/v1/utilisateurs/comptes/` accepte ce même rôle. La création avec
+un rôle différent du rôle apprenant par défaut, comme sa modification ultérieure,
+reste réservée au superutilisateur par les validations existantes.
+
+Ce libellé n'attribue ni groupe ni permission : le compte est non-staff et
+non-superutilisateur par défaut, sans dossier élève/étudiant ou personnel créé
+automatiquement. Les habilitations éventuellement nécessaires se donnent
+explicitement par les groupes/permissions existants ; le rôle ne suffit pas
+pour entrer dans un portail apprenant ou staff. La politique MFA reste inchangée.
+Ne passez pas par l'import **Students**, qui crée des apprenants, ni par le
+provisionnement LMS pour créer ce compte SIS.
+
+Le champ `role` reste libre (100 caractères) : les rôles existants ou personnalisés
+ne sont ni restreints ni renommés. Seuls son catalogue de libellés et les choix
+du formulaire sont complétés ; aucune migration de schéma ou de données n'est
+nécessaire. Les « profils institutionnels » des offres ne sont pas des profils
+de compte.
+
+Au secondaire, la lecture du répertoire des élèves exige `eleves.view_eleve`
+pour les comptes sans accès personnel, partenaire compris. Ni `is_staff` ni
+un rôle administratif ou personnalisé ne remplacent cette habilitation.
+Les groupes Django existants permettent de l'attribuer et de la retirer ;
+les périmètres `eleves` et `classes` continuent de restreindre les résultats.
+Sans droit, liste et recherche du répertoire sont vides, les détails renvoient
+404 et la collecte paginée utilisée pour l'export ne fournit aucun dossier.
+L'accès personnel apprenant et les liens tuteur autorisés restent conservés,
+ainsi que le filtrage par établissement. Ce contrôle de lecture ne modifie pas
+les autorisations d'écriture/import ni les contrats des autres API.
+
 Les POST `/api/v1/integration/sync/enroll/` et `sync/teaching/` exigent
 désormais `integration.change_edxaccessintent` ou un superutilisateur ;
 `is_staff` seul ne suffit pas et n'est pas requis pour ces deux routes.

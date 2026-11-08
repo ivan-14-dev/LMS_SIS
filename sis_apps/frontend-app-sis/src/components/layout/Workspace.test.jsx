@@ -114,6 +114,29 @@ it('keeps the group editor reachable without account-view permission', () => {
   expect(links.some(item => item.label === 'Établissement')).toBe(false);
 });
 
+it.each(['secondaire', 'superieur'])('does not infer %s academic navigation or portals from the partner role', (variant) => {
+  const capabilities = {
+    role: 'partenaire',
+    permissions: [],
+    groups: [],
+    affiliations: [],
+    portals: { staff: false, learner: false, parent: false },
+  };
+  for (const kind of ['staff', 'learner', 'parent']) {
+    expect(canEnterPortal(capabilities, kind)).toBe(false);
+  }
+  const links = getNavigation(variant, variant, capabilities).flatMap(section => section.items);
+  expect(links.find(item => item.path === `/${variant}/compte`)).toBeDefined();
+  for (const path of ['portail-staff', 'portail-apprenant', 'eleves', 'etudiants', 'classes', 'notes', 'formations']) {
+    expect(links.some(item => item.path === `/${variant}/${path}`)).toBe(false);
+  }
+  expect(links.some(item => item.path.startsWith('/admin/'))).toBe(false);
+  const granted = getNavigation(variant, variant, {
+    ...capabilities, permissions: ['utilisateurs.view_utilisateur'],
+  }).flatMap(section => section.items);
+  expect(granted.some(item => item.path === `/admin/utilisateurs?sis=${variant}`)).toBe(true);
+});
+
 it('reports a failed institutional logo and allows a replacement image to load', () => {
   const { rerender } = render(
     <MemoryRouter><Sidebar sections={[]} branding={{ name: 'Campus', logo: '/logo.png' }} /></MemoryRouter>,

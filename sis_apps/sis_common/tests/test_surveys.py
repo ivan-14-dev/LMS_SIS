@@ -85,13 +85,18 @@ class SurveyFixture(TenantAPITestCase):
 
 
 class InstitutionalSurveyTests(SurveyFixture):
-    def test_manager_portal_cycle_keeps_answers_and_recipients_private(self):
+    def test_four_audiences_keep_answers_and_recipients_private(self):
+        partner = self.user("survey-partner", "partenaire")
+        self.payload["destinataires"].append(partner.pk)
         self.create_survey()
+        candidates = self.client.get(f"{MANAGEMENT}candidats/?q=survey-partner")
+        assert candidates.status_code == 200, candidates.data
+        assert [(row["id"], row["profil"]) for row in candidates.data["results"]] == [(partner.pk, "Partenaire")]
         self.login(self.learner)
         assert self.client.get(PORTAL).data["count"] == 0
         assert self.client.get(self.url(portal=True)).status_code == 404
         assert self.mutate("publier/").status_code == 200
-        for user in (self.learner, self.parent, self.teacher):
+        for user in (self.learner, self.parent, self.teacher, partner):
             self.login(user)
             assert self.client.get(PORTAL).data["count"] == 1
             assert self.client.get(f"{PORTAL}capacites/").data["can_manage"] is False
@@ -111,11 +116,12 @@ class InstitutionalSurveyTests(SurveyFixture):
             assert response.data["ma_reponse"]["reponses"]["avis"] == user.username
             assert response.data["peut_repondre"] is False
             assert self.client.patch(self.url(portal=True), self.answers, format="json").status_code == 405
+        assert self.respond(partner).status_code == 409
         self.login(self.manager)
         results = self.client.get(self.url("resultats/"))
         assert results.status_code == 200, results.data
-        assert results.data["reponses_recues"] == 3
-        assert results.data["choix"][0]["comptages"][0] == {"choix": "Bien", "total": 3}
+        assert results.data["reponses_recues"] == 4
+        assert results.data["choix"][0]["comptages"][0] == {"choix": "Bien", "total": 4}
         assert {row["destinataire"]["id"] for row in results.data["reponses"]} == set(self.payload["destinataires"])
         assert self.client.get(self.url(portal=True)).status_code == 404
         assert self.mutate("fermer/").status_code == 200

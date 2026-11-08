@@ -1,9 +1,130 @@
 from decimal import Decimal
 
+from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.utilisateurs.models import Utilisateur
+from django.apps import apps
+from django.conf import settings
 from django.contrib.auth.models import Group, Permission
 
 from sis_common.tests.test_grade_entry import GradeEntryFixture
+
+
+class PartnerAccountsAPITests(TenantAPITestCase):
+    base = "/api/v1/utilisateurs/comptes/"
+
+    def setUp(self):
+        self.secondary = settings.SIS_VARIANT == "secondaire"
+        self.admin = Utilisateur.objects.create_superuser(
+            username="partner-account-admin",
+            email="partner-admin@example.test",
+            password="Synthetic-partner-test-35!",
+            role="super_admin",
+            etablissement=self.tenant,
+        )
+        self.payload = {
+            "username": "institution-partner",
+            "first_name": "Compte",
+            "last_name": "Partenaire",
+            "email": "partner@example.test",
+            "password": "Synthetic-partner-test-35!",
+            "password_confirm": "Synthetic-partner-test-35!",
+            "role": "partenaire",
+        }
+        self.client.force_authenticate(self.admin)
+
+    def create_partner(self):
+        response = self.client.post(self.base, self.payload, format="json")
+        assert response.status_code == 201, response.data
+        return Utilisateur.objects.get(username=self.payload["username"])
+
+    def test_creation_and_administration_do_not_provision_or_promote_partner(self):
+        partner = self.create_partner()
+        assert partner.etablissement_id == self.tenant.pk
+        assert partner.is_active and not partner.is_staff and not partner.is_superuser
+        assert partner.check_password(self.payload["password"])
+        assert not partner.groups.exists()
+        assert not partner.user_permissions.exists()
+        assert not partner.get_all_permissions()
+        for model in (
+            ("eleves.Eleve", "enseignants.Personnel")
+            if self.secondary
+            else ("etudiants.Etudiant", "enseignants.EnseignantChercheur")
+        ):
+            assert not apps.get_model(model).objects.filter(user=partner).exists()
+        response = self.client.get(self.base, {"role": "partenaire"})
+        assert response.status_code == 200, response.data
+        assert [(row["id"], row["role_display"]) for row in response.data["results"]] == [(partner.pk, "Partenaire")]
+        response = self.client.patch(f"{self.base}{partner.pk}/", {"last_name": "Modifié"}, format="json")
+        assert response.status_code == 200, response.data
+        assert response.data["role_display"] == "Partenaire"
+        partner.refresh_from_db()
+        assert partner.role == "partenaire" and partner.last_name == "Modifié"
+        assert not partner.is_staff and not partner.is_superuser
+        self.admin.refresh_from_db()
+        assert self.admin.role == "super_admin" and self.admin.is_superuser and self.admin.is_staff
+
+    def test_creation_preserves_password_role_and_delegation_validations(self):
+        for changes, error in (
+            ({"password_confirm": "different"}, "password_confirm"),
+            ({"role": ""}, "role"),
+            ({"role": "x" * 101}, "role"),
+        ):
+            response = self.client.post(self.base, {**self.payload, **changes}, format="json")
+            assert response.status_code == 400, response.data
+            assert error in response.data
+            assert not Utilisateur.objects.filter(username=self.payload["username"]).exists()
+        partner = self.create_partner()
+        response = self.client.post(self.base, self.payload, format="json")
+        assert response.status_code == 400 and "username" in response.data
+        for index, role in enumerate((None, "institution_custom")):
+            payload = {**self.payload, "username": f"preserved-role-{index}"}
+            if role is None:
+                payload.pop("role")
+            else:
+                payload["role"] = role
+            response = self.client.post(self.base, payload, format="json")
+            assert response.status_code == 201, response.data
+            account = Utilisateur.objects.get(username=payload["username"])
+            assert account.role == (role or ("eleve" if self.secondary else "etudiant"))
+        partner.user_permissions.add(
+            Permission.objects.get(content_type__app_label="utilisateurs", codename="add_utilisateur")
+        )
+        self.client.force_authenticate(Utilisateur.objects.get(pk=partner.pk))
+        response = self.client.post(self.base, {**self.payload, "username": "unauthorized-partner"}, format="json")
+        assert response.status_code == 400 and "role" in response.data
+        assert not Utilisateur.objects.filter(username="unauthorized-partner").exists()
+
+    def test_partner_has_no_portal_or_management_access_without_explicit_grants(self):
+        partner = self.create_partner()
+        self.client.force_authenticate(partner)
+        response = self.client.get(f"{self.base}capabilities/")
+        assert response.status_code == 200, response.data
+        assert response.data["role"] == "partenaire"
+        assert response.data["permissions"] == []
+        assert response.data["groups"] == []
+        assert response.data["affiliations"] == []
+        assert response.data["portals"] == {"staff": False, "learner": False, "parent": False}
+        assert self.client.get(f"{self.base}me/").data["role_display"] == "Partenaire"
+        assert self.client.get(f"{self.base}{self.admin.pk}/").status_code == 404
+        for endpoint in ("apprenant", "staff"):
+            assert self.client.get(f"/api/v1/portail/{endpoint}/tableau_bord/").status_code == 403
+        assert self.client.get("/api/v1/utilisateurs/groupes/").status_code == 403
+        assert self.client.post(self.base, self.payload, format="json").status_code == 403
+        assert self.client.patch(f"{self.base}{partner.pk}/", {"role": "enseignant"}, format="json").status_code == 403
+        resource = "eleves" if self.secondary else "etudiants"
+        assert self.client.post(f"/api/v1/{resource}/importer/", {}, format="json").status_code == 403
+        assert self.client.post("/api/v1/notes/notes/", {}, format="json").status_code == 403
+        permission = Permission.objects.get(content_type__app_label="utilisateurs", codename="view_utilisateur")
+        group = Group.objects.create(name="explicit-partner-grant")
+        group.permissions.add(permission)
+        partner.groups.add(group)
+        self.client.force_authenticate(Utilisateur.objects.get(pk=partner.pk))
+        response = self.client.get(f"{self.base}capabilities/")
+        assert response.status_code == 200, response.data
+        assert response.data["role"] == "partenaire"
+        assert response.data["permissions"] == ["utilisateurs.view_utilisateur"]
+        assert response.data["groups"] == [group.name]
+        assert response.data["portals"] == {"staff": False, "learner": False, "parent": False}
 
 
 class BusinessRoleSeparationTests(GradeEntryFixture):

@@ -19,7 +19,7 @@ class GroupLifecycle(models.Model):
 
 
 class Utilisateur(AbstractUser):
-    """Utilisateur de la plateforme (élève, parent, enseignant, personnel)."""
+    """Utilisateur de la plateforme (élève, parent, enseignant, personnel, partenaire)."""
 
     integration_id = models.UUIDField(default=uuid.uuid4, db_default=RandomUUID(), unique=True, editable=False)
 
@@ -36,6 +36,7 @@ class Utilisateur(AbstractUser):
         ("vie_scolaire", "Vie scolaire"),
         ("eleve", "Élève"),
         ("parent", "Parent"),
+        ("partenaire", "Partenaire"),
     ]
     etablissement = models.ForeignKey(
         Etablissement,

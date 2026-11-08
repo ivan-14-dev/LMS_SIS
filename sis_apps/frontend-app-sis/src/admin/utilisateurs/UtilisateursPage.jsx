@@ -19,10 +19,10 @@ const UtilisateursPage = () => {
   const activeTab = tab || (can('auth.view_group') && !canViewAccounts ? 'groupes' : 'comptes');
   const roles = variant === 'secondaire'
     ? ['direction', 'responsable_pedagogique', 'enseignant', 'personnel_administratif', 'comptable',
-      'bibliothecaire', 'infirmier', 'surveillant', 'vie_scolaire', 'eleve', 'parent']
+      'bibliothecaire', 'infirmier', 'surveillant', 'vie_scolaire', 'eleve', 'parent', 'partenaire']
     : ['president', 'vice_president', 'doyen', 'directeur_dept', 'responsable_formation',
       'directeur_etudes', 'enseignant', 'chercheur', 'personnel_administratif', 'scolarite',
-      'service_social', 'service_ri', 'bibliothecaire', 'comptable', 'etudiant', 'doctorant', 'parent'];
+      'service_social', 'service_ri', 'bibliothecaire', 'comptable', 'etudiant', 'doctorant', 'parent', 'partenaire'];
   if (loading || (!capabilities && !error)) {
     return <Typography role="status">Chargement des autorisations…</Typography>;
   }
@@ -61,7 +61,10 @@ const UtilisateursPage = () => {
             name: 'password_confirm', label: 'Confirmation du mot de passe', type: 'password', required: true, createOnly: true,
           },
           {
-            name: 'role', label: 'Rôle', required: true, choices: roles.map(value => ({ value, label: value })),
+            name: 'role',
+            label: 'Rôle',
+            required: true,
+            choices: roles.map(value => ({ value, label: value === 'partenaire' ? 'Partenaire' : value })),
           },
         ]}
         actions={[{ label: 'Déconnecter les sessions', endpoint: 'force_logout' }]}

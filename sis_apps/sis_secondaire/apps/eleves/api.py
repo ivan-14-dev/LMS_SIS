@@ -7,7 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.academic_lifecycle import AcademicLifecycleMixin, ensure_academic_open
@@ -52,8 +52,16 @@ def visible_learners(request):
     user = request.user
     if not user.is_authenticated or not user.is_active or not is_current_tenant_user(request):
         return queryset.none()
+    # Keep write/import authorization unchanged; a directory read needs its own grant.
+    if (
+        request.method in SAFE_METHODS
+        and user.role != "eleve"
+        and not hasattr(user, "tuteur_profile")
+        and not user.has_perm("eleves.view_eleve")
+    ):
+        return queryset.none()
     queryset = queryset.filter(etablissement=request.tenant)
-    if not user.is_staff and not user.is_superuser and user.role == "eleve":
+    if not user.is_superuser and user.role == "eleve" and (request.method in SAFE_METHODS or not user.is_staff):
         queryset = queryset.filter(user=user)
     if user.role == "parent" and not hasattr(user, "tuteur_profile"):
         return queryset.none()

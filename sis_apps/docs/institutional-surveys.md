@@ -15,10 +15,12 @@ l'identité et les réponses. Les répondants ne voient que leur propre réponse
 
 Tous les comptes actifs rattachés au tenant courant peuvent être sélectionnés,
 indépendamment du rôle et de `is_staff`. Cela inclut les apprenants, enseignants,
-parents et tout profil déjà configuré dans l'établissement. Les modèles existants
-ne définissent pas de rôle partenaire natif : cet incrément ne crée ni rôle,
-ni compte partenaire, ni accès pour des partenaires externes non authentifiés.
-Il ne constitue donc pas une recette des quatre publics effectivement présents.
+parents et partenaires authentifiés. Le profil natif `partenaire` / « Partenaire »
+est proposé dans les deux SIS et le formulaire administratif. Il ne crée aucun
+groupe, permission, affiliation scolaire ou compte LMS ; `is_staff` et
+`is_superuser` restent faux lors de sa création ordinaire. Les rôles personnalisés
+existants restent acceptés. Aucun accès invité ou partenaire non authentifié
+n'est ajouté.
 
 Limites : 1–20 questions obligatoires, texte libre de 2 000 caractères ou choix
 unique parmi 2–10 options distinctes de 120 caractères ; 1–200 destinataires.
@@ -203,10 +205,65 @@ révocation, immutabilité, contraintes et audit atomique.
 `SurveyConcurrencyTests` est transactionnel PostgreSQL : deux réponses simultanées,
 fermeture/réponse et révocation/réponse.
 
-**10.12 reste partielle.** Restent le quatrième public partenaire authentifié
+**Au cutoff du lot34, 10.12 reste partielle.** Restent le quatrième public partenaire authentifié
 et la sauvegarde/restauration indépendante du nouvel incrément. Le clonage
 de préparation et la recréation ne remplacent pas cette restauration.
 SMTP, export, anonymat non annoncé et statistiques avancées ne sont pas
 ajoutés aux critères de réception existants. Pas de pilote institutionnel,
 déploiement partagé, nouvelle charge500, contrôle des séquences post-UI ou
 validation globale des F-lots. Les suites ciblées ne valent pas suite intégrale.
+
+## Qualification exécutée — lot35
+
+Le quatrième public **Partenaire authentifié** est maintenant exercé dans les
+deux SIS, sans groupe, permission, affiliation académique ou compte LMS implicite.
+La lecture scolaire des élèves exige une habilitation explicite hors accès
+personnel apprenant/tuteur ; un élève non superutilisateur reste limité à son
+dossier en lecture même avec `is_staff` ou la permission de modèle. Cette
+correction ne prétend pas protéger universellement toutes les autres API.
+
+- Backend scolaire : 112 tests réussis, puis trois tests de la classe affectée
+  réexécutés sur l'image finale ; **pas 115 tests distincts**. Backend supérieur :
+  76 tests réussis sur l'image finale. Le premier passage supérieur avait une
+  erreur de nom de modèle dans un nouveau test (`Enseignant` au lieu
+  d'`EnseignantChercheur`), corrigée sans changement de code applicatif entre
+  les deux images. Les neuf couches de base/dépendances et la configuration
+  d'image sont identiques ; les 1 507 autres fichiers Python sont inchangés.
+  Les contrôles de divergence des migrations sont conformes.
+- 143 tests Jest sur cinq suites, ESLint ciblé et nouveau build frontend ;
+  trois avertissements webpack de taille conservés. Les 176 sources et
+  23 fichiers servis sont rapprochés par empreintes. L'absence initiale de
+  `fedx-scripts` a été résolue en réutilisant les dépendances existantes après
+  comparaison des lockfiles ; aucun test n'avait démarré lors de ce refus.
+  Les résultats auteur/parent recouvrants et les essais rouges restent distincts.
+- isort et flake8 complets conformes sur les sept fichiers Python modifiés.
+  Les lignes modifiées sont conformes à Black ; deux fichiers scolaires gardent
+  des écarts de formatage historiques hors des lignes changées. Aucun Black
+  global conforme n'est prétendu sur ces deux fichiers.
+- Copies des sources34 finales : cinq schémas, 579/630 tables, anciens comptes,
+  droits, MFA/TOTP, flags et fichiers intacts. Aucune migration nouvelle.
+  Dix comptes ajoutés par SIS, aucune enquête créée par la fixture,
+  aucun ancien flag ou compte modifié.
+- Chromium réel dans **chaque SIS** : sept acteurs UI, huit commandes UI,
+  41 contrôles API, 14 rejeux inter-Host refusés401 et neuf captures.
+  Les quatre publics répondent dans le tenant principal ; apprenant et partenaire
+  répondent aussi dans le second tenant. Résultats 4/4 puis 2/2,
+  confidentialité des réponses, doublons, non-destinataire, révocation du
+  partenaire et fermeture contrôlés. Les anciennes enquêtes34 restent intactes.
+- API/proxy réellement recréés. Avant nouvelle connexion : égalité de toutes
+  les tables, des **523/574 séquences**, des 32/29 entrées de volume et du MFA.
+  Puis dix vrais logins par SIS : **86 GET métier/288 requêtes HTTP scolaires**
+  et **84 GET/282 requêtes HTTP universitaires**, sans retry ni écriture métier.
+  Les deux GET supplémentaires scolaires refusent au partenaire la liste et
+  la recherche d'élèves sur une base principale réellement peuplée.
+- Après réouverture, contrôle exhaustif des données et des deux fenêtres
+  d'authentification : une session et un log par acteur et fenêtre,
+  soit 14/14 dans le tenant principal et 6/6 dans le pair. Seules six tables
+  d'authentification changent ; anciens comptes/droits/MFA, métier et octets
+  des fichiers conservés. Seul `logs/sis.log` reçoit des octets supplémentaires.
+
+**10.12 reste partielle : la sauvegarde/restauration indépendante de ce nouvel
+incrément reste à démontrer.** Le clonage et la recréation ne la remplacent pas.
+Les séquences sont comparées à travers la recréation, pas avant/après les
+commandes métier qui les font légitimement avancer. Aucun déploiement partagé,
+pilote institutionnel, nouvelle charge500 ou achèvement global n'est annoncé.

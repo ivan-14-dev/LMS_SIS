@@ -1,4 +1,9 @@
+from types import SimpleNamespace
+
+from apps.utilisateurs.models import Utilisateur
+from apps.utilisateurs.serializers import UtilisateurCreateSerializer, UtilisateurDetailSerializer
 from django.test import SimpleTestCase
+from rest_framework.exceptions import ValidationError
 
 from sis_common.authorization import (
     configured_permission_groups,
@@ -7,6 +12,7 @@ from sis_common.authorization import (
     permission_snapshot,
     request_has_business_access,
     user_in_configured_groups,
+    validate_account_authorization_changes,
 )
 
 
@@ -51,6 +57,42 @@ class FakeRequest:
     def __init__(self, user, configuration=None):
         self.user = user
         self.tenant = FakeTenant(configuration or {})
+
+
+class PartnerAccountContractTests(SimpleTestCase):
+    def test_partner_is_accepted_and_displayed_without_a_staff_or_learner_identity(self):
+        create = UtilisateurCreateSerializer()
+        role = create.fields["role"].run_validation("partenaire")
+        user = Utilisateur(username="partner-contract", role=role)
+        assert user.get_role_display() == "Partenaire"
+        assert not user.is_staff and not user.is_superuser
+        assert not any(
+            getattr(user, flag, False) for flag in ("is_eleve", "is_etudiant", "is_enseignant", "is_parent", "is_admin")
+        )
+        for serializer_class in (UtilisateurCreateSerializer, UtilisateurDetailSerializer):
+            field = serializer_class().fields["role"]
+            for existing_role, label in Utilisateur.ROLE_CHOICES:
+                assert field.run_validation(existing_role) == existing_role
+                assert Utilisateur(role=existing_role).get_role_display() == label
+            assert field.run_validation("institution_custom") == "institution_custom"
+            for invalid in ("", None, "x" * 101):
+                with self.assertRaises(ValidationError):
+                    field.run_validation(invalid)
+
+    def test_partner_role_does_not_bypass_authorization_change_validation(self):
+        user = Utilisateur(role="partenaire")
+        request = SimpleNamespace(user=user)
+        default = Utilisateur._meta.get_field("role").default
+        for instance, attrs in ((None, {"role": "partenaire"}), (user, {"role": "enseignant"})):
+            with self.assertRaises(ValidationError):
+                validate_account_authorization_changes(request, instance, attrs, attrs, default_role=default)
+        for field in ("groups", "user_permissions", "attributs_acces"):
+            attrs = {field: []}
+            with self.assertRaises(ValidationError):
+                validate_account_authorization_changes(request, user, attrs, attrs, default_role=default)
+        validate_account_authorization_changes(
+            request, user, {"role": "partenaire"}, {"role": "partenaire"}, default_role=default
+        )
 
 
 class AuthorizationTests(SimpleTestCase):

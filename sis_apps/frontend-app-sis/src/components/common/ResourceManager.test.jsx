@@ -3,11 +3,14 @@ import {
   fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import {
+  MemoryRouter, Outlet, Route, Routes,
+} from 'react-router-dom';
 import { fetchApi, patchApi, postApi } from '../../services/api';
 import ResourceManager from './ResourceManager';
 import ResourceWorkspace from './ResourceWorkspace';
 import { fetchAllResourcePages } from '../../services/resources';
+import UtilisateursPage from '../../admin/utilisateurs/UtilisateursPage';
 
 jest.mock('../../services/resources', () => ({
   ...jest.requireActual('../../services/resources'),
@@ -16,7 +19,10 @@ jest.mock('../../services/resources', () => ({
 }));
 
 jest.mock('@edx/frontend-platform', () => ({
-  getConfig: () => ({ SIS_SECONDAIRE_API_URL: 'https://secondary.example/api/v1' }),
+  getConfig: () => ({
+    SIS_SECONDAIRE_API_URL: 'https://secondary.example/api/v1',
+    SIS_SUPERIEUR_API_URL: 'https://superior.example/api/v1',
+  }),
 }));
 jest.mock('../../services/api', () => ({
   ...jest.requireActual('../../services/api'),
@@ -40,6 +46,50 @@ const show = (fields = [], props = {}) => render(
 
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+it.each([
+  ['secondaire', 'secondary'],
+  ['superieur', 'superior'],
+])('creates and displays a real %s partner through the existing account form', async (variant, host) => {
+  const account = {
+    id: 35, username: 'partner-35', full_name: 'Compte Partenaire', role: 'partenaire', role_display: 'Partenaire', is_active: true,
+  };
+  let created = false;
+  fetchApi.mockImplementation(async () => ({ count: created ? 1 : 0, results: created ? [account] : [] }));
+  postApi.mockImplementation(async () => { created = true; return account; });
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={[`/admin/utilisateurs?sis=${variant}`]}>
+        <Routes>
+          <Route element={<Outlet context={{ capabilities: { permissions: ['*'] }, loading: false }} />}>
+            <Route path="/admin/utilisateurs" element={<UtilisateursPage />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Ajouter' }));
+  const payload = {
+    username: 'partner-35',
+    first_name: 'Compte',
+    last_name: 'Partenaire',
+    email: 'partner@example.test',
+    password: 'Synthetic-partner-test-35!',
+    password_confirm: 'Synthetic-partner-test-35!',
+    role: 'partenaire',
+  };
+  for (const [label, field] of [
+    [/Identifiant/, 'username'], [/Prénom/, 'first_name'], [/^Nom/, 'last_name'], [/Email/, 'email'],
+    [/Mot de passe initial/, 'password'], [/Confirmation du mot de passe/, 'password_confirm'],
+  ]) {
+    fireEvent.change(screen.getByLabelText(label), { target: { value: payload[field] } });
+  }
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: /Rôle/ }));
+  fireEvent.click(screen.getByRole('option', { name: 'Partenaire', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+  await waitFor(() => expect(postApi).toHaveBeenCalledWith(`https://${host}.example/api/v1/utilisateurs/comptes/`, payload));
+  expect(await screen.findByRole('cell', { name: 'Partenaire', exact: true })).toBeVisible();
 });
 
 it('keeps one page heading and loads only the selected service without losing its actions', async () => {

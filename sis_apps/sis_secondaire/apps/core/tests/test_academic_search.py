@@ -9,7 +9,7 @@ from apps.integration.models import EdxCourseMapping
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.paiements.models import Facture, TypeFrais
 from apps.utilisateurs.models import Utilisateur
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group, Permission
 from django.test import override_settings
 from django_tenants.utils import schema_context
 
@@ -98,6 +98,27 @@ class AcademicSearchAPITests(TenantAPITestCase):
             detail = self.client.get(f"{self.pupils_url}{pupil.pk}/", secure=True)
             assert detail.status_code == (200 if pupil.pk in expected_ids else 404), detail.data
 
+    def _assert_directory(self, user, expected):
+        self._authenticate(user)
+        expected_ids = {pupil.pk for pupil in expected}
+        for endpoint in (self.pupils_url, f"{self.pupils_url}search/"):
+            page_size = 1 if endpoint == self.pupils_url else 50
+            result = self.client.get(endpoint, {"page_size": page_size, "ordering": "matricule"}, secure=True)
+            collected = []
+            while True:
+                assert result.status_code == 200, result.data
+                assert result.data["count"] == len(expected)
+                collected.extend(row["id"] for row in result.data["results"])
+                assert len(collected) <= len(expected)
+                if not result.data["next"]:
+                    break
+                result = self.client.get(result.data["next"], secure=True)
+            assert len(collected) == len(expected)
+            assert set(collected) == expected_ids
+        for pupil in self.pupils:
+            result = self.client.get(f"{self.pupils_url}{pupil.pk}/", secure=True)
+            assert result.status_code == (200 if pupil.pk in expected_ids else 404), result.data
+
     def _assert_invoices(self, user, expected):
         self._authenticate(user)
         search = self._search("factures")
@@ -131,6 +152,80 @@ class AcademicSearchAPITests(TenantAPITestCase):
         self._assert_pupils(self.staff, [self.owner, self.peer])
         self.staff.user_permissions.remove(self.pupil_permission)
         self._authenticate(self.staff)
+        assert self._search("eleves").status_code == 403
+
+    def test_directory_has_no_implicit_partner_staff_or_custom_role_read_access(self):
+        for role in ("partenaire", "personnel_administratif", "direction", "institution_custom"):
+            for staff in (False, True):
+                with self.subTest(role=role, staff=staff):
+                    user = Utilisateur.objects.create_user(
+                        f"directory-{role}-{staff}", role=role, is_staff=staff, etablissement=self.tenant
+                    )
+                    self._assert_directory(user, [])
+                    assert self._search("eleves").status_code == 403
+
+    def test_partner_directory_group_grant_is_scoped_and_revocable(self):
+        partner = Utilisateur.objects.create_user("directory-partner", role="partenaire", etablissement=self.tenant)
+        self._assert_directory(partner, [])
+        group = Group.objects.create(name="explicit-directory-readers")
+        group.permissions.add(self.pupil_permission)
+        partner.groups.add(group)
+        self._assert_directory(partner, [self.owner, self.peer])
+        partner.attributs_acces = {"permission_scopes": {"eleves.view_eleve": {"eleves": [self.owner.pk]}}}
+        partner.save(update_fields=["attributs_acces"])
+        self._assert_directory(partner, [self.owner])
+        group.permissions.remove(self.pupil_permission)
+        self._assert_directory(partner, [])
+        assert self._search("eleves").status_code == 403
+
+    def test_directory_preserves_ungranted_personal_access_and_guardian_scopes(self):
+        self._assert_directory(self.owner.user, [self.owner])
+        parent = Utilisateur.objects.create_user("directory-parent", role="parent", etablissement=self.tenant)
+        self._assert_directory(parent, [])
+        guardian = Tuteur.objects.create(
+            etablissement=self.tenant,
+            user=parent,
+            nom="Mercier",
+            prenom="Parent",
+            lien_parente="mere",
+            telephone="0100000000",
+            email="parent@example.test",
+        )
+        link = EleveTuteur.objects.create(eleve=self.owner, tuteur=guardian, autorise_acces_portail=True)
+        EleveTuteur.objects.create(eleve=self.peer, tuteur=guardian, autorise_acces_portail=False)
+        EleveTuteur.objects.create(eleve=self.foreign, tuteur=guardian, autorise_acces_portail=True)
+        self._assert_directory(parent, [self.owner])
+        parent.attributs_acces = {"permission_scopes": {"eleves.view_eleve": {"eleves": [self.peer.pk]}}}
+        parent.save(update_fields=["attributs_acces"])
+        self._assert_directory(parent, [])
+        parent.attributs_acces = {}
+        parent.save(update_fields=["attributs_acces"])
+        link.autorise_acces_portail = False
+        link.save(update_fields=["autorise_acces_portail"])
+        self._assert_directory(parent, [])
+
+    def test_staff_flag_does_not_expand_learner_personal_directory(self):
+        self.owner.user.is_staff = True
+        self.owner.user.save(update_fields=["is_staff"])
+        self._assert_directory(self.owner.user, [self.owner])
+        self.owner.user.user_permissions.add(self.pupil_permission)
+        self._assert_directory(self.owner.user, [self.owner])
+
+    def test_foreign_partner_cannot_read_directory_even_with_explicit_grant(self):
+        partner = Utilisateur.objects.create_user(
+            "foreign-directory-partner", role="partenaire", etablissement=self.other
+        )
+        partner.user_permissions.add(self.pupil_permission)
+        self._authenticate(partner)
+        for endpoint in (
+            self.pupils_url,
+            f"{self.pupils_url}search/",
+            f"{self.pupils_url}{self.owner.pk}/",
+            f"{self.pupils_url}{self.foreign.pk}/",
+        ):
+            result = self.client.get(endpoint, secure=True)
+            assert result.status_code == 403, result.data
+            assert "SRCH-" not in str(result.data)
         assert self._search("eleves").status_code == 403
 
     def test_pupil_model_permission_does_not_expand_personal_visibility(self):
