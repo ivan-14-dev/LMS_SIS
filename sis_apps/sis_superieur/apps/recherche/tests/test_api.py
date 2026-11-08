@@ -3,10 +3,12 @@
 import uuid
 from datetime import date
 
+from apps.core.models import ModuleConfiguration
 from apps.enseignants.models import EnseignantChercheur
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.recherche.models import Laboratoire, ProjetRecherche
 from apps.utilisateurs.models import Utilisateur
+from django.contrib.auth.models import Permission
 from django.test import SimpleTestCase
 from django.urls import resolve
 from django_tenants.utils import schema_context
@@ -27,6 +29,9 @@ class RechercheAPITestCase(SimpleTestCase):
 
 class RechercheTenantAccessTestCase(TenantAPITestCase):
     def setUp(self):
+        ModuleConfiguration.objects.update_or_create(
+            etablissement=self.tenant, defaults={"enabled": {"sis.research": True}},
+        )
         foreign = type(self.tenant)(schema_name=f"foreign_recherche_{uuid.uuid4().hex[:12]}")
         self.setup_tenant(foreign)
         foreign.auto_create_schema = False
@@ -38,6 +43,9 @@ class RechercheTenantAccessTestCase(TenantAPITestCase):
         self.local_researcher = Utilisateur.objects.create_user(
             "local-researcher", role="recherche", etablissement=self.tenant
         )
+        self.local_researcher.user_permissions.add(Permission.objects.get(
+            content_type__app_label="recherche", codename="gerer_recherche",
+        ))
         self.laboratoire = Laboratoire.objects.create(nom="Laboratoire local", acronyme="LOC")
         self.base = "/api/v1/recherche/laboratoires/"
         self.detail = f"{self.base}{self.laboratoire.pk}/"
@@ -66,7 +74,7 @@ class RechercheTenantAccessTestCase(TenantAPITestCase):
         assert response.data["nom"] == "Laboratoire local"
 
         response = self.client.patch(
-            self.detail, {"nom": "Laboratoire modifié"}, format="json", secure=True
+            self.detail, {"nom": "Laboratoire modifié", "version": 1}, format="json", secure=True
         )
         assert response.status_code == 200, response.data
         self.laboratoire.refresh_from_db()
@@ -75,9 +83,15 @@ class RechercheTenantAccessTestCase(TenantAPITestCase):
 
 class ProjetRechercheStatusAPITestCase(TenantAPITestCase):
     def setUp(self):
-        manager = Utilisateur.objects.create_superuser(
+        ModuleConfiguration.objects.update_or_create(
+            etablissement=self.tenant, defaults={"enabled": {"sis.research": True}},
+        )
+        manager = Utilisateur.objects.create_user(
             "research-manager", etablissement=self.tenant
         )
+        manager.user_permissions.add(Permission.objects.get(
+            content_type__app_label="recherche", codename="gerer_recherche",
+        ))
         researcher = Utilisateur.objects.create_user(
             "researcher", etablissement=self.tenant
         )
@@ -98,30 +112,30 @@ class ProjetRechercheStatusAPITestCase(TenantAPITestCase):
         self.url = f"/api/v1/recherche/projets-recherche/{self.projet.pk}/"
 
     def test_terminer_requires_project_in_progress(self):
-        rejected = self.client.post(f"{self.url}terminer/", {}, format="json")
+        rejected = self.client.post(f"{self.url}terminer/", {"version": 1}, format="json")
         assert rejected.status_code == 400, rejected.data
         self.projet.refresh_from_db()
         assert self.projet.statut == "propose"
 
         self.projet.statut = "en_cours"
         self.projet.save(update_fields=["statut"])
-        completed = self.client.post(f"{self.url}terminer/", {}, format="json")
+        completed = self.client.post(f"{self.url}terminer/", {"version": 1}, format="json")
         assert completed.status_code == 200, completed.data
         self.projet.refresh_from_db()
         assert self.projet.statut == "termine"
 
     def test_direct_patch_cannot_bypass_termination_rule(self):
-        rejected = self.client.patch(self.url, {"statut": "termine"}, format="json")
+        rejected = self.client.patch(self.url, {"statut": "termine", "version": 1}, format="json")
         assert rejected.status_code == 400, rejected.data
         self.projet.refresh_from_db()
         assert self.projet.statut == "propose"
 
         self.projet.statut = "en_cours"
         self.projet.save(update_fields=["statut"])
-        completed = self.client.patch(self.url, {"statut": "termine"}, format="json")
-        assert completed.status_code == 200, completed.data
+        completed = self.client.patch(self.url, {"statut": "termine", "version": 1}, format="json")
+        assert completed.status_code == 400, completed.data
         self.projet.refresh_from_db()
-        assert self.projet.statut == "termine"
+        assert self.projet.statut == "en_cours"
 
     def test_direct_create_cannot_start_as_completed(self):
         response = self.client.post(

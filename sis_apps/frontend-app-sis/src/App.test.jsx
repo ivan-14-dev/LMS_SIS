@@ -36,6 +36,15 @@ const renderRoute = (path, capabilities) => {
         can_create: false, can_manage: false, can_consult: true, types: [], statuts: [], notifications: 'internes',
       };
     }
+    if (url.endsWith('/recherche/projets-recherche/capacites/')) {
+      return {
+        can_create_laboratoire: false,
+        can_create_projet: false,
+        can_manage: false,
+        can_contribute: false,
+        can_finance: false,
+      };
+    }
     return { count: 0, results: [] };
   });
   return render(
@@ -49,6 +58,37 @@ afterEach(() => {
   jest.clearAllMocks();
   window.history.replaceState({}, '', '/');
 });
+
+it.each([
+  [{
+    role: 'chercheur', is_staff: true, permissions: [], modules: { 'sis.research': true },
+  }, /permission d’accéder/],
+  [{ permissions: ['*'], modules: {} }, /module Recherche est désactivé/],
+  [{ permissions: ['recherche.comptabiliser_recherche'], modules: { 'sis.research': false } }, /module Recherche est désactivé/],
+])('blocks the direct research route without both activation and an effective grant: %j', async (capabilities, message) => {
+  renderRoute('/superieur/recherche', capabilities);
+  expect(await screen.findByText(message)).toBeInTheDocument();
+  expect(fetchApi.mock.calls.every(([url]) => url.endsWith('/capabilities/'))).toBe(true);
+});
+
+it.each(['recherche.consulter_recherche', 'recherche.comptabiliser_recherche'])(
+  'mounts research with %s without a staff portal grant or a capabilities refetch loop',
+  async permission => {
+    renderRoute('/superieur/recherche', {
+      role: 'etudiant',
+      is_staff: false,
+      permissions: [permission],
+      modules: { 'sis.research': true },
+      portals: { staff: false },
+    });
+    expect(await screen.findByRole('heading', { name: 'Recherche', level: 1 })).toBeVisible();
+    await waitFor(() => expect(fetchApi.mock.calls.some(([url]) => (
+      url.startsWith('https://superieur.example.test/api/v1/recherche/projets-recherche/?')
+    ))).toBe(true));
+    expect(fetchApi.mock.calls.filter(([url]) => url.endsWith('/capabilities/'))).toHaveLength(1);
+    expect(fetchApi.mock.calls.every(([url]) => !url.includes('/portail/'))).toBe(true);
+  },
+);
 
 it.each([
   ['élève', { role: 'eleve', permissions: [], affiliations: [{ kind: 'learner', active: true }] }],

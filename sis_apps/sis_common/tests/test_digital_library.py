@@ -1,9 +1,9 @@
 """Library access and circulation regressions, runnable with either SIS settings."""
 
-import shutil
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from threading import Barrier
 from unittest.mock import patch
 from uuid import uuid4
@@ -69,9 +69,9 @@ class LibraryFixture(TenantAPITestCase):
 class DigitalLibraryTests(LibraryFixture):
     def setUp(self):
         super().setUp()
-        self.folder = (Path.cwd() / ".library-test-files" / uuid4().hex).resolve()
-        self.folder.mkdir(parents=True)
-        self.addCleanup(shutil.rmtree, self.folder)
+        temporary = TemporaryDirectory(prefix="sis-library-test-")
+        self.addCleanup(temporary.cleanup)
+        self.folder = Path(temporary.name)
         self.enterContext(override_settings(MEDIA_ROOT=self.folder / "media"))
         self.storage = PrivateLibraryStorage(location=self.folder / "private")
         self.enterContext(patch.object(Livre._meta.get_field("ressource_numerique"), "storage", self.storage))

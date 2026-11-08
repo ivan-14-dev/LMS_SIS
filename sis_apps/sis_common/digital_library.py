@@ -122,9 +122,11 @@ class LegacyLibraryMediaView(APIView):
 
 
 def library_media(request, path):
-    """Intercept old library URLs before Django's DEBUG media fallback."""
+    """Keep legacy private documents out of Django's DEBUG media fallback."""
     # Reject aliases before dispatch: the static fallback performs its own normalization.
     if "\\" in path or any(part in ("", ".", "..") for part in path.split("/")):
+        raise Http404
+    if path == "publications" or path.startswith("publications/"):
         raise Http404
     if path == "bibliotheque/numerique" or path.startswith("bibliotheque/numerique/"):
         return LegacyLibraryMediaView.as_view()(request, path=path)

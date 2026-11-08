@@ -3,6 +3,7 @@
 from dataclasses import asdict, dataclass
 
 from django.apps import apps
+from django.conf import settings
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 
@@ -78,6 +79,23 @@ MODULES = {
             default_enabled=False,
         ),
         ModuleManifest(
+            "sis.research",
+            "Recherche universitaire",
+            "Laboratoires, projets, encadrements, publications privées et journal financier de recherche.",
+            False,
+            dependencies=("core.identity", "core.notifications"),
+            permissions=(
+                "recherche.gerer_recherche",
+                "recherche.consulter_recherche",
+                "recherche.contribuer_recherche",
+                "recherche.comptabiliser_recherche",
+            ),
+            api=("recherche/",),
+            ui=("recherche",),
+            variants=("superieur",),
+            default_enabled=False,
+        ),
+        ModuleManifest(
             "sis.surveys",
             "Enquêtes institutionnelles nominatives",
             "Destinataires authentifiés explicitement sélectionnés, réponse unique et résultats privés.",
@@ -104,31 +122,39 @@ MODULES = {
 }
 
 
+def available_modules():
+    return {
+        identifier: item for identifier, item in MODULES.items() if settings.SIS_VARIANT in item.variants
+    }
+
+
 def effective_modules(overrides):
     """Only explicit JSON true enables a configured module, including dependencies."""
+    modules = available_modules()
     configured = {
-        identifier: overrides.get(identifier, item.default_enabled) is True for identifier, item in MODULES.items()
+        identifier: overrides.get(identifier, item.default_enabled) is True for identifier, item in modules.items()
     }
 
     def active(identifier):
-        return configured[identifier] and all(active(dependency) for dependency in MODULES[identifier].dependencies)
+        return configured[identifier] and all(active(dependency) for dependency in modules[identifier].dependencies)
 
-    return {identifier: active(identifier) for identifier in MODULES}
+    return {identifier: active(identifier) for identifier in modules}
 
 
 def validate_module_changes(current, changes):
+    modules = available_modules()
     if not isinstance(changes, dict) or not changes:
         raise ValidationError({"enabled": "Indiquez les modules à modifier."})
     for identifier, enabled in changes.items():
-        if identifier not in MODULES:
+        if identifier not in modules:
             raise ValidationError({"enabled": f"Module non installé : {identifier}."})
         if type(enabled) is not bool:
             raise ValidationError({"enabled": "L'activation d'un module doit être un booléen."})
     proposed = {**current, **changes}
     configured = {
-        identifier: proposed.get(identifier, item.default_enabled) is True for identifier, item in MODULES.items()
+        identifier: proposed.get(identifier, item.default_enabled) is True for identifier, item in modules.items()
     }
-    for identifier, item in MODULES.items():
+    for identifier, item in modules.items():
         if item.required and not configured[identifier]:
             raise ValidationError({"enabled": f"Le module {item.label} est obligatoire."})
         if configured[identifier] and any(not configured[dependency] for dependency in item.dependencies):
@@ -154,7 +180,7 @@ def module_snapshot(tenant):
                 "enabled": enabled[identifier],
                 "origin": "tenant" if identifier in overrides else "default",
             }
-            for identifier, item in MODULES.items()
+            for identifier, item in available_modules().items()
         ],
     }
 
@@ -162,6 +188,8 @@ def module_snapshot(tenant):
 def require_module(tenant, identifier):
     if identifier not in MODULES:
         raise ValueError(f"Unknown installed module: {identifier}")
+    if identifier not in available_modules():
+        raise PermissionDenied("Ce module n'est pas disponible pour ce SIS.", code="module_unavailable")
     configuration = module_configuration(tenant)
     if not effective_modules(configuration.enabled if configuration else {})[identifier]:
         raise PermissionDenied("Ce module est désactivé pour votre établissement.", code="module_disabled")

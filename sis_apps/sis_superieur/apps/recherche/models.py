@@ -3,7 +3,14 @@
 from apps.enseignants.models import EnseignantChercheur
 from apps.etudiants.models import Etudiant
 from apps.structure.models import Faculte
+from django.conf import settings
 from django.db import models
+
+from sis_common.exam_files import PrivateExamStorage, validate_exam_copy
+
+from .files import PrivatePublicationStorage, delivery_upload_to, publication_upload_to
+from .finance_models import ResearchAccountingLine as ResearchAccountingLine
+from .finance_models import ResearchFinanceOperation as ResearchFinanceOperation
 
 
 class Laboratoire(models.Model):
@@ -39,10 +46,18 @@ class Laboratoire(models.Model):
     axes_recherche = models.JSONField(default=list, blank=True)
     numero_rnsr = models.CharField(max_length=20, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    version = models.PositiveIntegerField(default=1)
+    archive = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Laboratoire"
         verbose_name_plural = "Laboratoires"
+        permissions = [
+            ("gerer_recherche", "Gérer la recherche"),
+            ("consulter_recherche", "Consulter la recherche"),
+            ("contribuer_recherche", "Contribuer à la recherche"),
+            ("comptabiliser_recherche", "Comptabiliser la recherche"),
+        ]
 
     def __str__(self):
         return f"{self.acronyme} - {self.nom}"
@@ -79,6 +94,8 @@ class ProjetRecherche(models.Model):
     )
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="propose")
     created_at = models.DateTimeField(auto_now_add=True)
+    version = models.PositiveIntegerField(default=1)
+    archive = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Projet de recherche"
@@ -115,12 +132,21 @@ class ProductionScientifique(models.Model):
     auteurs = models.ManyToManyField(EnseignantChercheur, related_name="productions")
     annee = models.PositiveSmallIntegerField()
     doi = models.CharField(max_length=100, blank=True)
-    fichier = models.FileField(upload_to="publications/", null=True, blank=True)
+    fichier = models.FileField(
+        upload_to=publication_upload_to, storage=PrivatePublicationStorage(),
+        validators=[validate_exam_copy], null=True, blank=True, max_length=255,
+    )
     url_hal = models.URLField(blank=True)
     facteur_impact = models.DecimalField(
         max_digits=5, decimal_places=2, null=True, blank=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    statut = models.CharField(
+        max_length=20, default="brouillon",
+        choices=[("brouillon", "Brouillon"), ("validee", "Validée"), ("publiee", "Publiée")],
+    )
+    version = models.PositiveIntegerField(default=1)
+    archive = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Production scientifique"
@@ -141,6 +167,9 @@ class These(models.Model):
     ]
     laboratoire = models.ForeignKey(
         Laboratoire, on_delete=models.CASCADE, related_name="theses"
+    )
+    projet = models.ForeignKey(
+        ProjetRecherche, on_delete=models.PROTECT, null=True, blank=True, related_name="theses",
     )
     doctorant = models.OneToOneField(
         Etudiant, on_delete=models.CASCADE, related_name="these"
@@ -165,6 +194,8 @@ class These(models.Model):
         max_length=200, blank=True, help_text="Ex: MENRT, CIFRE, ANR"
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    version = models.PositiveIntegerField(default=1)
+    archive = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Thèse"
@@ -172,3 +203,46 @@ class These(models.Model):
 
     def __str__(self):
         return f"{self.doctorant} - {self.titre[:60]}"
+
+
+class ResearchMilestone(models.Model):
+    projet = models.ForeignKey(ProjetRecherche, on_delete=models.PROTECT, related_name="jalons")
+    titre = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    echeance = models.DateField()
+    statut = models.CharField(
+        max_length=20, default="a_faire",
+        choices=[("a_faire", "À faire"), ("soumis", "Soumis"), ("accepte", "Accepté")],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["echeance", "pk"]
+
+    def __str__(self):
+        return self.titre
+
+
+class ResearchDelivery(models.Model):
+    jalon = models.ForeignKey(ResearchMilestone, on_delete=models.PROTECT, related_name="livrables")
+    revision = models.PositiveIntegerField()
+    fichier = models.FileField(
+        storage=PrivateExamStorage(), upload_to=delivery_upload_to,
+        validators=[validate_exam_copy], max_length=255,
+    )
+    nom = models.CharField(max_length=255)
+    taille = models.PositiveBigIntegerField()
+    sha256 = models.CharField(max_length=64)
+    commentaire = models.TextField(blank=True)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["revision", "pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["jalon", "revision"], name="research_delivery_revision_unique"),
+            models.CheckConstraint(condition=models.Q(revision__gte=1), name="research_delivery_positive_revision"),
+        ]
+
+    def __str__(self):
+        return f"Livrable {self.pk} — révision {self.revision}"

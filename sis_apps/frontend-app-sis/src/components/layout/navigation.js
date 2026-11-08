@@ -58,7 +58,7 @@ export const workspaceKind = (capabilities) => {
 };
 
 export const canAccessModule = (item, capabilities) => Boolean(capabilities
-  && (!item.module || (['sis.projects', 'sis.surveys', 'sis.events'].includes(item.module)
+  && (!item.module || (['sis.projects', 'sis.surveys', 'sis.events', 'sis.research'].includes(item.module)
     ? capabilities.modules?.[item.module] === true
     : capabilities.modules?.[item.module] !== false)) && (
   item.public
@@ -215,7 +215,14 @@ const universityModules = [
         path: 'enseignants', label: 'Enseignants', icon: Person, permission: 'enseignants.view_enseignantchercheur', roles: universityRegistry,
       },
       {
-        path: 'recherche', label: 'Recherche', icon: Science, permission: 'recherche.view_projetrecherche', roles: [...universityManagers, 'chercheur'],
+        path: 'recherche',
+        label: 'Recherche',
+        icon: Science,
+        module: 'sis.research',
+        permission: 'recherche.gerer_recherche',
+        alternatePermissions: [
+          'recherche.consulter_recherche', 'recherche.contribuer_recherche', 'recherche.comptabiliser_recherche',
+        ],
       },
       {
         path: 'paiements', label: 'Paiements', icon: Money, permission: 'paiements.view_paiementfrais', roles: ['comptable', 'scolarite', 'doyen'],

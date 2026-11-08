@@ -24,7 +24,7 @@ from sis_common.notification_channels import (
 )
 from sis_common.pagination import SISPagination
 from sis_common.reporting import configured_report, export_queryset
-from sis_common.workflow_filters import EVENT_FILTERS, PRIVATE_WORKFLOW_MODELS, filter_events, validated_event_filters
+from sis_common.workflow_filters import EVENT_FILTERS, filter_events, public_workflow_events, validated_event_filters
 
 from .serializers import WorkflowEventSerializer
 
@@ -207,9 +207,7 @@ class WorkflowEventViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsWorkflowAuditor]
 
     def get_queryset(self):
-        queryset = WorkflowEvent.objects.exclude(app_label="core", model__in=PRIVATE_WORKFLOW_MODELS).select_related(
-            "actor"
-        )
+        queryset = public_workflow_events(WorkflowEvent.objects.all()).select_related("actor")
         tenant_id = getattr(getattr(self.request, "tenant", None), "id", None)
         if tenant_id is not None:
             queryset = queryset.filter(tenant_id=tenant_id)

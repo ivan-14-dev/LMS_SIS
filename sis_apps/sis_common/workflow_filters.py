@@ -1,5 +1,6 @@
 """Validated filters shared by audit lists, summaries and exports."""
 
+from django.db.models import Q
 from rest_framework import serializers
 
 PRIVATE_WORKFLOW_MODELS = [
@@ -13,6 +14,13 @@ PRIVATE_WORKFLOW_MODELS = [
     "documentarchive",
     "archiverevocation",
 ]
+
+
+def public_workflow_events(queryset):
+    return queryset.exclude(
+        Q(app_label="core", model__in=PRIVATE_WORKFLOW_MODELS) | Q(app_label="recherche")
+    )
+
 
 EVENT_FILTERS = {
     "action": "action",
