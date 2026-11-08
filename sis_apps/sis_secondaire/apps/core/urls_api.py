@@ -10,10 +10,12 @@ from sis_common.erp_correspondence import CorrespondanceViewSet
 from sis_common.projects import ProjectViewSet
 from sis_common.signatures import SignatureMandateViewSet, SignatureViewSet
 from sis_common.signed_documents import SignedDocumentViewSet
+from sis_common.surveys import SurveyManagementViewSet
 
 app_name = "core_api"
 
 router = DefaultRouter()
+router.register("enquetes", SurveyManagementViewSet, basename="enquetes")
 router.register("projets", ProjectViewSet, basename="projets")
 router.register("workflow-events", WorkflowEventViewSet, basename="workflow-event")
 router.register("notifications", WorkflowNotificationViewSet, basename="notifications")

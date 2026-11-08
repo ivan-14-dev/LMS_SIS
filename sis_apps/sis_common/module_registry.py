@@ -66,6 +66,18 @@ MODULES = {
             default_enabled=False,
         ),
         ModuleManifest(
+            "sis.surveys",
+            "Enquêtes institutionnelles nominatives",
+            "Destinataires authentifiés explicitement sélectionnés, réponse unique et résultats privés.",
+            False,
+            dependencies=("core.identity", "core.notifications"),
+            permissions=("core.gerer_enquete_institutionnelle",),
+            api=("core/enquetes/", "portail/enquetes/"),
+            ui=("portail-enquetes",),
+            events=("core.institutionalsurvey",),
+            default_enabled=False,
+        ),
+        ModuleManifest(
             "sis.delegations",
             "Missions et accès délégués",
             "Consultation de dossiers par mission explicite, datée et révocable, sans changement de rôle.",

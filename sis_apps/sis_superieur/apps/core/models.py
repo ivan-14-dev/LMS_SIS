@@ -29,6 +29,19 @@ from sis_common.signature_models import (
     SignatureApprovalBase,
     SignatureMandateBase,
 )
+from sis_common.survey_models import InstitutionalSurveyBase, SurveyRecipientBase, SurveyResponseBase
+
+
+class InstitutionalSurvey(InstitutionalSurveyBase):
+    etablissement = models.ForeignKey("etablissement.Universite", on_delete=models.PROTECT)
+
+
+class SurveyRecipient(SurveyRecipientBase):
+    pass
+
+
+class SurveyResponse(SurveyResponseBase):
+    pass
 
 
 class PedagogicalProject(PedagogicalProjectBase):
