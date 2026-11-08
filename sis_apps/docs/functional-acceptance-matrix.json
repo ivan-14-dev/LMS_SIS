@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-08T02:45:18.778303+00:00",
+  "last_evidence_update_at": "2026-11-08T06:20:55.925490+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -8750,10 +8750,119 @@
         "No shared deployment, institutional pilot, SMTP qualification or global/F-lot closure.",
         "Historical500-load failure remains unchanged; no new load campaign."
       ]
+    },
+    {
+      "id": "EXEC-20261108-wave37-verified-digital-library",
+      "evidence_cutoff_at": "2026-11-08T06:20:55.925490+00:00",
+      "qualification_status": "declared_10_3_checks_and_common_preservation_passed",
+      "scope": "Bibliotheque numerique privee et circulation personnelle dans les deux SIS ; seule10.3 promue apres confrontation parent.",
+      "code_commit": "3b2e918579d42b72a26a4c082ef787ff7901b0e5",
+      "new_product_code_or_schema": true,
+      "qualification_environment": {
+        "image": "sha256:c7815bb7f5f86f442c312c2521c031bb5c0add29ba35f0a9cea466ef593f8e2e",
+        "sources": "sis_wave37_source_{secondaire,superieur}_v2, copies peuplees et migrees, anciens temoins et essais rouges preserves.",
+        "restored": "sis_wave37_restore_{secondaire,superieur}_v3, vrais dumps et archives vers bases template0 et volumes neufs.",
+        "runtime": "Image sans montage de code applicatif ; trois settings de qualification readonly, UID10001, frontend181 sources/23 fichiers HTTP exacts.",
+        "client": "Chromium reel et HTTP natif, loopback32490 ; tenant A par UI, tenant B par HTTP natif."
+      },
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "parent-qualification": {
+          "path": "wave37-parent-qualification.json",
+          "sha256": "2931a4e69edca7c2844a613f75366ba37d0151bda7a9c798000d1d047778b69f"
+        },
+        "migration": {
+          "path": "wave37-library-migration-preservation.json",
+          "sha256": "0d66efb971247498d184a0fec20f5bca424f17c22e9f09aed2e4e9f315434c72"
+        },
+        "source-secondaire": {
+          "path": "wave37-v2-library-secondaire-browser/receipt.json",
+          "sha256": "8c8d89eea6811feceaffbc07946f6c45d4de60649f483e8fc08d781f4f6c5701"
+        },
+        "source-superieur": {
+          "path": "wave37-v2-library-superieur-browser/receipt.json",
+          "sha256": "c237c972249000893c79813b6ac8d08d8e7d36358e9ff2ac723d09d690a2ec82"
+        },
+        "independent-restore": {
+          "path": "wave37-independent-attempt-v3/attestation.json",
+          "sha256": "2313604538e997bc030c8810beaac6dc53b894dbae98161bae022ea9061eab79"
+        },
+        "restored-secondaire": {
+          "path": "wave37-v3-restored-secondaire-qualification/receipt.json",
+          "sha256": "a1e9c21d918adff9a4dd8c36250b138389f44868b7037b87b156d760fa51b385"
+        },
+        "restored-superieur": {
+          "path": "wave37-v3-restored-superieur-qualification/receipt.json",
+          "sha256": "ea6d7e37a8fe60472de55e1b9c6400d0ee706719748a92680013a31c767b2577"
+        }
+      },
+      "artifact_policy": "Le recu parent reference52 artefacts de synthese avec SHA ; les recus de preservation et de qualification lient leurs captures completes. Aucun contenu prive, cookie, secret, dump ou PDF dans ce registre.",
+      "campaigns": [
+        {
+          "id": "wave37-backend-and-migration",
+          "result": "targeted_tests_and_real_legacy_migration_passed",
+          "artifact_refs": ["parent-qualification", "migration"],
+          "counts": {"secondary_tests": 22, "university_tests": 23},
+          "verification": "Permissions explicites, licence/fichier prive, pret personnel, priorite et verrouillage ; vrais schemas tenants et anciennes donnees/fichiers/MFA preserves apres migrations0004/0003.",
+          "limits": "Suites ciblees, pas integrales. Nouvelle permission dans les permissions effectives du superutilisateur global deja existant ; aucun grant ordinaire automatique."
+        },
+        {
+          "id": "wave37-frontend-and-build",
+          "result": "targeted_jest_lint_and_build_passed",
+          "artifact_refs": ["parent-qualification"],
+          "counts": {"main_tests": 41, "workspace_tests": 89, "unique_targeted_tests": 130, "build_warnings": 3},
+          "verification": "Catalogue, fichier/licence, telechargement authentifie, cycle propre, erreurs/purge et navigation des deux variantes ; bundle qualifie servi reellement.",
+          "limits": "Les8 cas Workspace initiaux sont inclus dans89, non additionnes. Pas de suite frontend integrale ; avertissements React/MUI et taille du bundle conserves."
+        },
+        {
+          "id": "wave37-source-native-library-and-recreation",
+          "result": "both_native_scenarios_and_recreated_source_reopens_passed",
+          "artifact_refs": ["parent-qualification", "source-secondaire", "source-superieur"],
+          "verification": "Gestionnaire nonstaff/lecteur UI, PDF exact, licence absente/expiree/desactivee et refus sans droit. Meme lecteur emprunte, retourne, reserve et consomme sa reservation ; mutations generiques405. Deux demandes concurrentes donnent un201/un400 par tenant. Deux tenants peuples, PK collisionnants,8 replays Cookie401 par SIS. Retrait READ par IAM natif refuse sans relogin. API/proxy recrees, captures prelogin exactes puis reouverture reelle.",
+          "limits": "Tenant B HTTP natif seulement. Pas fournisseur/DRM ; catalogue existant, creation des titres par API."
+        },
+        {
+          "id": "wave37-independent-backup-restoration",
+          "result": "both_fresh_targets_equal_to_sources_before_login",
+          "artifact_refs": ["parent-qualification", "independent-restore"],
+          "counts": {"secondary_tables": 579, "university_tables": 630, "secondary_sequences": 523, "university_sequences": 574, "secondary_accounts": 71, "university_accounts": 70, "secondary_volume_entries": 41, "university_volume_entries": 42},
+          "verification": "Vrais pg_dump/pg_restore transactionnels et archives completes ; tables/lignes/sequences, comptes/droits/MFA et octets exacts avant login. TOTP reel readonly ; sources inchangees apres sauvegarde/restauration.",
+          "limits": "Meme cluster prive, pas reprise hors site ou RTO de production. Attente autovacuum bornee30s, aucun client tolere ni backend tue."
+        },
+        {
+          "id": "wave37-restored-native-reopens-and-recreation",
+          "result": "four_native_reopens_and_two_real_recreations_passed",
+          "artifact_refs": ["parent-qualification", "restored-secondaire", "restored-superieur"],
+          "counts": {"phases_per_variant": 2, "real_logins_per_phase": 7, "business_writes": 0, "native_retries": 0},
+          "verification": "Lecture UI/PDF et HTTP, refus du lecteur revoque et du compte staff sans droit. Nouveaux IDs API/proxy ; toutes captures prelogin strictement egales. Toutes lignes/colonnes protegees sauf last_login des7 acteurs nommes ; seuls4+3 nouveaux sessions/accesslogs et increments de leurs sequences par phase. Comptes/MFA/droits et fichiers exacts, prefixe physique complet du journal preserve, y compris les premieres sessions restaurees au second passage.",
+          "limits": "Les connexions ecrivent legitimement l'authentification ; aucune commande metier rejouee. Les deux variantes restent distinctes, aucun total de requetes ou tests recouvrants invente."
+        }
+      ],
+      "criteria_confrontation": {
+        "10.3": "Source916 et deux acceptance_checks inchanges : rechercher/consulter/emprunter/retourner/reserver, refus double pret et lecture sans droits/licence. Regle commune satisfaite : deux SIS, deux tenants/roles, vrais parcours et etat persiste, migrations/recreations/restauration independante. Parent autorise uniquement10.3 partial->verified.",
+        "not_promoted": "F05/F20/F24, exigences complementaires campus/import-export, IAM global et programme institutionnel restent ouverts."
+      },
+      "incidents_preserved": [
+        "Premier scolairev1 refuse sur recherche titre non citee : DRF decoupait les termes et A correspondait a Author d'un titre local B, pas a une fuite. Sources/rouge conserves ; nouvelles sourcesv2 completes et ISBN distincts, sans changer le produit ni reprendre le scenario.",
+        "Preflight bundle refuse pour permissions de lecture, corrige sur copies ; aucun octet du bundle change.",
+        "Restaurationv2 interrompue sur un unique autovacuum worker avec attente omise(default0). Cible partielle et rouge conserves ; sources strictement inchangees. V3 utilise de nouvelles cibles, attente existante30s, sans kill/reset ni relachement des gardes."
+      ],
+      "qualification_limits": [
+        "Licence declaree par gestionnaire, PDF local prive ; aucune verification juridique, gestion de sieges commerciaux, DRM ou fournisseur externe.",
+        "Le retrait interdit les prochaines requetes, pas les octets deja telecharges.",
+        "Pas de contrainte SQL universelle sur les prets actifs ni de qualification des ecritures directes ORM/SQL.",
+        "Services de qualification arretes, donnees/preuves conservees ; aucun deploiement partage, pilote ou100%.",
+        "Charge500 historique toujours rouge :500timeouts/262 ecritures indeterminees ; aucune nouvelle campagne de charge."
+      ]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-08T02:45:18.778303+00:00",
+    "as_of": "2026-11-08T06:20:55.925490+00:00",
+    "wave37_qualification_reference": {
+      "update_id": "EXEC-20261108-wave37-verified-digital-library",
+      "campaign_ids": ["wave37-backend-and-migration", "wave37-frontend-and-build", "wave37-source-native-library-and-recreation", "wave37-independent-backup-restoration", "wave37-restored-native-reopens-and-recreation"]
+    },
+    "wave37_digital_library_bounded": "Code3b2e918, imagec7815bb7, consultation PDF privee sous droit/licence et cycle personnel dans les deux SIS. UI/HTTP natifs, concurrence, anciennes donnees/MFA/fichiers preserves ; vraie restauration independante et quatre reouvertures restaurees. Seule10.3 verifiee dans son perimetre ; limites et rouges conserves, F-lots et programme ouverts.",
     "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
     "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
     "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
@@ -8835,13 +8944,13 @@
     },
     "wave32_published_qualification": "f3168ed publié et distant comparé ; seul nouveau fichier de tests commun536 lignes. Image b27438d035d4190c0052ed23670abfaf6a4760ef062c1efad208fe08875a96cb,1501 Python exacts commit/worktree/image.40/40 secondaire177.218s et35/35 supérieur215.899s, dont trois nouveaux scénarios par variante ; Black120/isort/Flake8 verts. Bases de test supprimées par le runner. Aucun nouveau comportement produit, build frontend ou parcours navigateur32.",
     "current_requirement_status_counts": {
-      "verified": 3,
-      "partial": 70,
+      "verified": 5,
+      "partial": 68,
       "absent": 19,
       "unverified": 2,
-      "change": "10.7_partial_to_verified_only_explicit_parent_authorization_wave33"
+      "change": "10.3_partial_to_verified_only_explicit_parent_authorization_wave37_after_wave36_10.12_promotion"
     },
-    "shared_deployment_scope": "Aucun deploiement partage des vagues15a36, pilote institutionnel ou production. Les restaurations36v3 sont isolees et ne remplacent aucun service partage.",
+    "shared_deployment_scope": "Aucun deploiement partage des vagues15a37, pilote institutionnel ou production. Les restaurations36v3 et37v3 sont isolees et ne remplacent aucun service partage.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -9519,8 +9628,8 @@
     "chapter10_features": 14,
     "chapter11_cycle_and_steps": 10,
     "counts_by_status": {
-      "partial": 69,
-      "verified": 4,
+      "partial": 68,
+      "verified": 5,
       "absent": 19,
       "unverified": 2,
       "external_credentials_blocked": 0
@@ -9529,9 +9638,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 211,
-    "requirements_with_new_increment_evidence": 26,
-    "conclusion": "211 campagnes documentaires non sommees,54 updates,26 exigences avec preuves ;298 artefacts36. 53 updates historiques et93 autres exigences strictement conserves. Seule10.12 promue : 4 verifiees,69 partielles,19 absentes,2 non verifiees. Aucun total deduplique d'executions, F-lots ouverts, charge500 rouge, pas100 %."
+    "imported_evidence_campaign_records": 216,
+    "requirements_with_new_increment_evidence": 27,
+    "conclusion": "216 campagnes documentaires non sommees,55 updates,27 exigences avec preuves ;52 artefacts de synthese37 et leurs captures liees. 54 updates historiques et93 autres exigences strictement conserves. Seule10.3 promue37 :5 verifiees,68 partielles,19 absentes,2 non verifiees. Aucun total deduplique d'executions, F-lots et cahiers complementaires ouverts, charge500 rouge, pas100 %."
   },
   "requirements": [
     {
@@ -14638,7 +14747,7 @@
       ],
       "existing_scope": "Catalogue avec ressource numérique/URL externe, exemplaires/prêts/retours/réservations; test cité limité au routage.",
       "test_scope": "Tests source présents, non exécutés pendant cet inventaire.",
-      "status": "partial",
+      "status": "verified",
       "top_missing_pieces": [
         "Recherche/consultation réelle de fonds numériques avec droits/licences et fichiers privés.",
         "Parcours emprunt/retour/réservation complet et concurrent, suivi de disponibilité/pénalités."
@@ -14647,8 +14756,17 @@
         "Rechercher, consulter et emprunter une ressource autorisée, la retourner puis la réserver.",
         "Refuser double prêt et consultation d'une ressource sans droits/licence."
       ],
-      "execution_evidence": [],
-      "acceptance_execution_status": "not_run"
+      "execution_evidence": [
+        {
+          "update_id": "EXEC-20261108-wave37-verified-digital-library",
+          "campaign_ids": ["wave37-backend-and-migration", "wave37-frontend-and-build", "wave37-source-native-library-and-recreation", "wave37-independent-backup-restoration", "wave37-restored-native-reopens-and-recreation"],
+          "result": "own_criteria_and_common_preservation_completed_requirement_10_3_verified",
+          "verified_scope": "Recherche, consultation privee sous droit/licence, gestion du fichier et licence, pret/retour/reservation du meme lecteur sans tiers artificiel. Refus sans droits/licence, double pret concurrent et mutations generiques ; deux SIS, deux tenants/roles, vrais UI et HTTP.",
+          "preservation_scope": "Anciennes donnees et fichiers preserves apres migration et recreation source ; restauration independante de579/630 tables,523/574 sequences,71/70 comptes et41/42 entrees de volume. Deux reouvertures restaurees par SIS, comptes/MFA/droits et metier exacts ; seuls7last_login et nouveaux sessions/accesslogs bornes, prefixe physique du journal conserve.",
+          "remaining_scope": "Aucune condition propre10.3 restante dans le perimetre local PDF/licence declaree. Pas DRM/fournisseur, creation UI du catalogue, offsite/RTO ou IAM global inferes. F05/F20/F24, exigences complementaires et recette institutionnelle restent ouverts."
+        }
+      ],
+      "acceptance_execution_status": "requirement_verified_in_declared_scope"
     },
     {
       "id": "10.4",

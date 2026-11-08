@@ -9,13 +9,14 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 8 novembre 2026 à 02:45:18.778303 UTC** :
-vagues 15 à 36 qualifiées dans leurs périmètres bornés ;
-**code35 publié : `1da6905`**, partenaires authentifiés et quatre publics d'enquêtes.
-La vague36 complète leur restauration indépendante sans modifier le produit.
-298 artefacts hachés, trois campagnes documentaires supplémentaires ;
-54 updates, 211 campagnes non sommées, 26 exigences avec preuves.
-**Seule10.12 est promue vérifiée36 ; aucun statut n'avait été promu35.**
+**Dernier cutoff documentaire : 8 novembre 2026 à 06:20:55.925490 UTC** :
+vagues 15 à 37 qualifiées dans leurs périmètres bornés ;
+**code37 : `3b2e918`**, bibliothèque numérique privée et circulation personnelle.
+La vague37 complète les parcours réels et leur restauration indépendante ;
+52 artefacts de synthèse hachés renvoient aux captures complètes.
+55 updates, 216 campagnes non sommées, 27 exigences avec preuves.
+**Seule10.3 est promue vérifiée37.** La promotion précédente concernait10.12
+en vague36 ; aucun statut n'avait été promu35.
 Pour la **vague33 sur backend32 `f3168ed` et frontend31 `605aab7` déjà publiés**,
 les sources avaient été rapprochées du principal et du distant `b5116ca` au moment de la
 qualification. Aucun comportement produit modifié33.
@@ -23,7 +24,8 @@ Le passage autorisé de **10.5 d'absente à partielle** appartient à la
 vague25. **Promotion30 explicitement autorisée : seule10.5, partielle→vérifiée** :
 **Promotion33 explicitement autorisée : seule10.7, partielle→vérifiée** :
 **Promotion36 explicitement autorisée : seule10.12, partielle→vérifiée** :
-**4 vérifiées, 69 partielles, 19 absentes et 2 non vérifiées sur 94**.
+**Promotion37 explicitement autorisée : seule10.3, partielle→vérifiée** :
+**5 vérifiées, 68 partielles, 19 absentes et 2 non vérifiées sur 94**.
 Les vagues31 et32 ne promouvaient aucun statut ; leurs chiffres historiques restent inchangés.
 Le blocage de qualification Studio a été levé
 vers 07:30 UTC : le correctif est publié, avec une preuve ciblée limitée
@@ -2098,6 +2100,54 @@ ne sont pas ajoutés comme obligations de10.7. Aucun F-lot clos, déploiement
 partagé, pilote ou100 %. Charge500 non relancée, toujours rouge :
 **500 timeouts/262 écritures indéterminées**. Lot34 en cours, non qualifié
 et exclu de ces résultats.
+
+## Bilan37 — bibliothèque numérique qualifiée
+
+Code `3b2e918`, image
+`sha256:c7815bb7f5f86f442c312c2521c031bb5c0add29ba35f0a9cea466ef593f8e2e`.
+**22 tests backend scolaires et23 supérieurs**, 41 tests frontend principaux
+et89 Workspace ; les8 Workspace ciblés initiaux ne sont pas recomptés.
+Lint et build passent, trois avertissements de taille conservés ; pas
+d'intégrales du produit. Le [guide bibliothèque](digital-library.md)
+précise droits, stockage privé, migrations et limites.
+
+Dans chaque SIS : gestionnaire non staff et lecteur par Chromium réel,
+fichier/licence, recherche et PDF exact, **même lecteur emprunt→retour→réservation**
+sans tiers artificiel, consommation de sa réservation, révocation sans relogin
+et refus sans droit/licence. Deux tenants peuplés avec PK collisionnants,
+tenant B par HTTP natif ;8 rejeux Cookie401 par SIS. Deux prêts concurrents
+donnent un201/un400 par tenant, et les mutations génériques de prêt sont405.
+Anciennes tables/lignes/comptes/MFA/droits/fichiers conservés après migration,
+puis recréation source et nouvelle lecture authentifiée.
+
+**Vraie restauration indépendante**, pas simple clonage : dumps/archives vers
+deux bases template0 et deux volumes neufs. Avant connexion, comparaison exacte
+de579/630 tables,523/574 séquences,71/70 comptes et41/42 entrées de volume ;
+MFA/TOTP réellement vérifié sans mutation, sources inchangées.
+Chaque cible est rouverte puis ses API/proxy sont recréés et rouverts à nouveau.
+Sept connexions par phase ; toutes lignes métier et colonnes des comptes
+restent exactes, sauf `last_login` de ces sept acteurs nommés. Seuls4+3 nouveaux
+sessions/accesslogs et leurs séquences changent à chaque passage.
+Fichiers et préfixe physique complet du journal conservés, y compris les
+premières sessions restaurées après la seconde réouverture.
+
+Reçu parent `wave37-parent-qualification.json`,
+SHA `2931a4e69edca7c2844a613f75366ba37d0151bda7a9c798000d1d047778b69f`.
+Les54 updates historiques et93 autres exigences restent inchangés.
+Source916 et critères propres10.3 conservés ; **seule10.3 est vérifiée** après
+confrontation parent, sans nouvelles obligations ni promotion des F-lots.
+Licence déclarée et PDF local, pas DRM/fournisseur ; création des titres par
+API, pas nouvelle UI de catalogue. Même cluster privé, pas offsite/RTO.
+Le complément N3.14 et F20 ne sont pas clôturés par cette seule promotion.
+
+Les refus restent rouges et conservés : recherche témoin v1 ambiguë
+(termes DRF, pas fuite de tenant), permissions de lecture du bundle au
+préflight, puis restaurationv2 interrompue sur un autovacuum PostgreSQL.
+Les sources sont préservées ; nouvelle restaurationv3 sur nouvelles cibles,
+avec attente existante bornée30s, aucun backend tué et aucun seuil abaissé.
+Services de qualification arrêtés, données/preuves conservées.
+Aucun déploiement partagé, pilote ou100 %. Charge500 non relancée,
+toujours **500 timeouts/262 écritures indéterminées**.
 
 ## Règle de clôture commune
 
