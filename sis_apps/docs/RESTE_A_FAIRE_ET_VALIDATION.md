@@ -1,7 +1,7 @@
 # Reste à faire et critères de validation — LMS/SIS
 
-État relevé le 5 novembre 2026. Ce document réunit les 34 tâches initialement
-ouvertes de la TODO, **cinq tâches ajoutées** après rapprochement du nouveau
+Inventaire initial relevé le 5 novembre 2026. Ce document réunit les 34 tâches
+initialement ouvertes de la TODO, **cinq tâches ajoutées** après rapprochement du nouveau
 cahier SIS/LMS/ERP, et les exigences du cahier complémentaire « identités,
 autorisations, sécurité et import/export » (source fournie : SHA-256
 `e5e3b1e3ccfee313370bfe53e322aff2a2fe18fde4498e80ed6772e78d49f868`).
@@ -9,7 +9,119 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-## État courant — vague38
+## État courant — vague39
+
+**Cutoff : 8 novembre 2026 à 20:21:31.738461 UTC**.
+Code et guide **`8c2e6331a2aeac45ac69b3dd924785a0e7493a1d`**
+(33 fichiers, 6 380 ajouts, 409 suppressions), image
+**`sha256:5d8cec4a6f3da3e1ebfb7087f3e9d71553d55be7fdcc6494ebded8765e2790b5`**.
+Le [guide recherche](research.md) décrit le contrat universitaire :
+laboratoires, projets financés et équipes, encadrements doctoraux,
+publications validées/publiées, jalons et **deux révisions PDF immuables**,
+archivage, financement/engagement/dépense/annulation/contrepassation et
+rapport PDF/CSV. Module désactivé par défaut, permissions explicites sans
+privilège `is_staff`, périmètres tenant/objet et fichiers privés.
+Les refus, révocations et versions ne reposent pas seulement sur les boutons.
+
+**Seule 10.14 est promue, de partielle à vérifiée, après confrontation parent
+de ses critères existants et de la règle commune de restauration.**
+Comptes dérivés des 94 lignes : **7 vérifiées, 66 partielles, 19 absentes
+et 2 non vérifiées**. La matrice contient **57 updates, 226 campagnes
+documentaires non sommées et 246 enregistrements `execution_evidence`
+sur 29 exigences**. L'ajout39 représente un update, cinq campagnes et un
+rattachement de preuve : **une seule exigence affectée**, les 93 autres
+et les 56 updates historiques sont inchangés. L'inventaire initial
+(`existing_scope`, `test_scope`, références et `top_missing_pieces`) garde
+son sens historique, sans effacement des lacunes observées à son cutoff.
+
+Reçu parent `wave39-parent-qualification-v1.json`, SHA-256
+**`1eab6f373bbf320da209bbf710f01304a326a6188473d42daa02997ec709475a`** :
+ses **33 références de synthèse** renvoient transitivement aux preuves privées.
+La matrice référence ce reçu et ces 33 références, soit 34 entrées, pas 34 tests.
+Les sauvegardes, sorties privées et secrets restent hors dépôt.
+
+Suites ciblées réellement exécutées sur l'image : **103 tests supérieur
+et 43 secondaire**, **46 tests frontend dans 4 suites**.
+Le parent a rapproché **1 533 fichiers Python, 185 sources frontend et
+20 fichiers du bundle de production**. Ni les assets ni ces campagnes
+recouvrantes ne forment un total de tests uniques. Recherche universitaire
+uniquement ; les régressions et la préservation scolaires ne prétendent pas
+livrer ce module au secondaire. Un build de production n'est pas un déploiement.
+
+Le parcours natif final compte **18 étapes et 63 commandes fraîches toutes
+catégories**, **pas 63 commandes recherche**. La composition authentifiée
+contient **49 enveloppes recherche = 6 héritées + 43 fraîches**, refus inclus.
+Les six anciennes écritures restent qualifiées par leur source et ne sont
+jamais rejouées. **32 commandes recherche réussies incluent un rejeu idempotent** ;
+**31 événements d'audit persistés = 27A + 4B** sont rapprochés par
+**12 vrais contrôles readonly**. Les **19 fichiers locaux** comprennent les
+artefacts générés/hérités et les **10 téléchargements : 9 PDF + 1 CSV**.
+Tenant A par UI ordinaire, tenant B par sentinelle HTTP native seulement.
+Budget et opérations sont rapprochés des doubles écritures immuables,
+des refus de pièces hors périmètre et du rapport, pas seulement d'un champ budget.
+
+Trois **réouvertures réelles réussies, navigateur et contextes fermés** :
+
+| Phase | Reçu natif SHA-256 | Résultat par phase |
+|---|---|---|
+| `source_after_close` | `7c002bb97a5c952714b447ac2bcda866c34ca2b8135f4d181501bd7e25ee4a56` | 5 logins frais, 18 lectures, 10 contrôles UI, 9 PDF, 0 écriture métier |
+| `api_proxy_recreated` | `089ecabb881410605151c4bf6d65494166209cd246706ea38d36b0c19ffec1c9` | 5 logins frais, 18 lectures, 10 contrôles UI, 9 PDF, 0 écriture métier |
+| `independent_restore` | `ea81e8e0ccb7bce4c8f913eaa3595cb2757fa913cd1cdecd2234c29240e5d41d` | 5 logins frais, 18 lectures, 10 contrôles UI, 9 PDF, 0 écriture métier |
+
+La deuxième suit une vraie recréation API/proxy, la troisième la vraie
+restauration indépendante ; ce ne sont pas des relances simulées.
+Parent restauré : `5f01949f47186c3c06286993029da35a0918e914df3a5ded4f262ac0580093dc`.
+Les 18 lectures sont les lectures explicites, pas toutes les requêtes UI.
+Zéro écriture métier ne signifie pas zéro effet d'authentification.
+La comparaison exhaustive des bases restaurées précède les nouveaux logins :
+après ceux-ci, objets métier et PDF sont rapprochés, sans nouvelle comparaison
+exhaustive de toutes les tables ni mesure des deltas `last_login`, sessions ou Axes.
+
+Restauration effective `pg_dump`/`pg_restore` + archives `tar`, reçu
+`wave39-preservation-recovery-v6-attempt/receipt.json`, SHA-256
+**`6304ef8d61992e055b6ae4f359b339a62267b41be306a1c122b91ed552b60296`**.
+**Toutes les données courantes, comptes/groupes/MFA et fichiers** sont
+restaurés dans un **nouveau cluster 7705894587097616425**, contre
+**7705791097983799336** pour la source, avec nouveaux noms de bases, PG et volumes.
+L'OID supérieur **29734** coïncide : un OID identique dans deux clusters
+ne signifie pas le même cluster. La source est inchangée.
+
+| Variante | Tables | Séquences | Lignes | Comptes | TOTP actifs | Entrées fichiers | Octets fichiers |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Secondaire | 587 | 527 | 4 840 | 79 | 1 | 41 | 1 528 263 |
+| Supérieur | 654 | 590 | 5 216 | 90 | 1 | 64 | 1 271 811 |
+
+**Huit différences CHECK équivalentes** sont enregistrées au déparsing :
+deux contraintes (`research_line_account`, `research_finance_link_shape`)
+dans quatre schémas, mêmes ensembles de littéraux varchar avec casts text
+élémentaires ou de tableau. Ce ne sont ni réparations de lignes/séquences/fichiers,
+ni exclusions. **726 artefacts de restauration hachés, pas 726 tests**.
+La nouvelle infrastructure est privée et indépendante sur le même hôte :
+aucune preuve offsite, garantie RTO ou exploitation en production n'est déduite.
+
+Tous les échecs antérieurs restent conservés, non requalifiés :
+source-v4 partielle, inspecteur multipart à **0 octet** réconcilié avec
+le **vrai PDF de 644 octets**, nouveaux uploads par Buffer et observations
+réelles des fichiers ; première réouverture401 avec mauvaise source de
+mot de passe, puis seconde réouverture échouée après deux logins sur un
+sélecteur de journal impossible. **V5 ne corrige qu'une ligne de locator**,
+testée hors application puis dans les trois phases réelles ci-dessus.
+Le headless shell Playwright par défaut est conservé ; aucun login diagnostic
+supplémentaire n'est inventé. Les tables recherche historiques de la source
+principale étaient vides avant upgrade : le **canari legacy semé séparément**
+reste une preuve distincte, pas des données natives principales.
+
+Sept IDs applicatifs propres réellement retirés : API/proxy source d'origine,
+API/proxy recréés et API/proxy/Redis restaurés. Bases et données sont conservées ;
+aucun service partagé/vague38 touché. Limites : **sous-livre recherche interne EUR**,
+pas ERP général, banque, certification pays, réception prestataire, nouvelle
+notification/email/SMS ou production. Confidentialité du workflow générique
+couverte backend ; contrôle navigateur positif optionnel d'un événement
+auditeur legacy **non exécuté**. Les F-lots, cinq compléments et IAM/portails
+exhaustifs restent ouverts. La charge500 historique reste rouge.
+**Le programme n'est pas à 100 %.**
+
+## Bilan antérieur — vague38
 
 **Cutoff : 8 novembre 2026 à 12:21:09.264856 UTC**.
 Code **`2fb993d`**, image **`01f8d734…`** : agenda institutionnel des deux SIS,

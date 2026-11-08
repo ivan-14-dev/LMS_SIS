@@ -11,6 +11,36 @@ Une fonctionnalité n'est considérée comme terminée que si son API, ses
 permissions, son interface, ses tests et son exploitation en production sont
 validés.
 
+## Dernier incrément qualifié — 8 novembre 2026, vague39
+
+- [x] Recherche universitaire **10.14**, dans son périmètre déclaré :
+  laboratoires, projets financés et équipes, encadrements doctoraux,
+  publications validées/publiées, jalons avec **deux révisions PDF immuables**
+  et archivage. Financements, engagements, dépenses et contrepassations
+  protégés, rapprochés du budget et du rapport PDF/CSV.
+  [Contrat et utilisation](research.md).
+
+**Cutoff : 20:21:31.738461 UTC**, code et guide `8c2e6331`.
+Module désactivé par défaut, permissions et périmètres effectifs, fichiers privés.
+Suites sur l'image réelle : **103 tests supérieur et 43 secondaire** ;
+**46 tests frontend dans 4 suites**, bundle de production de **20 assets**.
+Les parcours natifs et leur persistance sont rapprochés des preuves privées.
+Trois réouvertures réelles, réussies et fermées : après fermeture source,
+après recréation API/proxy, puis après **restauration indépendante des deux
+variantes** avec comptes/MFA/données/fichiers conservés. Chacune comporte
+5 nouveaux logins, 18 lectures, 10 contrôles UI et 9 PDF, sans écriture métier.
+Tenant A par UI ordinaire ; tenant B par sentinelle HTTP, pas une seconde recette UI.
+
+**Seule 10.14 passe de partielle à vérifiée : 7 vérifiées, 66 partielles,
+19 absentes et 2 non vérifiées sur 94.**
+La [matrice](functional-acceptance-matrix.json) et le
+[registre détaillé](RESTE_A_FAIRE_ET_VALIDATION.md) conservent les essais rouges,
+l'inventaire historique, les références et les limites.
+Sous-livre recherche interne **EUR**, pas ERP général ni banque ;
+nouveau cluster privé sur le même hôte, pas offsite/RTO ou production.
+Les F-lots, cinq compléments, IAM/portails exhaustifs et charge500 restent
+ouverts ; **le programme n'est pas à 100 %**. Aucun service partagé/vague38 touché.
+
 ## Compléments institutionnels encore ouverts — 5 novembre 2026
 
 Le [registre des tâches et critères de validation](RESTE_A_FAIRE_ET_VALIDATION.md)
@@ -29,7 +59,7 @@ les lots F02–F31 ne sont pas recréés. Cinq tâches distinctes restent à ajo
 Les critères de sortie et cas de refus propres à chacun figurent dans le
 registre lié. Aucun de ces points n'est déclaré livré.
 
-## Incrément qualifié — 8 novembre 2026, vague38
+## Incrément antérieur qualifié — 8 novembre 2026, vague38
 
 - [x] Agenda institutionnel **10.11** dans les deux SIS : conférences, examens,
   réunions, cérémonies et activités ; salles, invitations, horaires,
@@ -336,6 +366,8 @@ calendrier unifié, ni les réponses/budgets/comptes rendus du complément N3.16
 - [ ] Parcours personnalisés et recommandations pédagogiques explicables.
 - [ ] Diplômes et relevés vérifiables, signés et révocables.
 - [ ] Mobilité, stages, mémoires, recherche et insertion professionnelle.
+  Recherche universitaire 10.14 qualifiée en vague39 ; cette ligne transversale
+  et les autres domaines ne sont pas clôturés par cette seule promotion.
 - [ ] Classes virtuelles, discussions et évaluations avancées via Open edX.
 - [ ] Interopérabilité OneRoster, LTI, QTI, calendriers et API événementielles.
 - [ ] Tableaux de bord institutionnels avec indicateurs anonymisés.

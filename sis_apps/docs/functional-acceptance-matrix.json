@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-08T12:21:09.264856+00:00",
+  "last_evidence_update_at": "2026-11-08T20:21:31.738461+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -9191,10 +9191,148 @@
         "Sources historiques ambigues ou non resolues bloquees conservativement ; bulk ORM/SQL hors contrat de concurrence.",
         "Charge500 historique toujours rouge ; aucune nouvelle campagne de charge, pilote ou100% global."
       ]
+    },
+    {
+      "id": "EXEC-20261108-wave39-verified-university-research",
+      "evidence_cutoff_at": "2026-11-08T20:21:31.738461+00:00",
+      "qualification_status": "qualified_in_declared_scope_parent_authorized_10_14_only",
+      "scope": "Recherche universitaire, financements protégés et restauration commune ; seule10.14 promue, sans clôture des F-lots ni du programme.",
+      "code_commit": "8c2e6331a2aeac45ac69b3dd924785a0e7493a1d",
+      "base_commit": "b318133488159b762ba41dcde6b6e19351818539",
+      "code_and_guide_change": {"files": 33, "insertions": 6380, "deletions": 409, "guide": "sis_apps/docs/research.md"},
+      "new_product_code_or_schema": true,
+      "qualification_environment": {
+        "image": "sha256:5d8cec4a6f3da3e1ebfb7087f3e9d71553d55be7fdcc6494ebded8765e2790b5",
+        "sources": "Sources privées wave39 des deux variantes ; recherche métier universitaire, pas un module de recherche scolaire annoncé.",
+        "runtime": "Image réelle sans overlay applicatif ; 1533 fichiers Python,185 sources frontend et20 fichiers du bundle rapprochés par le parent.",
+        "client": "TenantA : UI ordinaire et authentification Chromium réelles ; tenantB : sentinelle HTTP native seulement.",
+        "restored": "Nouveau cluster7705894587097616425, distinct du cluster source7705791097983799336 ; nouvelles bases, PG et volumes. OID supérieur29734 coïncident, sans identité de cluster.",
+        "publication_scope": "Code et guide commités ; cette mise à jour documentaire ne prétend ni push déjà effectué, ni déploiement partagé ou production."
+      },
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "parent-qualification": {"path": "wave39-parent-qualification-v1.json", "sha256": "1eab6f373bbf320da209bbf710f01304a326a6188473d42daa02997ec709475a"},
+        "backend": {"path": "wave39-backend-v4/receipt.json", "sha256": "347ba85f3992ca03069f2c468312d8819e28ae0335e4c3976e39e13648c155f2"},
+        "frontend-build": {"path": "wave39-frontend-v2/receipt.json", "sha256": "5fbaca278a464425c1442a6dbc4648107bfcc6a766abe7c382b7feafb899c0a7"},
+        "frontend-tests": {"path": "wave39-frontend-integration-tests-v2.log", "sha256": "0d148c12623157110982ed27f25d7f5ca4e33a2f4c061af9e25454589c4d8e6e"},
+        "selector-compatibility": {"path": "wave39-selector-compatibility-v1.json", "sha256": "9e452e5f863ad86d1cf09b5230241fd1ceb58918fe736f47abd7779dc4e6e029"},
+        "native-source": {"path": "wave39-research-native-source-v5/receipt.json", "sha256": "5d8717bcc26ff084680ec3e476d52f0d4f198d595087c1a974eba7736a00f4a2"},
+        "native-script": {"path": "wave39-research-browser-v7.cjs", "sha256": "1f8dbc8c00f428fc10a240444031b4644c77988782402b73cb421433485ee342"},
+        "source-mapping": {"path": "wave39-research-mapping-source-v1/mapping-receipt.json", "sha256": "acca4e5bb9a055a8bf9add605154cf02be361c96a476ac992e82fe789e734a06"},
+        "source-browser-projection": {"path": "wave39-research-mapping-source-v1/browser-projection.json", "sha256": "779f2ace671f590e94108b6a0f4f0bfc133b97ea37c6349f113ee4b0c4d6eadd"},
+        "source-expected": {"path": "wave39-research-mapping-source-v1/expected.json", "sha256": "e4c633d4bf3fbd051a4aeefb699dad0c10e1ba09cb4e151aff37ab4f90766524"},
+        "source-postcommit-projection": {"path": "wave39-research-mapping-source-v1/fixture-postcommit-projection.json", "sha256": "07f1f499cb30ab67c963404dd7917931e9af6eb69737380efe602863b963e18a"},
+        "source-persistence-parent": {"path": "wave39-research-persistence-source-v1/parent-receipt.json", "sha256": "f66ef491c98d12cdb2df30041f7299650a70633cccd66b15dc4d844dee9f04c4"},
+        "source-readonly": {"path": "wave39-research-persistence-source-v1/result/wave39-research-readonly-070132ddad7e4461b6699760a4e0ece8/receipt.json", "sha256": "3be3af03aaa244e790566a44f278687729e486863083052713b9462a239ad5f6"},
+        "source-reopen": {"path": "wave39-research-reopen-source_after_close-v3/receipt.json", "sha256": "7c002bb97a5c952714b447ac2bcda866c34ca2b8135f4d181501bd7e25ee4a56"},
+        "source-reopen-parent": {"path": "wave39-research-reopen-parent-v3/parent-receipt.json", "sha256": "37b55c14ce727a3df68cd4ab4088ab2e33bf8e4221c53bdcd249cec50949664c"},
+        "recreated-reopen": {"path": "wave39-research-reopen-api_proxy_recreated-v1/receipt.json", "sha256": "089ecabb881410605151c4bf6d65494166209cd246706ea38d36b0c19ffec1c9"},
+        "recreated-reopen-parent": {"path": "wave39-research-reopen-parent-phase2-v1/parent-receipt.json", "sha256": "57d81ad75db70db7962ad4bf21adc548eabb56abd86dee6fccf1a9e2c3431519"},
+        "recreated-runtime": {"path": "wave39-native-runtime-recreated-selector-fix-v1.json", "sha256": "25e800a7fbdc205e7a09701c88d3114e95c0ff1fbd27b4dbd3640e08ce15351f"},
+        "source-quiescence": {"path": "wave39-parent-recovery-authorize-v1/quiescence.json", "sha256": "8faf3371cd73fd70523f85316e4f1fc05dffd04aa05397fa0753aa40597eb97e"},
+        "recovery-authorization": {"path": "wave39-parent-independent-recovery-authorization-v6.json", "sha256": "5d833acde933233e80f65827016aa86d8e9ce79a01436ba06b8b0cc852459910"},
+        "recovery-handoff": {"path": "wave39-preservation-recovery-v6-handoff.json", "sha256": "f1c096e9f5c508a6af73629e8b0f0cae0986c91162ec5e49f354c5192eec4914"},
+        "independent-recovery": {"path": "wave39-preservation-recovery-v6-attempt/receipt.json", "sha256": "6304ef8d61992e055b6ae4f359b339a62267b41be306a1c122b91ed552b60296"},
+        "restored-runtime": {"path": "wave39-native-restored-runtime-v1.json", "sha256": "a80dd4d55e3fbc9eb8e6c41fb71f1ef1f77177c965ef8154350ffb9dafd3c13d"},
+        "restored-reopen": {"path": "wave39-research-reopen-independent_restore-v2/receipt.json", "sha256": "ea81e8e0ccb7bce4c8f913eaa3595cb2757fa913cd1cdecd2234c29240e5d41d"},
+        "restored-reopen-parent": {"path": "wave39-research-restored-reopen-parent-v2/parent-receipt.json", "sha256": "5f01949f47186c3c06286993029da35a0918e914df3a5ded4f262ac0580093dc"},
+        "reopen-script": {"path": "wave39-research-reopen-browser-v5.cjs", "sha256": "c5c41c2ce0ee91bed9dcce5ef56a1169ffa5f9f8d8fdd620fd30ad07d9647662"},
+        "failed-reopen-credential": {"path": "wave39-research-reopen-source_after_close-v1/receipt.json", "sha256": "992bdcffdc405db14dd9ef1663f7dc2c71f90429382a23cfe09bc6318ce869f3"},
+        "failed-reopen-locator": {"path": "wave39-research-reopen-source_after_close-v2/receipt.json", "sha256": "30ae4466b40b87d411269650a6d5e96e99a895b80abd8976642a8fc3913e9d86"},
+        "failed-native-partial": {"path": "wave39-research-native-source-v4/receipt.json", "sha256": "769edb7d759619e1cca31001b07156bbe5af2a6dc141c8ea73dab7cbe3feb185"},
+        "partial-native-readback": {"path": "wave39-native-v4-partial-readback-v1/receipt.json", "sha256": "8f33ec948c4408e83180125cd4ea903acf6d6ace3526599fc8a9b92660ff316c"},
+        "separate-legacy-canary": {"path": "wave39-preservation-canary-v2-receipt.json", "sha256": "57fa0d05c592eeca6595b8da737795f4be71bdc0d6b10f1d0542e4b588d0bf59"},
+        "original-source-services-stopped": {"path": "wave39-native-runtime-source-selector-fix-v1-stopped.json", "sha256": "8895f08360556e8cbd5e410db92c89f8d1fa278893dd9de470ae657dfc400c3e"},
+        "recreated-source-services-stopped": {"path": "wave39-native-runtime-recreated-selector-fix-v1-stopped.json", "sha256": "0f62f5a463ac6094fe8b0816c456fffcfe9101601cd2f94eb157e963f906fc75"},
+        "restored-services-stopped": {"path": "wave39-native-restored-runtime-v1-stopped.json", "sha256": "0721176495f8a72b6daf71781f9ccd99b8e5f00bd1c0a946fb9bce6cd7aefc29"}
+      },
+      "synthesis_ref_count": 33,
+      "artifact_policy": "Un reçu parent et ses33 références de synthèse authentifiées, soit34 entrées ici. Références transitives vers les preuves privées ; aucun contenu de sauvegarde, secret ou sortie privée n'est publié. Les726 artefacts hachés de restauration ne sont pas726 tests.",
+      "campaigns": [
+        {
+          "id": "wave39-backend-source-compatibility-and-preservation",
+          "result": "packaged_targeted_tests_and_source_preservation_passed",
+          "artifact_refs": ["parent-qualification", "backend", "selector-compatibility", "separate-legacy-canary"],
+          "counts": {"superieur_passed": 103, "secondaire_passed": 43, "matched_python_files": 1533},
+          "verification": "Vrais tests ORM/API sur imageB : permissions explicites, scopes, comptes/tenant/module courants, commandes versionnées, pièces privées et sous-livre financier. Recherche du nom affiché complet corrigée sans élargir le tenant. Sources de l'image rapprochées du code commité.",
+          "limits": "Suites ciblées, pas intégrales ni somme avec les campagnes de développement. Recherche universitaire désactivée par défaut ; régressions scolaires, pas recherche native scolaire. Tables recherche historiques de la source principale vides avant upgrade ; canari historique semé séparément, jamais assimilé aux données natives principales."
+        },
+        {
+          "id": "wave39-frontend-and-production-bundle",
+          "result": "targeted_frontend_tests_and_native_bundle_passed",
+          "artifact_refs": ["frontend-tests", "frontend-build", "parent-qualification"],
+          "counts": {"tests_passed": 46, "suites": 4, "matched_frontend_files": 185, "bundle_files": 20},
+          "verification": "UI recherche reliée au backend, sélecteurs locaux paginés, commandes explicites et indicateurs can_*. Bundle de production20 assets rapproché des sources courantes ; parcours UI réels dans les campagnes natives dédiées.",
+          "limits": "Build de production n'est pas déploiement en production. Ne pas additionner ces tests aux suites historiques qui recouvrent le même code."
+        },
+        {
+          "id": "wave39-composed-native-and-readonly-persistence",
+          "result": "actual_native_composition_and_persisted_business_reconciliation_passed",
+          "artifact_refs": ["native-source", "native-script", "source-mapping", "source-browser-projection", "source-expected", "source-postcommit-projection", "source-persistence-parent", "source-readonly", "failed-native-partial", "partial-native-readback"],
+          "counts": {
+            "native_stages": 18,
+            "fresh_commands_all_kinds": 63,
+            "composed_research_envelopes": 49,
+            "inherited_research_envelopes": 6,
+            "fresh_research_envelopes_including_refusals": 43,
+            "successful_research_commands_including_one_idempotent_replay": 32,
+            "idempotent_replays_included_in_successes": 1,
+            "persisted_research_audits": {"a": 27, "b": 4, "total": 31},
+            "readonly_checks": 12,
+            "local_files": 19,
+            "downloads": {"total": 10, "pdf": 9, "csv": 1}
+          },
+          "verification": "Laboratoire, projet financé, équipe, supervision doctorale, publication validée/publiée, jalon accepté et deux révisions PDF immuables, archivage et refus de pièces hors périmètre. Financement, engagement, dépense, annulation et contrepassation rapprochés du budget, du rapport PDF/CSV et des doubles écritures immuables réellement persistées.",
+          "limits": "Les63 commandes fraîches ne sont pas toutes des commandes recherche.49=6 héritées+43 fraîches, refus compris ; les six écritures héritées sont qualifiées par leur reçu et ne sont jamais rejouées.32 succès incluent un rejeu idempotent, d'où31 audits persistés.12 contrôles readonly ne sont ni12 suites, ni un ajout aux nombres de tests backend. TenantA UI ordinaire ; tenantB sentinelle HTTP uniquement."
+        },
+        {
+          "id": "wave39-three-closed-native-reopens",
+          "result": "source_recreated_and_independently_restored_native_reopens_passed",
+          "artifact_refs": ["source-reopen", "source-reopen-parent", "recreated-reopen", "recreated-reopen-parent", "recreated-runtime", "restored-reopen", "restored-reopen-parent", "restored-runtime", "reopen-script", "failed-reopen-credential", "failed-reopen-locator"],
+          "phases": ["source_after_close", "api_proxy_recreated", "independent_restore"],
+          "counts_per_phase": {"fresh_verified_logins": 5, "reads": 18, "ui_checks": 10, "pdf_downloads": 9, "business_writes": 0},
+          "verification": "Trois réouvertures réellement exécutées et fermées ; objets archivés, version finale, écritures financières et fichiers privés relus. API/proxy réellement recréés pour la deuxième, nouvelle restauration indépendante pour la troisième. A UI ordinaire et B HTTP natif, sans relecture simulée ni écriture métier.",
+          "limits": "Phases distinctes, pas une nouvelle campagne métier de63 commandes ni un second tenant UI.18 lectures explicites, pas toutes les requêtes UI. Zéro écriture métier n'affirme pas zéro effet de session. Comparaison exhaustive des bases avant les nouveaux logins restaurés ; après ceux-ci, rapprochement des objets métier et PDF, pas nouvelle comparaison de toutes les tables ni mesure des deltas last_login/sessions/Axes. Échecs401 et sélecteur conservés comme échecs, sans promotion rétrospective."
+        },
+        {
+          "id": "wave39-independent-recovery-and-owned-service-closure",
+          "result": "both_variants_full_data_mfa_file_recovery_and_bounded_service_removal_passed",
+          "artifact_refs": ["source-quiescence", "recovery-authorization", "recovery-handoff", "independent-recovery", "original-source-services-stopped", "recreated-source-services-stopped", "restored-services-stopped", "parent-qualification"],
+          "counts": {
+            "secondaire": {"tables": 587, "sequences": 527, "rows": 4840, "accounts": 79, "active_totp_accounts": 1, "file_entries": 41, "file_bytes": 1528263},
+            "superieur": {"tables": 654, "sequences": 590, "rows": 5216, "accounts": 90, "active_totp_accounts": 1, "file_entries": 64, "file_bytes": 1271811},
+            "hashed_restore_artifacts": 726,
+            "recorded_equivalent_check_deparse_differences": 8,
+            "owned_application_service_ids_removed": 7
+          },
+          "verification": "Vrais pg_dump/pg_restore et archives tar : totalité des données courantes, comptes/groupes/MFA et fichiers dans un nouveau cluster7705894587097616425, contre7705791097983799336 pour la source. Nouvelles bases/PG/volumes malgré l'OID supérieur29734 coïncident. Source inchangée, pas de fixture rejouée ni réparation de lignes/séquences/fichiers. Sept IDs applicatifs propres réellement retirés : API/proxy source d'origine, API/proxy recréés et API/proxy/Redis restaurés ; DB/data conservés.",
+          "limits": "Huit différences de déparsing CHECK documentées : deux contraintes de recherche dans quatre schémas, ensembles varchar identiques castés en text élément par élément ou en tableau. Pas d'exclusion ni de réparation de données.726 fichiers de preuve, pas tests. Nouveau cluster privé sur le même hôte, pas offsite, RTO, production ou charge500 ; aucun service partagé/vague38 touché. Les réouvertures sont comptées dans la campagne dédiée, non recomptées ici."
+        }
+      ],
+      "criteria_confrontation": {
+        "10.14": "Comportement source927 et les deux acceptance_checks conservés : créer laboratoire, projet financé, équipe/encadrement, publication et rapport ; refuser pièce/projet hors périmètre et rapprocher budget/financement/opérations. Parcours, persistance, permissions et règle commune de migration/recréation/restauration rapprochés par le parent. Autorisation explicite : seule10.14 partial->verified, dans le périmètre universitaire déclaré.",
+        "not_promoted": "F18/F19/F23 et tous les autres F-lots, cinq compléments, IAM/portails exhaustifs, ERP général/banque, prestataires, réception institutionnelle/production, offsite/RTO et charge500 restent ouverts. Aucune nouvelle obligation hors cahier n'est inventée pour10.14."
+      },
+      "incidents_preserved": [
+        "Tous les anciens échecs natifs, diagnostics et réouvertures restent échoués et immuables ; leurs effets réels sont conservés sans reset, reprise implicite ou rejeu des six écritures héritées.",
+        "Source-v4 partielle : l'inspecteur multipart indiquait0 octet, mais le vrai PDF reçu/persisté fait644 octets. Artefact généré, ACK, lecture privée readonly du stockage et téléchargement indépendant rapprochés ; observation0 et hash vide non réécrits. Nouveaux uploads par Buffer et observations File.arrayBuffer strictes, pas substitution de requête.",
+        "Premier reopen : mauvaise source de credential, un POST401 et aucun login vérifié. Deuxième : deux vrais logins puis sélecteur de journal impossible ; trois PDF gestionnaire seulement. Ces reçus ne deviennent pas passés.",
+        "Reopen V5 ne change qu'une ligne du sélecteur article : ancestor::article[1] depuis le bouton exact. Reproduction DOM hors application puis trois vrais cycles réussis ; headless shell Playwright par défaut, aucun login diagnostic supplémentaire."
+      ],
+      "qualification_limits": [
+        "Université uniquement ; module sis.research désactivé par défaut et droits explicites, sans privilège implicite is_staff.",
+        "TenantA UI ordinaire ; tenantB sentinelle HTTP native, pas recette complète UI du second tenant.",
+        "Sous-livre recherche interne EUR, pas ERP général, banque, certification pays, réception prestataire ou production.",
+        "Aucune nouvelle notification/email/SMS annoncée ; confidentialité du workflow générique couverte backend, contrôle navigateur positif d'un ancien événement auditeur non exécuté.",
+        "Source historique principale sans anciennes lignes recherche avant upgrade ; canari legacy séparé, jamais présenté comme données principales.",
+        "Comptes/groupes/MFA et fichiers préservés ; restauration indépendante sur le même hôte, pas sauvegarde hors site ni garantie RTO.",
+        "Aucun cumul dédupliqué des suites, contrôles readonly, requêtes, téléchargements ou fichiers de preuves ; cinq campagnes documentaires, pas cinq tests.",
+        "Aucune promotion d'un autre critère ou F-lot, des cinq compléments, des portails IAM, de la charge500 historique rouge ou du programme à100%."
+      ]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-08T12:21:09.264856+00:00",
+    "as_of": "2026-11-08T20:21:31.738461+00:00",
     "wave37_qualification_reference": {
       "update_id": "EXEC-20261108-wave37-verified-digital-library",
       "campaign_ids": ["wave37-backend-and-migration", "wave37-frontend-and-build", "wave37-source-native-library-and-recreation", "wave37-independent-backup-restoration", "wave37-restored-native-reopens-and-recreation"]
@@ -9281,13 +9419,13 @@
     },
     "wave32_published_qualification": "f3168ed publié et distant comparé ; seul nouveau fichier de tests commun536 lignes. Image b27438d035d4190c0052ed23670abfaf6a4760ef062c1efad208fe08875a96cb,1501 Python exacts commit/worktree/image.40/40 secondaire177.218s et35/35 supérieur215.899s, dont trois nouveaux scénarios par variante ; Black120/isort/Flake8 verts. Bases de test supprimées par le runner. Aucun nouveau comportement produit, build frontend ou parcours navigateur32.",
     "current_requirement_status_counts": {
-      "verified": 6,
-      "partial": 67,
+      "verified": 7,
+      "partial": 66,
       "absent": 19,
       "unverified": 2,
-      "change": "10.11_partial_to_verified_only_explicit_parent_authorization_wave38"
+      "change": "10.14_partial_to_verified_only_explicit_parent_authorization_wave39"
     },
-    "shared_deployment_scope": "Aucun deploiement partage des vagues15a37, pilote institutionnel ou production. Les restaurations36v3 et37v3 sont isolees et ne remplacent aucun service partage.",
+    "shared_deployment_scope": "Aucun déploiement partagé des vagues15à39, pilote institutionnel ou production. Restaurations privées, dont nouveau cluster indépendant39 sur le même hôte ; aucun service partagé/vague38 remplacé. Les identifiants current_user_backend/frontend restent ceux du déploiement partagé, pas ceux de l'image de qualification39.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -9387,7 +9525,18 @@
         "wave38-restored-native-reopens-and-recreation"
       ]
     },
-    "wave38_institutional_events_bounded": "Code2fb993d, image01f8d734 ; agenda et notifications internes, vingt commandes uniques par SIS, quatre reouvertures apres restauration independante. Seule10.11 verifiee ; aucune promotion des F-lots ou du programme."
+    "wave38_institutional_events_bounded": "Code2fb993d, image01f8d734 ; agenda et notifications internes, vingt commandes uniques par SIS, quatre reouvertures apres restauration independante. Seule10.11 verifiee ; aucune promotion des F-lots ou du programme.",
+    "wave39_qualification_reference": {
+      "update_id": "EXEC-20261108-wave39-verified-university-research",
+      "campaign_ids": [
+        "wave39-backend-source-compatibility-and-preservation",
+        "wave39-frontend-and-production-bundle",
+        "wave39-composed-native-and-readonly-persistence",
+        "wave39-three-closed-native-reopens",
+        "wave39-independent-recovery-and-owned-service-closure"
+      ]
+    },
+    "wave39_university_research_bounded": "Code8c2e6331, image5d8cec4a ; laboratoires, projets/équipes/encadrements doctoraux, publications, jalons/deux PDF immuables, archives et sous-livre EUR avec rapports PDF/CSV.103 tests supérieur,43 secondaire et46 frontend/4 suites ;18 étapes natives,63 commandes fraîches toutes catégories,49 enveloppes recherche composées,31 audits et12 contrôles readonly. Trois réouvertures réelles fermées et restauration indépendante intégrale des deux variantes, données/MFA/fichiers préservés. Seule10.14 vérifiée ;7/66/19/2 sur94. Sept services applicatifs propres retirés, DB/data conservés ; aucun F-lot clos, aucune qualification globale, de production ou de charge500."
   },
   "execution_status_policy": {
     "requirement_verified_in_declared_scope": "Toutes les obligations/critères de l'exigence sont rapprochés de preuves exécutées, persistantes et livrées dans le périmètre déclaré; promotion explicitement autorisée, sans propagation aux autres exigences/F-lots.",
@@ -9976,8 +10125,8 @@
     "chapter10_features": 14,
     "chapter11_cycle_and_steps": 10,
     "counts_by_status": {
-      "partial": 67,
-      "verified": 6,
+      "partial": 66,
+      "verified": 7,
       "absent": 19,
       "unverified": 2,
       "external_credentials_blocked": 0
@@ -9986,9 +10135,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 221,
-    "requirements_with_new_increment_evidence": 28,
-    "conclusion": "221 campagnes documentaires non sommees,56 updates,28 exigences avec preuves ;47 references de synthese38. Les55 updates historiques et93 autres exigences sont conserves. Seule10.11 promue38 :6 verifiees,67 partielles,19 absentes,2 non verifiees. Aucun total deduplique d'executions, F-lots et cahiers complementaires ouverts, charge500 rouge, pas100%."
+    "imported_evidence_campaign_records": 226,
+    "requirements_with_new_increment_evidence": 29,
+    "conclusion": "226 campagnes documentaires non sommées,57 updates,246 enregistrements execution_evidence sur29 exigences ; un reçu parent39 et ses33 références de synthèse. Cinq campagnes et un rattachement de preuve ajoutés39, une seule ligne affectée :10.14 partielle→vérifiée. Les56 updates historiques et93 autres exigences sont conservés.7 vérifiées,66 partielles,19 absentes,2 non vérifiées sur94. Aucun total dédupliqué d'exécutions ; F-lots, cinq compléments et production ouverts, charge500 rouge, pas100%."
   },
   "requirements": [
     {
@@ -15835,7 +15984,7 @@
       ],
       "existing_scope": "Laboratoires/projets/publications/thèses, budget/financeur et encadrement modélisés avec API; test cité vérifie les routes uniquement.",
       "test_scope": "Tests source présents, non exécutés pendant cet inventaire.",
-      "status": "partial",
+      "status": "verified",
       "top_missing_pieces": [
         "Exécuter parcours recherche complet, accès/encadrement/validation/publication et archivage.",
         "Financements réels, engagements/dépenses et rapprochement avec comptabilité plutôt que seul champ budget.",
@@ -15845,8 +15994,23 @@
         "Créer laboratoire, projet financé, équipe/encadrement, publication puis rapport de financement.",
         "Refuser pièce/projet hors périmètre et rapprocher budget/financement avec opérations financières."
       ],
-      "execution_evidence": [],
-      "acceptance_execution_status": "not_run"
+      "execution_evidence": [
+        {
+          "update_id": "EXEC-20261108-wave39-verified-university-research",
+          "campaign_ids": [
+            "wave39-backend-source-compatibility-and-preservation",
+            "wave39-frontend-and-production-bundle",
+            "wave39-composed-native-and-readonly-persistence",
+            "wave39-three-closed-native-reopens",
+            "wave39-independent-recovery-and-owned-service-closure"
+          ],
+          "result": "own_criteria_and_common_preservation_completed_requirement_10_14_verified",
+          "verified_scope": "Universités : laboratoire, projet financé, équipe/encadrement doctoral, publication validée/publiée, jalons avec deux livraisons PDF immuables et archives. Budget/financement/engagement/dépense/annulation/contrepassation rapprochés des doubles écritures persistées et du rapport PDF/CSV ; refus tenant/objet/pièce, droits actuels, révocation, versions et module par défaut inactif. Deux tenants/rôles : A UI ordinaire, B sentinelle HTTP.",
+          "preservation_scope": "Anciennes données/MFA/droits/fichiers conservés ; canari recherche historique séparé de la source principale initialement vide. Trois réouvertures réellement fermées, chacune5 logins/18 lectures/10 vérifications UI/9 PDF/0 écriture métier. Vrais dump/restore+tar dans un nouveau cluster et de nouvelles bases/volumes :587/654 tables,527/590 séquences,4840/5216 lignes,79/90 comptes,1 TOTP actif par variante,41/64 entrées et1528263/1271811 octets. Source inchangée, huit différences CHECK équivalentes documentées sans réparation ni exclusion.",
+          "remaining_scope": "Aucune condition propre10.14 restante dans le périmètre déclaré, après confrontation et autorisation parent. Sous-livre recherche EUR, pas ERP général/banque/prestataire/production ; aucune notification nouvelle. Contrôle navigateur positif de workflow legacy non exécuté, confidentialité backend couverte. F18/F19/F23, autres F-lots, cinq compléments, IAM/portails globaux, offsite/RTO et charge500 restent ouverts. Inventaire initial et échecs historiques conservés, pas100% global."
+        }
+      ],
+      "acceptance_execution_status": "requirement_verified_in_declared_scope"
     },
     {
       "id": "11",
