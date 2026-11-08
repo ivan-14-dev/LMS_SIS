@@ -6,6 +6,22 @@
   "last_evidence_update_at": "2026-11-08T20:21:31.738461+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
+  "documentation_corrections": [
+    {
+      "id": "DOC-20261108-research-report-formats",
+      "corrects_documentation_commit": "93dcb6a6c7ec8740b3c86daa6f1301c8c2645f7a",
+      "historical_update_id": "EXEC-20261108-wave39-verified-university-research",
+      "requirement_id": "10.14",
+      "incorrect_wording": "rapport PDF/CSV",
+      "corrected_wording": "Rapport financier JSON et export CSV ; les neuf PDF téléchargés sont des pièces privées, pas un rapport financier PDF généré.",
+      "source_evidence": [
+        "sis_apps/sis_superieur/apps/recherche/finance_api.py:90",
+        "sis_apps/sis_superieur/apps/recherche/finance_api.py:99",
+        "sis_apps/docs/research.md"
+      ],
+      "effect": "Erratum des libellés de rapport dans la campagne wave39-composed-native-and-readonly-persistence et le verified_scope de10.14. Leur texte historique reste conservé ; lire ces libellés avec cette correction. Aucune nouvelle exécution, campagne, pièce ou promotion ; les preuves et compteurs restent inchangés."
+    }
+  ],
   "source": {
     "path": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files/paste-1793818759374.txt",
     "sha256": "d26179d9f4dc55e84d91242fc76319a18b43bcca7e4b7822c3ff2ad4bf7f60dc",
@@ -9536,7 +9552,7 @@
         "wave39-independent-recovery-and-owned-service-closure"
       ]
     },
-    "wave39_university_research_bounded": "Code8c2e6331, image5d8cec4a ; laboratoires, projets/équipes/encadrements doctoraux, publications, jalons/deux PDF immuables, archives et sous-livre EUR avec rapports PDF/CSV.103 tests supérieur,43 secondaire et46 frontend/4 suites ;18 étapes natives,63 commandes fraîches toutes catégories,49 enveloppes recherche composées,31 audits et12 contrôles readonly. Trois réouvertures réelles fermées et restauration indépendante intégrale des deux variantes, données/MFA/fichiers préservés. Seule10.14 vérifiée ;7/66/19/2 sur94. Sept services applicatifs propres retirés, DB/data conservés ; aucun F-lot clos, aucune qualification globale, de production ou de charge500."
+    "wave39_university_research_bounded": "Code8c2e6331, image5d8cec4a ; laboratoires, projets/équipes/encadrements doctoraux, publications, jalons/deux PDF immuables, archives et sous-livre EUR avec rapport JSON et export CSV. Les PDF sont des pièces privées, pas un rapport financier généré en PDF (voir DOC-20261108-research-report-formats).103 tests supérieur,43 secondaire et46 frontend/4 suites ;18 étapes natives,63 commandes fraîches toutes catégories,49 enveloppes recherche composées,31 audits et12 contrôles readonly. Trois réouvertures réelles fermées et restauration indépendante intégrale des deux variantes, données/MFA/fichiers préservés. Seule10.14 vérifiée ;7/66/19/2 sur94. Sept services applicatifs propres retirés, DB/data conservés ; aucun F-lot clos, aucune qualification globale, de production ou de charge500."
   },
   "execution_status_policy": {
     "requirement_verified_in_declared_scope": "Toutes les obligations/critères de l'exigence sont rapprochés de preuves exécutées, persistantes et livrées dans le périmètre déclaré; promotion explicitement autorisée, sans propagation aux autres exigences/F-lots.",

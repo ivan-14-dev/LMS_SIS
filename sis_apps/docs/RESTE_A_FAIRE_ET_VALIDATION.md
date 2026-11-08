@@ -19,7 +19,7 @@ Le [guide recherche](research.md) décrit le contrat universitaire :
 laboratoires, projets financés et équipes, encadrements doctoraux,
 publications validées/publiées, jalons et **deux révisions PDF immuables**,
 archivage, financement/engagement/dépense/annulation/contrepassation et
-rapport PDF/CSV. Module désactivé par défaut, permissions explicites sans
+rapport JSON et export CSV. Module désactivé par défaut, permissions explicites sans
 privilège `is_staff`, périmètres tenant/objet et fichiers privés.
 Les refus, révocations et versions ne reposent pas seulement sur les boutons.
 
@@ -39,6 +39,10 @@ Reçu parent `wave39-parent-qualification-v1.json`, SHA-256
 ses **33 références de synthèse** renvoient transitivement aux preuves privées.
 La matrice référence ce reçu et ces 33 références, soit 34 entrées, pas 34 tests.
 Les sauvegardes, sorties privées et secrets restent hors dépôt.
+Correction de la formulation initiale « rapport PDF/CSV » : le rapport financier
+est JSON, son export est CSV ; les PDF vérifiés sont les pièces privées.
+La matrice conserve les libellés historiques et leur erratum explicite,
+sans ajouter de test, de campagne ou de promotion.
 
 Suites ciblées réellement exécutées sur l'image : **103 tests supérieur
 et 43 secondaire**, **46 tests frontend dans 4 suites**.

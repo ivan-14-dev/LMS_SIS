@@ -17,7 +17,7 @@ validés.
   laboratoires, projets financés et équipes, encadrements doctoraux,
   publications validées/publiées, jalons avec **deux révisions PDF immuables**
   et archivage. Financements, engagements, dépenses et contrepassations
-  protégés, rapprochés du budget et du rapport PDF/CSV.
+  protégés, rapprochés du budget, du rapport JSON et de son export CSV.
   [Contrat et utilisation](research.md).
 
 **Cutoff : 20:21:31.738461 UTC**, code et guide `8c2e6331`.
@@ -30,6 +30,8 @@ après recréation API/proxy, puis après **restauration indépendante des deux
 variantes** avec comptes/MFA/données/fichiers conservés. Chacune comporte
 5 nouveaux logins, 18 lectures, 10 contrôles UI et 9 PDF, sans écriture métier.
 Tenant A par UI ordinaire ; tenant B par sentinelle HTTP, pas une seconde recette UI.
+Correction documentaire : les PDF vérifiés sont des pièces privées, pas un
+rapport financier généré en PDF.
 
 **Seule 10.14 passe de partielle à vérifiée : 7 vérifiées, 66 partielles,
 19 absentes et 2 non vérifiées sur 94.**
