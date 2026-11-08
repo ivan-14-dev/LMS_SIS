@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-08T06:20:55.925490+00:00",
+  "last_evidence_update_at": "2026-11-08T12:21:09.264856+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -8854,10 +8854,347 @@
         "Services de qualification arretes, donnees/preuves conservees ; aucun deploiement partage, pilote ou100%.",
         "Charge500 historique toujours rouge :500timeouts/262 ecritures indeterminees ; aucune nouvelle campagne de charge."
       ]
+    },
+    {
+      "id": "EXEC-20261108-wave38-verified-institutional-events",
+      "evidence_cutoff_at": "2026-11-08T12:21:09.264856+00:00",
+      "qualification_status": "declared_10_11_checks_and_common_preservation_passed",
+      "scope": "Agenda institutionnel des deux SIS ; seule10.11 promue apres confrontation parent.",
+      "code_commit": "2fb993dd3e018306be3d6de33c3f70d83187d969",
+      "new_product_code_or_schema": true,
+      "qualification_environment": {
+        "image": "sha256:01f8d7349718e3b51f3659fded21cf4ef390d6545f3c8d7365c2db68288a068e",
+        "sources": "sis_wave38_source_{secondaire,superieur}_v1",
+        "restored": "sis_wave38_restore_{secondaire,superieur}_v1",
+        "runtime": "Image sans montage applicatif, settings de qualification readonly, UID10001, loopback32490.",
+        "client": "TenantA Chromium reel, tenantB HTTP natif ; aucun second tenant Chromium annonce."
+      },
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "parent-qualification": {
+          "path": "wave38-parent-qualification-v1.json",
+          "sha256": "b0a78440692fe0ccf24ca7a814c96f0d06874943dff2d75b560d33421d3c61ab"
+        },
+        "backend": {
+          "path": "wave38-parent-backend-validation.json",
+          "sha256": "169910f9b965a6923a1590916958976598977bdfae8775aaede30d59b944983d"
+        },
+        "migration": {
+          "path": "wave38-preservation-migration.json",
+          "sha256": "d3f610be6ad4708f29edfa3b5bd5b43ce48346f75e4d213eb24c5fb65ca97bb5"
+        },
+        "rehydration-lineage": {
+          "path": "wave38-rehydrated-sources.json",
+          "sha256": "9dc758d5812850684d2ce196e95121f7ebc6760bfc3a7c91ba7611709216f0c8"
+        },
+        "image-provenance": {
+          "path": "wave38-image-v2-source-provenance.json",
+          "sha256": "5ba5ae04ec0aae993d606f4d45adb0d974cc350324510c593e3ed838c68e78d4"
+        },
+        "frontend-build": {
+          "path": "wave38-frontend-build-v2.json",
+          "sha256": "e52ea0213675a1fd7b830413b6ab0ef64397136381b71cea7ced02080f569326"
+        },
+        "frontend-tests": {
+          "path": "wave38-events-frontend-evidence/tests-verified.json",
+          "sha256": "41203ec82738a955e6398d5a9cb179a9dd982dc2bb6ff1640dde1f521c7ab3dc"
+        },
+        "capture": {
+          "path": "wave38-independent-capture-v2/wave38-independent-source-capture.json",
+          "sha256": "e1f21fe72bed46ec15e815be51d6275b8c634451a66eb3dd58ab17dc6bbcdcf2"
+        },
+        "seal": {
+          "path": "wave38-independent-recipe-seal-v2.json",
+          "sha256": "96b0c70324d5b16148c24a11784710515ebf7a2eda87e73a2071519152bde29d"
+        },
+        "independent-restore": {
+          "path": "wave38-independent-attempt-v2/wave38-independent-attestation.json",
+          "sha256": "205928923a215f06a6222e91ed41a740411a6362a1ba020f0b1594d879e5584d"
+        },
+        "failed-restored-start": {
+          "path": "wave38-restored-secondaire-runtime-before-reopen-start-v3/wave38-restored-failure.json",
+          "sha256": "a3684bf021512ecccce696e6fdcc12fe32c63c0e868a9719645061e92f6deede"
+        },
+        "failed-source-reopen": {
+          "path": "wave38-events-secondaire-reopen-source-after-recreation-v1/receipt.json",
+          "sha256": "3b855e3a2aa22397c177ef176a79a0de01e3840735b895fedb8b2035f15f50b5"
+        },
+        "secondaire-cumulative-native": {
+          "path": "wave38-events-secondaire-cumulative-native-v1.json",
+          "sha256": "c9edf0bddea663fdc20ffd441761ff76c646d619806d4093fa85eb86ab5df4cb"
+        },
+        "secondaire-native-tail": {
+          "path": "wave38-events-secondaire-browser-v9/receipt.json",
+          "sha256": "cc43657e518ceb9af26a29f4740164d51b3de019020b6bab2a2c62435b4d5b84"
+        },
+        "secondaire-persistence": {
+          "path": "wave38-events-secondaire-persistence-v9/receipt.json",
+          "sha256": "c86ed603604b9a03ba59a0c2632e16a27e4aeb1c03cb044fd91ef5905437a3d1"
+        },
+        "secondaire-source-reopen": {
+          "path": "wave38-events-secondaire-reopen-source-after-recreation-v2/receipt.json",
+          "sha256": "ed3b6191c4d89ddb3ffa7d6b153f63f8cb1fb17da4b793382e7f8cef1f49bda0"
+        },
+        "secondaire-source-preservation": {
+          "path": "wave38-source-recreation-secondaire-postreopen-v2/wave38-source-recreation-receipt.json",
+          "sha256": "8d06a4fc06b7220b4dd8122728aa9a36ec01274f1ada31bfb90e354f78c9b40d"
+        },
+        "secondaire-restored-before-first": {
+          "path": "wave38-restored-secondaire-before-first-v4/wave38-restored-receipt.json",
+          "sha256": "68444c0b02fc2defa698fc78632eab249aac8a363820e6f70dca65a70f07bdf4"
+        },
+        "secondaire-restored-after-first": {
+          "path": "wave38-restored-secondaire-after-first-v4/wave38-restored-receipt.json",
+          "sha256": "6caed80fbbe942eb6d3b48bb17c50c6478dea104ffd21cbac16edb843cd0b462"
+        },
+        "secondaire-restored-before-second": {
+          "path": "wave38-restored-secondaire-before-second-v4/wave38-restored-receipt.json",
+          "sha256": "c4e35c6b82d735bdd0019afbdaa69bbfe47b64a66ec312bd43e2155adc172328"
+        },
+        "secondaire-restored-after-second": {
+          "path": "wave38-restored-secondaire-after-second-v4/wave38-restored-receipt.json",
+          "sha256": "036e3838ebf31e8e17cfe39720564549e4c7a22ef520049b782234d440141bfb"
+        },
+        "secondaire-restored-native-before-reopen": {
+          "path": "wave38-events-secondaire-reopen-restore-before-reopen-v2/receipt.json",
+          "sha256": "662f25cbf7d56d5045fb34b789d18bd09908beca60222f0512c97a01ce8962ff"
+        },
+        "secondaire-restored-stop-before-reopen": {
+          "path": "wave38-restored-secondaire-runtime-before-reopen-v4-stopped.json",
+          "sha256": "5727292b29d4ae85442b8c34157bed8021b87a10769d49f5e439c7ccdabb558a"
+        },
+        "secondaire-restored-native-after-recreation": {
+          "path": "wave38-events-secondaire-reopen-restore-after-recreation-v2/receipt.json",
+          "sha256": "f928019bed7c3decae1692ac4a3d0d205f92f9b0ae500606ac02977ba3e9e01c"
+        },
+        "secondaire-restored-stop-after-recreation": {
+          "path": "wave38-restored-secondaire-runtime-after-recreation-v4-stopped.json",
+          "sha256": "ae09ab6b89cda1bfe8577bfabb2758f8787fc9e5e9149f81d2be86a0a0d106fa"
+        },
+        "secondaire-failed-native-v1": {
+          "path": "wave38-events-secondaire-browser-v1/receipt.json",
+          "sha256": "0ceb78f506d9c70aba9ba32b340356bc14f37950d8dcb0fcfe63d11e81466eb8"
+        },
+        "secondaire-failed-native-v2": {
+          "path": "wave38-events-secondaire-browser-v2/receipt.json",
+          "sha256": "c909b91a07ebfc11ff3b4e508be1c03967221fecfa8ff838836bd82e30863784"
+        },
+        "secondaire-failed-native-v3": {
+          "path": "wave38-events-secondaire-browser-v3/receipt.json",
+          "sha256": "a1116c9679d6d223fc4053cd3834bf7f3e57bfc70f311ff2117cd9b806b24e08"
+        },
+        "secondaire-failed-native-v4": {
+          "path": "wave38-events-secondaire-browser-v4/receipt.json",
+          "sha256": "dc9bcd2f1a2b7a5f807d810537bc4907b5f2d576591ba9d4ccb3498a9c2ba371"
+        },
+        "secondaire-failed-native-v5": {
+          "path": "wave38-events-secondaire-browser-v5/receipt.json",
+          "sha256": "21b5a3b36de9c6f81cf45b6224bb46da2da5a7299e38bd404ff5eb916000f69b"
+        },
+        "secondaire-failed-native-v6": {
+          "path": "wave38-events-secondaire-browser-v6/receipt.json",
+          "sha256": "0d5e9814bdd89028ab504fdc00ac6b7c5214140da076b9fd40911c635ab55078"
+        },
+        "secondaire-failed-native-v7": {
+          "path": "wave38-events-secondaire-browser-v7/receipt.json",
+          "sha256": "4a8576caa87f69e5ad024f0a83465d60766755a5300dccaa362fde5f971084bc"
+        },
+        "secondaire-failed-native-v8": {
+          "path": "wave38-events-secondaire-browser-v8/receipt.json",
+          "sha256": "c13b12087ffc95b926de00493043b431f5940a011d88f340fae03bac3d3b7445"
+        },
+        "superieur-cumulative-native": {
+          "path": "wave38-events-superieur-cumulative-native-v1.json",
+          "sha256": "ccf0dff5d650c866d1407619a798eb2ba54f5eafc96b47d3f31b2f4ef27ba8b1"
+        },
+        "superieur-native-tail": {
+          "path": "wave38-events-superieur-browser-v10/receipt.json",
+          "sha256": "9fcd0ba09036f1df2494f35e49560c73b12a5828020e354a224e9930aa349e07"
+        },
+        "superieur-persistence": {
+          "path": "wave38-events-superieur-persistence-v10/receipt.json",
+          "sha256": "7577b01c5e2d2bbb68c78b6068d77e6da21dd1a7389b6de6aabd1f5e2b43d554"
+        },
+        "superieur-source-reopen": {
+          "path": "wave38-events-superieur-reopen-source-after-recreation-v2/receipt.json",
+          "sha256": "e78758ea149e8f5ed0d58ce9985c830359a11034032516319cd5bca6d3f15898"
+        },
+        "superieur-source-preservation": {
+          "path": "wave38-source-recreation-superieur-postreopen-v2/wave38-source-recreation-receipt.json",
+          "sha256": "f7fa4e918e29d4a5f7911bf4faf3aa06f6bcf522e89d66dbd1036a0cf296bbf1"
+        },
+        "superieur-restored-before-first": {
+          "path": "wave38-restored-superieur-before-first-v4/wave38-restored-receipt.json",
+          "sha256": "e3cb86f541b46f142d41f02f4937e5f168df57196679029302edbcb9edec7e3c"
+        },
+        "superieur-restored-after-first": {
+          "path": "wave38-restored-superieur-after-first-v4/wave38-restored-receipt.json",
+          "sha256": "83fc072da6e6e93a773f2ca17bd33e9798398e2a0a4b2788af599d5977136f55"
+        },
+        "superieur-restored-before-second": {
+          "path": "wave38-restored-superieur-before-second-v4/wave38-restored-receipt.json",
+          "sha256": "26ec912e0cf6bc22b19cc9a41f224c125784debb74cbbd48967fc8f54dd160c5"
+        },
+        "superieur-restored-after-second": {
+          "path": "wave38-restored-superieur-after-second-v4/wave38-restored-receipt.json",
+          "sha256": "e5d09c97a205ddcb6f819911dc15298f590e57482a97d03d6b108384f635ea02"
+        },
+        "superieur-restored-native-before-reopen": {
+          "path": "wave38-events-superieur-reopen-restore-before-reopen-v2/receipt.json",
+          "sha256": "3a3cb665adfb95917f1a16082110243cd3a8872947d68691cd757ded1155dc43"
+        },
+        "superieur-restored-stop-before-reopen": {
+          "path": "wave38-restored-superieur-runtime-before-reopen-v4-stopped.json",
+          "sha256": "56d4eaa3c6f6a4c568c67c0d15be0e6f9ab138d5b838e922a5390e00c13d535f"
+        },
+        "superieur-restored-native-after-recreation": {
+          "path": "wave38-events-superieur-reopen-restore-after-recreation-v2/receipt.json",
+          "sha256": "493654677f86138d13dcca37e92e027e0fa4afbbe23bd3729d7db60885204661"
+        },
+        "superieur-restored-stop-after-recreation": {
+          "path": "wave38-restored-superieur-runtime-after-recreation-v4-stopped.json",
+          "sha256": "aa46b391ae80f5dfc484e1c3a481028b46729a6f89adab3ed4c835e1ed463481"
+        },
+        "superieur-failed-native-v9": {
+          "path": "wave38-events-superieur-browser-v9/receipt.json",
+          "sha256": "3fb6b4e9257b74db58766004d1861ec9735376b0ab39b5151426cccef08e5680"
+        }
+      },
+      "artifact_policy": "47 references de synthese publiques ; le recu parent authentifie 5277 fichiers de preuves/captures/journaux. Aucun contenu prive, secret, cookie, dump ou fichier metier dans ce registre.",
+      "campaigns": [
+        {
+          "id": "wave38-backend-and-migration",
+          "result": "packaged_targeted_tests_and_preservation_passed",
+          "artifact_refs": [
+            "backend",
+            "migration",
+            "image-provenance"
+          ],
+          "counts": {
+            "secondaire_passed": 97,
+            "superieur_passed": 97,
+            "superieur_skipped": 2
+          },
+          "verification": "Permissions explicites/ABAC, invitations et transactions, conflits/capacite, concurrence, sources historiques et changements d'heure ; migrations0014 sur donnees peuplees preservees.",
+          "limits": "Suites ciblees, pas integrales ni total ajoute aux campagnes de developpement. Les deux skips concernent des modeles scolaires absents du superieur."
+        },
+        {
+          "id": "wave38-frontend-and-build",
+          "result": "targeted_frontend_tests_and_native_bundle_passed",
+          "artifact_refs": [
+            "frontend-tests",
+            "frontend-build",
+            "image-provenance"
+          ],
+          "counts": {
+            "tests_passed": 66,
+            "frontend_sources": 189,
+            "bundle_files": 23,
+            "packaged_python_sources": 1523
+          },
+          "verification": "Agenda, formulaires, invitations, refus/version409 sans rejeu automatique ; sources testees et bundle servi rapproches de l'image.",
+          "limits": "Decalages UTC explicites saisis ; pas de recalcul automatique IANA lors du changement de date."
+        },
+        {
+          "id": "wave38-cumulative-native-and-source-recreation",
+          "result": "genuine_commands_readonly_completion_and_source_recreation_passed",
+          "artifact_refs": [
+            "secondaire-cumulative-native",
+            "superieur-cumulative-native",
+            "secondaire-source-preservation",
+            "superieur-source-preservation"
+          ],
+          "counts_per_sis": {
+            "distinct_successful_commands": 20,
+            "events": 12,
+            "notifications_observed_via_api": 18,
+            "business_row_hashes_preserved": 62,
+            "final_tail_new_business_commands": 0
+          },
+          "verification": "Cinq types, conference/ceremonie, invitations, changement d'horaire, conflits/capacite, version409/concurrence et retrait opposable. TenantA Chromium, tenantB HTTP natif ; sources recreees et entierement comparees.",
+          "limits": "Scolaire V5/V6/V7 puis V9 lecture seule : les deux creations initiales sont comprises dans20, pas22. Superieur V9 puis V10 lecture seule. Pas de campagne ininterrompue. Workflow-events403 correct pour les managers superieurs, pas de filtrage auditeur200 revendique."
+        },
+        {
+          "id": "wave38-independent-backup-restoration",
+          "result": "actual_independent_post_native_restore_passed",
+          "artifact_refs": [
+            "capture",
+            "seal",
+            "independent-restore"
+          ],
+          "counts": {
+            "secondaire": {
+              "accounts_equal": 79,
+              "all_sequences_equal": 527,
+              "all_tables_equal": 587,
+              "all_volume_entries_equal": 41,
+              "enabled_totp_accounts_verified": 1,
+              "identity_only_normalization": true,
+              "read_only_mfa_no_database_mutation": true,
+              "source_unchanged_before_after_backup_and_restore": true
+            },
+            "superieur": {
+              "accounts_equal": 78,
+              "all_sequences_equal": 578,
+              "all_tables_equal": 638,
+              "all_volume_entries_equal": 42,
+              "enabled_totp_accounts_verified": 1,
+              "identity_only_normalization": true,
+              "read_only_mfa_no_database_mutation": true,
+              "source_unchanged_before_after_backup_and_restore": true
+            }
+          },
+          "verification": "Vrais pg_dump custom/pg_restore template0 et archives vers nouvelles bases/volumes ; lignes, sequences, comptes/droits, MFA chiffre/dechiffre/TOTP et fichiers strictement rapproches avant login. Sources inchangees.",
+          "limits": "Meme serveur PostgreSQL prive ; pas de reprise inter-cluster, hors site, production ou RTO. La rehydratation37 est une origine, pas cette restauration38."
+        },
+        {
+          "id": "wave38-restored-native-reopens-and-recreation",
+          "result": "four_native_reopens_and_complete_post_login_comparisons_passed",
+          "artifact_refs": [
+            "secondaire-restored-after-second",
+            "superieur-restored-after-second",
+            "secondaire-restored-stop-after-recreation",
+            "superieur-restored-stop-after-recreation"
+          ],
+          "counts": {
+            "reopenings_per_sis": 2,
+            "fresh_logins_per_reopening": 6
+          },
+          "verification": "Deux generations API/proxy reellement distinctes par SIS ; egalite totale avant login. Chaque reouverture ajoute exactement6last_login,6sessions signees et6Axes, sequences A3/B3. Toutes anciennes lignes et donnees metier/MFA/fichiers conservees, arrets explicites verifies.",
+          "limits": "Le login scolaire historique non confirme reste dans la source, jamais une allowance restauree. Services qualifies arretes, donnees conservees ; aucune livraison sur environnement partage."
+        }
+      ],
+      "criteria_confrontation": {
+        "10.11": "Comportement source924 et deux acceptance_checks inchanges : organiser les cinq types, reserver/inviter/modifier, refuser conflit/capacite et limiter la visibilite. Regle commune satisfaite par vrais parcours, persistance, recreations et restauration independante. Parent autorise uniquement10.11 partial->verified.",
+        "not_promoted": "F14/F17/F20, calendrier unifie, reponses aux invitations, budgets/comptes rendus du complement N3.16, IAM/portails globaux et recette institutionnelle restent ouverts."
+      },
+      "incidents_preserved": [
+        "Rouges scolaires V1-V8 et universitaire V9 conserves ; commandes authentiques rapprochees en SQL puis completion en lecture seule, sans reset ni rejeu.",
+        "Lecture fragile du corps POSTlogin pendant navigation corrigee dans le banc : statut200 puis trois GET d'identite dans la meme session. Reopen source scolaireV1 reste rouge/non confirme ; ses effets SQL bornes restent comptabilises.",
+        "Workflow-events403 universitaire conforme au role sans droit auditeur ; aucune permission elargie pour faire passer le banc.",
+        "Premier start restaureV3 echoue sur la cle Docker Tmpfs absente, avant creation/SQL/HTTP. Douze artefacts conserves ; V4 lit cette metadonnee optionnelle sans assouplir les gardes API."
+      ],
+      "qualification_limits": [
+        "Only criterion10.11 in the declared two-SIS private scope; no global institutional/program acceptance.",
+        "Twenty school commands across V5/V6/V7 counted once, not22; V9 is a read-only tail. All reds1-8 retained.",
+        "Twenty upper V9 commands counted once; V10 is a read-only tail. Upper V9 remains failed.",
+        "Historical withdrawal/409/concurrency evidence remains attributed to its original campaign; final false flags are untouched.",
+        "Tenant A Chromium, tenant B native HTTP; no second-tenant Chromium claim.",
+        "Upper manager workflow-events403 is verified; auditor filtering with HTTP200 is not claimed.",
+        "One failed unconfirmed source-school login is explicitly retained; restored cycles each add exactly six fresh logins.",
+        "Actual post-native wave38 dump/restore in the same private PostgreSQL server; no cross-cluster/offsite/production/RTO claim.",
+        "Preparatory wave37 rehydration is lineage only, never substituted for wave38 independent restoration.",
+        "Runtime removal is checked from genuine tool receipts, not by a new live Docker inventory. PG/Redis/helpers are not removed.",
+        "Targeted test counts are not added to overlapping development runs; no full-suite/load/global100% claim.",
+        "Module sis.events desactive par defaut ; pas de grant implicite par portail ou is_staff.",
+        "Notifications internes uniquement ; pas de SMTP/SMS/export autonome de l'agenda.",
+        "Sources historiques ambigues ou non resolues bloquees conservativement ; bulk ORM/SQL hors contrat de concurrence.",
+        "Charge500 historique toujours rouge ; aucune nouvelle campagne de charge, pilote ou100% global."
+      ]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-08T06:20:55.925490+00:00",
+    "as_of": "2026-11-08T12:21:09.264856+00:00",
     "wave37_qualification_reference": {
       "update_id": "EXEC-20261108-wave37-verified-digital-library",
       "campaign_ids": ["wave37-backend-and-migration", "wave37-frontend-and-build", "wave37-source-native-library-and-recreation", "wave37-independent-backup-restoration", "wave37-restored-native-reopens-and-recreation"]
@@ -8944,11 +9281,11 @@
     },
     "wave32_published_qualification": "f3168ed publié et distant comparé ; seul nouveau fichier de tests commun536 lignes. Image b27438d035d4190c0052ed23670abfaf6a4760ef062c1efad208fe08875a96cb,1501 Python exacts commit/worktree/image.40/40 secondaire177.218s et35/35 supérieur215.899s, dont trois nouveaux scénarios par variante ; Black120/isort/Flake8 verts. Bases de test supprimées par le runner. Aucun nouveau comportement produit, build frontend ou parcours navigateur32.",
     "current_requirement_status_counts": {
-      "verified": 5,
-      "partial": 68,
+      "verified": 6,
+      "partial": 67,
       "absent": 19,
       "unverified": 2,
-      "change": "10.3_partial_to_verified_only_explicit_parent_authorization_wave37_after_wave36_10.12_promotion"
+      "change": "10.11_partial_to_verified_only_explicit_parent_authorization_wave38"
     },
     "shared_deployment_scope": "Aucun deploiement partage des vagues15a37, pilote institutionnel ou production. Les restaurations36v3 et37v3 sont isolees et ne remplacent aucun service partage.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
@@ -9039,7 +9376,18 @@
         "wave36-superieur-restored-native-reopens-and-recreation"
       ]
     },
-    "wave36_survey_recovery_bounded": "Vraie restauration independante dans deux ciblesv3 neuves ; doubles reouvertures natives et recreation avec preservation exhaustive. Seule10.12 verifiee dans son perimetre nominatif ; les deux tentatives refusees restent rouges, aucune cloture globale ou F-lot."
+    "wave36_survey_recovery_bounded": "Vraie restauration independante dans deux ciblesv3 neuves ; doubles reouvertures natives et recreation avec preservation exhaustive. Seule10.12 verifiee dans son perimetre nominatif ; les deux tentatives refusees restent rouges, aucune cloture globale ou F-lot.",
+    "wave38_qualification_reference": {
+      "update_id": "EXEC-20261108-wave38-verified-institutional-events",
+      "campaign_ids": [
+        "wave38-backend-and-migration",
+        "wave38-frontend-and-build",
+        "wave38-cumulative-native-and-source-recreation",
+        "wave38-independent-backup-restoration",
+        "wave38-restored-native-reopens-and-recreation"
+      ]
+    },
+    "wave38_institutional_events_bounded": "Code2fb993d, image01f8d734 ; agenda et notifications internes, vingt commandes uniques par SIS, quatre reouvertures apres restauration independante. Seule10.11 verifiee ; aucune promotion des F-lots ou du programme."
   },
   "execution_status_policy": {
     "requirement_verified_in_declared_scope": "Toutes les obligations/critères de l'exigence sont rapprochés de preuves exécutées, persistantes et livrées dans le périmètre déclaré; promotion explicitement autorisée, sans propagation aux autres exigences/F-lots.",
@@ -9628,8 +9976,8 @@
     "chapter10_features": 14,
     "chapter11_cycle_and_steps": 10,
     "counts_by_status": {
-      "partial": 68,
-      "verified": 5,
+      "partial": 67,
+      "verified": 6,
       "absent": 19,
       "unverified": 2,
       "external_credentials_blocked": 0
@@ -9638,9 +9986,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 216,
-    "requirements_with_new_increment_evidence": 27,
-    "conclusion": "216 campagnes documentaires non sommees,55 updates,27 exigences avec preuves ;52 artefacts de synthese37 et leurs captures liees. 54 updates historiques et93 autres exigences strictement conserves. Seule10.3 promue37 :5 verifiees,68 partielles,19 absentes,2 non verifiees. Aucun total deduplique d'executions, F-lots et cahiers complementaires ouverts, charge500 rouge, pas100 %."
+    "imported_evidence_campaign_records": 221,
+    "requirements_with_new_increment_evidence": 28,
+    "conclusion": "221 campagnes documentaires non sommees,56 updates,28 exigences avec preuves ;47 references de synthese38. Les55 updates historiques et93 autres exigences sont conserves. Seule10.11 promue38 :6 verifiees,67 partielles,19 absentes,2 non verifiees. Aucun total deduplique d'executions, F-lots et cahiers complementaires ouverts, charge500 rouge, pas100%."
   },
   "requirements": [
     {
@@ -15311,7 +15659,7 @@
       ],
       "existing_scope": "Séances de clubs, examens et conseils sont des événements spécialisés; calendrier commun de l'accueil n'est pas un agenda métier.",
       "test_scope": "Tests source présents, non exécutés pendant cet inventaire.",
-      "status": "partial",
+      "status": "verified",
       "top_missing_pieces": [
         "Événements institutionnels conférences/réunions/cérémonies avec participants, lieux, calendrier et notifications.",
         "Réservations/capacités/conflits et visibilité par rôle."
@@ -15320,8 +15668,23 @@
         "Organiser une conférence et une cérémonie, réserver salle, inviter participants et modifier l'horaire.",
         "Refuser conflit/capacité et vérifier que seules les personnes autorisées voient l'événement."
       ],
-      "execution_evidence": [],
-      "acceptance_execution_status": "not_run"
+      "execution_evidence": [
+        {
+          "update_id": "EXEC-20261108-wave38-verified-institutional-events",
+          "campaign_ids": [
+            "wave38-backend-and-migration",
+            "wave38-frontend-and-build",
+            "wave38-cumulative-native-and-source-recreation",
+            "wave38-independent-backup-restoration",
+            "wave38-restored-native-reopens-and-recreation"
+          ],
+          "result": "own_criteria_and_common_preservation_completed_requirement_10_11_verified",
+          "verified_scope": "Cinq types d'evenements, salle/capacite/conflits, invitations, horaire, annulation et visibilite par permissions effectives ; deux SIS, deux tenants/roles et vrais UI/HTTP.",
+          "preservation_scope": "Migration et recreations source preservees ; vraie restauration de587/638tables,527/578sequences,79/78comptes,41/42entreesvolume et MFA/TOTP. Deux reouvertures restaurees par SIS, avec six last_login, six sessions et six journaux Axes nouveaux par cycle ; toutes anciennes donnees strictement conservees.",
+          "remaining_scope": "Aucune condition propre10.11 restante dans le perimetre declare. Notifications internes et offsets UTC explicites ; aucun budget/compte rendu/reponse aux invitations, calendrier unifie, SMTP ou IAM global inferes. F-lots et exigences complementaires ouverts."
+        }
+      ],
+      "acceptance_execution_status": "requirement_verified_in_declared_scope"
     },
     {
       "id": "10.12",

@@ -9,7 +9,58 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 8 novembre 2026 à 06:20:55.925490 UTC** :
+## État courant — vague38
+
+**Cutoff : 8 novembre 2026 à 12:21:09.264856 UTC**.
+Code **`2fb993d`**, image **`01f8d734…`** : agenda institutionnel des deux SIS,
+désactivé par défaut, avec permissions explicites, invitations, salles,
+capacités, conflits, modification versionnée, annulation et notifications internes.
+Le [guide événementiel](institutional-events.md) décrit le contrat et ses limites.
+**Seule10.11 est promue vérifiée : 6 vérifiées, 67 partielles, 19 absentes
+et 2 non vérifiées sur 94.** Les F-lots et cahiers complémentaires restent ouverts.
+
+La matrice contient **56 updates, 221 campagnes documentaires non sommées
+et 28 exigences avec preuves**. Ses **47 références de synthèse38** renvoient
+au reçu parent `wave38-parent-qualification-v1.json`
+(`b0a78440692fe0ccf24ca7a814c96f0d06874943dff2d75b560d33421d3c61ab`),
+qui authentifie **5 277 fichiers** de preuves, captures et journaux privés.
+Ce nombre de fichiers n'est pas un nombre de tests.
+
+Suites ciblées empaquetées : **97 réussites scolaires**, **97 réussites et
+2 cas scolaires ignorés au supérieur**, **66 tests frontend** ;
+1 523 fichiers Python, 189 sources frontend et 23 fichiers du bundle rapprochés.
+Par SIS, les parcours réels prouvent **20 commandes uniques, 12 événements,
+18 notifications observées par API et 62 empreintes métier conservées**.
+Tenant A par Chromium, tenant B par HTTP natif. Les deux créations scolaires
+V5/V6 sont comprises dans les vingt commandes, pas ajoutées ; les complétions
+V9 scolaire et V10 universitaire ne rejouent aucune commande.
+Tous les essais rouges restent conservés. Le refus403 de l'historique workflow
+pour les gestionnaires universitaires sans droit auditeur est conforme ;
+aucun filtrage auditeur avec réponse200 n'est revendiqué.
+
+Après migration et recréation source, une **vraie sauvegarde/restauration
+indépendante** utilise `pg_dump`/`pg_restore` et des archives vers de nouvelles
+bases et de nouveaux volumes : **587/638 tables, 527/578 séquences,
+79/78 comptes et 41/42 entrées de volume**, droits et MFA/TOTP conservés.
+Les quatre réouvertures restaurées réussissent, avec une vraie recréation
+API/proxy entre les deux cycles de chaque SIS. Avant connexion, les états sont
+strictement identiques. Chaque cycle ajoute exactement six `last_login`,
+six sessions signées et six journaux Axes, avec séquences A+3/B+3 ;
+toutes les anciennes lignes, données métier et fichiers restent inchangés.
+Le login historique scolaire non confirmé n'est jamais réutilisé comme
+une autorisation de sept nouveaux logins restaurés.
+
+Limites maintenues : notifications internes, décalages UTC saisis explicitement,
+occupation historique conservatrice, écritures bulk ORM/SQL hors contrat.
+Réponses aux invitations, budgets et comptes rendus du complément N3.16,
+calendrier unifié et IAM/portails exhaustifs restent ouverts.
+Les services applicatifs de qualification sont arrêtés, les données conservées ;
+aucun déploiement partagé, hors site, inter-cluster, pilote ou RTO n'est annoncé.
+La charge500 historique reste rouge. **Le programme n'est pas à100%.**
+
+## Bilan antérieur — vague37
+
+**Cutoff documentaire de la vague37 : 8 novembre 2026 à 06:20:55.925490 UTC** :
 vagues 15 à 37 qualifiées dans leurs périmètres bornés ;
 **code37 : `3b2e918`**, bibliothèque numérique privée et circulation personnelle.
 La vague37 complète les parcours réels et leur restauration indépendante ;

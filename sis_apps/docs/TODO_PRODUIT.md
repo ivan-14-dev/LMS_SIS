@@ -29,6 +29,20 @@ les lots F02–F31 ne sont pas recréés. Cinq tâches distinctes restent à ajo
 Les critères de sortie et cas de refus propres à chacun figurent dans le
 registre lié. Aucun de ces points n'est déclaré livré.
 
+## Incrément qualifié — 8 novembre 2026, vague38
+
+- [x] Agenda institutionnel **10.11** dans les deux SIS : conférences, examens,
+  réunions, cérémonies et activités ; salles, invitations, horaires,
+  capacités/conflits, annulation et visibilité par permissions effectives.
+  [Contrat et utilisation](institutional-events.md).
+
+Code `2fb993d`, tests ciblés et parcours réels rapprochés, restauration
+indépendante et quatre réouvertures restaurées validées.
+La [matrice](functional-acceptance-matrix.json) conserve les essais rouges,
+les preuves et leurs limites : **6 exigences vérifiées sur94**, pas100%.
+Cette clôture bornée ne termine ni les cinq compléments ci-dessus, ni le
+calendrier unifié, ni les réponses/budgets/comptes rendus du complément N3.16.
+
 ## P0 — Rendre la plateforme fiable et déployable
 
 ### Contrats et parcours critiques
