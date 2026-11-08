@@ -15,6 +15,7 @@ from sis_common.establishments import (
     validate_live_configuration,
     validate_timezone,
 )
+from sis_common.event_occupancy import EventOccupancyGuard
 
 
 class Universite(TenantMixin):
@@ -123,7 +124,7 @@ class AnneeUniversitaire(models.Model):
         return self.libelle
 
 
-class Semestre(models.Model):
+class Semestre(EventOccupancyGuard, models.Model):
     """Semestre universitaire."""
 
     TYPE_CHOICES = [

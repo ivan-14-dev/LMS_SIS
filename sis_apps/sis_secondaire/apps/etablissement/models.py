@@ -15,6 +15,7 @@ from sis_common.establishments import (
     validate_live_configuration,
     validate_timezone,
 )
+from sis_common.event_occupancy import EventOccupancyGuard
 
 
 class Etablissement(TenantMixin):
@@ -112,7 +113,7 @@ class Domain(DomainMixin):
     pass
 
 
-class AnneeScolaire(models.Model):
+class AnneeScolaire(EventOccupancyGuard, models.Model):
     """Année scolaire d'un établissement."""
 
     etablissement = models.ForeignKey(Etablissement, on_delete=models.CASCADE, related_name="annees_scolaires")

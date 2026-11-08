@@ -1,9 +1,10 @@
 """API tests for emplois_du_temps."""
 
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier, local
-from unittest.mock import patch
+from threading import Barrier
 
+from apps.emplois_du_temps.models import CreneauCours
+from apps.emplois_du_temps.serializers import CreneauCoursCreateUpdateSerializer
 from django.apps import apps
 from django.db import connection
 from django.test import SimpleTestCase, TransactionTestCase, override_settings
@@ -12,9 +13,6 @@ from django_tenants.utils import get_tenant_domain_model, get_tenant_model, sche
 from rest_framework.test import APIClient
 
 from sis_common.tests.test_grade_entry import GradeEntryFixture
-
-from apps.emplois_du_temps.models import CreneauCours
-from apps.emplois_du_temps.serializers import CreneauCoursCreateUpdateSerializer
 
 
 class EmploisDuTempsAPITestCase(SimpleTestCase):
@@ -108,29 +106,21 @@ class ConcurrentPlanningTests(TransactionTestCase):
 
     def _concurrent_posts(self, first, second):
         barrier = Barrier(2)
-        validated = local()
-        original_validate = CreneauCoursCreateUpdateSerializer.validate
-
-        def synchronized_validate(serializer, attrs):
-            result = original_validate(serializer, attrs)
-            if not getattr(validated, "passed", False):
-                validated.passed = True
-                barrier.wait(timeout=15)
-            return result
 
         def submit(payload):
             try:
                 client = APIClient(SERVER_NAME="edt-lock.test.com")
                 client.force_authenticate(self.admin)
+                # Validation now holds the occupancy lock; rendezvous before HTTP.
+                barrier.wait(timeout=15)
                 response = client.post("/api/v1/edt/creneaux-cours/", payload, format="json")
                 return response.status_code, response.data
             finally:
                 connection.close()
 
-        with patch.object(CreneauCoursCreateUpdateSerializer, "validate", synchronized_validate):
-            with ThreadPoolExecutor(max_workers=2) as executor:
-                futures = [executor.submit(submit, payload) for payload in (first, second)]
-                return [future.result(timeout=30) for future in futures]
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [executor.submit(submit, payload) for payload in (first, second)]
+            return [future.result(timeout=30) for future in futures]
 
     def test_simultaneous_group_overlap_is_refused_but_independent_or_adjacent_courses_succeed(self):
         first = {**self.payload, "salle": self.rooms[0].pk, "creneau_horaire": self.slots[0].pk, "groupe": "A"}

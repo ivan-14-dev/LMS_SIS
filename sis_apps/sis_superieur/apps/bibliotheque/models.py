@@ -3,6 +3,7 @@
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.event_occupancy import EventOccupancyGuard
 from sis_common.exam_files import validate_exam_copy
 from sis_common.library_files import PrivateLibraryStorage, library_upload_to
 
@@ -142,7 +143,7 @@ class Reservation(models.Model):
         return f"{self.utilisateur} - {self.livre.titre}"
 
 
-class SalleTravail(models.Model):
+class SalleTravail(EventOccupancyGuard, models.Model):
     """Salle de travail en groupe à la BU."""
 
     nom = models.CharField(max_length=100)
@@ -163,7 +164,7 @@ class SalleTravail(models.Model):
         return self.nom
 
 
-class ReservationSalle(models.Model):
+class ReservationSalle(EventOccupancyGuard, models.Model):
     """Réservation d'une salle de travail BU."""
 
     salle = models.ForeignKey(

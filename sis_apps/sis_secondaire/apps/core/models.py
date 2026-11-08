@@ -7,6 +7,7 @@ from django.utils import timezone
 from sis_common.complaint_models import ComplaintAttachmentBase, ComplaintBase, ComplaintEntryBase
 from sis_common.delegation_models import AccessDelegationBase
 from sis_common.erp_correspondence import CorrespondanceBase
+from sis_common.event_models import EventInvitationBase, InstitutionalEventBase
 from sis_common.hierarchy_models import (
     ConfigurationRevisionBase,
     OrganizationAttachmentBase,
@@ -30,6 +31,15 @@ from sis_common.signature_models import (
     SignatureMandateBase,
 )
 from sis_common.survey_models import InstitutionalSurveyBase, SurveyRecipientBase, SurveyResponseBase
+
+
+class InstitutionalEvent(InstitutionalEventBase):
+    etablissement = models.ForeignKey("etablissement.Etablissement", on_delete=models.PROTECT)
+    salle = models.ForeignKey("salles.Salle", on_delete=models.PROTECT, related_name="evenements_institutionnels")
+
+
+class EventInvitation(EventInvitationBase):
+    pass
 
 
 class InstitutionalSurvey(InstitutionalSurveyBase):

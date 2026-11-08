@@ -3,8 +3,10 @@
 from apps.etablissement.models import Etablissement
 from django.db import models
 
+from sis_common.event_occupancy import EventOccupancyGuard
 
-class Salle(models.Model):
+
+class Salle(EventOccupancyGuard, models.Model):
     """Salle de classe / laboratoire / gymnase."""
 
     TYPE_CHOICES = [
@@ -81,7 +83,7 @@ class Equipement(models.Model):
         return f"{self.identifiant} — {self.nom}"
 
 
-class IndisponibiliteSalle(models.Model):
+class IndisponibiliteSalle(EventOccupancyGuard, models.Model):
     """Période de jours entiers pendant laquelle une salle ne peut être planifiée."""
 
     salle = models.ForeignKey(

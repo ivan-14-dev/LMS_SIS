@@ -7,8 +7,10 @@ from apps.ue_ecue.models import UE
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.event_occupancy import EventOccupancyGuard
 
-class Jury(models.Model):
+
+class Jury(EventOccupancyGuard, models.Model):
     """Jury de délibération."""
 
     STATUT_CHOICES = [

@@ -3,6 +3,8 @@
 from apps.eleves.models import Eleve
 from django.db import models
 
+from sis_common.event_occupancy import EventOccupancyGuard
+
 
 class BatimentInternat(models.Model):
     """Bâtiment d'internat."""
@@ -70,7 +72,7 @@ class OccupantChambre(models.Model):
         return f"{self.eleve} - Chambre {self.chambre.numero}"
 
 
-class EtudeSurveillee(models.Model):
+class EtudeSurveillee(EventOccupancyGuard, models.Model):
     """Séance d'étude du soir."""
 
     batiment = models.ForeignKey(

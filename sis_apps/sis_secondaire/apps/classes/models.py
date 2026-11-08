@@ -7,8 +7,10 @@ from apps.utilisateurs.models import Utilisateur
 from django.contrib.postgres.functions import RandomUUID
 from django.db import models
 
+from sis_common.event_occupancy import EventOccupancyGuard
 
-class Classe(models.Model):
+
+class Classe(EventOccupancyGuard, models.Model):
     """Classe d'un établissement (ex: 6e A, Terminale C)."""
 
     integration_id = models.UUIDField(default=uuid.uuid4, db_default=RandomUUID(), editable=False, unique=True)

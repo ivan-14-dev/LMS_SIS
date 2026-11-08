@@ -10,6 +10,7 @@ from apps.utilisateurs.models import Utilisateur
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from sis_common.event_occupancy import EventOccupancyGuard
 from sis_common.exam_files import (
     PrivateExamStorage,
     exam_copy_upload_to,
@@ -48,7 +49,7 @@ class SessionExamen(models.Model):
         return f"{self.nom} - {self.date_debut}"
 
 
-class EpreuveExamen(models.Model):
+class EpreuveExamen(EventOccupancyGuard, models.Model):
     """Épreuve d'examen (1 matière à 1 date)."""
 
     session = models.ForeignKey(SessionExamen, on_delete=models.CASCADE, related_name="epreuves")
@@ -87,7 +88,7 @@ class EpreuveExamen(models.Model):
         return f"{self.session.nom} - {self.matiere} - {self.date}"
 
 
-class ConvocationExamen(models.Model):
+class ConvocationExamen(EventOccupancyGuard, models.Model):
     """Convocation individuelle."""
 
     STATUT_CHOICES = [

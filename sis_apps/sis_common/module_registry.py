@@ -66,6 +66,18 @@ MODULES = {
             default_enabled=False,
         ),
         ModuleManifest(
+            "sis.events",
+            "Agenda institutionnel",
+            "Conférences, examens, réunions, cérémonies et activités privées sur invitation.",
+            False,
+            dependencies=("core.identity", "core.notifications"),
+            permissions=("core.gerer_evenement_institutionnel", "core.consulter_evenement_institutionnel"),
+            api=("core/evenements/",),
+            ui=("evenements",),
+            events=("core.institutionalevent",),
+            default_enabled=False,
+        ),
+        ModuleManifest(
             "sis.surveys",
             "Enquêtes institutionnelles nominatives",
             "Destinataires authentifiés explicitement sélectionnés, réponse unique et résultats privés.",

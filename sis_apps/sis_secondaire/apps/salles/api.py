@@ -5,12 +5,13 @@ from django.db.models import Count
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from sis_common.authorization import is_current_tenant_user
+from sis_common.event_occupancy import occupancy_lock
 from sis_common.workflow_tracking import record_workflow_event
 
 from .models import Equipement, IndisponibiliteSalle, Salle
@@ -166,9 +167,10 @@ class IndisponibilitesSalleViewSet(viewsets.ModelViewSet):
         ).select_related("salle")
 
     def _save_if_room_is_free(self, serializer):
+        occupancy_lock()
         attrs = serializer.validated_data
         salle = attrs.get("salle", getattr(serializer.instance, "salle", None))
-        Salle.objects.select_for_update().get(
+        Salle.objects.select_for_update(no_key=True).get(
             pk=salle.pk, etablissement=self.request.tenant
         )
         debut = attrs.get("date_debut", getattr(serializer.instance, "date_debut", None))

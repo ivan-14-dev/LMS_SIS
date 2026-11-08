@@ -162,6 +162,7 @@ class AnneesScolairesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     @transaction.atomic
     def activer(self, request, pk=None):
         """Active l'année scolaire."""
+        self.lock_event_occupancy()
         type(request.tenant).objects.select_for_update().get(pk=request.tenant.pk)
         annee = self.get_object()
         if annee.cloturee:
@@ -180,6 +181,7 @@ class AnneesScolairesViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     @transaction.atomic
     def cloturer(self, request, pk=None):
         """Clôture l'année scolaire."""
+        self.lock_event_occupancy()
         type(request.tenant).objects.select_for_update().get(pk=request.tenant.pk)
         annee = self.get_object()
         if annee.cloturee:

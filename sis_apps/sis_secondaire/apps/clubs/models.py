@@ -4,8 +4,10 @@ from apps.eleves.models import Eleve
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.event_occupancy import EventOccupancyGuard
 
-class Club(models.Model):
+
+class Club(EventOccupancyGuard, models.Model):
     """Club / activité périscolaire."""
 
     TYPE_CHOICES = [
@@ -63,7 +65,7 @@ class MembreClub(models.Model):
         return f"{self.eleve} - {self.club.nom}"
 
 
-class SeanceClub(models.Model):
+class SeanceClub(EventOccupancyGuard, models.Model):
     """Séance d'un club."""
 
     club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name="seances")

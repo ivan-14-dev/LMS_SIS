@@ -3,6 +3,7 @@
 from django.db import transaction
 from rest_framework import serializers
 
+from sis_common.event_occupancy import occupancy_lock
 from sis_common.serializers import TenantBoundSerializerMixin
 
 from .models import Club, MembreClub, SeanceClub
@@ -68,6 +69,7 @@ class ClubDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSerializ
 
     @transaction.atomic
     def update(self, instance, validated_data):
+        occupancy_lock()
         club = Club.objects.select_for_update().get(pk=instance.pk)
         if (
             "capacite" in validated_data

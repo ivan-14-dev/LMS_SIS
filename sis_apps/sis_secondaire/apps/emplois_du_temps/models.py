@@ -5,8 +5,10 @@ from apps.enseignants.models import Personnel
 from apps.salles.models import Salle
 from django.db import models
 
+from sis_common.event_occupancy import EventOccupancyGuard
 
-class Creneau(models.Model):
+
+class Creneau(EventOccupancyGuard, models.Model):
     """Créneau d'emploi du temps."""
 
     JOUR_CHOICES = [
@@ -65,7 +67,7 @@ class Creneau(models.Model):
         return f"{self.get_jour_display()} {self.heure_debut} - {self.classe}/{self.matiere}"
 
 
-class Contrainte(models.Model):
+class Contrainte(EventOccupancyGuard, models.Model):
     """Contrainte pour la génération d'EDT."""
 
     TYPE_CHOICES = [

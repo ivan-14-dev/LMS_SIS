@@ -289,6 +289,9 @@ class WorkflowNotificationViewSet(mixins.ListModelMixin, viewsets.GenericViewSet
         queryset = WorkflowNotification.objects.filter(recipient=self.request.user).select_related(
             "event", "event__actor"
         )
+        from sis_common.institutional_events import filter_event_notifications
+
+        queryset = filter_event_notifications(self.request, queryset)
         if self.request.query_params.get("non_lues") == "1":
             queryset = queryset.filter(is_read=False)
         return self._apply_delivery_filters(queryset).order_by("-created_at")

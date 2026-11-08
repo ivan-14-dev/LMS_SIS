@@ -1,18 +1,20 @@
 """API views for emplois du temps (SIS Supérieur)."""
 
 from datetime import timedelta
+from types import SimpleNamespace
 
 from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, viewsets
+from rest_framework import filters, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.academic_lifecycle import AcademicLifecycleMixin
 from sis_common.authorization import request_has_business_access
+from sis_common.event_occupancy import local_datetime, room_conflict
 from sis_common.workflow_tracking import record_workflow_event
 
 from .models import Batiment, ConflitHoraire, CreneauCours, CreneauHoraire, Reservation, Salle
@@ -149,6 +151,14 @@ class SalleViewSet(viewsets.ModelViewSet):
         if not all([date, heure_debut, heure_fin]):
             return Response({"error": "date, heure_debut et heure_fin sont requis."}, status=400)
 
+        date = serializers.DateField().run_validation(date)
+        heure_debut = serializers.TimeField().run_validation(heure_debut)
+        heure_fin = serializers.TimeField().run_validation(heure_fin)
+        if heure_fin <= heure_debut:
+            raise serializers.ValidationError({"heure_fin": "La fin doit suivre le début."})
+        interval = SimpleNamespace(
+            pk=None, salle=salle, debut=local_datetime(date, heure_debut), fin=local_datetime(date, heure_fin)
+        )
         # Vérifier réservations
         conflits_reservations = Reservation.objects.filter(salle=salle, date=date, statut="confirmee").filter(
             heure_debut__lt=heure_fin, heure_fin__gt=heure_debut
@@ -156,7 +166,7 @@ class SalleViewSet(viewsets.ModelViewSet):
 
         return Response(
             {
-                "disponible": not conflits_reservations.exists(),
+                "disponible": not room_conflict(interval),
                 "conflits": ReservationListSerializer(conflits_reservations, many=True).data,
             }
         )

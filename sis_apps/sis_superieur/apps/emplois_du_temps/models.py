@@ -8,8 +8,10 @@ from apps.ue_ecue.models import ECUE
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.event_occupancy import EventOccupancyGuard
 
-class Batiment(models.Model):
+
+class Batiment(EventOccupancyGuard, models.Model):
     """Bâtiment du campus."""
 
     nom = models.CharField(max_length=100)
@@ -28,7 +30,7 @@ class Batiment(models.Model):
         return f"{self.code} - {self.nom}"
 
 
-class Salle(models.Model):
+class Salle(EventOccupancyGuard, models.Model):
     """Salle de cours ou de réunion."""
 
     TYPE_CHOICES = [
@@ -72,7 +74,7 @@ class Salle(models.Model):
         return f"{self.code} ({self.batiment.code})"
 
 
-class CreneauHoraire(models.Model):
+class CreneauHoraire(EventOccupancyGuard, models.Model):
     """Créneau horaire type (ex: 8h-10h)."""
 
     heure_debut = models.TimeField()
@@ -93,7 +95,7 @@ class CreneauHoraire(models.Model):
         )
 
 
-class CreneauCours(models.Model):
+class CreneauCours(EventOccupancyGuard, models.Model):
     """Créneau de cours dans l'emploi du temps."""
 
     JOUR_CHOICES = [
@@ -169,7 +171,7 @@ class CreneauCours(models.Model):
         return f"{self.ecue.code} - {self.get_jour_display()} {self.creneau_horaire}"
 
 
-class Reservation(models.Model):
+class Reservation(EventOccupancyGuard, models.Model):
     """Réservation ponctuelle d'une salle."""
 
     STATUT_CHOICES = [

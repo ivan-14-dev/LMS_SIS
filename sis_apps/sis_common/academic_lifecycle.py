@@ -4,6 +4,8 @@ from django.db import connection, transaction
 from django.db.models.deletion import ProtectedError
 from rest_framework.exceptions import ValidationError
 
+from sis_common.event_occupancy import EventOccupancyGuard, occupancy_lock
+
 
 def ensure_academic_open(instance=None, data=None, paths=()):
     periods = {}
@@ -49,22 +51,34 @@ def ensure_academic_open(instance=None, data=None, paths=()):
 class AcademicLifecycleMixin:
     academic_period_paths = ()
 
+    def lock_event_occupancy(self):
+        # These APIs are tenant-bound, including shared academic parents.
+        # Lock before the object/parent rows, not only inside model.save().
+        if issubclass(self.get_queryset().model, EventOccupancyGuard):
+            occupancy_lock()
+
     def get_object(self):
+        writing = connection.in_atomic_block and self.request.method not in ("GET", "HEAD", "OPTIONS")
+        if writing:
+            self.lock_event_occupancy()
         instance = super().get_object()
-        if connection.in_atomic_block and self.request.method not in ("GET", "HEAD", "OPTIONS"):
+        if writing:
             instance = type(instance).objects.select_for_update().get(pk=instance.pk)
         return instance
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
+        self.lock_event_occupancy()
         return super().create(request, *args, **kwargs)
 
     @transaction.atomic
     def update(self, request, *args, **kwargs):
+        self.lock_event_occupancy()
         return super().update(request, *args, **kwargs)
 
     @transaction.atomic
     def destroy(self, request, *args, **kwargs):
+        self.lock_event_occupancy()
         ensure_academic_open(self.get_object(), paths=self.academic_period_paths)
         try:
             return super().destroy(request, *args, **kwargs)
@@ -74,6 +88,8 @@ class AcademicLifecycleMixin:
             ) from error
 
     def save_academic(self, serializer, **kwargs):
+        if connection.in_atomic_block:
+            self.lock_event_occupancy()
         if "" in self.academic_period_paths:
             for field in ("cloturee", "cloture", "en_cours"):
                 if field in serializer.validated_data and serializer.validated_data[field] != getattr(

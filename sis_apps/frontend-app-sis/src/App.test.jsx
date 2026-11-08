@@ -30,6 +30,12 @@ const renderRoute = (path, capabilities) => {
   });
   fetchApi.mockImplementation(async (url) => {
     if (url.endsWith('/capabilities/')) { return capabilities; }
+    if (url.endsWith('/utilisateurs/comptes/me/')) { return { id: 8, etablissement: 3, is_staff: false }; }
+    if (url.endsWith('/core/evenements/capacites/')) {
+      return {
+        can_create: false, can_manage: false, can_consult: true, types: [], statuts: [], notifications: 'internes',
+      };
+    }
     return { count: 0, results: [] };
   });
   return render(
@@ -100,5 +106,25 @@ it.each([
 it.each(['secondaire', 'superieur'])('blocks the direct %s library route without explicit permissions', async variant => {
   renderRoute(`/${variant}/bibliotheque`, { role: 'bibliothecaire', is_staff: true, permissions: [] });
   expect(await screen.findByText(/nécessite une habilitation explicite/)).toBeVisible();
+  expect(fetchApi.mock.calls.every(([url]) => url.endsWith('/capabilities/'))).toBe(true);
+});
+
+it.each(['secondaire', 'superieur'])('mounts the explicit %s event route for an authorized nonstaff participant', async variant => {
+  renderRoute(`/${variant}/evenements`, {
+    role: 'parent',
+    is_staff: false,
+    permissions: ['core.consulter_evenement_institutionnel'],
+    modules: { 'sis.events': true },
+    portals: { staff: false },
+  });
+  expect(await screen.findByRole('heading', { name: 'Événements institutionnels', level: 1 })).toBeVisible();
+  await screen.findByText('Aucun événement accessible pendant cette période.');
+  expect(fetchApi.mock.calls.some(([url]) => url.startsWith(`https://${variant}.example.test/api/v1/core/evenements/?`))).toBe(true);
+  expect(fetchApi.mock.calls.every(([url]) => !url.includes('/portail/'))).toBe(true);
+});
+
+it.each(['secondaire', 'superieur'])('guards the direct %s event route when its module is not activated', async variant => {
+  renderRoute(`/${variant}/evenements`, { role: 'direction', permissions: ['*'], modules: {} });
+  expect(await screen.findByText('Le module Événements institutionnels est désactivé ou indisponible.')).toBeVisible();
   expect(fetchApi.mock.calls.every(([url]) => url.endsWith('/capabilities/'))).toBe(true);
 });

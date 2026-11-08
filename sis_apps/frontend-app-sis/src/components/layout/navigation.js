@@ -58,7 +58,7 @@ export const workspaceKind = (capabilities) => {
 };
 
 export const canAccessModule = (item, capabilities) => Boolean(capabilities
-  && (!item.module || (['sis.projects', 'sis.surveys'].includes(item.module)
+  && (!item.module || (['sis.projects', 'sis.surveys', 'sis.events'].includes(item.module)
     ? capabilities.modules?.[item.module] === true
     : capabilities.modules?.[item.module] !== false)) && (
   item.public
@@ -248,6 +248,14 @@ const administrativeModules = (variant) => {
 export const getNavigation = (type, variant, capabilities, search = '') => {
   const kind = workspaceKind(capabilities);
   const personalItems = [];
+  personalItems.push({
+    path: `/${variant}/evenements`,
+    label: 'Événements institutionnels',
+    icon: CalendarMonth,
+    module: 'sis.events',
+    permission: 'core.consulter_evenement_institutionnel',
+    alternatePermissions: ['core.gerer_evenement_institutionnel'],
+  });
   if (capabilities?.modules?.['sis.surveys'] === true) {
     personalItems.push({
       path: `/${variant}/portail-enquetes`,
@@ -370,7 +378,7 @@ export const getWorkspaceGroups = (sections, kind) => {
       id: 'documents', label: 'Mes documents', icon: Description, paths: ['documents'],
     },
     {
-      id: 'demarches', label: 'Mes démarches', icon: Assignment, paths: ['portail-enquetes', 'projets', 'missions', 'reclamations'],
+      id: 'demarches', label: 'Mes démarches', icon: Assignment, paths: ['evenements', 'portail-enquetes', 'projets', 'missions', 'reclamations'],
     },
     {
       id: 'suivi', label: 'Notifications', icon: EventNote, paths: ['workflows'],
@@ -386,7 +394,7 @@ export const getWorkspaceGroups = (sections, kind) => {
       id: 'pedagogie', label: 'Pédagogie', icon: Book, paths: ['portail-staff', 'portail-enquetes', 'projets', 'evaluations', 'notes', 'examens', 'jurys', 'conseil-classe', 'emploi-du-temps', 'memoires', 'recherche'],
     },
     {
-      id: 'vie', label: 'Vie de l’établissement', icon: Groups, paths: ['presences', 'discipline', 'cantine', 'transport', 'internat', 'infirmerie', 'clubs', 'bourses', 'stages', 'mobilite', 'bibliotheque', 'paiements'],
+      id: 'vie', label: 'Vie de l’établissement', icon: Groups, paths: ['evenements', 'presences', 'discipline', 'cantine', 'transport', 'internat', 'infirmerie', 'clubs', 'bourses', 'stages', 'mobilite', 'bibliotheque', 'paiements'],
     },
     {
       id: 'documents', label: 'Documents', icon: Description, paths: ['bulletins', 'releves', 'diplomes', 'signatures', 'archives'],

@@ -1,5 +1,7 @@
 """API views for emplois_du_temps (ViewSets DRF) - SIS Secondaire."""
 
+from apps.salles.models import Salle
+from apps.salles.services import salle_indisponible_pour_creneau
 from django.db import transaction
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
@@ -11,10 +13,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.authorization import is_current_tenant_user, request_has_business_access
+from sis_common.event_occupancy import occupancy_lock
 from sis_common.hierarchy_attachments import PreserveOrganizationAttachmentsMixin
-
-from apps.salles.models import Salle
-from apps.salles.services import salle_indisponible_pour_creneau
 
 from .models import Contrainte, Creneau
 from .serializers import ContrainteSerializer, CreneauDetailSerializer, CreneauListSerializer
@@ -76,6 +76,7 @@ class CreneauxViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSe
         return CreneauDetailSerializer
 
     def _save_if_room_is_available(self, serializer):
+        occupancy_lock()
         attrs = serializer.validated_data
         creneau = Creneau()
         for field in ("classe", "salle", "jour", "date_specifique", "actif"):
@@ -84,7 +85,7 @@ class CreneauxViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSe
             elif serializer.instance is not None:
                 setattr(creneau, field, getattr(serializer.instance, field))
         if creneau.salle_id and creneau.actif:
-            Salle.objects.select_for_update().get(
+            Salle.objects.select_for_update(no_key=True).get(
                 pk=creneau.salle_id, etablissement=self.request.tenant
             )
             if salle_indisponible_pour_creneau(creneau):

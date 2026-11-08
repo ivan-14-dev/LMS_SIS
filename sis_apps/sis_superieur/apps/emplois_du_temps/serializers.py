@@ -1,13 +1,13 @@
 """Serializers for emplois du temps (SIS Supérieur)."""
 
-from django.db import connection
-from django.db.models import Q
-from django.db import transaction
-from rest_framework import serializers
-
 from apps.enseignants.models import EnseignantChercheur
 from apps.formations.models import Formation
+from django.db import connection, transaction
+from django.db.models import Q
+from rest_framework import serializers
+
 from sis_common.academic_lifecycle import ensure_academic_open
+from sis_common.event_occupancy import occupancy_lock
 
 from .models import Batiment, ConflitHoraire, CreneauCours, CreneauHoraire, Reservation, Salle
 
@@ -181,16 +181,23 @@ class CreneauCoursCreateUpdateSerializer(serializers.ModelSerializer):
             previous_id = getattr(self.instance, f"{field}_id", None)
             current = attrs.get(field, getattr(self.instance, field, None))
             ids = {previous_id, getattr(current, "pk", None)} - {None}
-            list(model.objects.filter(pk__in=ids).order_by("pk").select_for_update().values_list("pk", flat=True))
+            list(
+                model.objects.filter(pk__in=ids)
+                .order_by("pk")
+                .select_for_update(no_key=model is Salle)
+                .values_list("pk", flat=True)
+            )
 
     @transaction.atomic
     def create(self, validated_data):
+        occupancy_lock()
         self._lock_conflict_scopes(validated_data)
         self.validate(validated_data)
         return super().create(validated_data)
 
     @transaction.atomic
     def update(self, instance, validated_data):
+        occupancy_lock()
         CreneauCours.objects.select_for_update(no_key=True).only("pk").get(pk=instance.pk)
         instance.refresh_from_db()
         self._lock_conflict_scopes(validated_data)
@@ -217,6 +224,8 @@ class CreneauCoursCreateUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
+        if connection.in_atomic_block:
+            occupancy_lock()
         instance = self.instance
 
         def value(field):
@@ -344,7 +353,8 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         heure_debut = attrs.get("heure_debut", getattr(self.instance, "heure_debut", None))
         heure_fin = attrs.get("heure_fin", getattr(self.instance, "heure_fin", None))
         if connection.in_atomic_block:
-            salle = Salle.objects.select_for_update().get(pk=salle.pk)
+            occupancy_lock()
+            salle = Salle.objects.select_for_update(no_key=True).get(pk=salle.pk)
         if not salle.disponible:
             raise serializers.ValidationError({"salle": "Cette salle n'est pas disponible."})
 

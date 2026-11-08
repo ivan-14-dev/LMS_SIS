@@ -6,6 +6,8 @@ from apps.formations.models import Formation
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.event_occupancy import EventOccupancyGuard
+
 
 class SujetMemoire(models.Model):
     """Sujet de mémoire proposé par un enseignant."""
@@ -118,7 +120,7 @@ class JuryMemoire(models.Model):
         return f"Jury mémoire {self.memoire}"
 
 
-class SoutenanceMemoire(models.Model):
+class SoutenanceMemoire(EventOccupancyGuard, models.Model):
     """Soutenance d'un mémoire."""
 
     STATUT_CHOICES = [
