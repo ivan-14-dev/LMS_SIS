@@ -6,9 +6,10 @@ from apps.core.healthcheck import ready as readiness_check
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from sis_common.digital_library import library_media
 from sis_common.views import csrf_token
 
 urlpatterns = [
@@ -17,13 +18,12 @@ urlpatterns = [
     path("ready/", readiness_check, name="readiness-check"),
     path("metrics/", metrics, name="metrics"),
     path("csrf/api/v1/token", csrf_token, name="csrf-token"),
+    re_path(r"^media/(?P<path>.*)$", library_media, name="library-legacy-media"),
     # Admin
     path("admin/", admin.site.urls),
     path("api/v1/", include("config.api_urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path(
-        "api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger"
-    ),
+    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger"),
     # Portails
     path("", include("apps.portail_eleve.urls")),
     path("comptes/", include("apps.utilisateurs.urls")),

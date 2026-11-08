@@ -3,6 +3,9 @@
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.exam_files import validate_exam_copy
+from sis_common.library_files import PrivateLibraryStorage, library_upload_to
+
 
 class Livre(models.Model):
     """Référence d'un livre / document."""
@@ -21,12 +24,18 @@ class Livre(models.Model):
     cote = models.CharField(max_length=50, blank=True, help_text="Ex: 004.123 DUP")
     nombre_exemplaires = models.PositiveIntegerField(default=1)
     ressource_numerique = models.FileField(
-        upload_to="bibliotheque/numerique/", null=True, blank=True
+        storage=PrivateLibraryStorage(),
+        upload_to=library_upload_to,
+        validators=[validate_exam_copy],
+        max_length=255,
+        null=True,
+        blank=True,
     )
+    licence_active = models.BooleanField(default=False)
+    licence_reference = models.CharField(max_length=1000, blank=True)
+    licence_expire_le = models.DateField(null=True, blank=True)
     url_externe = models.URLField(blank=True, help_text="Pour ebooks externes")
-    base_donnees = models.CharField(
-        max_length=200, blank=True, help_text="Ex: ScienceDirect, JSTOR"
-    )
+    base_donnees = models.CharField(max_length=200, blank=True, help_text="Ex: ScienceDirect, JSTOR")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -34,6 +43,7 @@ class Livre(models.Model):
         verbose_name = "Livre"
         verbose_name_plural = "Livres"
         ordering = ["titre"]
+        permissions = [("consulter_ressource_numerique", "Consulter une ressource numérique sous licence")]
 
     def __str__(self):
         return f"{self.titre} - {self.auteurs}"

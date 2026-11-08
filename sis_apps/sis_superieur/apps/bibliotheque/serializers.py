@@ -2,8 +2,11 @@
 
 from rest_framework import serializers
 
-from .models import Emprunt, Exemplaire, Livre, Reservation
+from sis_common.authorization import is_current_tenant_user
+from sis_common.digital_library import DigitalLibrarySerializerMixin, LibraryFileField
+from sis_common.exam_files import validate_exam_copy
 
+from .models import Emprunt, Exemplaire, Livre, Reservation
 
 STATUTS_EMPRUNT_ACTIF = ("en_cours", "renouvele")
 STATUTS_EMPRUNT_OCCUPANT = (*STATUTS_EMPRUNT_ACTIF, "en_retard", "perdu")
@@ -18,9 +21,17 @@ def exemplaires_disponibles(livre):
     )
 
 
-def exemplaires_empruntables(livre):
-    en_attente = livre.reservations.filter(statut__in=("en_attente", "disponible")).count()
-    return max(0, exemplaires_disponibles(livre) - en_attente)
+def exemplaires_empruntables(livre, request=None):
+    reservations = livre.reservations.filter(statut__in=("en_attente", "disponible"))
+    disponibles = exemplaires_disponibles(livre)
+    accessibles = max(0, disponibles - reservations.count())
+    if disponibles and request is not None and is_current_tenant_user(request):
+        premiere = reservations.order_by("date_reservation", "pk").first()
+        if premiere and premiere.utilisateur_id == request.user.pk:
+            accessibles += 1
+        elif reservations.filter(utilisateur=request.user).exists():
+            return 0
+    return accessibles
 
 
 class ReservationClaimSerializer(serializers.Serializer):
@@ -31,10 +42,12 @@ class ReservationRemiseSerializer(serializers.Serializer):
     exemplaire = serializers.PrimaryKeyRelatedField(queryset=Exemplaire.objects.all())
 
 
-class LivreListSerializer(serializers.ModelSerializer):
+class LivreListSerializer(DigitalLibrarySerializerMixin, serializers.ModelSerializer):
     """Serializer léger pour les listes de livres."""
 
     nb_exemplaires_disponibles = serializers.SerializerMethodField()
+    peut_consulter_ressource = serializers.SerializerMethodField()
+    ressource_numerique = LibraryFileField(read_only=True)
 
     class Meta:
         model = Livre
@@ -50,17 +63,24 @@ class LivreListSerializer(serializers.ModelSerializer):
             "nombre_exemplaires",
             "nb_exemplaires_disponibles",
             "image_couverture",
+            "ressource_numerique",
+            "peut_consulter_ressource",
+            "licence_active",
+            "licence_reference",
+            "licence_expire_le",
         ]
 
     def get_nb_exemplaires_disponibles(self, obj):
-        return exemplaires_empruntables(obj)
+        return exemplaires_empruntables(obj, self.context.get("request"))
 
 
-class LivreDetailSerializer(serializers.ModelSerializer):
+class LivreDetailSerializer(DigitalLibrarySerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour un livre."""
 
     nb_exemplaires_disponibles = serializers.SerializerMethodField()
     nb_reservations = serializers.SerializerMethodField()
+    peut_consulter_ressource = serializers.SerializerMethodField()
+    ressource_numerique = LibraryFileField(required=False, allow_null=True, validators=[validate_exam_copy])
 
     class Meta:
         model = Livre
@@ -81,6 +101,10 @@ class LivreDetailSerializer(serializers.ModelSerializer):
             "nombre_exemplaires",
             "nb_exemplaires_disponibles",
             "ressource_numerique",
+            "peut_consulter_ressource",
+            "licence_active",
+            "licence_reference",
+            "licence_expire_le",
             "url_externe",
             "base_donnees",
             "nb_reservations",
@@ -90,7 +114,7 @@ class LivreDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def get_nb_exemplaires_disponibles(self, obj):
-        return exemplaires_empruntables(obj)
+        return exemplaires_empruntables(obj, self.context.get("request"))
 
     def get_nb_reservations(self, obj):
         return obj.reservations.filter(statut="en_attente").count()
@@ -124,7 +148,7 @@ class ExemplaireSerializer(serializers.ModelSerializer):
         return (
             obj.etat not in ("perdu", "détérioré")
             and not obj.emprunts.filter(statut__in=STATUTS_EMPRUNT_OCCUPANT).exists()
-            and exemplaires_empruntables(obj.livre) > 0
+            and exemplaires_empruntables(obj.livre, self.context.get("request")) > 0
         )
 
 
@@ -159,6 +183,11 @@ class EmpruntSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+        extra_kwargs = {
+            "emprunteur": {"required": False},
+            "date_emprunt": {"required": False},
+            "date_retour_prevue": {"required": False},
+        }
 
     def get_jours_retard(self, obj):
         if obj.statut in STATUTS_EMPRUNT_ACTIF and obj.date_retour_prevue:

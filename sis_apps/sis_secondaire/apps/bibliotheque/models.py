@@ -3,6 +3,9 @@
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.exam_files import validate_exam_copy
+from sis_common.library_files import PrivateLibraryStorage, library_upload_to
+
 
 class Livre(models.Model):
     """Référence d'un livre."""
@@ -18,12 +21,24 @@ class Livre(models.Model):
     image_couverture = models.URLField(blank=True)
     cote = models.CharField(max_length=50, blank=True)
     nombre_exemplaires = models.PositiveIntegerField(default=1)
+    ressource_numerique = models.FileField(
+        storage=PrivateLibraryStorage(),
+        upload_to=library_upload_to,
+        validators=[validate_exam_copy],
+        max_length=255,
+        null=True,
+        blank=True,
+    )
+    licence_active = models.BooleanField(default=False)
+    licence_reference = models.CharField(max_length=1000, blank=True)
+    licence_expire_le = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "Livre"
         verbose_name_plural = "Livres"
         ordering = ["titre"]
+        permissions = [("consulter_ressource_numerique", "Consulter une ressource numérique sous licence")]
 
     def __str__(self):
         return f"{self.titre} - {self.auteurs}"

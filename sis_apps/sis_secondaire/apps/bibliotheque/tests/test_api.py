@@ -2,14 +2,13 @@
 
 from datetime import timedelta
 
+from apps.bibliotheque.models import Emprunt, Exemplaire, Livre, Reservation
+from apps.integration.tests.tenant_test_case import TenantAPITestCase
+from apps.utilisateurs.models import Utilisateur
 from django.test import SimpleTestCase
 from django.urls import resolve
 from django.utils import timezone
 from django_tenants.utils import schema_context
-
-from apps.bibliotheque.models import Emprunt, Exemplaire, Livre, Reservation
-from apps.integration.tests.tenant_test_case import TenantAPITestCase
-from apps.utilisateurs.models import Utilisateur
 
 
 class BibliothequeAPITestCase(SimpleTestCase):
@@ -161,9 +160,7 @@ class EmpruntTenantAPITestCase(TenantAPITestCase):
         assert self.client.get(f"{self.url}en_retard/").data == []
         assert self.client.post(f"{self.url}{foreign_loan.pk}/retourner/").status_code == 404
         assert self.client.post(f"{self.url}{foreign_loan.pk}/renouveler/").status_code == 404
-        assert self.client.patch(
-            loan_url, {"emprunteur": foreign_reader.pk}, format="json"
-        ).status_code == 400
+        assert self.client.patch(loan_url, {"emprunteur": foreign_reader.pk}, format="json").status_code == 405
         foreign_loan.refresh_from_db()
         assert foreign_loan.statut == "en_cours"
         assert self.client.post(f"{loan_url}retourner/").status_code == 200

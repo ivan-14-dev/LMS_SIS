@@ -2,14 +2,29 @@
 
 from rest_framework import serializers
 
+from sis_common.authorization import is_current_tenant_user
+from sis_common.digital_library import DigitalLibrarySerializerMixin, LibraryFileField
+from sis_common.exam_files import validate_exam_copy
+
 from .models import Emprunt, Exemplaire, Livre, Reservation
 
 
-class LivreListSerializer(serializers.ModelSerializer):
+def reservation_prioritaire(livre, request):
+    premiere = (
+        livre.reservations.filter(statut__in=("en_attente", "disponible")).order_by("date_reservation", "pk").first()
+    )
+    return premiere is None or bool(
+        request is not None and is_current_tenant_user(request) and premiere.utilisateur_id == request.user.pk
+    )
+
+
+class LivreListSerializer(DigitalLibrarySerializerMixin, serializers.ModelSerializer):
     """Serializer léger pour les listes de livres."""
 
     nb_exemplaires = serializers.SerializerMethodField()
     disponibles = serializers.SerializerMethodField()
+    peut_consulter_ressource = serializers.SerializerMethodField()
+    ressource_numerique = LibraryFileField(read_only=True)
 
     class Meta:
         model = Livre
@@ -24,23 +39,32 @@ class LivreListSerializer(serializers.ModelSerializer):
             "cote",
             "nb_exemplaires",
             "disponibles",
+            "ressource_numerique",
+            "peut_consulter_ressource",
+            "licence_active",
+            "licence_reference",
+            "licence_expire_le",
         ]
 
     def get_nb_exemplaires(self, obj):
         return obj.exemplaires.exclude(etat="perdu").count()
 
     def get_disponibles(self, obj):
+        if not reservation_prioritaire(obj, self.context.get("request")):
+            return 0
         return (
             obj.exemplaires.filter(etat__in=("neuf", "bon", "use"))
-            .exclude(emprunts__statut__in=("en_cours", "en_retard"))
+            .exclude(emprunts__statut__in=("en_cours", "en_retard", "perdu"))
             .count()
         )
 
 
-class LivreDetailSerializer(serializers.ModelSerializer):
+class LivreDetailSerializer(DigitalLibrarySerializerMixin, serializers.ModelSerializer):
     """Serializer complet pour un livre."""
 
     exemplaires = serializers.SerializerMethodField()
+    peut_consulter_ressource = serializers.SerializerMethodField()
+    ressource_numerique = LibraryFileField(required=False, allow_null=True, validators=[validate_exam_copy])
 
     class Meta:
         model = Livre
@@ -58,12 +82,17 @@ class LivreDetailSerializer(serializers.ModelSerializer):
             "cote",
             "nombre_exemplaires",
             "exemplaires",
+            "ressource_numerique",
+            "peut_consulter_ressource",
+            "licence_active",
+            "licence_reference",
+            "licence_expire_le",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
 
     def get_exemplaires(self, obj):
-        return ExemplaireSerializer(obj.exemplaires.all(), many=True).data
+        return ExemplaireSerializer(obj.exemplaires.all(), many=True, context=self.context).data
 
 
 class ExemplaireSerializer(serializers.ModelSerializer):
@@ -90,9 +119,11 @@ class ExemplaireSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def get_disponible(self, obj):
-        return obj.etat in ("neuf", "bon", "use") and not obj.emprunts.filter(
-            statut__in=("en_cours", "en_retard")
-        ).exists()
+        return (
+            obj.etat in ("neuf", "bon", "use")
+            and not obj.emprunts.filter(statut__in=("en_cours", "en_retard", "perdu")).exists()
+            and reservation_prioritaire(obj.livre, self.context.get("request"))
+        )
 
 
 class EmpruntSerializer(serializers.ModelSerializer):
@@ -128,6 +159,11 @@ class EmpruntSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+        extra_kwargs = {
+            "emprunteur": {"required": False},
+            "date_emprunt": {"required": False},
+            "date_retour_prevue": {"required": False},
+        }
 
     def validate_emprunteur(self, value):
         tenant = getattr(self.context.get("request"), "tenant", None)

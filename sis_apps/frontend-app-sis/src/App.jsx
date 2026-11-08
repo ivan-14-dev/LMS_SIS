@@ -139,7 +139,7 @@ const App = () => (
             <Route path="stages" element={<StagesPage />} />
             <Route path="memoires" element={<MemoiresPage />} />
             <Route path="mobilite" element={<MobilitePage />} />
-            <Route path="bibliotheque" element={<BibliothequePage />} />
+            <Route path="bibliotheque" element={<BibliothequePage variant="superieur" />} />
 
             {/* Personnel */}
             <Route path="enseignants" element={<EnseignantsPage />} />
@@ -209,6 +209,7 @@ const App = () => (
             <Route path="emploi-du-temps" element={<EmploiDuTempsSecondairePage />} />
 
             {/* Services */}
+            <Route path="bibliotheque" element={<BibliothequePage variant="secondaire" />} />
             <Route path="cantine" element={<CantinePage />} />
             <Route path="transport" element={<TransportPage />} />
             <Route path="infirmerie" element={<InfirmeriePage />} />

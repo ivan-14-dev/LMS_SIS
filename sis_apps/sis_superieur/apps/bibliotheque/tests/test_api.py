@@ -287,7 +287,7 @@ class ReservationLivreAPITestCase(TenantAPITestCase):
         assert last.status_code == 200, last.data
         assert Emprunt.objects.get(pk=last.data["emprunt"]).emprunteur_id == self.autre.pk
 
-    def test_claim_rejects_unusable_or_available_stock(self):
+    def test_claim_rejects_unusable_stock_and_reserves_available_copy(self):
         self.exemplaire.etat = "perdu"
         self.exemplaire.save(update_fields=["etat"])
         assert self._reclamer().status_code == 400
@@ -295,26 +295,35 @@ class ReservationLivreAPITestCase(TenantAPITestCase):
         self.exemplaire.etat = "bon"
         self.exemplaire.save(update_fields=["etat"])
         self.client.force_authenticate(self.bibliothecaire)
-        assert self.client.post(
-            f"{self.base}emprunts/{self.emprunt.pk}/rendre/"
-        ).status_code == 200
+        assert self.client.post(f"{self.base}emprunts/{self.emprunt.pk}/rendre/").status_code == 200
         self.client.force_authenticate(self.lecteur)
-        assert self._reclamer().status_code == 400
-        assert not Reservation.objects.exists()
+        claimed = self._reclamer()
+        assert claimed.status_code == 201, claimed.data
+        assert Reservation.objects.get(pk=claimed.data["id"]).statut == "disponible"
         self.client.force_authenticate(self.bibliothecaire)
         loan = self.client.post(
             f"{self.base}emprunts/",
-            {"exemplaire": self.exemplaire.pk, "emprunteur": self.lecteur.pk,
-             "date_emprunt": str(self.today),
-             "date_retour_prevue": str(self.today + timedelta(days=21))},
+            {
+                "exemplaire": self.exemplaire.pk,
+                "emprunteur": self.lecteur.pk,
+                "date_emprunt": str(self.today),
+                "date_retour_prevue": str(self.today + timedelta(days=21)),
+            },
         )
         assert loan.status_code == 201, loan.data
-        assert self.client.post(
-            f"{self.base}emprunts/",
-            {"exemplaire": self.exemplaire.pk, "emprunteur": self.autre.pk,
-             "date_emprunt": str(self.today),
-             "date_retour_prevue": str(self.today + timedelta(days=21))},
-        ).status_code == 400
+        assert Reservation.objects.get(pk=claimed.data["id"]).statut == "recuperee"
+        assert (
+            self.client.post(
+                f"{self.base}emprunts/",
+                {
+                    "exemplaire": self.exemplaire.pk,
+                    "emprunteur": self.autre.pk,
+                    "date_emprunt": str(self.today),
+                    "date_retour_prevue": str(self.today + timedelta(days=21)),
+                },
+            ).status_code
+            == 400
+        )
 
     def test_overdue_loan_occupies_copy_and_can_be_returned_for_a_hold(self):
         self.emprunt.statut = "en_retard"

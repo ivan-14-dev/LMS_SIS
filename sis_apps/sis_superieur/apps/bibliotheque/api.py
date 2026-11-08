@@ -14,10 +14,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.authorization import is_current_tenant_user, request_has_business_access
+from sis_common.digital_library import DigitalLibraryViewSetMixin, library_permission
 from sis_common.hierarchy_attachments import PreserveOrganizationAttachmentsMixin
 
 from .models import Emprunt, Exemplaire, Livre, Reservation
 from .serializers import (
+    STATUTS_EMPRUNT_ACTIF,
+    STATUTS_EMPRUNT_OCCUPANT,
     EmpruntSerializer,
     ExemplaireSerializer,
     LivreDetailSerializer,
@@ -25,8 +28,6 @@ from .serializers import (
     ReservationClaimSerializer,
     ReservationRemiseSerializer,
     ReservationSerializer,
-    STATUTS_EMPRUNT_ACTIF,
-    STATUTS_EMPRUNT_OCCUPANT,
     exemplaires_disponibles,
     exemplaires_empruntables,
 )
@@ -41,13 +42,25 @@ def _local_user(request):
 
 def _bibliothecaire(request):
     _local_user(request)
-    if not (
+    if not _can_manage_library(request):
+        raise PermissionDenied("Bibliothécaire requis.")
+
+
+def _can_manage_library(request):
+    return is_current_tenant_user(request) and (
         request.user.is_staff
         or request_has_business_access(
             request, "bibliotheque.change_livre", ("bibliothecaire", "responsable_bibliotheque")
         )
+    )
+
+
+def _authorize_loan(request, emprunt):
+    if not _can_manage_library(request) and not (
+        emprunt.emprunteur_id == request.user.pk
+        and library_permission(request, "bibliotheque.change_emprunt", emprunt.exemplaire.livre)
     ):
-        raise PermissionDenied("Bibliothécaire requis.")
+        raise PermissionDenied("Modification de cet emprunt non autorisée.")
 
 
 def _reclamer(livre, request):
@@ -64,11 +77,17 @@ def _reclamer(livre, request):
     ).exists():
         raise ValidationError({"livre": "Livre déjà emprunté."})
     reservations = Reservation.objects.filter(livre=livre, statut__in=STATUTS_RESERVATION_ACTIVE)
-    if exemplaires_disponibles(livre) > reservations.count():
-        raise ValidationError({"livre": "Un exemplaire est disponible pour un emprunt direct."})
-    reservation = Reservation.objects.create(livre=livre, utilisateur=request.user)
+    disponible = exemplaires_disponibles(livre) > reservations.count()
+    reservation = Reservation.objects.create(
+        livre=livre, utilisateur=request.user, statut="disponible" if disponible else "en_attente"
+    )
     return Response(
-        {"detail": "Réservation enregistrée.", "id": reservation.pk, "position": reservations.count()},
+        {
+            "detail": "Réservation enregistrée.",
+            "id": reservation.pk,
+            "position": reservations.count(),
+            "statut": reservation.statut,
+        },
         status=status.HTTP_201_CREATED,
     )
 
@@ -79,17 +98,18 @@ class IsBibliothecaireOrReadOnly(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
+        if not is_current_tenant_user(request):
+            return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        return is_current_tenant_user(request) and (
-            request.user.is_staff
-            or request_has_business_access(
-                request, "bibliotheque.change_livre", ("bibliothecaire", "responsable_bibliotheque")
-            )
-        )
+        if view.basename == "emprunt" and view.action in ("create", "rendre", "renouveler"):
+            permission = "add_emprunt" if view.action == "create" else "change_emprunt"
+            if request.user.has_perm(f"bibliotheque.{permission}"):
+                return True
+        return _can_manage_library(request)
 
 
-class LivresViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSet):
+class LivresViewSet(DigitalLibraryViewSetMixin, PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour livres."""
 
     permission_classes = [IsAuthenticated]
@@ -100,11 +120,14 @@ class LivresViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSet)
     ordering = ["titre"]
 
     def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy", "numerique"):
+            return super().get_permissions()
         if self.action != "reserver":
             return [IsBibliothecaireOrReadOnly()]
         return super().get_permissions()
 
     def get_queryset(self):
+        _local_user(self.request)
         return Livre.objects.all()
 
     def get_serializer_class(self):
@@ -117,7 +140,7 @@ class LivresViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSet)
         """Liste les exemplaires du livre."""
         livre = self.get_object()
         exemplaires = livre.exemplaires.all().order_by("code_barre")
-        serializer = ExemplaireSerializer(exemplaires, many=True)
+        serializer = ExemplaireSerializer(exemplaires, many=True, context=self.get_serializer_context())
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
@@ -132,9 +155,13 @@ class LivresViewSet(PreserveOrganizationAttachmentsMixin, viewsets.ModelViewSet)
 
     @transaction.atomic
     def perform_destroy(self, instance):
+        if not library_permission(self.request, "bibliotheque.change_livre", instance):
+            raise PermissionDenied("Le droit explicite de modifier ce livre est requis.")
         Livre.objects.select_for_update().get(pk=instance.pk)
         if instance.reservations.exists():
             raise ValidationError("Le titre possède un historique de réservations.")
+        if Emprunt.objects.filter(exemplaire__livre=instance).exists():
+            raise ValidationError("Le titre possède un historique d'emprunts.")
         instance.delete()
 
 
@@ -149,6 +176,7 @@ class ExemplairesViewSet(viewsets.ModelViewSet):
     ordering = ["code_barre"]
 
     def get_queryset(self):
+        _local_user(self.request)
         return Exemplaire.objects.select_related("livre")
 
     @transaction.atomic
@@ -159,6 +187,14 @@ class ExemplairesViewSet(viewsets.ModelViewSet):
         if nouveau_livre and nouveau_livre.pk != instance.livre_id and instance.emprunts.exists():
             raise ValidationError({"livre": "Un exemplaire emprunté ne peut changer de titre."})
         serializer.save()
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        Livre.objects.select_for_update().get(pk=instance.livre_id)
+        instance = Exemplaire.objects.select_for_update().get(pk=instance.pk)
+        if instance.emprunts.exists():
+            raise ValidationError("L'exemplaire possède un historique d'emprunts.")
+        instance.delete()
 
 
 class EmpruntsViewSet(viewsets.ModelViewSet):
@@ -183,38 +219,47 @@ class EmpruntsViewSet(viewsets.ModelViewSet):
             )
         ):
             qs = qs.filter(emprunteur=user)
-        if self.action in ("rendre", "renouveler"):
-            qs = qs.select_for_update(of=("self",))
         return qs
 
     @transaction.atomic
     def perform_create(self, serializer):
-        _bibliothecaire(self.request)
-        if set(serializer.validated_data) - {
-            "exemplaire", "emprunteur", "date_emprunt", "date_retour_prevue"
-        }:
+        _local_user(self.request)
+        if set(serializer.validated_data) - {"exemplaire", "emprunteur", "date_emprunt", "date_retour_prevue"}:
             raise ValidationError("Le statut et les résultats de l'emprunt ne sont pas modifiables.")
         exemplaire = serializer.validated_data["exemplaire"]
-        emprunteur = serializer.validated_data["emprunteur"]
+        emprunteur = serializer.validated_data.get("emprunteur", self.request.user)
         if emprunteur.etablissement_id != self.request.tenant.pk:
             raise ValidationError({"emprunteur": "Compte hors établissement."})
         livre = Livre.objects.select_for_update().get(pk=exemplaire.livre_id)
         exemplaire = Exemplaire.objects.select_for_update().get(pk=exemplaire.pk)
+        manager = _can_manage_library(self.request)
+        if not manager and not (
+            emprunteur.pk == self.request.user.pk
+            and library_permission(self.request, "bibliotheque.add_emprunt", livre)
+        ):
+            raise PermissionDenied("Seul un prêt personnel explicitement autorisé peut être créé.")
         if exemplaire.livre_id != livre.pk or exemplaire.etat in ("perdu", "détérioré"):
             raise ValidationError({"exemplaire": "Exemplaire indisponible."})
         if Emprunt.objects.filter(exemplaire=exemplaire, statut__in=STATUTS_EMPRUNT_OCCUPANT).exists():
             raise ValidationError({"exemplaire": "Exemplaire déjà emprunté."})
         reservations = Reservation.objects.filter(livre=livre, statut__in=STATUTS_RESERVATION_ACTIVE)
-        if reservations.filter(utilisateur=emprunteur).exists() or (
-            exemplaires_disponibles(livre) <= reservations.count()
-        ):
+        own_reservation = reservations.filter(utilisateur=emprunteur).order_by("date_reservation", "pk").first()
+        first = reservations.order_by("date_reservation", "pk").first()
+        if own_reservation and own_reservation.pk != first.pk:
+            raise ValidationError({"exemplaire": "Une réservation antérieure est prioritaire."})
+        if own_reservation is None and exemplaires_disponibles(livre) <= reservations.count():
             raise ValidationError({"exemplaire": "Exemplaire réservé ; utiliser la remise de réservation."})
-        # Définir la date de retour prévue (21 jours par défaut)
-        if not serializer.validated_data.get("date_retour_prevue"):
-            serializer.validated_data["date_retour_prevue"] = (
-                timezone.now().date() + timedelta(days=21)
-            )
-        serializer.save()
+        today = timezone.localdate()
+        start = serializer.validated_data.get("date_emprunt", today)
+        end = serializer.validated_data.get("date_retour_prevue", today + timedelta(days=21))
+        if not manager and (start != today or end != today + timedelta(days=21)):
+            raise ValidationError("Les dates d'un prêt personnel sont fixées par la bibliothèque.")
+        if end <= start or end <= today or start > today:
+            raise ValidationError("Dates d'emprunt incohérentes.")
+        serializer.save(emprunteur=emprunteur, date_emprunt=start, date_retour_prevue=end)
+        if own_reservation:
+            own_reservation.statut = "recuperee"
+            own_reservation.save(update_fields=["statut"])
 
     def update(self, request, *args, **kwargs):
         raise MethodNotAllowed(request.method, detail="Utiliser les actions rendre et renouveler.")
@@ -226,12 +271,11 @@ class EmpruntsViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def rendre(self, request, pk=None):
         """Rend un emprunt et indique si l'exemplaire est empruntable sans réservation."""
-        _bibliothecaire(request)
-        livre_id = get_object_or_404(
-            Emprunt.objects.values_list("exemplaire__livre_id", flat=True), pk=pk
-        )
+        _local_user(request)
+        livre_id = get_object_or_404(self.get_queryset().values_list("exemplaire__livre_id", flat=True), pk=pk)
         Livre.objects.select_for_update().get(pk=livre_id)
-        emprunt = self.get_object()
+        emprunt = get_object_or_404(self.get_queryset().select_for_update(of=("self",)), pk=pk)
+        _authorize_loan(request, emprunt)
         if emprunt.statut not in (*STATUTS_EMPRUNT_ACTIF, "en_retard"):
             return Response({"error": "Cet emprunt n'est pas en cours."}, status=400)
 
@@ -267,7 +311,12 @@ class EmpruntsViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def renouveler(self, request, pk=None):
         """Renouvelle un emprunt."""
-        emprunt = self.get_object()
+        livre_id = get_object_or_404(self.get_queryset().values_list("exemplaire__livre_id", flat=True), pk=pk)
+        Livre.objects.select_for_update().get(pk=livre_id)
+        emprunt = get_object_or_404(self.get_queryset().select_for_update(of=("self",)), pk=pk)
+        _authorize_loan(request, emprunt)
+        if Reservation.objects.filter(livre_id=livre_id, statut__in=STATUTS_RESERVATION_ACTIVE).exists():
+            raise ValidationError("Une réservation en attente interdit le renouvellement.")
         if emprunt.statut not in STATUTS_EMPRUNT_ACTIF:
             return Response({"error": "Cet emprunt n'est pas en cours."}, status=400)
         if emprunt.nb_renouvellements >= 2:
@@ -326,6 +375,7 @@ class ReservationsViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
+        _local_user(request)
         if set(request.data) != {"livre"}:
             raise ValidationError("Seul le titre peut être fourni.")
         serializer = ReservationClaimSerializer(data=request.data)

@@ -114,6 +114,22 @@ it('keeps the group editor reachable without account-view permission', () => {
   expect(links.some(item => item.label === 'Établissement')).toBe(false);
 });
 
+it.each([
+  ['secondaire', 'eleve'], ['secondaire', 'parent'], ['secondaire', 'enseignant'],
+  ['superieur', 'etudiant'], ['superieur', 'parent'], ['superieur', 'enseignant'],
+])('provides targeted library access to %s/%s without granting a staff portal', (variant, role) => {
+  const capabilities = { role, is_staff: false, permissions: ['bibliotheque.consulter_ressource_numerique'] };
+  const sections = getNavigation(variant, variant, capabilities);
+  const links = sections.flatMap(section => section.items);
+  expect(links.find(item => item.path === `/${variant}/bibliotheque`)).toBeDefined();
+  expect(links.some(item => item.path === `/${variant}/portail-staff`)).toBe(false);
+  expect(links.some(item => item.path.startsWith('/admin/'))).toBe(false);
+  const groups = getWorkspaceGroups(sections, workspaceKind(capabilities));
+  expect(groups.flatMap(group => group.items).some(item => item.path === `/${variant}/bibliotheque`)).toBe(true);
+  const revoked = getNavigation(variant, variant, { ...capabilities, is_staff: true, permissions: [] });
+  expect(revoked.flatMap(section => section.items).some(item => item.path.endsWith('/bibliotheque'))).toBe(false);
+});
+
 it.each(['secondaire', 'superieur'])('does not infer %s academic navigation or portals from the partner role', (variant) => {
   const capabilities = {
     role: 'partenaire',

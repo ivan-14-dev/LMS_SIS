@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getConfig } from '@edx/frontend-platform';
 import { fetchApi } from './services/api';
@@ -76,4 +76,29 @@ it('keeps the secondary parent portal accessible to affiliated parents', async (
   });
 
   expect(await screen.findByRole('heading', { name: 'Portail famille' })).toBeInTheDocument();
+});
+
+it.each([
+  ['secondaire', 'eleve'], ['secondaire', 'parent'], ['secondaire', 'enseignant'],
+  ['superieur', 'etudiant'], ['superieur', 'parent'], ['superieur', 'enseignant'],
+])('mounts the targeted %s library for %s without a staff portal grant', async (variant, role) => {
+  renderRoute(`/${variant}/bibliotheque`, {
+    role,
+    is_staff: false,
+    permissions: ['bibliotheque.consulter_ressource_numerique'],
+    affiliations: [],
+    portals: { staff: false },
+  });
+  expect(await screen.findByRole('heading', { name: 'Bibliothèque', level: 1 })).toBeVisible();
+  await waitFor(() => expect(fetchApi).toHaveBeenCalledWith(
+    expect.stringContaining(`https://${variant}.example.test/api/v1/bibliotheque/livres/?`),
+    expect.objectContaining({ signal: expect.anything() }),
+  ));
+  expect(fetchApi.mock.calls.every(([url]) => !url.includes('/portail/'))).toBe(true);
+});
+
+it.each(['secondaire', 'superieur'])('blocks the direct %s library route without explicit permissions', async variant => {
+  renderRoute(`/${variant}/bibliotheque`, { role: 'bibliothecaire', is_staff: true, permissions: [] });
+  expect(await screen.findByText(/nécessite une habilitation explicite/)).toBeVisible();
+  expect(fetchApi.mock.calls.every(([url]) => url.endsWith('/capabilities/'))).toBe(true);
 });

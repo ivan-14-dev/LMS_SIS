@@ -17,6 +17,18 @@ const universityRegistry = [...universityManagers, 'scolarite', 'chef_departemen
 const teachers = ['enseignant', 'chercheur'];
 const learnerRoles = ['eleve', 'etudiant', 'doctorant'];
 
+const libraryModule = {
+  path: 'bibliotheque',
+  label: 'Bibliothèque',
+  icon: Book,
+  permission: 'bibliotheque.view_livre',
+  alternatePermissions: [
+    'bibliotheque.consulter_ressource_numerique', 'bibliotheque.change_livre',
+    'bibliotheque.view_emprunt', 'bibliotheque.add_emprunt', 'bibliotheque.change_emprunt',
+    'bibliotheque.view_reservation', 'bibliotheque.add_reservation', 'bibliotheque.change_reservation',
+  ],
+};
+
 export const hasCapability = (capabilities, permission) => Boolean(
   permission && (capabilities?.permissions?.includes('*') || capabilities?.permissions?.includes(permission)),
 );
@@ -107,6 +119,7 @@ const schoolModules = [
   {
     title: 'Services',
     items: [
+      libraryModule,
       {
         path: 'cantine', label: 'Cantine', icon: Restaurant, permission: 'cantine.view_menu', roles: [...schoolRegistry, 'comptable'],
       },
@@ -192,9 +205,7 @@ const universityModules = [
       {
         path: 'mobilite', label: 'Mobilité', icon: Flight, permission: 'mobilite.view_candidaturemobilite', roles: universityRegistry,
       },
-      {
-        path: 'bibliotheque', label: 'Bibliothèque', icon: Book, permission: 'bibliotheque.view_emprunt', roles: ['bibliothecaire'],
-      },
+      libraryModule,
     ],
   },
   {
