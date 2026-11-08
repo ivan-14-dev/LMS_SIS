@@ -9,19 +9,21 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
-**Dernier cutoff documentaire : 8 novembre 2026 à 01:07:25.737594 UTC** :
-vagues 15 à 35 qualifiées dans leurs périmètres bornés ;
-**vague35 publiée : `1da6905`**, partenaires authentifiés et quatre publics d'enquêtes.
-117 artefacts hachés, huit campagnes documentaires supplémentaires ;
-53 updates, 208 campagnes non sommées, 26 exigences avec preuves.
-**Aucun statut promu35 : 10.12 reste partielle.**
+**Dernier cutoff documentaire : 8 novembre 2026 à 02:45:18.778303 UTC** :
+vagues 15 à 36 qualifiées dans leurs périmètres bornés ;
+**code35 publié : `1da6905`**, partenaires authentifiés et quatre publics d'enquêtes.
+La vague36 complète leur restauration indépendante sans modifier le produit.
+298 artefacts hachés, trois campagnes documentaires supplémentaires ;
+54 updates, 211 campagnes non sommées, 26 exigences avec preuves.
+**Seule10.12 est promue vérifiée36 ; aucun statut n'avait été promu35.**
 Pour la **vague33 sur backend32 `f3168ed` et frontend31 `605aab7` déjà publiés**,
 les sources avaient été rapprochées du principal et du distant `b5116ca` au moment de la
 qualification. Aucun comportement produit modifié33.
 Le passage autorisé de **10.5 d'absente à partielle** appartient à la
 vague25. **Promotion30 explicitement autorisée : seule10.5, partielle→vérifiée** :
 **Promotion33 explicitement autorisée : seule10.7, partielle→vérifiée** :
-**3 vérifiées, 70 partielles, 19 absentes et 2 non vérifiées sur 94**.
+**Promotion36 explicitement autorisée : seule10.12, partielle→vérifiée** :
+**4 vérifiées, 69 partielles, 19 absentes et 2 non vérifiées sur 94**.
 Les vagues31 et32 ne promouvaient aucun statut ; leurs chiffres historiques restent inchangés.
 Le blocage de qualification Studio a été levé
 vers 07:30 UTC : le correctif est publié, avec une preuve ciblée limitée
@@ -122,10 +124,48 @@ et **84 GET/282 HTTP universitaires**, sans écriture métier ni retry.
 Les deux GET scolaires supplémentaires refusent le répertoire au partenaire
 sur une base d'élèves peuplée. Deux fenêtres auth strictes, seules six tables
 d'authentification changent ; anciens octets conservés, journal seul enrichi.
-**Reste pour10.12 : sauvegarde/restauration indépendante du nouvel incrément
-selon les conditions communes.** Les outils36 en préparation ne sont pas
-comptés comme une restauration réalisée. Aucun déploiement partagé35,
+**Au cutoff35, restait pour10.12 la sauvegarde/restauration indépendante du
+nouvel incrément selon les conditions communes.** Les outils36 alors en
+préparation n'étaient pas comptés comme une restauration réalisée. Aucun déploiement partagé35,
 pilote institutionnel, nouvelle charge500 ou F-lot global clos.
+
+La vague36 démontre maintenant cette condition commune, sans nouveau code,
+schéma, build, Jest ou Chromium : image35 et bundle35 identiques, preuves
+antérieures conservées sans recomptage. **Vrais `pg_dump`/`pg_restore` dans
+de nouvelles bases `template0`, archives de fichiers dans de nouveaux volumes** :
+`sis_wave36_restore_{secondaire,superieur}_v3` et
+`sis-wave36-restored-v3-data-{secondaire,superieur}-d0c25c75`.
+Avant tout login : **579/630 tables,523/574 séquences et32/29 entrées de volume**
+exactes,51/50 comptes et leurs droits/MFA préservés, TOTP actif réellement
+vérifié dans chaque SIS ; sources35 inchangées.
+
+Dans chaque SIS, deux parcours HTTP natifs distincts, avant puis après
+recréation effective API/proxy : **dix logins par parcours**,86 GET/288 HTTP
+scolaires et84 GET/282 HTTP universitaires, zéro retry et aucune commande métier.
+Durées séparées :426450/426452 ms scolaires et419241/419241 ms universitaires.
+Les 176 sources et23 fichiers frontend servis sont vérifiés par empreintes.
+Tables, séquences, volumes et MFA sont exactement comparés à travers la
+recréation **avant** les nouveaux logins. Après chaque parcours, seules six
+tables auth changent ; seules les deux séquences de logs avancent du nombre
+exact de connexions. Les dix `last_login` autorisés sont bornés aux fenêtres ;
+toutes les anciennes lignes restent protégées. Les premières sessions/logs36
+sont en plus comparées intégralement après le second parcours. Anciens octets,
+modes et propriétaires conservés, seul le journal applicatif s'enrichit.
+
+Deux tentatives refusées restent conservées : refus Docker125 de journalisation
+avant Python, puis refus de connexions PostgreSQL avant création universitaire,
+avec restauration scolaire partielle **non qualifiée et non réutilisée**.
+Le backend exact du second refus n'a pas été capturé ; autovacuum n'est pas
+une cause démontrée. La tentativev3 utilise exclusivement de nouvelles cibles,
+exige toujours zéro connexion et n'a nécessité aucune attente.
+Rapport `wave36-parent-qualification.json`, SHA-256
+`ae03f0140558d46868baa1d7774b865e04c7a44183c8c090c6389d3c1bed654b` :
+297 artefacts,298 avec le rapport ;53 updates historiques et93 autres
+exigences strictement conservés lors de l'import.
+**10.12 est vérifiée dans son périmètre nominatif déclaré** : critères propres
+inchangés, pas de nouveau critère SMTP/export/anonymat non annoncé.
+Même cluster privé et mesures locales synthétiques, pas RTO de production,
+déploiement partagé, pilote institutionnel ou clôture des F-lots.
 **Le 100 % n'est pas atteint.**
 Les bilans datés antérieurs conservent leurs cutoffs, blocages et rouges.
 
@@ -2375,7 +2415,7 @@ elles ne sont pas comprises dans les21 absentes/non vérifiées.
 | 10.7 Recherche globale — vérifiée dans le périmètre déclaré | Rechercher apprenant, cours, document, facture et activité selon permissions, ouvrir les détails autorisés ; même requête/autre rôle/tenant après révocation sans titre, extrait ou compte inaccessible. UI17/18, même formulaire200→403 réel31, vrais schémas/rôles/révocations32,185/251 contrôles HTTP33 après restauration indépendante.567/618 tables, fichiers et MFA/TOTP comparés ; recréation API/proxy sans perte, effets de connexion/logs explicités. Promotion33 autorisée pour10.7 seule,93 autres exigences inchangées. Catalogue LMS natif exhaustif non imposé, documents JSON seulement en33, pas nouvelle UI33, pilote/production/F-lot clos ou100 %. Les bilans datés antérieurs conservent leurs lacunes aux cutoffs correspondants. |
 | 10.9 Portail public — absent | Formations publiées, actualités et procédure consultables sans connexion ; candidature démarrée, brouillons et dossiers privés inaccessibles. |
 | 10.10 Signature — non vérifiée | Habilitation approuvée par tiers, signature, archive et notification ; auto-approbation, mandat révoqué et document altéré refusés. |
-| 10.12 Enquêtes — partielle | Diffuser aux quatre publics autorisés, recueillir les réponses et analyser les résultats ; refuser doublons/non-destinataires, préserver l'anonymat s'il est annoncé. `1850df4` puis `1da6905` qualifient le cycle nominatif apprenants/enseignants/parents/partenaires authentifiés dans les deux SIS et deux tenants : droits explicites, réponses privées, résultats/comptages, révocation/fermeture et refus.579/630 tables, comptes/MFA/droits/flags/fichiers préservés ; recréation exacte y compris523/574 séquences,86/84 GET métier après dix logins par SIS. Reste la sauvegarde/restauration indépendante du nouvel incrément selon les conditions communes. Pas de nouveau critère SMTP/export/anonymat non annoncé ; aucun F-lot clos ni promotion35. |
+| 10.12 Enquêtes — vérifiée dans le périmètre déclaré | Diffuser aux quatre publics autorisés, recueillir les réponses et analyser les résultats ; refuser doublons/non-destinataires, préserver l'anonymat s'il est annoncé. `1850df4` puis `1da6905` qualifient le cycle nominatif apprenants/enseignants/parents/partenaires authentifiés dans les deux SIS et deux tenants : droits explicites, réponses privées, résultats/comptages, révocation/fermeture et refus. La vague36 complète la restauration indépendante sur nouvelles bases/volumesv3 :579/630 tables,523/574 séquences,32/29 entrées de volume et MFA/TOTP exacts. Deux réouvertures de dix comptes par SIS,86/84 GET métier par parcours, recréation réelle et effets auth strictement bornés ; premières sessions/logs36 intégralement conservés. Seule10.12 promue36,93 autres exigences inchangées. Deux tentatives refusées conservées, aucune réutilisation de leur état partiel. Pas de nouveau critère SMTP/export/anonymat non annoncé, aucun F-lot clos ni validation globale. |
 | 11 Cycle candidat → alumni — non vérifié | Neuf étapes 11.1–11.9 sur un identifiant continu ; refus/doublons/clôtures/coupures et restauration isolée contrôlés, versions et preuves navigateur/API/BD conservées. |
 | 11.9 Après formation — absent | Portefeuille conservé et adhésion alumni volontaire ; refus hors tenant, historique/rejeu contrôlés avant clôture du cycle. |
 

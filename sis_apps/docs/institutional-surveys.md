@@ -27,7 +27,8 @@ unique parmi 2–10 options distinctes de 120 caractères ; 1–200 destinataire
 Pas de questionnaire conditionnel, question facultative, choix multiple, pièce
 jointe, réponse modifiable, réouverture, export, anonymat ou campagne automatisée.
 L'analyse comprend les réponses nominatives et les comptages des choix, pas une
-analyse statistique avancée. Aucune promotion de statut de recette.
+analyse statistique avancée. L'exigence10.12 est vérifiée uniquement dans ce
+périmètre nominatif déclaré ; ce n'est pas une validation globale du programme.
 
 ## Accès et parcours
 
@@ -262,8 +263,58 @@ correction ne prétend pas protéger universellement toutes les autres API.
   d'authentification changent ; anciens comptes/droits/MFA, métier et octets
   des fichiers conservés. Seul `logs/sis.log` reçoit des octets supplémentaires.
 
-**10.12 reste partielle : la sauvegarde/restauration indépendante de ce nouvel
-incrément reste à démontrer.** Le clonage et la recréation ne la remplacent pas.
+**Au cutoff35,10.12 restait partielle : la sauvegarde/restauration indépendante
+de ce nouvel incrément restait à démontrer.** Le clonage et la recréation ne la remplacent pas.
 Les séquences sont comparées à travers la recréation, pas avant/après les
 commandes métier qui les font légitimement avancer. Aucun déploiement partagé,
 pilote institutionnel, nouvelle charge500 ou achèvement global n'est annoncé.
+
+## Qualification exécutée — lot36
+
+La restauration indépendante complète maintenant la règle commune :
+**seule10.12 est promue vérifiée**, sans modification de ses deux critères
+propres ni ajout de SMTP, export ou anonymat non annoncé.
+
+L'image35 et le bundle35 restent strictement identiques au produit publié.
+Les tests backend/Jest et les parcours Chromium35 ne sont pas recomptés :
+aucun nouveau code, schéma, build ou parcours Chromium36.
+
+Sauvegardes réellement exécutées par `pg_dump` au format custom et archives
+complètes des volumes ; `pg_restore` transactionnel dans de nouvelles bases
+`template0` et extraction dans de nouveaux volumes vides. Avant tout login,
+les deux restaurations sont comparées aux sources35 avant/après sauvegarde :
+**579/630 tables,523/574 séquences,32/29 entrées de volume**, tous les octets,
+modes et propriétaires,51/50 comptes et leurs droits/MFA. Un compte MFA actif
+par SIS passe un vrai contrôle TOTP ; aucune connexion utilisateur n'est
+effectuée par ces sondes.
+
+Chaque SIS reçoit ensuite deux parcours HTTP natifs sur deux tenants peuplés,
+avant puis après recréation réelle de l'API et du proxy. **Dix logins par
+parcours**,86 GET métier/288 requêtes HTTP scolaires,84 GET/282 requêtes
+universitaires ; zéro retry, aucune commande métier. Les quatre publics,
+réponses et résultats privés, révocation, fermeture et refus restent conformes.
+Les tables, séquences, fichiers et MFA sont exactement conservés à travers
+la recréation avant toute nouvelle connexion.
+
+Après chaque parcours, les anciennes données et permissions sont vérifiées
+par empreintes complètes. Seuls les dix `last_login` et les nouvelles lignes
+de sessions/logs validées sont admis ; les deux séquences de logs avancent
+du nombre exact de connexions. Les premières sessions/logs36 sont comparés
+intégralement après le second parcours, y compris leurs autres colonnes.
+Les anciens octets/modes/propriétaires restent intacts ; seul `logs/sis.log`
+s'enrichit. Les services de qualification ont ensuite été arrêtés.
+
+Les refus initiaux restent rouges et conservés : incompatibilité du pilote de
+journalisation Docker avant Python, puis garde PostgreSQL refusant des connexions
+avant création de la base universitaire. La restauration scolaire partielle
+de cette deuxième tentative n'est ni qualifiée ni réutilisée. Le backend exact
+du refus n'a pas été capturé : autovacuum n'est pas une cause prouvée.
+La tentativev3 utilise de nouvelles bases/volumes et exige toujours zéro
+connexion avant les opérations protégées ; elle n'a nécessité aucune attente.
+
+Preuve parent : `wave36-parent-qualification.json`,297 artefacts hachés,
+cutoff **8 novembre2026 à02:45:18.778303 UTC**. L'import documentaire ajoute
+ce rapport, soit298 artefacts, et préserve53 updates historiques et93 autres
+exigences. Le registre passe à **4/94 exigences vérifiées**.
+Qualification locale sur le même cluster privé, pas une mesure RTO de production,
+un déploiement partagé, un pilote institutionnel ou une clôture des F-lots.

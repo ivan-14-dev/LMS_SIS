@@ -3,7 +3,7 @@
   "artifact_type": "acceptance_and_gap_inventory_with_verified_increment_evidence",
   "language": "fr",
   "created_date": "2026-11-04",
-  "last_evidence_update_at": "2026-11-08T01:07:25.737594+00:00",
+  "last_evidence_update_at": "2026-11-08T02:45:18.778303+00:00",
   "execution_update_policy": "Chaque execution_update conserve son cutoff historique, y compris les attentes alors ouvertes. L'état courant est current_execution_state et le dernier update; aucune preuve antérieure ni premier rapport de charge rouge n'est réécrit.",
   "historical_inventory_policy": "created_date, repository.observed_head, mission_constraints, inspection_scope, existing_scope, test_scope, top_missing_pieces et les références de source décrivent l'inventaire statique initial, sauf mention explicite contraire. Les nouveaux résultats et les limites restantes au dernier cutoff sont consignés dans execution_updates et execution_evidence; ils ne rendent pas toutes les exigences ni tous les tests historiques vérifiés.",
   "source": {
@@ -7412,10 +7412,1348 @@
         "School112 and subsequent3 overlap; only the test file changed between their images. No combined total.",
         "Targeted suites are not the full suite. Historical load500 remains red; F-lots and programme remain open."
       ]
+    },
+    {
+      "id": "EXEC-20261108-wave36-verified-survey-recovery",
+      "evidence_cutoff_at": "2026-11-08T02:45:18.778303+00:00",
+      "qualification_status": "independent_restore_and_native_recovery_passed_only_10_12_verified",
+      "scope": "Completer la condition commune de restauration des enquetes ; seule10.12 promue.",
+      "code_commit": "1da6905cffad3b9b67bb6bb98abc3bfe4b28aebe",
+      "published_commits": [
+        "1da6905cffad3b9b67bb6bb98abc3bfe4b28aebe"
+      ],
+      "new_product_code_or_schema": false,
+      "qualification_environment": {
+        "image": "sha256:0506a40d6a08d86f2caac6e03b35c3ea00a4032844526acb99652fda24ea7571",
+        "database": "sis_wave36_restore_{secondaire,superieur}_v3, bases template0 neuves issues de vrais dumps35.",
+        "client": "Node HTTP natif ; loopback32490, vrais Hosts, cookies/CSRF/login ; deux passages par SIS.",
+        "frontend": "176 sources et23 fichiers HTTP identiques au build35 et au principal publie."
+      },
+      "artifact_base": "/home/mr-dev/.copilot/session-state/d0c25c75-b0da-489a-9501-d00e100d5269/files",
+      "artifacts": {
+        "parent-qualification": {
+          "path": "wave36-parent-qualification.json",
+          "sha256": "ae03f0140558d46868baa1d7774b865e04c7a44183c8c090c6389d3c1bed654b"
+        },
+        "wave35-parent-qualification.json": {
+          "path": "wave35-parent-qualification.json",
+          "sha256": "c231e41390d41c42100fd7e096c6aadac6b83ee963e9c1817d123c42c948aee9"
+        },
+        "wave35-image-model-fix-python-hashes.json": {
+          "path": "wave35-image-model-fix-python-hashes.json",
+          "sha256": "c977fd2377eb1a818f46ebe171686cd5bca983d64508444bde366dd63946d002"
+        },
+        "wave35-frontend-build-provenance.json": {
+          "path": "wave35-frontend-build-provenance.json",
+          "sha256": "194b63112c2c922c0a36c0fea89e3a3564e4ceba7b6622a04d31407ad239a119"
+        },
+        "wave35-source-preparation-comparison.json": {
+          "path": "wave35-source-preparation-comparison.json",
+          "sha256": "c2147126f36b89ac95bcce989ac3292a3221f6f1ed8a9e4448ae2cdc47002073"
+        },
+        "wave34-source-secondaire-database-after-reopen.json": {
+          "path": "wave34-source-secondaire-database-after-reopen.json",
+          "sha256": "36643c6fc0ea46a95874ba10ef6bab2fd45f1b678c1632a4a6e5b2c820769789"
+        },
+        "wave35-source-secondaire-database-before-upgrade.json": {
+          "path": "wave35-source-secondaire-database-before-upgrade.json",
+          "sha256": "b03442a547f1f6bbe0fbcdd4bfb82c8dfbf9f61894cfcd9669af8ef4d1995f97"
+        },
+        "wave34-source-secondaire-mfa-after-reopen.json": {
+          "path": "wave34-source-secondaire-mfa-after-reopen.json",
+          "sha256": "e7370c502f29982b56191f857a7b8be6c042c44f2bf30c9ba44fd9a61e999ea1"
+        },
+        "wave35-source-secondaire-mfa-before-upgrade.json": {
+          "path": "wave35-source-secondaire-mfa-before-upgrade.json",
+          "sha256": "0a2b336145349cfcc98f771a634fd079c89bd4ed155bfee63e85cb1f6631fbc3"
+        },
+        "wave34-source-secondaire-volume-after-reopen.json": {
+          "path": "wave34-source-secondaire-volume-after-reopen.json",
+          "sha256": "44e49e516739eb567e52d72512ffb03ab9aa4b344dfbb8a41258da4941f66ac6"
+        },
+        "wave35-source-secondaire-volume-before-upgrade.json": {
+          "path": "wave35-source-secondaire-volume-before-upgrade.json",
+          "sha256": "95eda06849732ca1b1e59858c56ff1295ef28b4eb4e0b71a6a57a54e06e4824a"
+        },
+        "wave34-source-superieur-database-after-reopen.json": {
+          "path": "wave34-source-superieur-database-after-reopen.json",
+          "sha256": "0b20a39a0c945cfeeae6aad9d9bc582799b88c6df3309f6c77827802bb0f8774"
+        },
+        "wave35-source-superieur-database-before-upgrade.json": {
+          "path": "wave35-source-superieur-database-before-upgrade.json",
+          "sha256": "0a6a838629f3455e094c669e8329d22a6923d04711120272968326c3860dfbff"
+        },
+        "wave34-source-superieur-mfa-after-reopen.json": {
+          "path": "wave34-source-superieur-mfa-after-reopen.json",
+          "sha256": "b52c85d7a07c20822d1458ddee96075591c021ca4fd88a7687df3b012f793b11"
+        },
+        "wave35-source-superieur-mfa-before-upgrade.json": {
+          "path": "wave35-source-superieur-mfa-before-upgrade.json",
+          "sha256": "5eaf19554f2c175822dba570213dc1d4550ad30fc28a197223cde02e9ed7164e"
+        },
+        "wave34-source-superieur-volume-after-reopen.json": {
+          "path": "wave34-source-superieur-volume-after-reopen.json",
+          "sha256": "d12475ca4f35b35c61f97a6e9fc763a9a8ca525d4d0bcc3a6ef017e1239f0e5e"
+        },
+        "wave35-source-superieur-volume-before-upgrade.json": {
+          "path": "wave35-source-superieur-volume-before-upgrade.json",
+          "sha256": "88e6d4e4a70586b0f8f41710187f8636cf685f6c31418f289f5221ede94dbc07"
+        },
+        "wave35-upgrade-preservation.json": {
+          "path": "wave35-upgrade-preservation.json",
+          "sha256": "7c7853ca0b0931325b9d2c44564f773f7c146942b90318f8634a716ea5a279fa"
+        },
+        "wave35-source-secondaire-database-after-upgrade.json": {
+          "path": "wave35-source-secondaire-database-after-upgrade.json",
+          "sha256": "d47649754bcca9a4e7ce8818fb559ccb1b9d455289c1096fdcffef174de2ab1a"
+        },
+        "wave35-source-secondaire-mfa-after-upgrade.json": {
+          "path": "wave35-source-secondaire-mfa-after-upgrade.json",
+          "sha256": "0a2b336145349cfcc98f771a634fd079c89bd4ed155bfee63e85cb1f6631fbc3"
+        },
+        "wave35-source-secondaire-volume-after-upgrade.json": {
+          "path": "wave35-source-secondaire-volume-after-upgrade.json",
+          "sha256": "95eda06849732ca1b1e59858c56ff1295ef28b4eb4e0b71a6a57a54e06e4824a"
+        },
+        "wave35-source-superieur-database-after-upgrade.json": {
+          "path": "wave35-source-superieur-database-after-upgrade.json",
+          "sha256": "136a30c338d4facf3bbf9e2ccf7d08ed02058aaae266785628cd4aa0bb23e248"
+        },
+        "wave35-source-superieur-mfa-after-upgrade.json": {
+          "path": "wave35-source-superieur-mfa-after-upgrade.json",
+          "sha256": "5eaf19554f2c175822dba570213dc1d4550ad30fc28a197223cde02e9ed7164e"
+        },
+        "wave35-source-superieur-volume-after-upgrade.json": {
+          "path": "wave35-source-superieur-volume-after-upgrade.json",
+          "sha256": "88e6d4e4a70586b0f8f41710187f8636cf685f6c31418f289f5221ede94dbc07"
+        },
+        "wave35-image-model-fix-lineage.json": {
+          "path": "wave35-image-model-fix-lineage.json",
+          "sha256": "b629f27531138d11ebf2f480c09e3de132e0dc902bf1fcee496be5020ab8ee18"
+        },
+        "wave35-image-python-hashes.json": {
+          "path": "wave35-image-python-hashes.json",
+          "sha256": "6da806f9912a95c84df48156083bfdf9b8ca3869fd4958e8fcde568806fb88c2"
+        },
+        "wave35-secondaire-backend.log": {
+          "path": "wave35-secondaire-backend.log",
+          "sha256": "a7f84c0986dd1c6aa63dbc5e9584af1d23405bdf49e927265511cd2a6039c32e"
+        },
+        "wave35-secondaire-model-fix.log": {
+          "path": "wave35-secondaire-model-fix.log",
+          "sha256": "c52afe68298d5c36856a43819f3087fc7cb382b01c26ff150c16722d82ec8273"
+        },
+        "wave35-superieur-model-fix.log": {
+          "path": "wave35-superieur-model-fix.log",
+          "sha256": "c44386b255ce5ec71488391bbe47cde905fd76dc71fda03621f6a00dbdbcc0ff"
+        },
+        "wave35-frontend-parent-jest.log": {
+          "path": "wave35-frontend-parent-jest.log",
+          "sha256": "554fdcf299f98480b52de41b0c65c059aa8143e13255945c8bb279cfb38420b3"
+        },
+        "wave35-parent-python-static-final.log": {
+          "path": "wave35-parent-python-static-final.log",
+          "sha256": "79e6e1527d833734aa1a1af90712949b3da9326cbde2ba4c9bd49c2365f0ae8a"
+        },
+        "wave35-survey-secondaire-fixture.json": {
+          "path": "wave35-survey-secondaire-fixture.json",
+          "sha256": "1d1c060316d7d2ca336cff95bbdd17827d4addf6ec4cc0666751a887e0cccbd0"
+        },
+        "wave35-survey-secondaire-browser/receipt.json": {
+          "path": "wave35-survey-secondaire-browser/receipt.json",
+          "sha256": "49efb518294ee39d436272467bdbf2f88d14c73bd3c2467e1b92ce86c9dcdff5"
+        },
+        "wave35-survey-secondaire-browser/primary-draft.png": {
+          "path": "wave35-survey-secondaire-browser/primary-draft.png",
+          "sha256": "9e329ae7ff8d30b75b6f2bbb2e37e03c685f05e293d2bcf21798ff806b0c4feb"
+        },
+        "wave35-survey-secondaire-browser/primary-learner-saved.png": {
+          "path": "wave35-survey-secondaire-browser/primary-learner-saved.png",
+          "sha256": "a9c991102725343711da57fdfa9305b8910f8754a7e8395397629d6286cb9acc"
+        },
+        "wave35-survey-secondaire-browser/primary-teacher-saved.png": {
+          "path": "wave35-survey-secondaire-browser/primary-teacher-saved.png",
+          "sha256": "1f9d578685a5ed63451ba6814bb659d38e7224db334d7e639ca94c1f82f2ca92"
+        },
+        "wave35-survey-secondaire-browser/primary-parent-saved.png": {
+          "path": "wave35-survey-secondaire-browser/primary-parent-saved.png",
+          "sha256": "b72d1b6a8a8d4610ba104354fa25011abdc9b840011e208d797c68ebcaa60a0d"
+        },
+        "wave35-survey-secondaire-browser/primary-partner-saved.png": {
+          "path": "wave35-survey-secondaire-browser/primary-partner-saved.png",
+          "sha256": "5845862d4b49c07bad81759bffa3d071fe93a56171034aaed275de5c56fae815"
+        },
+        "wave35-survey-secondaire-browser/primary-outsider-empty.png": {
+          "path": "wave35-survey-secondaire-browser/primary-outsider-empty.png",
+          "sha256": "5ccb78c911031d34d2706f43d96f24aaa82810fa9708cc7408dcbdcb898cd0f2"
+        },
+        "wave35-survey-secondaire-browser/primary-results-before-revocation.png": {
+          "path": "wave35-survey-secondaire-browser/primary-results-before-revocation.png",
+          "sha256": "d5f283da710368ca66db9333fd15443654bf2b5a462014fbcdd9d79632e1ef7d"
+        },
+        "wave35-survey-secondaire-browser/primary-partner-revoked-same-session-no-stale-data.png": {
+          "path": "wave35-survey-secondaire-browser/primary-partner-revoked-same-session-no-stale-data.png",
+          "sha256": "24ceba3b244ed118b68f5b0a25e2e75455043fe2b43133279b11eedd0f18e968"
+        },
+        "wave35-survey-secondaire-browser/primary-closed-unanswered.png": {
+          "path": "wave35-survey-secondaire-browser/primary-closed-unanswered.png",
+          "sha256": "67ccae5e8994a10542e1fcb057629e4a82fd7cf81ef7002192042e19c8856f53"
+        },
+        "wave35-survey-secondaire-persistence.json": {
+          "path": "wave35-survey-secondaire-persistence.json",
+          "sha256": "b63b45f0387bb077741f574628365a389a10a00030d8b71b00bb321c7df208cb"
+        },
+        "wave35-secondaire-recreation-comparison.json": {
+          "path": "wave35-secondaire-recreation-comparison.json",
+          "sha256": "0a001022e05cb190509f5d2b7c942f1b3dd0da18eaeb5bb5da20de7696366ad4"
+        },
+        "wave35-source-secondaire-database-before-recreation.json": {
+          "path": "wave35-source-secondaire-database-before-recreation.json",
+          "sha256": "fcc7884c854d1bcc7942f0fb3bec4f1f33520b6b339b403e154abc95b8579232"
+        },
+        "wave35-source-secondaire-database-after-recreation.json": {
+          "path": "wave35-source-secondaire-database-after-recreation.json",
+          "sha256": "88a3be28254745374838d9848a60c354d5b102feefddce78971a2479660eaad6"
+        },
+        "wave35-source-secondaire-mfa-before-recreation.json": {
+          "path": "wave35-source-secondaire-mfa-before-recreation.json",
+          "sha256": "0a2b336145349cfcc98f771a634fd079c89bd4ed155bfee63e85cb1f6631fbc3"
+        },
+        "wave35-source-secondaire-mfa-after-recreation.json": {
+          "path": "wave35-source-secondaire-mfa-after-recreation.json",
+          "sha256": "0a2b336145349cfcc98f771a634fd079c89bd4ed155bfee63e85cb1f6631fbc3"
+        },
+        "wave35-source-secondaire-volume-before-recreation.json": {
+          "path": "wave35-source-secondaire-volume-before-recreation.json",
+          "sha256": "cad795dea6895cd90a00f270d500e10443bfbbad5ca6bce1723a23d311409c47"
+        },
+        "wave35-source-secondaire-volume-after-recreation.json": {
+          "path": "wave35-source-secondaire-volume-after-recreation.json",
+          "sha256": "cad795dea6895cd90a00f270d500e10443bfbbad5ca6bce1723a23d311409c47"
+        },
+        "wave35-source-secondaire-runtime-before-browser.json": {
+          "path": "wave35-source-secondaire-runtime-before-browser.json",
+          "sha256": "bec2f2140ab6b347a391a4a771520e3762cce81b648a8ba80d029510753577be"
+        },
+        "wave35-source-secondaire-runtime-after-recreation.json": {
+          "path": "wave35-source-secondaire-runtime-after-recreation.json",
+          "sha256": "d95810ff4041cd82294795c6e9181bfd531ffda664a2dd6981d410c73b52f3e1"
+        },
+        "wave35-survey-secondaire-reopen.json": {
+          "path": "wave35-survey-secondaire-reopen.json",
+          "sha256": "53d15a1ee8481e704d8069ba2f1175032349f8f2791cdea0b7d34cf22d119963"
+        },
+        "wave35-survey-secondaire-post-reopen-persistence.json": {
+          "path": "wave35-survey-secondaire-post-reopen-persistence.json",
+          "sha256": "6a2f6018130f5783a5bc9c4d1d8b93c91740002889281421f3e7c04c865a2ce3"
+        },
+        "wave35-source-secondaire-database-after-reopen.json": {
+          "path": "wave35-source-secondaire-database-after-reopen.json",
+          "sha256": "2c12a20f0417eb47b4956e5e316d73e401a123da0088a27f5e49177e49f2e6ae"
+        },
+        "wave35-source-secondaire-mfa-after-reopen.json": {
+          "path": "wave35-source-secondaire-mfa-after-reopen.json",
+          "sha256": "0a2b336145349cfcc98f771a634fd079c89bd4ed155bfee63e85cb1f6631fbc3"
+        },
+        "wave35-source-secondaire-browser-file-preservation.json": {
+          "path": "wave35-source-secondaire-browser-file-preservation.json",
+          "sha256": "f7f32ff64c981bfba2b8f28feff74c714344c0b36980fa937d3568b783d75f81"
+        },
+        "wave35-source-secondaire-reopen-file-preservation.json": {
+          "path": "wave35-source-secondaire-reopen-file-preservation.json",
+          "sha256": "3720fb6e5153fc551eb287f3ea1a27a539d54c0893f47ed24d0dcd32b162fc4b"
+        },
+        "wave35-source-secondaire-database-before-browser.json": {
+          "path": "wave35-source-secondaire-database-before-browser.json",
+          "sha256": "94c0e8d713538d3b0c6c8964194e2a180d5fb57296674931f03fbfd25a2577ff"
+        },
+        "wave35-source-secondaire-mfa-before-browser.json": {
+          "path": "wave35-source-secondaire-mfa-before-browser.json",
+          "sha256": "0a2b336145349cfcc98f771a634fd079c89bd4ed155bfee63e85cb1f6631fbc3"
+        },
+        "wave35-source-secondaire-volume-before-browser.json": {
+          "path": "wave35-source-secondaire-volume-before-browser.json",
+          "sha256": "95eda06849732ca1b1e59858c56ff1295ef28b4eb4e0b71a6a57a54e06e4824a"
+        },
+        "wave35-source-secondaire-volume-after-reopen.json": {
+          "path": "wave35-source-secondaire-volume-after-reopen.json",
+          "sha256": "0ec433d80aaa3afc0fc91b68be4c1b7d016d38ffe26fc89346bcc29e189300c3"
+        },
+        "wave35-survey-superieur-fixture.json": {
+          "path": "wave35-survey-superieur-fixture.json",
+          "sha256": "ec1acf6eaab14d3b4e57ba0cfc22a577526bb0dfbf31170214ddca33144c3b8d"
+        },
+        "wave35-survey-superieur-browser/receipt.json": {
+          "path": "wave35-survey-superieur-browser/receipt.json",
+          "sha256": "58cae35daf9c1a83a494e9f7074d9d66637fd690fb4af36ba00b4609f8293417"
+        },
+        "wave35-survey-superieur-browser/primary-draft.png": {
+          "path": "wave35-survey-superieur-browser/primary-draft.png",
+          "sha256": "5f8f323b2fdd4d83e26e23fb21c6ab3b9346f4757bf1d2fb74e81b2961ee11c6"
+        },
+        "wave35-survey-superieur-browser/primary-learner-saved.png": {
+          "path": "wave35-survey-superieur-browser/primary-learner-saved.png",
+          "sha256": "5616d9ba989f9ce949b93881783158f7ccae4ce1976be4523d5d37cbd9c53c96"
+        },
+        "wave35-survey-superieur-browser/primary-teacher-saved.png": {
+          "path": "wave35-survey-superieur-browser/primary-teacher-saved.png",
+          "sha256": "fbc2f9aacc763b55aabbe11fa0b9d084cd1bc781a675fc3d194ac040612da1af"
+        },
+        "wave35-survey-superieur-browser/primary-parent-saved.png": {
+          "path": "wave35-survey-superieur-browser/primary-parent-saved.png",
+          "sha256": "762bedff011d4c0f4e0ff311209f56230875ea4f4e4d0cd0be1f1ba0bd0caff6"
+        },
+        "wave35-survey-superieur-browser/primary-partner-saved.png": {
+          "path": "wave35-survey-superieur-browser/primary-partner-saved.png",
+          "sha256": "77f029612d6244c019af9045cf86507573b3bf4b2910fa951ca75f412bd7fe12"
+        },
+        "wave35-survey-superieur-browser/primary-outsider-empty.png": {
+          "path": "wave35-survey-superieur-browser/primary-outsider-empty.png",
+          "sha256": "a0e79d6ecea73d8f7ce7f6d2b0675ad1b284154d39b1dd73d66a213be4e707f4"
+        },
+        "wave35-survey-superieur-browser/primary-results-before-revocation.png": {
+          "path": "wave35-survey-superieur-browser/primary-results-before-revocation.png",
+          "sha256": "4404daadc1eb55d732ab79ee69ae1dc7ebf8a886c4a4c25d5d9e70ab27aca544"
+        },
+        "wave35-survey-superieur-browser/primary-partner-revoked-same-session-no-stale-data.png": {
+          "path": "wave35-survey-superieur-browser/primary-partner-revoked-same-session-no-stale-data.png",
+          "sha256": "f95ec5d929355aae430ee820f34139c941b7a7f4862539a3eeaeaf92904f6d93"
+        },
+        "wave35-survey-superieur-browser/primary-closed-unanswered.png": {
+          "path": "wave35-survey-superieur-browser/primary-closed-unanswered.png",
+          "sha256": "370f64ba1fc7dc70ed30d979c78a52500b4bb8199ddec205271c6fd6fa4f8a92"
+        },
+        "wave35-survey-superieur-persistence.json": {
+          "path": "wave35-survey-superieur-persistence.json",
+          "sha256": "4b65b370da76a4d396bacb1b097054bccdfc792a84287f9f3c606cff872af21c"
+        },
+        "wave35-superieur-recreation-comparison.json": {
+          "path": "wave35-superieur-recreation-comparison.json",
+          "sha256": "31dee1b5528ec1bb72c22127e94d03d9b2e665941025a632655edcd45aeab517"
+        },
+        "wave35-source-superieur-database-before-recreation.json": {
+          "path": "wave35-source-superieur-database-before-recreation.json",
+          "sha256": "b16622412ad0b35ec88ba222ef4ce0ba242956069b6988fdf8642f1b1744607f"
+        },
+        "wave35-source-superieur-database-after-recreation.json": {
+          "path": "wave35-source-superieur-database-after-recreation.json",
+          "sha256": "7549c287bcb7a35d941c6e7ad1abcb620aa6e459742a91dc99b4398c2e8e59a8"
+        },
+        "wave35-source-superieur-mfa-before-recreation.json": {
+          "path": "wave35-source-superieur-mfa-before-recreation.json",
+          "sha256": "5eaf19554f2c175822dba570213dc1d4550ad30fc28a197223cde02e9ed7164e"
+        },
+        "wave35-source-superieur-mfa-after-recreation.json": {
+          "path": "wave35-source-superieur-mfa-after-recreation.json",
+          "sha256": "5eaf19554f2c175822dba570213dc1d4550ad30fc28a197223cde02e9ed7164e"
+        },
+        "wave35-source-superieur-volume-before-recreation.json": {
+          "path": "wave35-source-superieur-volume-before-recreation.json",
+          "sha256": "4bcfe2c6bcd10ba9a5e7d7afd25f80decb0684124090bfd6e6cf0d6c4a4030cb"
+        },
+        "wave35-source-superieur-volume-after-recreation.json": {
+          "path": "wave35-source-superieur-volume-after-recreation.json",
+          "sha256": "4bcfe2c6bcd10ba9a5e7d7afd25f80decb0684124090bfd6e6cf0d6c4a4030cb"
+        },
+        "wave35-source-superieur-runtime-before-browser.json": {
+          "path": "wave35-source-superieur-runtime-before-browser.json",
+          "sha256": "a74c4a6dbd83e987f77871bf60419125d2478d9a591f3c2e95bd38b79d06f4c1"
+        },
+        "wave35-source-superieur-runtime-after-recreation.json": {
+          "path": "wave35-source-superieur-runtime-after-recreation.json",
+          "sha256": "32fd33fa6248962c2ee75e3a6f79252cc3e79a4a3cefa3acd82a1c17dec47b63"
+        },
+        "wave35-survey-superieur-reopen.json": {
+          "path": "wave35-survey-superieur-reopen.json",
+          "sha256": "87a4e2c21d8b2a45cbb74ac5c756513cd1bc660e8a4f437682a74b601e8e78ce"
+        },
+        "wave35-survey-superieur-post-reopen-persistence.json": {
+          "path": "wave35-survey-superieur-post-reopen-persistence.json",
+          "sha256": "3307d79634e3b25aa21b9d0395a8fbaa6a741ce19fb6135e6e61cfa714e1dc7f"
+        },
+        "wave35-source-superieur-database-after-reopen.json": {
+          "path": "wave35-source-superieur-database-after-reopen.json",
+          "sha256": "eafbf24ad33a0854d4555e0a809a624fcdc58f688274487a941b07bc06009922"
+        },
+        "wave35-source-superieur-mfa-after-reopen.json": {
+          "path": "wave35-source-superieur-mfa-after-reopen.json",
+          "sha256": "5eaf19554f2c175822dba570213dc1d4550ad30fc28a197223cde02e9ed7164e"
+        },
+        "wave35-source-superieur-browser-file-preservation.json": {
+          "path": "wave35-source-superieur-browser-file-preservation.json",
+          "sha256": "045ac700b4d4b07c0a9f192f9e06edd49facac93ac0c9c06d627c8711014103c"
+        },
+        "wave35-source-superieur-reopen-file-preservation.json": {
+          "path": "wave35-source-superieur-reopen-file-preservation.json",
+          "sha256": "355dae90bdec8035857e9d7f6b9cd3fc6b9225875d6019c8e49d065d186f87db"
+        },
+        "wave35-source-superieur-database-before-browser.json": {
+          "path": "wave35-source-superieur-database-before-browser.json",
+          "sha256": "67df0a0d43ced59137635a0516879c9e49c2aef7318c918fbeb7d2d041595191"
+        },
+        "wave35-source-superieur-mfa-before-browser.json": {
+          "path": "wave35-source-superieur-mfa-before-browser.json",
+          "sha256": "5eaf19554f2c175822dba570213dc1d4550ad30fc28a197223cde02e9ed7164e"
+        },
+        "wave35-source-superieur-volume-before-browser.json": {
+          "path": "wave35-source-superieur-volume-before-browser.json",
+          "sha256": "88e6d4e4a70586b0f8f41710187f8636cf685f6c31418f289f5221ede94dbc07"
+        },
+        "wave35-source-superieur-volume-after-reopen.json": {
+          "path": "wave35-source-superieur-volume-after-reopen.json",
+          "sha256": "6f0d04906bbc1d3df6bc8ccc7dcc05fc9c6749d83bccc24556dc2063c4063545"
+        },
+        "wave35-survey-fixture.py": {
+          "path": "wave35-survey-fixture.py",
+          "sha256": "d176c099847a7e3f58ec5ad4760e72d0e262c84cefa0fa7cd83910c776715156"
+        },
+        "wave35-survey-browser.cjs": {
+          "path": "wave35-survey-browser.cjs",
+          "sha256": "c549f81986c895a30725125070afa3e463e547b31747e07eb1ead98909bb92b2"
+        },
+        "wave35-survey-persistence.py": {
+          "path": "wave35-survey-persistence.py",
+          "sha256": "d3472f50a4f200a756d87ceaa5e507d430553e3d9f163a439c3dbd9ff7a33218"
+        },
+        "wave35-survey-reopen.cjs": {
+          "path": "wave35-survey-reopen.cjs",
+          "sha256": "c2094a9f0dec369dfeee3c55a3ad650800400579f72ef61bc1ebd92b56e2c7a7"
+        },
+        "wave35-survey-handoff.json": {
+          "path": "wave35-survey-handoff.json",
+          "sha256": "3e1c18dcf91940ddc7a5acb98f5a59f0ad2e8504e2e8b670c8581009ed607e6a"
+        },
+        "wave35-authenticated-partners-handoff.json": {
+          "path": "wave35-authenticated-partners-handoff.json",
+          "sha256": "4e3d184d3f6d9ed0ce0c6e2474ff9a49537fa2ab805ec65760263b05a5848c2d"
+        },
+        "wave35-browser-container.sh": {
+          "path": "wave35-browser-container.sh",
+          "sha256": "537ac1717777264c5586d61945db407e9add8ab1e85b77c0cb9e53ee4ed48788"
+        },
+        "wave35-standard-container.sh": {
+          "path": "wave35-standard-container.sh",
+          "sha256": "1d71de01cb9f45cf1180d7ab7ab803bb22655878da3576cca039ff1fd708bf84"
+        },
+        "wave35-browser-nginx.conf": {
+          "path": "wave35-browser-nginx.conf",
+          "sha256": "250b3ed9b99be4e48795bf8c98d00bd0210e62c60f1357a940b97d78df621676"
+        },
+        "wave35_browser_settings.py": {
+          "path": "wave35_browser_settings.py",
+          "sha256": "19b416942901edfdffc9673828f8b845bda5bf9e153fd3e198d30d277e2ccb45"
+        },
+        "wave35-database-fingerprint.py": {
+          "path": "wave35-database-fingerprint.py",
+          "sha256": "88b0716499cec8aa5c3aa97be1867cce7e91b0dbeb3e1ddb641026089aba7826"
+        },
+        "wave35-volume-fingerprint.py": {
+          "path": "wave35-volume-fingerprint.py",
+          "sha256": "8ff55914199ffe430e71c53d2ea0262e81bd655c949ef6962ca9f0ffeae6da1b"
+        },
+        "wave34-volume-append-check.py": {
+          "path": "wave34-volume-append-check.py",
+          "sha256": "f3113a0c3f3964da947d31847b7d7db70d0c91e4d2f6fe5158236aad6eefd4db"
+        },
+        "wave35-mfa-readonly.py": {
+          "path": "wave35-mfa-readonly.py",
+          "sha256": "ba426f3b1ec7483943f7ac2d7118c7405b9b98961c34045555c05703fde6ca61"
+        },
+        "wave35-runtime-attestation.py": {
+          "path": "wave35-runtime-attestation.py",
+          "sha256": "e366cb04698e34df3c3bf05229e1538031bb2b6d53213d067f25603376680946"
+        },
+        "wave35-recreation-compare.py": {
+          "path": "wave35-recreation-compare.py",
+          "sha256": "72b2d93a3c18ce365e300ee7f93cb16f166f1f728370a19acd00c49d89468eb5"
+        },
+        "wave35-parent-qualification.py": {
+          "path": "wave35-parent-qualification.py",
+          "sha256": "c39f0d3916c77337f3b650850af2b0e4ae1d1a395f7c585e7f21269ba56cd16f"
+        },
+        "wave35-update-register.py": {
+          "path": "wave35-update-register.py",
+          "sha256": "3932d309cb61605259e3b69ce09dfb1e0671804005aa96614db4e21ea443e37a"
+        },
+        "wave35-superieur-backend.log": {
+          "path": "wave35-superieur-backend.log",
+          "sha256": "2c764c587074a5f158664ba022e97a1a00a7a14f7dd36819653109faa9b37782"
+        },
+        "wave35-image-build.log": {
+          "path": "wave35-image-build.log",
+          "sha256": "50cd5def95e08eb8f2a7856f26ead597e9cf170aaec5097fde3bcaa86a024223"
+        },
+        "wave35-image-model-fix-build.log": {
+          "path": "wave35-image-model-fix-build.log",
+          "sha256": "f29933bb7dadf36723c97aa834f437ceaf1fb34084eecb8cef836be9de7ee674"
+        },
+        "wave35-frontend-parent-jest-initial.log": {
+          "path": "wave35-frontend-parent-jest-initial.log",
+          "sha256": "5cdf8b8f94e99cbd3177c858d9ec01646d1e2371664d674d005a4e122477e73c"
+        },
+        "wave35-frontend-tests.log": {
+          "path": "wave35-frontend-tests.log",
+          "sha256": "7db05bc6b6bea7238818a569fe414104b8130a94e6690686e47ce351c16a5335"
+        },
+        "wave35-frontend-browser-build.log": {
+          "path": "wave35-frontend-browser-build.log",
+          "sha256": "be8fc9bf7183db66bc967c3f64f27dd0f6da70c3dff901d005aad59660db9ba9"
+        },
+        "wave35-frontend-parent-eslint.log": {
+          "path": "wave35-frontend-parent-eslint.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wave36-independent-restore-attestation.json": {
+          "path": "wave36-independent-restore-attestation.json",
+          "sha256": "204480d1bad5e82fb656970822e11005103c4ce4133676864a2d36b5739111f3"
+        },
+        "wave15_browser_settings.py": {
+          "path": "wave15_browser_settings.py",
+          "sha256": "a148caba12bf80240df14c5d35e89f66ba497ce89e3400f7f3729284dffe88a4"
+        },
+        "wave33_browser_settings.py": {
+          "path": "wave33_browser_settings.py",
+          "sha256": "0208a53a90dcd7eb2125981983ee0e37b923b132694d21726b86f8b57fe5f1f6"
+        },
+        "wave36-backup-restore-parent.log": {
+          "path": "wave36-backup-restore-parent.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wave36-backup-restore-v2-parent.log": {
+          "path": "wave36-backup-restore-v2-parent.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wave36-backup-restore-v2-parent.stderr.log": {
+          "path": "wave36-backup-restore-v2-parent.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wave36-backup-restore-v2.sh": {
+          "path": "wave36-backup-restore-v2.sh",
+          "sha256": "e91d3fdfe57b082b19ba9d31c8f4518e806d047337f0d51a045b720d8b3edd77"
+        },
+        "wave36-backup-restore-v3.sh": {
+          "path": "wave36-backup-restore-v3.sh",
+          "sha256": "e9b7bc7a16c4fa87ca87a1d37dfee92f228fa4b2fae84eb8c8710cdd19555d38"
+        },
+        "wave36-backup-restore.sh": {
+          "path": "wave36-backup-restore.sh",
+          "sha256": "7b0bc868bd5c5891921381dd99c114bb1de2a835f7eda56022d456a3dbe8245f"
+        },
+        "wave36-compare-restore-v2.py": {
+          "path": "wave36-compare-restore-v2.py",
+          "sha256": "74c9c2faaf3c723180a33a3e36f3c00b7d2d4c9ca30753a5dcbc8b759fae154e"
+        },
+        "wave36-compare-restore-v3.py": {
+          "path": "wave36-compare-restore-v3.py",
+          "sha256": "def0c0d7d459826b45970401cafc544422f9aa4df3cde2ceda9f31bc338d4f6d"
+        },
+        "wave36-compare-restore.py": {
+          "path": "wave36-compare-restore.py",
+          "sha256": "2eccccb7075d7ba6d46228ccbe907f4036b7055ac3fcb8fd3d1cf09eb985b16e"
+        },
+        "wave36-database-fingerprint-v3.py": {
+          "path": "wave36-database-fingerprint-v3.py",
+          "sha256": "db91c0f21114e242fdd3cd6ca65ed4d009cf23394bbcf8cdb339a6e19bf6b3d8"
+        },
+        "wave36-database-fingerprint.py": {
+          "path": "wave36-database-fingerprint.py",
+          "sha256": "101276aad62cc350e489970f27f8cd205674433592c6fa8072a93ceae7405f70"
+        },
+        "wave36-db-context-v3.py": {
+          "path": "wave36-db-context-v3.py",
+          "sha256": "9502bc61c65b1429086bff8ae4e844cee7478efdeed466367ee059ca9a22bc08"
+        },
+        "wave36-db-context.py": {
+          "path": "wave36-db-context.py",
+          "sha256": "eaca47c9dfb0347709939cae343b00cfdaa81163233a478726b33f7207b70db1"
+        },
+        "wave36-initial-logging-refusal.json": {
+          "path": "wave36-initial-logging-refusal.json",
+          "sha256": "e47ca5d934a81c0ec449bb6b90b36038ec574673a1b8962a4be9973685330d01"
+        },
+        "wave36-mfa-readonly-v3.py": {
+          "path": "wave36-mfa-readonly-v3.py",
+          "sha256": "2336707fd837fb11e8866fce9af69fc993fd1e05c2d7068361319c0148d44240"
+        },
+        "wave36-mfa-readonly.py": {
+          "path": "wave36-mfa-readonly.py",
+          "sha256": "c29e6e036dd57a362619fc496e89669bfb0e331736dcb646012e3ad62668b371"
+        },
+        "wave36-private-backups-v2/wave36-errors.log": {
+          "path": "wave36-private-backups-v2/wave36-errors.log",
+          "sha256": "d584e403fc55d93920ea22c8ff5410e49cb15c8804ff8b86dea62307bfcfb3ab"
+        },
+        "wave36-private-backups-v2/wave36-failure.json": {
+          "path": "wave36-private-backups-v2/wave36-failure.json",
+          "sha256": "6a0e1d9de099742c44e5ac82c4730c5e7bde9e06aea877db50c3286d10a92add"
+        },
+        "wave36-private-backups-v2/wave36-restore-secondaire-prelogin-database-after-mfa.json": {
+          "path": "wave36-private-backups-v2/wave36-restore-secondaire-prelogin-database-after-mfa.json",
+          "sha256": "fcbedd07c2415abf8d58dc151492e731e1460fcd67e7b4940153a95df7921cb4"
+        },
+        "wave36-private-backups-v2/wave36-restore-secondaire-prelogin-database.json": {
+          "path": "wave36-private-backups-v2/wave36-restore-secondaire-prelogin-database.json",
+          "sha256": "fcbedd07c2415abf8d58dc151492e731e1460fcd67e7b4940153a95df7921cb4"
+        },
+        "wave36-private-backups-v2/wave36-restore-secondaire-prelogin-mfa.json": {
+          "path": "wave36-private-backups-v2/wave36-restore-secondaire-prelogin-mfa.json",
+          "sha256": "2a62fce6aa77f30a04837a1eebb6d5e13848addfc24c112bb92f1f4a54110fee"
+        },
+        "wave36-private-backups-v2/wave36-restore-secondaire-prelogin-volume.json": {
+          "path": "wave36-private-backups-v2/wave36-restore-secondaire-prelogin-volume.json",
+          "sha256": "db80612c2f7b1f72cef92bb1e70ce1cdb1d23ad2cc4843d2e994336a960b0061"
+        },
+        "wave36-private-backups-v2/wave36-secondaire-archives-validated.json": {
+          "path": "wave36-private-backups-v2/wave36-secondaire-archives-validated.json",
+          "sha256": "79636f48c6708474492dcb160a98ed3e742e42859263951f29a278e5f5bd7497"
+        },
+        "wave36-private-backups-v2/wave36-secondaire-database-created.json": {
+          "path": "wave36-private-backups-v2/wave36-secondaire-database-created.json",
+          "sha256": "b42b94b7e5b8a9b5a0688152aeb97453b8520377a16f01a096698e2b5a7e38d4"
+        },
+        "wave36-private-backups-v2/wave36-secondaire-dump-toc.log": {
+          "path": "wave36-private-backups-v2/wave36-secondaire-dump-toc.log",
+          "sha256": "fe804be68c638a4963f1de3024e5a2ba7d6720f8418c0a6e347abcaa6ffc3d88"
+        },
+        "wave36-private-backups-v2/wave36-secondaire-operation.json": {
+          "path": "wave36-private-backups-v2/wave36-secondaire-operation.json",
+          "sha256": "03e263c8adadb90a6115e41cc0c80167b8dd94d36ce2068f20a865fc7c452fcb"
+        },
+        "wave36-private-backups-v2/wave36-secondaire-pg-restore.log": {
+          "path": "wave36-private-backups-v2/wave36-secondaire-pg-restore.log",
+          "sha256": "a74c80a58a0a5d24f2e5cc2fb423039caab83e93fab4e468fc188fff533d04e7"
+        },
+        "wave36-private-backups-v2/wave36-secondaire-volume-created.json": {
+          "path": "wave36-private-backups-v2/wave36-secondaire-volume-created.json",
+          "sha256": "9128a7fcd3711cff82ba72fbfa512b1eb9ca11051d31b257c43a4f9306435057"
+        },
+        "wave36-private-backups-v2/wave36-secondaire-volume-restore.json": {
+          "path": "wave36-private-backups-v2/wave36-secondaire-volume-restore.json",
+          "sha256": "673cef849be244d75d67046b9f611257320221776423a228d833aa09f4a1fae7"
+        },
+        "wave36-private-backups-v2/wave36-secondaire-volume.tar.gz": {
+          "path": "wave36-private-backups-v2/wave36-secondaire-volume.tar.gz",
+          "sha256": "67554ac3e10612c0a2142da989224612a1a1449cabee46feda3b3e3f033f1a4f"
+        },
+        "wave36-private-backups-v2/wave36-secondaire.dump": {
+          "path": "wave36-private-backups-v2/wave36-secondaire.dump",
+          "sha256": "c7d5a7a0888183a4e890fe0702ef2e2706c4777cd43abce1a5698d0327be8eb6"
+        },
+        "wave36-private-backups-v2/wave36-source-secondaire-prebackup-database-after-mfa.json": {
+          "path": "wave36-private-backups-v2/wave36-source-secondaire-prebackup-database-after-mfa.json",
+          "sha256": "a06aff4913635e10b4dd4bfe2bbb0be8e12473bbb5d3c5a1698c6c8760845f8e"
+        },
+        "wave36-private-backups-v2/wave36-source-secondaire-prebackup-database.json": {
+          "path": "wave36-private-backups-v2/wave36-source-secondaire-prebackup-database.json",
+          "sha256": "a06aff4913635e10b4dd4bfe2bbb0be8e12473bbb5d3c5a1698c6c8760845f8e"
+        },
+        "wave36-private-backups-v2/wave36-source-secondaire-prebackup-mfa.json": {
+          "path": "wave36-private-backups-v2/wave36-source-secondaire-prebackup-mfa.json",
+          "sha256": "373b4efa65b48451af0eb6c81fd5cdf27ae73fe3471e117b48703ef175d1295a"
+        },
+        "wave36-private-backups-v2/wave36-source-secondaire-prebackup-volume.json": {
+          "path": "wave36-private-backups-v2/wave36-source-secondaire-prebackup-volume.json",
+          "sha256": "8100c17600e0d73e017ab48f6674bf23cd68f1578e91cd6959ae4f7f5fea7d1e"
+        },
+        "wave36-private-backups-v2/wave36-source-superieur-prebackup-database-after-mfa.json": {
+          "path": "wave36-private-backups-v2/wave36-source-superieur-prebackup-database-after-mfa.json",
+          "sha256": "1e2b4145af6abe20b6a0c20fd671ff34bd205ddecdc40697682bf373435fddd1"
+        },
+        "wave36-private-backups-v2/wave36-source-superieur-prebackup-database.json": {
+          "path": "wave36-private-backups-v2/wave36-source-superieur-prebackup-database.json",
+          "sha256": "1e2b4145af6abe20b6a0c20fd671ff34bd205ddecdc40697682bf373435fddd1"
+        },
+        "wave36-private-backups-v2/wave36-source-superieur-prebackup-mfa.json": {
+          "path": "wave36-private-backups-v2/wave36-source-superieur-prebackup-mfa.json",
+          "sha256": "0a3afb46978d034d11e7cc3322b49021f68c859aeec986412a8fbea5f4bac908"
+        },
+        "wave36-private-backups-v2/wave36-source-superieur-prebackup-volume.json": {
+          "path": "wave36-private-backups-v2/wave36-source-superieur-prebackup-volume.json",
+          "sha256": "463121187d3c4aca191b6fd5196c74194c8477369e6a9448c7c46e1dafd9588b"
+        },
+        "wave36-private-backups-v2/wave36-start-receipt.json": {
+          "path": "wave36-private-backups-v2/wave36-start-receipt.json",
+          "sha256": "060b508ce6b770b66c3aa6abad28c87f89e9a04215e7994dc366ed11cb6aeea3"
+        },
+        "wave36-private-backups-v2/wave36-superieur-archives-validated.json": {
+          "path": "wave36-private-backups-v2/wave36-superieur-archives-validated.json",
+          "sha256": "f240d9b5a37f08c29b6d2eb914ad463c99a50cc6c781823ecc81463707fa66c9"
+        },
+        "wave36-private-backups-v2/wave36-superieur-dump-toc.log": {
+          "path": "wave36-private-backups-v2/wave36-superieur-dump-toc.log",
+          "sha256": "0799ad12fb99ecce5ca9a3189b70cc79f2ff81f7b516bb80ff04db1f6fedc715"
+        },
+        "wave36-private-backups-v2/wave36-superieur-volume.tar.gz": {
+          "path": "wave36-private-backups-v2/wave36-superieur-volume.tar.gz",
+          "sha256": "0facc47a96fa5af0fd41a82988b190c519dec58be9278f413f986778174c8631"
+        },
+        "wave36-private-backups-v2/wave36-superieur.dump": {
+          "path": "wave36-private-backups-v2/wave36-superieur.dump",
+          "sha256": "e19b60c4e1e17716dc0bc1153ed9175ba1558b38c86e7eb7304bc92e3ccfb9f9"
+        },
+        "wave36-private-backups-v3/wave36-errors.log": {
+          "path": "wave36-private-backups-v3/wave36-errors.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wave36-private-backups-v3/wave36-restore-secondaire-prelogin-database-after-mfa.json": {
+          "path": "wave36-private-backups-v3/wave36-restore-secondaire-prelogin-database-after-mfa.json",
+          "sha256": "f674587e27d507438a18dd645250567d11c3c31765b12fea4a5d8626497c6a0a"
+        },
+        "wave36-private-backups-v3/wave36-restore-secondaire-prelogin-database.json": {
+          "path": "wave36-private-backups-v3/wave36-restore-secondaire-prelogin-database.json",
+          "sha256": "f674587e27d507438a18dd645250567d11c3c31765b12fea4a5d8626497c6a0a"
+        },
+        "wave36-private-backups-v3/wave36-restore-secondaire-prelogin-mfa.json": {
+          "path": "wave36-private-backups-v3/wave36-restore-secondaire-prelogin-mfa.json",
+          "sha256": "328271154035ff872dd30885c61cc4b4a1d16e0c4ffd658b89f075c046a5f98c"
+        },
+        "wave36-private-backups-v3/wave36-restore-secondaire-prelogin-volume.json": {
+          "path": "wave36-private-backups-v3/wave36-restore-secondaire-prelogin-volume.json",
+          "sha256": "0d0176911c02d35422bc76a131e5088793e41760b85817d8efaf5482a3b74386"
+        },
+        "wave36-private-backups-v3/wave36-restore-superieur-prelogin-database-after-mfa.json": {
+          "path": "wave36-private-backups-v3/wave36-restore-superieur-prelogin-database-after-mfa.json",
+          "sha256": "1c35ef6f31c47f40c3a254fb6770950004c7cfc6f80635fbcfc200a95a1753d0"
+        },
+        "wave36-private-backups-v3/wave36-restore-superieur-prelogin-database.json": {
+          "path": "wave36-private-backups-v3/wave36-restore-superieur-prelogin-database.json",
+          "sha256": "1c35ef6f31c47f40c3a254fb6770950004c7cfc6f80635fbcfc200a95a1753d0"
+        },
+        "wave36-private-backups-v3/wave36-restore-superieur-prelogin-mfa.json": {
+          "path": "wave36-private-backups-v3/wave36-restore-superieur-prelogin-mfa.json",
+          "sha256": "235d59ab5ea79fb022a6002a416730a1a5f22a25aa68d2634b95996816cefb5e"
+        },
+        "wave36-private-backups-v3/wave36-restore-superieur-prelogin-volume.json": {
+          "path": "wave36-private-backups-v3/wave36-restore-superieur-prelogin-volume.json",
+          "sha256": "d35e25eb7d03f21a7bcff374bc52a89d21d2249b3d04999ac345611df2f4e643"
+        },
+        "wave36-private-backups-v3/wave36-secondaire-archives-validated.json": {
+          "path": "wave36-private-backups-v3/wave36-secondaire-archives-validated.json",
+          "sha256": "26ee3e6966caaa0db6d2e06e0bdbbf575c30cc4328153d7eb7adafef80bbc82d"
+        },
+        "wave36-private-backups-v3/wave36-secondaire-database-created.json": {
+          "path": "wave36-private-backups-v3/wave36-secondaire-database-created.json",
+          "sha256": "15f1a28f9173aef06488e76dfd1a6a66579ecd2ac50fee627edb2643beca99b2"
+        },
+        "wave36-private-backups-v3/wave36-secondaire-dump-toc.log": {
+          "path": "wave36-private-backups-v3/wave36-secondaire-dump-toc.log",
+          "sha256": "f5e0582eb01f16401a653b10efeb627ec111cac6fb8fdc972b8effc5c1ddaf48"
+        },
+        "wave36-private-backups-v3/wave36-secondaire-operation.json": {
+          "path": "wave36-private-backups-v3/wave36-secondaire-operation.json",
+          "sha256": "25ec51b84ee9acb5fec516eec51cb1f32d82b5f9f0a25ac5d60775d03271227c"
+        },
+        "wave36-private-backups-v3/wave36-secondaire-pg-restore.log": {
+          "path": "wave36-private-backups-v3/wave36-secondaire-pg-restore.log",
+          "sha256": "a74c80a58a0a5d24f2e5cc2fb423039caab83e93fab4e468fc188fff533d04e7"
+        },
+        "wave36-private-backups-v3/wave36-secondaire-volume-created.json": {
+          "path": "wave36-private-backups-v3/wave36-secondaire-volume-created.json",
+          "sha256": "35102529dedca238fadd6387a398e98b827220ed4fb921ba980124350e465fa3"
+        },
+        "wave36-private-backups-v3/wave36-secondaire-volume-restore.json": {
+          "path": "wave36-private-backups-v3/wave36-secondaire-volume-restore.json",
+          "sha256": "e2e5c7362550f980687cedd0de7dbe38447ed8000104dd0d62957f58bf1be6b0"
+        },
+        "wave36-private-backups-v3/wave36-secondaire-volume.tar.gz": {
+          "path": "wave36-private-backups-v3/wave36-secondaire-volume.tar.gz",
+          "sha256": "67554ac3e10612c0a2142da989224612a1a1449cabee46feda3b3e3f033f1a4f"
+        },
+        "wave36-private-backups-v3/wave36-secondaire.dump": {
+          "path": "wave36-private-backups-v3/wave36-secondaire.dump",
+          "sha256": "87478a4a47cd9cdeb0749e152184e879a3305c4eacdaada4968238b8506aaf2e"
+        },
+        "wave36-private-backups-v3/wave36-source-secondaire-postrestore-database-after-mfa.json": {
+          "path": "wave36-private-backups-v3/wave36-source-secondaire-postrestore-database-after-mfa.json",
+          "sha256": "a06aff4913635e10b4dd4bfe2bbb0be8e12473bbb5d3c5a1698c6c8760845f8e"
+        },
+        "wave36-private-backups-v3/wave36-source-secondaire-postrestore-database.json": {
+          "path": "wave36-private-backups-v3/wave36-source-secondaire-postrestore-database.json",
+          "sha256": "a06aff4913635e10b4dd4bfe2bbb0be8e12473bbb5d3c5a1698c6c8760845f8e"
+        },
+        "wave36-private-backups-v3/wave36-source-secondaire-postrestore-mfa.json": {
+          "path": "wave36-private-backups-v3/wave36-source-secondaire-postrestore-mfa.json",
+          "sha256": "373b4efa65b48451af0eb6c81fd5cdf27ae73fe3471e117b48703ef175d1295a"
+        },
+        "wave36-private-backups-v3/wave36-source-secondaire-postrestore-volume.json": {
+          "path": "wave36-private-backups-v3/wave36-source-secondaire-postrestore-volume.json",
+          "sha256": "8100c17600e0d73e017ab48f6674bf23cd68f1578e91cd6959ae4f7f5fea7d1e"
+        },
+        "wave36-private-backups-v3/wave36-source-secondaire-prebackup-database-after-mfa.json": {
+          "path": "wave36-private-backups-v3/wave36-source-secondaire-prebackup-database-after-mfa.json",
+          "sha256": "a06aff4913635e10b4dd4bfe2bbb0be8e12473bbb5d3c5a1698c6c8760845f8e"
+        },
+        "wave36-private-backups-v3/wave36-source-secondaire-prebackup-database.json": {
+          "path": "wave36-private-backups-v3/wave36-source-secondaire-prebackup-database.json",
+          "sha256": "a06aff4913635e10b4dd4bfe2bbb0be8e12473bbb5d3c5a1698c6c8760845f8e"
+        },
+        "wave36-private-backups-v3/wave36-source-secondaire-prebackup-mfa.json": {
+          "path": "wave36-private-backups-v3/wave36-source-secondaire-prebackup-mfa.json",
+          "sha256": "373b4efa65b48451af0eb6c81fd5cdf27ae73fe3471e117b48703ef175d1295a"
+        },
+        "wave36-private-backups-v3/wave36-source-secondaire-prebackup-volume.json": {
+          "path": "wave36-private-backups-v3/wave36-source-secondaire-prebackup-volume.json",
+          "sha256": "8100c17600e0d73e017ab48f6674bf23cd68f1578e91cd6959ae4f7f5fea7d1e"
+        },
+        "wave36-private-backups-v3/wave36-source-superieur-postrestore-database-after-mfa.json": {
+          "path": "wave36-private-backups-v3/wave36-source-superieur-postrestore-database-after-mfa.json",
+          "sha256": "1e2b4145af6abe20b6a0c20fd671ff34bd205ddecdc40697682bf373435fddd1"
+        },
+        "wave36-private-backups-v3/wave36-source-superieur-postrestore-database.json": {
+          "path": "wave36-private-backups-v3/wave36-source-superieur-postrestore-database.json",
+          "sha256": "1e2b4145af6abe20b6a0c20fd671ff34bd205ddecdc40697682bf373435fddd1"
+        },
+        "wave36-private-backups-v3/wave36-source-superieur-postrestore-mfa.json": {
+          "path": "wave36-private-backups-v3/wave36-source-superieur-postrestore-mfa.json",
+          "sha256": "0a3afb46978d034d11e7cc3322b49021f68c859aeec986412a8fbea5f4bac908"
+        },
+        "wave36-private-backups-v3/wave36-source-superieur-postrestore-volume.json": {
+          "path": "wave36-private-backups-v3/wave36-source-superieur-postrestore-volume.json",
+          "sha256": "463121187d3c4aca191b6fd5196c74194c8477369e6a9448c7c46e1dafd9588b"
+        },
+        "wave36-private-backups-v3/wave36-source-superieur-prebackup-database-after-mfa.json": {
+          "path": "wave36-private-backups-v3/wave36-source-superieur-prebackup-database-after-mfa.json",
+          "sha256": "1e2b4145af6abe20b6a0c20fd671ff34bd205ddecdc40697682bf373435fddd1"
+        },
+        "wave36-private-backups-v3/wave36-source-superieur-prebackup-database.json": {
+          "path": "wave36-private-backups-v3/wave36-source-superieur-prebackup-database.json",
+          "sha256": "1e2b4145af6abe20b6a0c20fd671ff34bd205ddecdc40697682bf373435fddd1"
+        },
+        "wave36-private-backups-v3/wave36-source-superieur-prebackup-mfa.json": {
+          "path": "wave36-private-backups-v3/wave36-source-superieur-prebackup-mfa.json",
+          "sha256": "0a3afb46978d034d11e7cc3322b49021f68c859aeec986412a8fbea5f4bac908"
+        },
+        "wave36-private-backups-v3/wave36-source-superieur-prebackup-volume.json": {
+          "path": "wave36-private-backups-v3/wave36-source-superieur-prebackup-volume.json",
+          "sha256": "463121187d3c4aca191b6fd5196c74194c8477369e6a9448c7c46e1dafd9588b"
+        },
+        "wave36-private-backups-v3/wave36-start-receipt.json": {
+          "path": "wave36-private-backups-v3/wave36-start-receipt.json",
+          "sha256": "20c3c054cff2d19f46d4d77ce93391ba5d5f3ac14bc9273500daa4d443b9c8fc"
+        },
+        "wave36-private-backups-v3/wave36-superieur-archives-validated.json": {
+          "path": "wave36-private-backups-v3/wave36-superieur-archives-validated.json",
+          "sha256": "e0239da932f4364c106a4c1383db32d2522efb23d24a684d3a1bd99889a5a5d0"
+        },
+        "wave36-private-backups-v3/wave36-superieur-database-created.json": {
+          "path": "wave36-private-backups-v3/wave36-superieur-database-created.json",
+          "sha256": "6b58550c4ef0fefd7134075b8faa38ae11fcb0393e50548cf3ae12ba54de85dc"
+        },
+        "wave36-private-backups-v3/wave36-superieur-dump-toc.log": {
+          "path": "wave36-private-backups-v3/wave36-superieur-dump-toc.log",
+          "sha256": "1f8b143f855828adc82f7063ad4bdd03a74477bc806363b25f75830866c68839"
+        },
+        "wave36-private-backups-v3/wave36-superieur-operation.json": {
+          "path": "wave36-private-backups-v3/wave36-superieur-operation.json",
+          "sha256": "f54cf7f8156b06795a26809c0774fb5528b7fe95180013843f0fabc0f4b6dd82"
+        },
+        "wave36-private-backups-v3/wave36-superieur-pg-restore.log": {
+          "path": "wave36-private-backups-v3/wave36-superieur-pg-restore.log",
+          "sha256": "ffe8c89a3b39c406f6c850ac0914e8c243c784ce9054090b270e0c19b22fd85b"
+        },
+        "wave36-private-backups-v3/wave36-superieur-volume-created.json": {
+          "path": "wave36-private-backups-v3/wave36-superieur-volume-created.json",
+          "sha256": "6f2d10f667fda181f750de6302a4c13689628d29079a376ede2356e9ac9d6e61"
+        },
+        "wave36-private-backups-v3/wave36-superieur-volume-restore.json": {
+          "path": "wave36-private-backups-v3/wave36-superieur-volume-restore.json",
+          "sha256": "ec3aab5274a06f3ad1889187cc53122fa051c9417adc527c4259df00caa28554"
+        },
+        "wave36-private-backups-v3/wave36-superieur-volume.tar.gz": {
+          "path": "wave36-private-backups-v3/wave36-superieur-volume.tar.gz",
+          "sha256": "0facc47a96fa5af0fd41a82988b190c519dec58be9278f413f986778174c8631"
+        },
+        "wave36-private-backups-v3/wave36-superieur.dump": {
+          "path": "wave36-private-backups-v3/wave36-superieur.dump",
+          "sha256": "ec828af105c47c9cd61114b8ec6420231863bf21c575af976e34dbdcfcec0100"
+        },
+        "wave36-private-backups/wave36-errors.log": {
+          "path": "wave36-private-backups/wave36-errors.log",
+          "sha256": "0b0b9398bb3beccdb7faa82cd1d6aa70adb30b939e3664c95d7a80fcf964d9ae"
+        },
+        "wave36-private-backups/wave36-failure.json": {
+          "path": "wave36-private-backups/wave36-failure.json",
+          "sha256": "179ce09e121a0ec3b70c8c5654ce1230adbf0e7b9759af604bcbae281425bf15"
+        },
+        "wave36-private-backups/wave36-source-secondaire-prebackup-database.json": {
+          "path": "wave36-private-backups/wave36-source-secondaire-prebackup-database.json",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wave36-private-backups/wave36-start-receipt.json": {
+          "path": "wave36-private-backups/wave36-start-receipt.json",
+          "sha256": "36f6b22ca3160213d8906aa7aef08fb2f762eb63cfc2a1b545948052856da51e"
+        },
+        "wave36-restore-container-v2.sh": {
+          "path": "wave36-restore-container-v2.sh",
+          "sha256": "ca45d1f317c742fde3d11d37900d77569bb900f00b15aaf2498c1d4a9e7b0127"
+        },
+        "wave36-restore-container-v3.sh": {
+          "path": "wave36-restore-container-v3.sh",
+          "sha256": "f9b608a6d48f0eb00e653b7454c0d271cd3df53d294ed86d24a8ab709378de86"
+        },
+        "wave36-restore-container.sh": {
+          "path": "wave36-restore-container.sh",
+          "sha256": "3bd3df2095472f62dd1f715ef5bb2ef5119306831b040fbe89bd8d1deea44340"
+        },
+        "wave36-restore-guard-v2.py": {
+          "path": "wave36-restore-guard-v2.py",
+          "sha256": "e247164447e3e0e016b03b65e801528ae9fe01d3183e85d378d1c74e0ac81b50"
+        },
+        "wave36-restore-guard-v3.py": {
+          "path": "wave36-restore-guard-v3.py",
+          "sha256": "7f335da6d121d9bb4a33d19bb7eb0bbc2e4d8bae5e645a665d547e5fbf0d9060"
+        },
+        "wave36-restore-guard.py": {
+          "path": "wave36-restore-guard.py",
+          "sha256": "8c1ccd83eebb3c5ec96890a43b5481ca3c2118aca670fee48e9bb84a867a008d"
+        },
+        "wave36-restore-tools-handoff.json": {
+          "path": "wave36-restore-tools-handoff.json",
+          "sha256": "c7cf48f18ac8ec8c5c45f96cb3d17d827c7bfeae0cc6166d4e48e91df26b8d78"
+        },
+        "wave36-restore-tools-v2-handoff.json": {
+          "path": "wave36-restore-tools-v2-handoff.json",
+          "sha256": "99e15c3578cc517faed9a00b333a89328e5f71bfb778c8e3eba06f05f9f9cabe"
+        },
+        "wave36-restore-tools-v3-handoff.json": {
+          "path": "wave36-restore-tools-v3-handoff.json",
+          "sha256": "dcd5fc6e83facb60bfe0b570a11006b7f160db57cb9ebb4ad4f47023e176909e"
+        },
+        "wave36-v2-quiescence-refusal.json": {
+          "path": "wave36-v2-quiescence-refusal.json",
+          "sha256": "cce150b3a2a72382890ca39125e5f0de2a2d33dcbc0b9a695fa974e13a4b33a0"
+        },
+        "wave36-volume-fingerprint-v3.py": {
+          "path": "wave36-volume-fingerprint-v3.py",
+          "sha256": "c9e5fcba83b93001e9bd2c26a8523f92a15caee49d3ce0f9f090e130586393b7"
+        },
+        "wave36-volume-fingerprint.py": {
+          "path": "wave36-volume-fingerprint.py",
+          "sha256": "29bfbef76646d24b79523e9762b9e666139cc95ba022e0925150c0e978b9ffb0"
+        },
+        "wave36-volume-restore-v3.py": {
+          "path": "wave36-volume-restore-v3.py",
+          "sha256": "12f64d4765ed132af700124963ffc8273258a4c0fcc709cae3c59d7e8f127a53"
+        },
+        "wave36-volume-restore.py": {
+          "path": "wave36-volume-restore.py",
+          "sha256": "82c518d58d3ed0ec36d7f2be7d4dd4d141a6b9ed7b48ec426a7531e343a4a288"
+        },
+        "wave36-restored-secondaire-database-before-reopen.json": {
+          "path": "wave36-restored-secondaire-database-before-reopen.json",
+          "sha256": "f674587e27d507438a18dd645250567d11c3c31765b12fea4a5d8626497c6a0a"
+        },
+        "wave36-restored-secondaire-mfa-before-reopen.json": {
+          "path": "wave36-restored-secondaire-mfa-before-reopen.json",
+          "sha256": "328271154035ff872dd30885c61cc4b4a1d16e0c4ffd658b89f075c046a5f98c"
+        },
+        "wave36-restored-secondaire-volume-before-reopen.json": {
+          "path": "wave36-restored-secondaire-volume-before-reopen.json",
+          "sha256": "0d0176911c02d35422bc76a131e5088793e41760b85817d8efaf5482a3b74386"
+        },
+        "wave36-restored-secondaire-auth-before-reopen.json": {
+          "path": "wave36-restored-secondaire-auth-before-reopen.json",
+          "sha256": "264445f552904bcb2446c96a78dbbb64e93f12c3e546012900ec666b4d69e290"
+        },
+        "wave36-secondaire-recreation-comparison.json": {
+          "path": "wave36-secondaire-recreation-comparison.json",
+          "sha256": "e35f223a673270470b10272351728412558c8aa234fffc43bf5143061f236231"
+        },
+        "wave36-restored-secondaire-database-before-recreation.json": {
+          "path": "wave36-restored-secondaire-database-before-recreation.json",
+          "sha256": "30c7c016940a6ef3600d15d5476734db438f1f87f46c7c52d59dc616bd9b7048"
+        },
+        "wave36-restored-secondaire-database-after-recreation.json": {
+          "path": "wave36-restored-secondaire-database-after-recreation.json",
+          "sha256": "30c7c016940a6ef3600d15d5476734db438f1f87f46c7c52d59dc616bd9b7048"
+        },
+        "wave36-restored-secondaire-mfa-before-recreation.json": {
+          "path": "wave36-restored-secondaire-mfa-before-recreation.json",
+          "sha256": "328271154035ff872dd30885c61cc4b4a1d16e0c4ffd658b89f075c046a5f98c"
+        },
+        "wave36-restored-secondaire-mfa-after-recreation.json": {
+          "path": "wave36-restored-secondaire-mfa-after-recreation.json",
+          "sha256": "328271154035ff872dd30885c61cc4b4a1d16e0c4ffd658b89f075c046a5f98c"
+        },
+        "wave36-restored-secondaire-volume-before-recreation.json": {
+          "path": "wave36-restored-secondaire-volume-before-recreation.json",
+          "sha256": "152ae72a590b39f583e6202ee0e33356568c1d1be30b725d4be1bdf4763059a3"
+        },
+        "wave36-restored-secondaire-volume-after-recreation.json": {
+          "path": "wave36-restored-secondaire-volume-after-recreation.json",
+          "sha256": "152ae72a590b39f583e6202ee0e33356568c1d1be30b725d4be1bdf4763059a3"
+        },
+        "wave36-restored-secondaire-runtime-before-reopen.json": {
+          "path": "wave36-restored-secondaire-runtime-before-reopen.json",
+          "sha256": "fb3d8fc12b0dd57371df48f4f598b1299f09277bc7e672dad6ecccffff52595d"
+        },
+        "wave36-restored-secondaire-runtime-after-recreation.json": {
+          "path": "wave36-restored-secondaire-runtime-after-recreation.json",
+          "sha256": "7ba4b874fc0579a576b46e7d290c9272696be3824008b5302b211567fd022040"
+        },
+        "wave36-survey-secondaire-initial-reopen.json": {
+          "path": "wave36-survey-secondaire-initial-reopen.json",
+          "sha256": "07a23434c1c648a864d8017d694989ff90511ef2a88fd072a3fbf50df704b492"
+        },
+        "wave36-secondaire-initial-preservation-comparison.json": {
+          "path": "wave36-secondaire-initial-preservation-comparison.json",
+          "sha256": "26ee1ad3d9edc46d3ae8915061ecf2b3d8e87bf80dd9dc8c16c046783c471e92"
+        },
+        "wave36-restored-secondaire-database-after-initial.json": {
+          "path": "wave36-restored-secondaire-database-after-initial.json",
+          "sha256": "30c7c016940a6ef3600d15d5476734db438f1f87f46c7c52d59dc616bd9b7048"
+        },
+        "wave36-restored-secondaire-mfa-after-initial.json": {
+          "path": "wave36-restored-secondaire-mfa-after-initial.json",
+          "sha256": "328271154035ff872dd30885c61cc4b4a1d16e0c4ffd658b89f075c046a5f98c"
+        },
+        "wave36-restored-secondaire-auth-after-initial.json": {
+          "path": "wave36-restored-secondaire-auth-after-initial.json",
+          "sha256": "5f238fd5bed985697bdc955d28a1f3e0dda17004c41fbbeefd4f578253aac449"
+        },
+        "wave36-restored-secondaire-initial-file-preservation.json": {
+          "path": "wave36-restored-secondaire-initial-file-preservation.json",
+          "sha256": "591476cff69e1e9405f094b6af0e20ee131d1531ca464dfa2f3d5cde8dce7b1a"
+        },
+        "wave36-restored-secondaire-volume-after-initial.json": {
+          "path": "wave36-restored-secondaire-volume-after-initial.json",
+          "sha256": "152ae72a590b39f583e6202ee0e33356568c1d1be30b725d4be1bdf4763059a3"
+        },
+        "wave36-survey-secondaire-recreated-reopen.json": {
+          "path": "wave36-survey-secondaire-recreated-reopen.json",
+          "sha256": "0171695ee9c486e6dfeb90c5ad74a87b2771d3e05632939a7bc50bf7aa8e7882"
+        },
+        "wave36-secondaire-recreated-preservation-comparison.json": {
+          "path": "wave36-secondaire-recreated-preservation-comparison.json",
+          "sha256": "6b88ed4eadbecb16622ff8394e1614d14bbf84a1947a60e58fc1870759f00410"
+        },
+        "wave36-restored-secondaire-database-after-recreated.json": {
+          "path": "wave36-restored-secondaire-database-after-recreated.json",
+          "sha256": "2b78efca7fb98fddcce2c5950b8ef49cb6c2c43f5ce8a629e63b6141f29efeb2"
+        },
+        "wave36-restored-secondaire-mfa-after-recreated.json": {
+          "path": "wave36-restored-secondaire-mfa-after-recreated.json",
+          "sha256": "328271154035ff872dd30885c61cc4b4a1d16e0c4ffd658b89f075c046a5f98c"
+        },
+        "wave36-restored-secondaire-auth-after-recreated.json": {
+          "path": "wave36-restored-secondaire-auth-after-recreated.json",
+          "sha256": "9107c84b8de212a6a79040035dc427cb77fae8febda1f80d8efbd65eb2c042fa"
+        },
+        "wave36-restored-secondaire-recreated-file-preservation.json": {
+          "path": "wave36-restored-secondaire-recreated-file-preservation.json",
+          "sha256": "9dc214bfa9d2ef7c75ecbb249c654a59b875e4d81b15deef365ae31ca2bdf5dd"
+        },
+        "wave36-restored-secondaire-volume-after-recreated.json": {
+          "path": "wave36-restored-secondaire-volume-after-recreated.json",
+          "sha256": "04b0d24315c8c1f46108ab52559e39cd272862a61c92b034c77d72ff842bc151"
+        },
+        "wave36-restored-superieur-database-before-reopen.json": {
+          "path": "wave36-restored-superieur-database-before-reopen.json",
+          "sha256": "1c35ef6f31c47f40c3a254fb6770950004c7cfc6f80635fbcfc200a95a1753d0"
+        },
+        "wave36-restored-superieur-mfa-before-reopen.json": {
+          "path": "wave36-restored-superieur-mfa-before-reopen.json",
+          "sha256": "235d59ab5ea79fb022a6002a416730a1a5f22a25aa68d2634b95996816cefb5e"
+        },
+        "wave36-restored-superieur-volume-before-reopen.json": {
+          "path": "wave36-restored-superieur-volume-before-reopen.json",
+          "sha256": "d35e25eb7d03f21a7bcff374bc52a89d21d2249b3d04999ac345611df2f4e643"
+        },
+        "wave36-restored-superieur-auth-before-reopen.json": {
+          "path": "wave36-restored-superieur-auth-before-reopen.json",
+          "sha256": "e2abebcd3ce8af104d4277cb26544238d2c363e1ed6bc92d4f0116f5640bef6d"
+        },
+        "wave36-superieur-recreation-comparison.json": {
+          "path": "wave36-superieur-recreation-comparison.json",
+          "sha256": "b5fbf06fe57593d2c7514579eb3deb2e7c8de5c1a6fe82169ce93e854e0c239d"
+        },
+        "wave36-restored-superieur-database-before-recreation.json": {
+          "path": "wave36-restored-superieur-database-before-recreation.json",
+          "sha256": "ce622f662fef27a93190384fa472ede0216dba284943cc2c5d26d93503245294"
+        },
+        "wave36-restored-superieur-database-after-recreation.json": {
+          "path": "wave36-restored-superieur-database-after-recreation.json",
+          "sha256": "ce622f662fef27a93190384fa472ede0216dba284943cc2c5d26d93503245294"
+        },
+        "wave36-restored-superieur-mfa-before-recreation.json": {
+          "path": "wave36-restored-superieur-mfa-before-recreation.json",
+          "sha256": "235d59ab5ea79fb022a6002a416730a1a5f22a25aa68d2634b95996816cefb5e"
+        },
+        "wave36-restored-superieur-mfa-after-recreation.json": {
+          "path": "wave36-restored-superieur-mfa-after-recreation.json",
+          "sha256": "235d59ab5ea79fb022a6002a416730a1a5f22a25aa68d2634b95996816cefb5e"
+        },
+        "wave36-restored-superieur-volume-before-recreation.json": {
+          "path": "wave36-restored-superieur-volume-before-recreation.json",
+          "sha256": "1fc5cee79a4e6fe413b5bf72ff6109fd376ccb804e9c52a6523c598ed16c2cbf"
+        },
+        "wave36-restored-superieur-volume-after-recreation.json": {
+          "path": "wave36-restored-superieur-volume-after-recreation.json",
+          "sha256": "1fc5cee79a4e6fe413b5bf72ff6109fd376ccb804e9c52a6523c598ed16c2cbf"
+        },
+        "wave36-restored-superieur-runtime-before-reopen.json": {
+          "path": "wave36-restored-superieur-runtime-before-reopen.json",
+          "sha256": "b330a229003a4ca254f1bb4223b9ea1d1a07be92b4c9b8a94bfa9cbace660ffe"
+        },
+        "wave36-restored-superieur-runtime-after-recreation.json": {
+          "path": "wave36-restored-superieur-runtime-after-recreation.json",
+          "sha256": "9a3215b4065223c9b05142cacb8201daae17becf99a3e2b0a5cd172b5b92d387"
+        },
+        "wave36-survey-superieur-initial-reopen.json": {
+          "path": "wave36-survey-superieur-initial-reopen.json",
+          "sha256": "6240879477f1a91d860b0e3ff4ff0446b09b7854ad53818fbbd846b65a3b1741"
+        },
+        "wave36-superieur-initial-preservation-comparison.json": {
+          "path": "wave36-superieur-initial-preservation-comparison.json",
+          "sha256": "da52f5cb85735ae8b767014aece6284a3a7c0551df9fc0c85fc59edf809560a9"
+        },
+        "wave36-restored-superieur-database-after-initial.json": {
+          "path": "wave36-restored-superieur-database-after-initial.json",
+          "sha256": "ce622f662fef27a93190384fa472ede0216dba284943cc2c5d26d93503245294"
+        },
+        "wave36-restored-superieur-mfa-after-initial.json": {
+          "path": "wave36-restored-superieur-mfa-after-initial.json",
+          "sha256": "235d59ab5ea79fb022a6002a416730a1a5f22a25aa68d2634b95996816cefb5e"
+        },
+        "wave36-restored-superieur-auth-after-initial.json": {
+          "path": "wave36-restored-superieur-auth-after-initial.json",
+          "sha256": "f5834052d91905d19ecdf72cc18b2450982e8e13efda0d494f9f15ab95e7060b"
+        },
+        "wave36-restored-superieur-initial-file-preservation.json": {
+          "path": "wave36-restored-superieur-initial-file-preservation.json",
+          "sha256": "d6f4ee5518c4da3f9c8c2504e8bf0e36b78e29c489812697201ac3ef7b8575ba"
+        },
+        "wave36-restored-superieur-volume-after-initial.json": {
+          "path": "wave36-restored-superieur-volume-after-initial.json",
+          "sha256": "1fc5cee79a4e6fe413b5bf72ff6109fd376ccb804e9c52a6523c598ed16c2cbf"
+        },
+        "wave36-survey-superieur-recreated-reopen.json": {
+          "path": "wave36-survey-superieur-recreated-reopen.json",
+          "sha256": "4f8798793d1c4ccec919b842d7e171e1b83eddcdb5a181f24f2232b5630150a5"
+        },
+        "wave36-superieur-recreated-preservation-comparison.json": {
+          "path": "wave36-superieur-recreated-preservation-comparison.json",
+          "sha256": "570000ca31f65933ceb200b23e5d590706d0a6fcb0e70388041a23ea8479d227"
+        },
+        "wave36-restored-superieur-database-after-recreated.json": {
+          "path": "wave36-restored-superieur-database-after-recreated.json",
+          "sha256": "e9b3a364c6ffa7fb207996b083efa8bc873713c255f7b6f828d628483ad434f2"
+        },
+        "wave36-restored-superieur-mfa-after-recreated.json": {
+          "path": "wave36-restored-superieur-mfa-after-recreated.json",
+          "sha256": "235d59ab5ea79fb022a6002a416730a1a5f22a25aa68d2634b95996816cefb5e"
+        },
+        "wave36-restored-superieur-auth-after-recreated.json": {
+          "path": "wave36-restored-superieur-auth-after-recreated.json",
+          "sha256": "fac84a3594dd4e4da1f86176cddd05611213041daf96e7876e8419284e4d6d29"
+        },
+        "wave36-restored-superieur-recreated-file-preservation.json": {
+          "path": "wave36-restored-superieur-recreated-file-preservation.json",
+          "sha256": "3cc97b8517d6497bccdaaee45903ccb5447a7a582136fd616a6a31c8ad5afabd"
+        },
+        "wave36-restored-superieur-volume-after-recreated.json": {
+          "path": "wave36-restored-superieur-volume-after-recreated.json",
+          "sha256": "87153844ca900860d97e12c9596bb91d8288a452542d478c1324706430a76bc8"
+        },
+        "wave36-parent-runtime-v3-static.json": {
+          "path": "wave36-parent-runtime-v3-static.json",
+          "sha256": "49f38d8ac5900fac86f9aebd97245496a7070fb6933b6f6fe004815e7cd40f62"
+        },
+        "wave36-runtime-attestation-v3.py": {
+          "path": "wave36-runtime-attestation-v3.py",
+          "sha256": "1d0a91a9a4d61b0257845bd83c227413f1d2cb94ace1fda29d3df1280b2f0e7e"
+        },
+        "wave36-recreation-compare-v3.py": {
+          "path": "wave36-recreation-compare-v3.py",
+          "sha256": "c60f6d14e76f2d763e4f370f20b4d09f4b81f201f02ae8da54ea037d4ec2068f"
+        },
+        "wave36-volume-append-check-v3.py": {
+          "path": "wave36-volume-append-check-v3.py",
+          "sha256": "02a9c6616fb24f3f56f68ea2a6b8f100fc681960319589a01318b708eb390d51"
+        },
+        "wave36-post-reopen-compare-v3.py": {
+          "path": "wave36-post-reopen-compare-v3.py",
+          "sha256": "9de4eeaf83fc2d9a3dfbb12acd398174f926e617cf5999e9a8142daffd845217"
+        },
+        "wave36-derive-parent-v3.py": {
+          "path": "wave36-derive-parent-v3.py",
+          "sha256": "77caf5e54fada4bf2c8bb412a75ec3dd884df7e00a489cd1fc2b328bcb1516c5"
+        },
+        "wave36-parent-qualification.py": {
+          "path": "wave36-parent-qualification.py",
+          "sha256": "23eb06369ba2feeac3573199854c0dc125302e9b2611d784e591697f6c7de493"
+        },
+        "wave36-auth-preservation-v3.py": {
+          "path": "wave36-auth-preservation-v3.py",
+          "sha256": "f7f5193b937a545de9454345d267c90f687606da69aa6cc1c6451ee793bdb1ec"
+        },
+        "wave36-browser-container-v3.sh": {
+          "path": "wave36-browser-container-v3.sh",
+          "sha256": "fbe804ac6afe6a51ccd2745f17d2ed7ebccbb014692fec588e7d6a3bd4ce7fd7"
+        },
+        "wave36-runtime-probe-v3.sh": {
+          "path": "wave36-runtime-probe-v3.sh",
+          "sha256": "0c807a20a5ee21142d23028d647ccc2aa5fd76736acf5b0274c3e292dfe9a4d3"
+        },
+        "wave36-capture-checkpoint-v3.sh": {
+          "path": "wave36-capture-checkpoint-v3.sh",
+          "sha256": "98007137bc1a136d2d128c75f47fc5bf3a848c0a65f77ec22a6524f4f926eadc"
+        },
+        "wave36-auth-preservation-v3-handoff.json": {
+          "path": "wave36-auth-preservation-v3-handoff.json",
+          "sha256": "bfa10f93aebf10ea63dc9c2d58dc8ab1952539882f1fff72bc1832e6c9790cbe"
+        },
+        "wave36-http-v3-parent-static.json": {
+          "path": "wave36-http-v3-parent-static.json",
+          "sha256": "9d50703960dc8e415218f97451a49d6791b93b1e4a0a811a89862cc5a7fa1379"
+        },
+        "wave36-survey-reopen-v3.cjs": {
+          "path": "wave36-survey-reopen-v3.cjs",
+          "sha256": "5f8b64f74745cb8b8723b0a5b22aba919b456faf7817f4bbc5b385313a5656a5"
+        },
+        "wave36-survey-reopen-v3-handoff.json": {
+          "path": "wave36-survey-reopen-v3-handoff.json",
+          "sha256": "7f49acdb8afe379086ead2e499009553c6d494adca79130fb11788275b362eaa"
+        },
+        "wave36-survey-reopen.cjs": {
+          "path": "wave36-survey-reopen.cjs",
+          "sha256": "fcca9e85aa9df80989c664e5d98c7e9f9b25bed823dbcd83f040df5a07700b49"
+        },
+        "wave36-browser-nginx.conf": {
+          "path": "wave36-browser-nginx.conf",
+          "sha256": "e706742460fec3f908db30b8e418c7bf53a89516a18fb06e35be82c5e23e039c"
+        }
+      },
+      "campaigns": [
+        {
+          "id": "wave36-independent-database-and-file-recovery",
+          "result": "two_fresh_v3_databases_and_volumes_restored_exactly_before_login",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave36-independent-restore-attestation.json",
+            "wave36-initial-logging-refusal.json",
+            "wave36-v2-quiescence-refusal.json"
+          ],
+          "counts": {
+            "secondary_tables": 579,
+            "university_tables": 630
+          },
+          "verification": "pg_dump custom et pg_restore transactionnel dans bases template0 neuves ; archives de volumes. Toutes tables/lignes/sequences, fichiers, droits, comptes et MFA/TOTP preserves ; sources35 inchangees.",
+          "limits": "V1 refusee par Docker, V2 incomplete sur garde de quiescence, rouges conserves sans reuse. V3 seule qualifiee ; backend exact du refus V2 inconnu. Meme cluster prive, pas RTO production."
+        },
+        {
+          "id": "wave36-secondaire-restored-native-reopens-and-recreation",
+          "result": "initial_and_recreated_reopens_passed_with_strict_old_data_and_auth_preservation",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave36-survey-secondaire-initial-reopen.json",
+            "wave36-survey-secondaire-recreated-reopen.json",
+            "wave36-secondaire-recreation-comparison.json",
+            "wave36-secondaire-initial-preservation-comparison.json",
+            "wave36-secondaire-recreated-preservation-comparison.json"
+          ],
+          "counts": {
+            "restored_database": "sis_wave36_restore_secondaire_v3",
+            "restored_volume": "sis-wave36-restored-v3-data-secondaire-d0c25c75",
+            "all_protected_tables": 579,
+            "all_recreated_sequences_exact": 523,
+            "all_volume_entries_preserved": 32,
+            "phases": {
+              "initial": {
+                "real_logins": 10,
+                "business_get_checks": 86,
+                "total_http_requests": 288,
+                "duration_ms": 426450,
+                "only_bounded_authentication_writes": true,
+                "strict_preservation_passed": true
+              },
+              "recreated": {
+                "real_logins": 10,
+                "business_get_checks": 86,
+                "total_http_requests": 288,
+                "duration_ms": 426452,
+                "only_bounded_authentication_writes": true,
+                "strict_preservation_passed": true
+              }
+            },
+            "initial36_authentication_rows_preserved_after_second_reopen": true
+          },
+          "verification": "Dix vrais logins par phase, deux tenants peuples et quatre publics authentifies. Resultats/reponses et refus relus sans commande metier ; API/proxy reellement recrees. Avant nouvelle connexion : toutes tables/sequences/entrees de volume exactes et TOTP utilisable. Six tables auth seulement, deux sequences de logs avancees exactement ; premieres lignes auth36 integralement preservees au second passage, pas seulement leurs identites.",
+          "limits": "HTTP natif, pas une nouvelle campagne Chromium ; les connexions ecrivent l'authentification. Tests/build/UI35 identiques reutilises sans les recompter."
+        },
+        {
+          "id": "wave36-superieur-restored-native-reopens-and-recreation",
+          "result": "initial_and_recreated_reopens_passed_with_strict_old_data_and_auth_preservation",
+          "artifact_refs": [
+            "parent-qualification",
+            "wave36-survey-superieur-initial-reopen.json",
+            "wave36-survey-superieur-recreated-reopen.json",
+            "wave36-superieur-recreation-comparison.json",
+            "wave36-superieur-initial-preservation-comparison.json",
+            "wave36-superieur-recreated-preservation-comparison.json"
+          ],
+          "counts": {
+            "restored_database": "sis_wave36_restore_superieur_v3",
+            "restored_volume": "sis-wave36-restored-v3-data-superieur-d0c25c75",
+            "all_protected_tables": 630,
+            "all_recreated_sequences_exact": 574,
+            "all_volume_entries_preserved": 29,
+            "phases": {
+              "initial": {
+                "real_logins": 10,
+                "business_get_checks": 84,
+                "total_http_requests": 282,
+                "duration_ms": 419241,
+                "only_bounded_authentication_writes": true,
+                "strict_preservation_passed": true
+              },
+              "recreated": {
+                "real_logins": 10,
+                "business_get_checks": 84,
+                "total_http_requests": 282,
+                "duration_ms": 419241,
+                "only_bounded_authentication_writes": true,
+                "strict_preservation_passed": true
+              }
+            },
+            "initial36_authentication_rows_preserved_after_second_reopen": true
+          },
+          "verification": "Dix vrais logins par phase, deux tenants peuples et quatre publics authentifies. Resultats/reponses et refus relus sans commande metier ; API/proxy reellement recrees. Avant nouvelle connexion : toutes tables/sequences/entrees de volume exactes et TOTP utilisable. Six tables auth seulement, deux sequences de logs avancees exactement ; premieres lignes auth36 integralement preservees au second passage, pas seulement leurs identites.",
+          "limits": "HTTP natif, pas une nouvelle campagne Chromium ; les connexions ecrivent l'authentification. Tests/build/UI35 identiques reutilises sans les recompter."
+        }
+      ],
+      "criteria_confrontation": {
+        "requirement_id": "10.12",
+        "status_before": "partial",
+        "status_after": "verified",
+        "criteria_unchanged": true,
+        "acceptance_checks": [
+          "Diffuser une enquête aux quatre publics autorisés, recueillir réponses et analyser résultats.",
+          "Refuser doublons ou non-destinataires selon règles; préserver anonymat si annoncé."
+        ],
+        "business_evidence": "Four authenticated audiences, collection/results, duplicates, non-recipients and revocation proven35.",
+        "common_persistent_conditions": "Independent new database/file restoration, real TOTP, exact recreation and two native reopens in both SIS.",
+        "nominative_policy_preserved": true,
+        "additional_smtp_export_or_unannounced_anonymity_criteria": false,
+        "only_requirement_10_12_promotion_authorized": true
+      },
+      "incidents_preserved": [
+        "Initial attempt: Docker logging refusal125 before Python; original created container and15 artifacts preserved.",
+        "V2: quiescence refusal before university database creation; secondary partial restore not qualified or reused.",
+        "Exact backend at the v2 refusal was not captured; a later zero-session check does not prove its cause.",
+        "V3 uses new databases, volumes and evidence; earlier failed attempts remain failed."
+      ],
+      "qualification_limits": [
+        "Local synthetic recovery, same PostgreSQL cluster; not a production RTO or inter-cluster portability claim.",
+        "No new product build/backend/Jest campaign; previously qualified identical code and bundle are reused.",
+        "Native HTTP reopens exercise restored business reads and real login writes, not another Chromium campaign.",
+        "No shared deployment, institutional pilot, SMTP qualification or global/F-lot closure.",
+        "Historical500-load failure remains unchanged; no new load campaign."
+      ]
     }
   ],
   "current_execution_state": {
-    "as_of": "2026-11-08T01:07:25.737594+00:00",
+    "as_of": "2026-11-08T02:45:18.778303+00:00",
     "wave15_qualification_reference": {"update_id": "EXEC-20261107-wave15-published-qualification", "campaign_ids": ["wave15-published-backend-regressions", "wave15-driver-identity-and-migrations", "wave15-lms-grade-review-protection", "wave15-lms-grade-review-browser", "wave15-authorized-search-backends"]},
     "wave16_qualification_reference": {"update_id": "EXEC-20261107-wave16-published-search-qualification", "campaign_ids": ["wave16-frontend-full-and-targeted-recheck", "wave16-frontend-lint-and-build", "wave16-authorized-search-browser"]},
     "wave17_qualification_reference": {"update_id": "EXEC-20261107-wave17-published-search-qualification", "campaign_ids": ["wave17-school-search-and-bulletin-recheck", "wave17-university-mapped-evaluation-search", "wave17-workspace-lint-and-build", "wave17-search-browser-both-variants"]},
@@ -7503,7 +8841,7 @@
       "unverified": 2,
       "change": "10.7_partial_to_verified_only_explicit_parent_authorization_wave33"
     },
-    "shared_deployment_scope": "Aucun deploiement partage des vagues15a35, pilote institutionnel ou production. Les images de qualification ne remplacent pas les services partages ; restauration36 non qualifiee exclue.",
+    "shared_deployment_scope": "Aucun deploiement partage des vagues15a36, pilote institutionnel ou production. Les restaurations36v3 sont isolees et ne remplacent aucun service partage.",
     "wave14_bounded_sis_qualification": "20 correctifs publiés sur origin/main à d79a735 ; image jetable local-20261106-d79a735 testée sans montage applicatif, 708 tests secondaire et 730 supérieur verts, check et migrations sans dérive. Aucun service partagé remplacé ; Open edX local non publié, examen disciplinaire bloqué, dernier 500 rouge. Les statuts des 94 exigences ne changent pas ; les autres champs historiques gardent leurs propres cutoffs.",
     "university_learner_search_bounded": "Historique00f1755/13tests core conservé. Au cutoff vagues15/16, recherche universitaire étendue aux documents sources et vrais cours, recherche élèves/factures secondaire et palette métier qualifiées dans les limites de global_search_bounded.10.7 reste partial sans promotion ni déploiement partagé.",
     "university_academic_search_bounded": "Commit a2e7f8e publié sur origin/main, image jetable local-20261106-a2e7f8e testée (11/11 core); aucune promotion de 10.7 ni remplacement du déploiement partagé. Les autres champs de l'état d'exécution gardent leurs propres cutoffs historiques du 5 novembre.",
@@ -7583,7 +8921,16 @@
         "wave35-superieur-recreation-reopen-and-preservation"
       ]
     },
-    "wave35_authenticated_partners_bounded": "Profil Partenaire natif sans groupes/permissions/affiliations/LMS implicites. Quatre publics qualifies dans deux SIS et deux tenants, preservation et recreation/reouverture prouvees. Repertoire scolaire protege hors acces personnel autorise ; aucune generalisation a toutes les API. 10.12 reste partial : restauration independante du nouvel increment a qualifier."
+    "wave35_authenticated_partners_bounded": "Profil Partenaire natif sans groupes/permissions/affiliations/LMS implicites. Quatre publics qualifies dans deux SIS et deux tenants, preservation et recreation/reouverture prouvees. Repertoire scolaire protege hors acces personnel autorise ; aucune generalisation a toutes les API. 10.12 reste partial : restauration independante du nouvel increment a qualifier.",
+    "wave36_published_qualification_reference": {
+      "update_id": "EXEC-20261108-wave36-verified-survey-recovery",
+      "campaign_ids": [
+        "wave36-independent-database-and-file-recovery",
+        "wave36-secondaire-restored-native-reopens-and-recreation",
+        "wave36-superieur-restored-native-reopens-and-recreation"
+      ]
+    },
+    "wave36_survey_recovery_bounded": "Vraie restauration independante dans deux ciblesv3 neuves ; doubles reouvertures natives et recreation avec preservation exhaustive. Seule10.12 verifiee dans son perimetre nominatif ; les deux tentatives refusees restent rouges, aucune cloture globale ou F-lot."
   },
   "execution_status_policy": {
     "requirement_verified_in_declared_scope": "Toutes les obligations/critères de l'exigence sont rapprochés de preuves exécutées, persistantes et livrées dans le périmètre déclaré; promotion explicitement autorisée, sans propagation aux autres exigences/F-lots.",
@@ -8172,8 +9519,8 @@
     "chapter10_features": 14,
     "chapter11_cycle_and_steps": 10,
     "counts_by_status": {
-      "partial": 70,
-      "verified": 3,
+      "partial": 69,
+      "verified": 4,
       "absent": 19,
       "unverified": 2,
       "external_credentials_blocked": 0
@@ -8182,9 +9529,9 @@
     "application_execution_count_note": "Aucun total dédupliqué disponible : campagnes ciblées, larges et delta se chevauchent; consulter les nombres séparés dans execution_updates, sans les sommer.",
     "initial_inventory_application_execution_count": 0,
     "documentation_update_application_execution_count": 0,
-    "imported_evidence_campaign_records": 208,
+    "imported_evidence_campaign_records": 211,
     "requirements_with_new_increment_evidence": 26,
-    "conclusion": "208 campagnes documentaires non sommees,53 updates,26 exigences avec preuves ;117 artefacts35. 52 updates historiques et93 autres exigences strictement conserves. Aucun statut promu35 : 3 verifiees,70 partielles,19 absentes,2 non verifiees ;10.12 reste partielle. Aucun total deduplique d'executions, F-lots ouverts, charge500 rouge, pas100 %."
+    "conclusion": "211 campagnes documentaires non sommees,54 updates,26 exigences avec preuves ;298 artefacts36. 53 updates historiques et93 autres exigences strictement conserves. Seule10.12 promue : 4 verifiees,69 partielles,19 absentes,2 non verifiees. Aucun total deduplique d'executions, F-lots ouverts, charge500 rouge, pas100 %."
   },
   "requirements": [
     {
@@ -13882,7 +15229,7 @@
       ],
       "existing_scope": "SurveyForm natif LMS repéré pour cours; pas d'enquêtes institutionnelles multi-publics raccordées au SIS.",
       "test_scope": "Tests source présents, non exécutés pendant cet inventaire.",
-      "status": "partial",
+      "status": "verified",
       "top_missing_pieces": [
         "Campagnes/questionnaires pour apprenants/enseignants/parents/partenaires, ciblage et collecte.",
         "Confidentialité/anonymat selon configuration, consentement, résultats/exports autorisés."
@@ -13925,9 +15272,21 @@
           "verified_scope": "Quatre publics authentifies : apprenants, enseignants, parents, partenaires natifs sans droits implicites. Collecte et resultats nominatifs, comptages, doublons/non-destinataires, tenants, revocation et fermeture.",
           "preservation_scope": "579/630 tables, anciens comptes/MFA/droits/flags/fichiers, deux tenants ; 523/574 sequences identiques a travers la recreation, reouverture de dix comptes par SIS. Effets auth bornes et anciens octets verifies.",
           "remaining_scope": "Sauvegarde/restauration independante du nouvel increment selon les conditions communes avant promotion. SMTP/export/anonymat non annonce ne deviennent pas de nouveaux criteres. F17/F20/F23 et programme global restent ouverts."
+        },
+        {
+          "update_id": "EXEC-20261108-wave36-verified-survey-recovery",
+          "campaign_ids": [
+            "wave36-independent-database-and-file-recovery",
+            "wave36-secondaire-restored-native-reopens-and-recreation",
+            "wave36-superieur-restored-native-reopens-and-recreation"
+          ],
+          "result": "common_independent_recovery_completed_requirement_10_12_verified",
+          "verified_scope": "Criteres propres inchanges : quatre publics35, collecte/analyse, refus doublons et non-destinataires. Politique nominative explicite conservee ; restauration independante36 complete la regle commune.",
+          "preservation_scope": "579/630 tables,523/574 sequences,32/29 entrees de volume ; anciens comptes, MFA/TOTP et droits intacts. Deux reouvertures de dix comptes par SIS sur nouvelles ciblesv3, recreation reelle et effets auth bornes. Premieres sessions/logs36 preserves integralement apres le second passage.",
+          "remaining_scope": "Aucune condition propre10.12 restante dans le perimetre nominatif qualifie. SMTP/export/anonymat non annonce ne deviennent pas de nouveaux criteres. F17/F20/F23, recette institutionnelle et programme global restent ouverts."
         }
       ],
-      "acceptance_execution_status": "bounded_increment_passed_requirement_remains_partial"
+      "acceptance_execution_status": "requirement_verified_in_declared_scope"
     },
     {
       "id": "10.13",
