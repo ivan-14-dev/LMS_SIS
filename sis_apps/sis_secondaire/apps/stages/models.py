@@ -4,6 +4,18 @@ from apps.eleves.models import Eleve
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.practical_legacy_guards import ProtectedLegacyBase
+
+from .practical_models import (  # noqa: F401
+    AuditPratique,
+    DecisionHeurePratique,
+    DossierPratique,
+    EvaluationCompetencePratique,
+    HeurePratique,
+    ProgrammePratique,
+    RevisionProgrammePratique,
+)
+
 
 class Entreprise(models.Model):
     """Entreprise d'accueil pour les stages."""
@@ -30,7 +42,7 @@ class Entreprise(models.Model):
         return self.raison_sociale
 
 
-class ConventionStage(models.Model):
+class ConventionStage(ProtectedLegacyBase):
     """Convention de stage (filière pro)."""
 
     STATUT_CHOICES = [

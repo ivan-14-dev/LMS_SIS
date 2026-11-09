@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getConfig } from '@edx/frontend-platform';
 import { fetchApi } from './services/api';
 import App from './App';
+import { page, scenario } from './practical/practicalTestData';
 
 jest.mock('@edx/frontend-platform', () => ({ getConfig: jest.fn() }));
 jest.mock('./services/api', () => ({
@@ -31,6 +32,10 @@ const renderRoute = (path, capabilities) => {
   fetchApi.mockImplementation(async (url) => {
     if (url.endsWith('/capabilities/')) { return capabilities; }
     if (url.endsWith('/utilisateurs/comptes/me/')) { return { id: 8, etablissement: 3, is_staff: false }; }
+    if (url.endsWith('/stages/pratique/capacites/')) {
+      return scenario(path.startsWith('/secondaire') ? 'secondaire' : 'superieur').capabilities;
+    }
+    if (url.includes('/stages/pratique/')) { return page([]); }
     if (url.endsWith('/core/evenements/capacites/')) {
       return {
         can_create: false, can_manage: false, can_consult: true, types: [], statuts: [], notifications: 'internes',
@@ -57,6 +62,25 @@ const renderRoute = (path, capabilities) => {
 afterEach(() => {
   jest.clearAllMocks();
   window.history.replaceState({}, '', '/');
+});
+
+it.each(['secondaire', 'superieur'])('mounts the native %s practical route without a staff/portal grant', async variant => {
+  renderRoute(`/${variant}/stages-pratiques`, {
+    role: 'etudiant',
+    is_staff: false,
+    permissions: ['stages.consulter_suivi_pratique'],
+    modules: { 'sis.practical_training': true },
+    portals: { staff: false },
+  });
+  expect(await screen.findByRole('heading', { name: 'Stages pratiques', level: 1 })).toBeVisible();
+  await waitFor(() => expect(fetchApi.mock.calls.some(([url]) => url.includes('/stages/pratique/dossiers/'))).toBe(true));
+  expect(fetchApi.mock.calls.every(([url]) => !url.includes('/portail/'))).toBe(true);
+});
+
+it.each(['secondaire', 'superieur'])('blocks the native %s practical route when its module is OFF', async variant => {
+  renderRoute(`/${variant}/stages-pratiques`, { permissions: ['*'], modules: {} });
+  expect(await screen.findByText('Le module Stages pratiques est désactivé ou indisponible.')).toBeVisible();
+  expect(fetchApi.mock.calls.every(([url]) => url.endsWith('/capabilities/'))).toBe(true);
 });
 
 it.each([

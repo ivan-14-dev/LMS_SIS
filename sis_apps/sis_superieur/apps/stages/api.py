@@ -9,6 +9,8 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from sis_common.practical_legacy_guards import PracticalLegacyAPIMixin
+
 from .models import CandidatureStage, ConventionStage, OffreStage
 from .permissions import can_manage_stage_applications, is_stage_applicant
 from .serializers import (
@@ -42,7 +44,7 @@ class IsCandidatureParticipant(IsAuthenticated):
         return view.action not in ("accepter", "refuser") and is_stage_applicant(request.user)
 
 
-class OffresStageViewSet(viewsets.ModelViewSet):
+class OffresStageViewSet(PracticalLegacyAPIMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour offres de stage."""
 
     permission_classes = [IsRelationsEntreprisesOrReadOnly]
@@ -148,7 +150,7 @@ class CandidaturesStageViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Candidature refusée.", "id": candidature.id})
 
 
-class ConventionsStageViewSet(viewsets.ModelViewSet):
+class ConventionsStageViewSet(PracticalLegacyAPIMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour conventions de stage."""
 
     permission_classes = [IsRelationsEntreprisesOrReadOnly]

@@ -6,8 +6,20 @@ from apps.etudiants.models import Etudiant
 from apps.formations.models import Formation
 from django.db import models
 
+from sis_common.practical_legacy_guards import ProtectedLegacyBase
 
-class OffreStage(models.Model):
+from .practical_models import (  # noqa: F401
+    AuditPratique,
+    DecisionHeurePratique,
+    DossierPratique,
+    EvaluationCompetencePratique,
+    HeurePratique,
+    ProgrammePratique,
+    RevisionProgrammePratique,
+)
+
+
+class OffreStage(ProtectedLegacyBase):
     """Offre de stage."""
 
     TYPE_CHOICES = [
@@ -93,7 +105,7 @@ class CandidatureStage(models.Model):
         return f"{self.etudiant} - {self.offre}"
 
 
-class ConventionStage(models.Model):
+class ConventionStage(ProtectedLegacyBase):
     """Convention de stage tripartite."""
 
     STATUT_CHOICES = [

@@ -58,7 +58,7 @@ export const workspaceKind = (capabilities) => {
 };
 
 export const canAccessModule = (item, capabilities) => Boolean(capabilities
-  && (!item.module || (['sis.projects', 'sis.surveys', 'sis.events', 'sis.research'].includes(item.module)
+  && (!item.module || (['sis.projects', 'sis.surveys', 'sis.events', 'sis.research', 'sis.practical_training'].includes(item.module)
     ? capabilities.modules?.[item.module] === true
     : capabilities.modules?.[item.module] !== false)) && (
   item.public
@@ -255,6 +255,17 @@ const administrativeModules = (variant) => {
 export const getNavigation = (type, variant, capabilities, search = '') => {
   const kind = workspaceKind(capabilities);
   const personalItems = [];
+  personalItems.push({
+    path: `/${variant}/stages-pratiques`,
+    label: 'Stages pratiques',
+    icon: Business,
+    module: 'sis.practical_training',
+    permission: 'stages.gerer_suivi_pratique',
+    alternatePermissions: [
+      'stages.consulter_suivi_pratique', 'stages.saisir_heures_pratiques',
+      'stages.valider_heures_pratiques', 'stages.evaluer_competences_pratiques',
+    ],
+  });
   personalItems.push({
     path: `/${variant}/evenements`,
     label: 'Événements institutionnels',

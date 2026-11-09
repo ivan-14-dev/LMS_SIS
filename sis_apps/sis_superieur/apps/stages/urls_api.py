@@ -2,6 +2,8 @@
 
 from rest_framework.routers import DefaultRouter
 
+from sis_common.practical_api import practical_urlpatterns
+
 from .api import (
     CandidaturesStageViewSet,
     ConventionsStageViewSet,
@@ -15,4 +17,4 @@ router.register("offres-stage", OffresStageViewSet, basename="offre-stage")
 router.register("candidatures-stage", CandidaturesStageViewSet, basename="candidature-stage")
 router.register("conventions-stage", ConventionsStageViewSet, basename="convention-stage")
 
-urlpatterns = router.urls
+urlpatterns = practical_urlpatterns + router.urls

@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.authorization import is_current_tenant_user, request_has_business_access
+from sis_common.practical_legacy_guards import PracticalLegacyAPIMixin
 
 from .models import ConventionStage, Entreprise, EvaluationStage, SuiviStage
 from .serializers import (
@@ -78,7 +79,7 @@ class EntreprisesStageViewSet(viewsets.ModelViewSet):
         ).prefetch_related("conventions")
 
 
-class ConventionsStageViewSet(viewsets.ModelViewSet):
+class ConventionsStageViewSet(PracticalLegacyAPIMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour conventions de stage."""
 
     permission_classes = [IsScolariteOrReadOnly]
