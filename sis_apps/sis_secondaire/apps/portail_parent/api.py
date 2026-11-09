@@ -42,18 +42,22 @@ class PortailParentViewSet(viewsets.ViewSet):
 
     def _authorized_links(self, request):
         tenant_id = request.tenant.pk
-        links = EleveTuteur.objects.filter(
-            tuteur_id=request.user.tuteur_profile.pk,
-            tuteur__etablissement_id=tenant_id,
-            autorise_acces_portail=True,
-            eleve__etablissement_id=tenant_id,
-            eleve__user__etablissement_id=tenant_id,
-        ).filter(
-            Q(eleve__classe_actuelle__isnull=True)
-            | Q(eleve__classe_actuelle__etablissement_id=tenant_id)
-        ).select_related("eleve__user", "eleve__classe_actuelle__niveau")
+        links = (
+            EleveTuteur.objects.filter(
+                tuteur_id=request.user.tuteur_profile.pk,
+                tuteur__etablissement_id=tenant_id,
+                autorise_acces_portail=True,
+                eleve__etablissement_id=tenant_id,
+                eleve__user__etablissement_id=tenant_id,
+            )
+            .filter(Q(eleve__classe_actuelle__isnull=True) | Q(eleve__classe_actuelle__etablissement_id=tenant_id))
+            .select_related("eleve__user", "eleve__classe_actuelle__niveau")
+        )
         return filter_queryset_by_scopes(
-            links, request.user, "eleves.view_eleve", {"eleves": "eleve_id", "classes": "eleve__classe_actuelle_id"},
+            links,
+            request.user,
+            "eleves.view_eleve",
+            {"eleves": "eleve_id", "classes": "eleve__classe_actuelle_id"},
         )
 
     def _get_enfants(self, request):
@@ -62,13 +66,18 @@ class PortailParentViewSet(viewsets.ViewSet):
     def _presences(self, request, enfant):
         return filter_queryset_by_scopes(
             Presence.objects.filter(
-                eleve=enfant, appel__creneau__classe__etablissement=request.tenant,
+                eleve=enfant,
+                appel__creneau__classe__etablissement=request.tenant,
                 appel__creneau__matiere__etablissement=request.tenant,
             ),
-            request.user, "presences.view_presence",
-            {"eleves": "eleve_id", "classes": "appel__creneau__classe_id",
-             "matieres": "appel__creneau__matiere_id",
-             "annees": "appel__creneau__classe__annee_scolaire_id"},
+            request.user,
+            "presences.view_presence",
+            {
+                "eleves": "eleve_id",
+                "classes": "appel__creneau__classe_id",
+                "matieres": "appel__creneau__matiere_id",
+                "annees": "appel__creneau__classe__annee_scolaire_id",
+            },
         )
 
     def _get_enfant(self, request):
@@ -88,7 +97,8 @@ class PortailParentViewSet(viewsets.ViewSet):
         enfant_ids = [enfant.id for enfant in enfants]
         latest_bulletins = {}
         for bulletin in (
-            visible_bulletins(request).filter(eleve_id__in=enfant_ids)
+            visible_bulletins(request)
+            .filter(eleve_id__in=enfant_ids)
             .select_related("periode")
             .order_by("eleve_id", "-periode__date_fin")
         ):
@@ -119,7 +129,8 @@ class PortailParentViewSet(viewsets.ViewSet):
             )
 
         factures = (
-            visible_invoices(request).filter(eleve_id__in=enfant_ids, statut__in=UNPAID_STATUSES)
+            visible_invoices(request)
+            .filter(eleve_id__in=enfant_ids, statut__in=UNPAID_STATUSES)
             .select_related("eleve__user")
             .order_by("date_echeance", "-date_emission")[:5]
         )
@@ -151,7 +162,8 @@ class PortailParentViewSet(viewsets.ViewSet):
             return error
 
         latest_bulletin = (
-            visible_bulletins(request).filter(eleve=enfant)
+            visible_bulletins(request)
+            .filter(eleve=enfant)
             .select_related("periode")
             .order_by("-periode__date_fin")
             .first()
@@ -187,9 +199,15 @@ class PortailParentViewSet(viewsets.ViewSet):
             evaluation__periode__annee_scolaire__etablissement=request.tenant,
         ).select_related("evaluation__matiere", "evaluation__periode")
         notes = filter_queryset_by_scopes(
-            notes, request.user, "notes.view_note",
-            {"classes": "evaluation__classe_id", "matieres": "evaluation__matiere_id",
-             "periodes": "evaluation__periode_id", "annees": "evaluation__classe__annee_scolaire_id"},
+            notes,
+            request.user,
+            "notes.view_note",
+            {
+                "classes": "evaluation__classe_id",
+                "matieres": "evaluation__matiere_id",
+                "periodes": "evaluation__periode_id",
+                "annees": "evaluation__classe__annee_scolaire_id",
+            },
         )
 
         return Response(
@@ -215,7 +233,8 @@ class PortailParentViewSet(viewsets.ViewSet):
             return error
 
         presences = (
-            self._presences(request, enfant).filter(statut__in=("absent", "absent_justifie", "retard"))
+            self._presences(request, enfant)
+            .filter(statut__in=("absent", "absent_justifie", "retard"))
             .select_related("appel__creneau", "justificatif")
             .order_by("-appel__date", "-appel__creneau__heure_debut")[:30]
         )
@@ -251,17 +270,25 @@ class PortailParentViewSet(viewsets.ViewSet):
 
         creneaux = (
             Creneau.objects.filter(
-                classe=enfant.classe_actuelle, actif=True,
-                classe__etablissement=request.tenant, matiere__etablissement=request.tenant,
+                classe=enfant.classe_actuelle,
+                actif=True,
+                classe__etablissement=request.tenant,
+                matiere__etablissement=request.tenant,
                 enseignant__user__etablissement=request.tenant,
             )
             .select_related("matiere", "enseignant__user", "salle")
             .order_by("jour", "heure_debut")
         )
         creneaux = filter_queryset_by_scopes(
-            creneaux, request.user, "emplois_du_temps.view_creneau",
-            {"classes": "classe_id", "matieres": "matiere_id", "enseignants": "enseignant_id",
-             "annees": "classe__annee_scolaire_id"},
+            creneaux,
+            request.user,
+            "emplois_du_temps.view_creneau",
+            {
+                "classes": "classe_id",
+                "matieres": "matiere_id",
+                "enseignants": "enseignant_id",
+                "annees": "classe__annee_scolaire_id",
+            },
         )
 
         return Response(
@@ -288,23 +315,42 @@ class PortailParentViewSet(viewsets.ViewSet):
             return error
         bulletins = visible_bulletins(request).filter(eleve=enfant).order_by("-periode__date_fin", "-pk")
         factures = visible_invoices(request).filter(eleve=enfant).order_by("-date_emission", "-pk")
-        return Response({
-            "enfant": self.enfant_detail(request).data,
-            "notes": self.notes_enfant(request).data,
-            "absences": self.absences_enfant(request).data,
-            "planning": self.emploi_du_temps_enfant(request).data if enfant.classe_actuelle_id else [],
-            "bulletins": [{
-                "id": bulletin.pk, "periode": bulletin.periode.libelle,
-                "classe": bulletin.classe.nom, "moyenne": _decimal_to_float(bulletin.moyenne_generale),
-                "rang": bulletin.rang,
-            } for bulletin in bulletins],
-            "factures": [{
-                "id": facture.pk, "numero": facture.numero, "statut": facture.statut,
-                "montant": str(facture.montant), "montant_paye": str(facture.montant_paye),
-                "reste_a_payer": str(facture.montant_restant),
-                "paiements": [{
-                    "numero": paiement.numero, "date": paiement.date_paiement.isoformat(),
-                    "montant": str(paiement.montant), "statut": paiement.statut,
-                } for paiement in facture.paiements.all()],
-            } for facture in factures],
-        }, headers={"Cache-Control": "private, no-store"})
+        return Response(
+            {
+                "enfant": self.enfant_detail(request).data,
+                "notes": self.notes_enfant(request).data,
+                "absences": self.absences_enfant(request).data,
+                "planning": self.emploi_du_temps_enfant(request).data if enfant.classe_actuelle_id else [],
+                "bulletins": [
+                    {
+                        "id": bulletin.pk,
+                        "periode": bulletin.periode.libelle,
+                        "classe": bulletin.classe.nom,
+                        "moyenne": _decimal_to_float(bulletin.moyenne_generale),
+                        "rang": bulletin.rang,
+                    }
+                    for bulletin in bulletins
+                ],
+                "factures": [
+                    {
+                        "id": facture.pk,
+                        "numero": facture.numero,
+                        "statut": facture.statut,
+                        "montant": str(facture.montant),
+                        "montant_paye": str(facture.montant_paye),
+                        "reste_a_payer": str(facture.montant_restant),
+                        "paiements": [
+                            {
+                                "numero": paiement.numero,
+                                "date": paiement.date_paiement.isoformat(),
+                                "montant": str(paiement.montant),
+                                "statut": paiement.statut,
+                            }
+                            for paiement in facture.paiements.all()
+                        ],
+                    }
+                    for facture in factures
+                ],
+            },
+            headers={"Cache-Control": "private, no-store"},
+        )

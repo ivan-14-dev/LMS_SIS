@@ -36,7 +36,9 @@ def enrollment_receipt_allowed(mapping, course, active):
     if active and revocation_reason(mapping.user_sis, course, mapping, "enrollment"):
         return False
     intent = EdxAccessIntent.objects.filter(
-        user=mapping.user_sis, course=course, kind="enrollment",
+        user=mapping.user_sis,
+        course=course,
+        kind="enrollment",
     ).first()
     return intent is None or intent.is_active is active
 
@@ -55,7 +57,8 @@ def update_enrollment_receipts(queryset, learner_field, active):
             if not enrollment_receipt_allowed(mapping, row.course, active):
                 return False
         queryset.update(
-            is_active=active, last_sync=timezone.now(),
+            is_active=active,
+            last_sync=timezone.now(),
             date_desinscription=None if active else timezone.now(),
         )
     return True

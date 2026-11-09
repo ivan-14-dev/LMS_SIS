@@ -57,9 +57,9 @@ def visible_learners(request):
         return queryset.none()
     if hasattr(user, "tuteur_profile"):
         queryset = queryset.filter(
-            id__in=EleveTuteur.objects.filter(
-                tuteur=user.tuteur_profile, autorise_acces_portail=True
-            ).values("eleve_id")
+            id__in=EleveTuteur.objects.filter(tuteur=user.tuteur_profile, autorise_acces_portail=True).values(
+                "eleve_id"
+            )
         )
     return filter_queryset_by_scopes(
         queryset, user, "eleves.view_eleve", {"eleves": "pk", "classes": "classe_actuelle_id"}

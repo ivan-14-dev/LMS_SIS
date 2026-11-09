@@ -19,7 +19,9 @@ class PracticalTrainingTests(PracticalFixture):
         self.prepare()
         snapshot = deepcopy(self.dossier["programme"])
         payload = {key: value for key, value in snapshot.items() if key != "sha256"}
-        digest = sha256(json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()).hexdigest()
+        digest = sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
+        ).hexdigest()
         assert snapshot["sha256"] == digest
         assert snapshot["offre_source"]["mode_evaluation"] == "numeric"
         assert self.dossier["inscription"]["id"] == self.registration.pk
@@ -50,7 +52,9 @@ class PracticalTrainingTests(PracticalFixture):
 
         first = self.assessment(acquise=False)
         assert first.status_code == 201, first.data
-        original = practical_model("EvaluationCompetencePratique").objects.values().get(pk=first.data["evaluation"]["id"])
+        original = (
+            practical_model("EvaluationCompetencePratique").objects.values().get(pk=first.data["evaluation"]["id"])
+        )
         assert self.report()["competences_acquises"] == 0
         before = self.state()
         self.assert_error(self.assessment(), 400, "validation_error")
@@ -85,7 +89,9 @@ class PracticalTrainingTests(PracticalFixture):
         for previous in decisions:
             assert practical_model("DecisionHeurePratique").objects.values().get(pk=previous["id"]) == previous
         for identifier in (draft["id"], submitted["id"]):
-            decision = practical_model("DecisionHeurePratique").objects.filter(heure_id=identifier).order_by("sequence").last()
+            decision = (
+                practical_model("DecisionHeurePratique").objects.filter(heure_id=identifier).order_by("sequence").last()
+            )
             assert decision.action == "fermeture"
             assert decision.version_dossier == version + 1
         before = self.state()
@@ -106,16 +112,27 @@ class PracticalTrainingTests(PracticalFixture):
         self.manager.save(update_fields=["attributs_acces"])
         self.login(self.manager)
         root = f"{BASE}programmes/{self.programme['id']}/"
-        response = self.client.post(root + "reviser/", {
-            "version": self.programme["version"], "revision_source": 1,
-        }, format="json")
+        response = self.client.post(
+            root + "reviser/",
+            {
+                "version": self.programme["version"],
+                "revision_source": 1,
+            },
+            format="json",
+        )
         assert response.status_code == 201, response.data
         revision = response.data["programme"]
         assert revision["id"] == self.programme["id"]
-        response = self.client.post(root + "configurer/", {
-            "version": revision["version"], "titre": "Nouvelles exigences", "minutes_requises": 900,
-            "competences": [{"code": "autonomie", "label": "Autonomie"}],
-        }, format="json")
+        response = self.client.post(
+            root + "configurer/",
+            {
+                "version": revision["version"],
+                "titre": "Nouvelles exigences",
+                "minutes_requises": 900,
+                "competences": [{"code": "autonomie", "label": "Autonomie"}],
+            },
+            format="json",
+        )
         assert response.status_code == 200, response.data
         response = self.client.post(root + "publier/", {"version": response.data["version"]}, format="json")
         assert response.status_code == 200, response.data
@@ -130,45 +147,69 @@ class PracticalTrainingTests(PracticalFixture):
 
     def test_incomplete_programme_cannot_publish_and_bad_commands_are_atomic(self):
         self.login(self.manager)
-        response = self.client.post(f"{BASE}programmes/", self.programme_payload(
-            minutes_requises=0, competences=[]
-        ), format="json")
+        response = self.client.post(
+            f"{BASE}programmes/", self.programme_payload(minutes_requises=0, competences=[]), format="json"
+        )
         assert response.status_code == 201, response.data
         programme = response.data["programme"]
         before = self.state()
         response = self.client.post(
-            f"{BASE}programmes/{programme['id']}/publier/", {"version": programme["version"]}, format="json",
+            f"{BASE}programmes/{programme['id']}/publier/",
+            {"version": programme["version"]},
+            format="json",
         )
         self.assert_error(response, 400, "programme_incomplet")
         assert self.state() == before
-        for changes in ({"curriculum": True}, {"curriculum": str(self.curriculum.pk)},
-                        {"version": False}, {"competences": [{"code": "ok", "label": "OK", "weight": 1}]}):
-            response = self.client.post(f"{BASE}programmes/", self.programme_payload(code="autre", **changes), format="json")
+        for changes in (
+            {"curriculum": True},
+            {"curriculum": str(self.curriculum.pk)},
+            {"version": False},
+            {"competences": [{"code": "ok", "label": "OK", "weight": 1}]},
+        ):
+            response = self.client.post(
+                f"{BASE}programmes/", self.programme_payload(code="autre", **changes), format="json"
+            )
             self.assert_error(response, 400, "validation_error")
             assert self.state() == before
 
     def test_archived_never_published_draft_can_be_revised_without_rewriting_its_source(self):
         self.login(self.manager)
-        response = self.client.post(f"{BASE}programmes/", self.programme_payload(
-            minutes_requises=0, competences=[],
-        ), format="json")
+        response = self.client.post(
+            f"{BASE}programmes/",
+            self.programme_payload(
+                minutes_requises=0,
+                competences=[],
+            ),
+            format="json",
+        )
         assert response.status_code == 201, response.data
         programme = response.data["programme"]
         root = f"{BASE}programmes/{programme['id']}/"
-        response = self.client.post(root + "archiver/", {
-            "version": programme["version"], "revision": 1, "motif": "Reprendre la préparation plus tard.",
-        }, format="json")
+        response = self.client.post(
+            root + "archiver/",
+            {
+                "version": programme["version"],
+                "revision": 1,
+                "motif": "Reprendre la préparation plus tard.",
+            },
+            format="json",
+        )
         assert response.status_code == 200, response.data
         archived = response.data["programme"]
         assert archived["revision_publiee"] is None
         assert archived["revision_courante"]["published_at"] is None
         assert archived["actions"]["can_revise"] is True
-        original = practical_model("RevisionProgrammePratique").objects.values().get(
-            pk=archived["revision_courante"]["id"]
+        original = (
+            practical_model("RevisionProgrammePratique").objects.values().get(pk=archived["revision_courante"]["id"])
         )
-        response = self.client.post(root + "reviser/", {
-            "version": archived["version"], "revision_source": 1,
-        }, format="json")
+        response = self.client.post(
+            root + "reviser/",
+            {
+                "version": archived["version"],
+                "revision_source": 1,
+            },
+            format="json",
+        )
         assert response.status_code == 201, response.data
         revised = response.data["programme"]
         assert revised["version"] == archived["version"] + 1
@@ -187,15 +228,21 @@ class PracticalTrainingTests(PracticalFixture):
         registration_offering = deepcopy(self.registration.offre_configuration)
         opening = self.opening_payload(self.make_convention())
         root = f"{BASE}programmes/{self.programme['id']}/"
-        response = self.client.post(root + "reviser/", {
-            "version": self.programme["version"], "revision_source": 1,
-        }, format="json")
+        response = self.client.post(
+            root + "reviser/",
+            {
+                "version": self.programme["version"],
+                "revision_source": 1,
+            },
+            format="json",
+        )
         assert response.status_code == 201, response.data
         programme_version = response.data["version"]
         opening["programme_version"] = programme_version
 
         self.curriculum.offre_configuration = {
-            **deepcopy(self.curriculum.offre_configuration), "assessment": {"mode": "pass_fail"},
+            **deepcopy(self.curriculum.offre_configuration),
+            "assessment": {"mode": "pass_fail"},
         }
         self.curriculum.save(update_fields=["offre_configuration"])
         first = self.record(heure_fin="10:00")
@@ -241,9 +288,14 @@ class PracticalTrainingTests(PracticalFixture):
         before = self.state()
         fingerprint = opening["convention_empreinte"]
         for invalid in (int("1" * 64), f" {fingerprint}", f"{fingerprint}\n", "A" * 64):
-            response = self.client.post(f"{BASE}dossiers/", {
-                **opening, "convention_empreinte": invalid,
-            }, format="json")
+            response = self.client.post(
+                f"{BASE}dossiers/",
+                {
+                    **opening,
+                    "convention_empreinte": invalid,
+                },
+                format="json",
+            )
             self.assert_error(response, 400, "validation_error")
             assert self.state() == before
         self.open_dossier()
@@ -252,9 +304,16 @@ class PracticalTrainingTests(PracticalFixture):
         response = self.command(f"heures/{hour['id']}/soumettre/", self.learner_user, version=1)
         self.assert_error(response, 409, "version_perimee")
         assert response.data["current_version"] == self.dossier["version"]
-        for changes in ({"version": True}, {"version": str(self.dossier["version"])},
-                        {"pause_minutes": False}, {"minutes": 200}, {"statut": "validee"}):
-            self.assert_error(self.command("heures/", self.learner_user, **self.hour_payload(**changes)), 400, "validation_error")
+        for changes in (
+            {"version": True},
+            {"version": str(self.dossier["version"])},
+            {"pause_minutes": False},
+            {"minutes": 200},
+            {"statut": "validee"},
+        ):
+            self.assert_error(
+                self.command("heures/", self.learner_user, **self.hour_payload(**changes)), 400, "validation_error"
+            )
             assert self.state() == before
         self.login(self.learner_user)
         payload = self.hour_payload()
@@ -281,9 +340,14 @@ class PracticalTrainingTests(PracticalFixture):
         assert detail["revision_publiee"]["offre_source"] == snapshot["offre_source"]
         assert self.state() == before
 
-        response = self.client.post(root + "reviser/", {
-            "version": detail["version"], "revision_source": 1,
-        }, format="json")
+        response = self.client.post(
+            root + "reviser/",
+            {
+                "version": detail["version"],
+                "revision_source": 1,
+            },
+            format="json",
+        )
         assert response.status_code == 201, response.data
         version = response.data["version"]
         before = self.state()
@@ -291,9 +355,15 @@ class PracticalTrainingTests(PracticalFixture):
         self.assert_error(response, 400, "validation_error")
         assert self.state() == before
         for revision in (2, 1):
-            response = self.client.post(root + "archiver/", {
-                "version": version, "revision": revision, "motif": "Arrêt des nouvelles ouvertures.",
-            }, format="json")
+            response = self.client.post(
+                root + "archiver/",
+                {
+                    "version": version,
+                    "revision": revision,
+                    "motif": "Arrêt des nouvelles ouvertures.",
+                },
+                format="json",
+            )
             assert response.status_code == 200, response.data
             assert response.data["version"] == version + 1
             version = response.data["version"]
@@ -340,10 +410,16 @@ class PracticalTrainingTests(PracticalFixture):
             lambda: model.objects.filter(pk__in=[self.convention.pk, unlinked.pk]).update(missions="Changement"),
             lambda: model.objects.bulk_update([self.convention], ["missions"]),
             lambda: model.objects.bulk_create(
-                [self.convention], update_conflicts=True, update_fields=["missions"], unique_fields=["id"],
+                [self.convention],
+                update_conflicts=True,
+                update_fields=["missions"],
+                unique_fields=["id"],
             ),
             lambda: model.objects.filter(pk=unlinked.pk).bulk_create(
-                [self.convention], update_conflicts=True, update_fields=["missions"], unique_fields=["id"],
+                [self.convention],
+                update_conflicts=True,
+                update_fields=["missions"],
+                unique_fields=["id"],
             ),
             lambda: model_admin.save_model(request, self.convention, None, change=True),
             lambda: model_admin.delete_model(request, self.convention),
@@ -369,12 +445,21 @@ class PracticalTrainingTests(PracticalFixture):
         assert model.objects.get(pk=unlinked.pk).missions == unlinked.missions
         unlinked.missions = "Upsert legacy permis"
         model.objects.bulk_create(
-            [unlinked], update_conflicts=True, update_fields=["missions"], unique_fields=["id"],
+            [unlinked],
+            update_conflicts=True,
+            update_fields=["missions"],
+            unique_fields=["id"],
         )
         assert model.objects.get(pk=unlinked.pk).missions == unlinked.missions
         assert self.state() == before
-        for name in ("ProgrammePratique", "DossierPratique", "HeurePratique",
-                     "DecisionHeurePratique", "EvaluationCompetencePratique", "AuditPratique"):
+        for name in (
+            "ProgrammePratique",
+            "DossierPratique",
+            "HeurePratique",
+            "DecisionHeurePratique",
+            "EvaluationCompetencePratique",
+            "AuditPratique",
+        ):
             registered = admin.site._registry.get(practical_model(name))
             if registered:
                 row = practical_model(name).objects.first()

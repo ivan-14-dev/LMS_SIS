@@ -90,13 +90,15 @@ def compose(configuration, *arguments, **kwargs):
     # Shell overrides must not redirect an operation to another deployment or key.
     interpolation = set(re.findall(r"\$\{([A-Z_][A-Z_0-9]*)", (ROOT / "compose.yaml").read_text()))
     environment = {
-        key: value for key, value in os.environ.items()
-        if key not in interpolation and not key.startswith("COMPOSE_")
+        key: value for key, value in os.environ.items() if key not in interpolation and not key.startswith("COMPOSE_")
     }
-    environment.update({
-        key: value for key, value in configuration.items()
-        if not key.startswith("_") and not key.startswith("COMPOSE_")
-    })
+    environment.update(
+        {
+            key: value
+            for key, value in configuration.items()
+            if not key.startswith("_") and not key.startswith("COMPOSE_")
+        }
+    )
     environment.update(kwargs.pop("env", {}))
     environment["COMPOSE_PROJECT_NAME"] = project_name(configuration)
     environment["COMPOSE_PROFILES"] = ""
@@ -147,10 +149,16 @@ def validate_configuration(configuration):
     if not path.is_file() or stat.S_IMODE(path.stat().st_mode) & 0o077:
         raise ValueError("The deployment environment file must be a regular private file (0600 or stricter).")
     required = [
-        "DJANGO_SECRET_KEY", "FIELD_ENCRYPTION_KEY", "WEBHOOK_SECRET",
-        "DB_PASSWORD_SECONDAIRE", "DB_PASSWORD_SUPERIEUR",
-        "EDX_OAUTH_CLIENT_ID", "EDX_OAUTH_CLIENT_SECRET", "EDX_JWT_ISSUER",
-        "EDX_JWT_AUDIENCE", "EDX_JWT_PUBLIC_SIGNING_JWK_SET",
+        "DJANGO_SECRET_KEY",
+        "FIELD_ENCRYPTION_KEY",
+        "WEBHOOK_SECRET",
+        "DB_PASSWORD_SECONDAIRE",
+        "DB_PASSWORD_SUPERIEUR",
+        "EDX_OAUTH_CLIENT_ID",
+        "EDX_OAUTH_CLIENT_SECRET",
+        "EDX_JWT_ISSUER",
+        "EDX_JWT_AUDIENCE",
+        "EDX_JWT_PUBLIC_SIGNING_JWK_SET",
     ]
     for key in required:
         if not configuration.get(key) or configuration[key].startswith("$"):
@@ -206,8 +214,7 @@ def validate_configuration(configuration):
     for variant in selected:
         hostname = urlparse(configuration[f"SIS_{variant.upper()}_API_URL"]).hostname
         if hostname not in hosts and not any(
-            host.startswith(".") and (hostname == host[1:] or hostname.endswith(host))
-            for host in hosts
+            host.startswith(".") and (hostname == host[1:] or hostname.endswith(host)) for host in hosts
         ):
             raise ValueError(f"DJANGO_ALLOWED_HOSTS must include the {variant} API hostname.")
     if not local and configuration.get("EMAIL_BACKEND") != "django.core.mail.backends.smtp.EmailBackend":
@@ -244,7 +251,11 @@ def installation_preflight(configuration, *, check_ports=False):
     validate_configuration(configuration)
     try:
         result = subprocess.run(
-            ["docker", "compose", "version", "--short"], check=True, capture_output=True, text=True, timeout=15,
+            ["docker", "compose", "version", "--short"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=15,
         )
         version = re.match(r"v?(\d+)\.(\d+)", result.stdout.strip())
         if not version or tuple(map(int, version.groups())) < (2, 20):
@@ -254,7 +265,10 @@ def installation_preflight(configuration, *, check_ports=False):
         if configuration.get("SIS_LMS_NETWORK_EXTERNAL", "false").lower() == "true":
             network = configuration.get("SIS_LMS_NETWORK", f"{project_name(configuration)}_lms")
             subprocess.run(
-                ["docker", "network", "inspect", network], check=True, capture_output=True, timeout=15,
+                ["docker", "network", "inspect", network],
+                check=True,
+                capture_output=True,
+                timeout=15,
             )
     except (OSError, subprocess.SubprocessError) as exc:
         raise ValueError(
@@ -277,7 +291,14 @@ def installation_preflight(configuration, *, check_ports=False):
 
 def service_status(configuration):
     raw = compose(
-        configuration, "ps", "--all", "--format", "json", capture_output=True, text=True, timeout=30,
+        configuration,
+        "ps",
+        "--all",
+        "--format",
+        "json",
+        capture_output=True,
+        text=True,
+        timeout=30,
     ).stdout.strip()
     if not raw:
         return []
@@ -326,9 +347,7 @@ def update(configuration, options):
         )
     installation_preflight(configuration)
     selected = variants(configuration)
-    running = {
-        record["Service"] for record in service_status(configuration) if record.get("State") == "running"
-    }
+    running = {record["Service"] for record in service_status(configuration) if record.get("State") == "running"}
     if any(f"postgres-{variant}" not in running for variant in selected) or "redis" not in running:
         raise ValueError("Update requires the existing databases and Redis running; use init for a new installation.")
     if not getattr(options, "no_build", False):
@@ -347,8 +366,15 @@ def update(configuration, options):
                 ("check",),
             ):
                 compose(
-                    configuration, "run", "--rm", "--no-deps", "-T",
-                    f"api-{variant}", "python", "manage.py", *arguments,
+                    configuration,
+                    "run",
+                    "--rm",
+                    "--no-deps",
+                    "-T",
+                    f"api-{variant}",
+                    "python",
+                    "manage.py",
+                    *arguments,
                 )
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         raise ValueError(
@@ -373,9 +399,22 @@ def preflight_card_references(configuration):
             try:
                 result = compose(
                     configuration,
-                    "exec", "-T", service,
-                    "psql", "-X", "-w", "-A", "-t", "-v", "ON_ERROR_STOP=1",
-                    "-U", user, "-d", database, "-c", sql,
+                    "exec",
+                    "-T",
+                    service,
+                    "psql",
+                    "-X",
+                    "-w",
+                    "-A",
+                    "-t",
+                    "-v",
+                    "ON_ERROR_STOP=1",
+                    "-U",
+                    user,
+                    "-d",
+                    database,
+                    "-c",
+                    sql,
                     capture_output=True,
                     text=True,
                 )
@@ -399,7 +438,7 @@ def preflight_card_references(configuration):
             result = query(
                 "WITH duplicates AS ("
                 " SELECT array_agg(id ORDER BY id) AS ids, min(id) AS first_id"
-                f" FROM {quoted_schema}.\"{table}\""
+                f' FROM {quoted_schema}."{table}"'
                 " WHERE mode = 'carte' AND statut IN ('valide', 'rembourse')"
                 " AND reference_externe <> ''"
                 " GROUP BY reference_externe HAVING count(*) > 1"
@@ -425,7 +464,8 @@ def preflight_card_references(configuration):
             print(f"Card reference preflight passed for {variant} ({len(schemas)} existing payment schema(s)).")
     if conflicts:
         raise ValueError(
-            "Card reference migration blocked: " + "; ".join(conflicts)
+            "Card reference migration blocked: "
+            + "; ".join(conflicts)
             + ". Reconcile the payments manually on a restored copy before retrying; no records were changed."
         )
 
@@ -604,7 +644,11 @@ def main():
                 elif options.command == "start":
                     installation_preflight(configuration)
                     compose(
-                        configuration, "up", "-d", "--no-build" if options.no_build else "--build", "--wait",
+                        configuration,
+                        "up",
+                        "-d",
+                        "--no-build" if options.no_build else "--build",
+                        "--wait",
                     )
                 elif options.command == "update":
                     update(configuration, options)

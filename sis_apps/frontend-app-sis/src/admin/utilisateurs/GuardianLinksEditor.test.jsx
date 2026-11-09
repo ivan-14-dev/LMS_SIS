@@ -1,5 +1,7 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent, render, screen, waitFor,
+} from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { deleteApi, patchApi, postApi } from '../../services/api';
 import { fetchAllResourcePages } from '../../services/resources';
@@ -23,15 +25,23 @@ const grants = [
 let links;
 const renderEditor = (permissions = grants) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}><GuardianLinksEditor capabilities={{ permissions }} /></QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={client}><GuardianLinksEditor capabilities={{ permissions }} /></QueryClientProvider>,
+  );
 };
 
 beforeEach(() => {
   jest.clearAllMocks();
-  links = [{ id: 8, tuteur_nom: 'Parent A', eleve_nom: 'Enfant A', autorise_acces_portail: true }];
+  links = [{
+    id: 8, tuteur_nom: 'Parent A', eleve_nom: 'Enfant A', autorise_acces_portail: true,
+  }];
   fetchAllResourcePages.mockImplementation(async (path) => {
     if (path === url) { return links; }
-    if (path.endsWith('/utilisateurs/parents/')) { return [{ id: 3, prenom: 'Parent', nom: 'A', compte: 'parent-a' }]; }
+    if (path.endsWith('/utilisateurs/parents/')) {
+      return [{
+        id: 3, prenom: 'Parent', nom: 'A', compte: 'parent-a',
+      }];
+    }
     if (path.endsWith('/eleves/')) { return [{ id: 4, matricule: 'E-004', full_name: 'Enfant A' }]; }
     throw new Error(`Unexpected ${path}`);
   });

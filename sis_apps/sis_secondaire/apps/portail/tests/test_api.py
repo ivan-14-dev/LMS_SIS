@@ -3,20 +3,19 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from apps.portail.api import (
+    PortailApprenantViewSet,
+    PortailStaffViewSet,
+    _TenantParentPortal,
+    _TenantTeacherPortal,
+    portal_capabilities,
+)
+from apps.utilisateurs.api import UtilisateursViewSet
 from django.test import SimpleTestCase
 from django.urls import resolve
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.test import APIRequestFactory, force_authenticate
-
-from apps.portail.api import (
-    _TenantParentPortal,
-    _TenantTeacherPortal,
-    PortailApprenantViewSet,
-    PortailStaffViewSet,
-    portal_capabilities,
-)
-from apps.utilisateurs.api import UtilisateursViewSet
 
 
 class PortailAPITestCase(SimpleTestCase):
@@ -82,10 +81,14 @@ class PortailAPITestCase(SimpleTestCase):
         )
         for user, kind in cases:
             request.user = user
-            expected = denied if kind is None else {
-                "affiliations": [{"kind": kind, "active": True}],
-                "portals": {key: key == kind for key in ("staff", "learner", "parent")},
-            }
+            expected = (
+                denied
+                if kind is None
+                else {
+                    "affiliations": [{"kind": kind, "active": True}],
+                    "portals": {key: key == kind for key in ("staff", "learner", "parent")},
+                }
+            )
             with self.subTest(role=user.role, tenant=user.etablissement_id, kind=kind):
                 assert portal_capabilities(request) == expected
 

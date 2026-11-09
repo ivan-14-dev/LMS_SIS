@@ -35,7 +35,10 @@ class PracticalHourTests(PracticalFixture):
             ({"heure_debut": "09:00", "heure_fin": "09:00"}, "horaire_incoherent"),
             ({"pause_minutes": 120}, "horaire_incoherent"),
             ({"date": "2026-11-08", "heure_debut": "13:00", "heure_fin": "13:01"}, "travail_futur"),
-            ({"date": "2026-11-08", "heure_debut": "23:00", "heure_fin": "24:00", "pause_minutes": 59}, "travail_futur"),
+            (
+                {"date": "2026-11-08", "heure_debut": "23:00", "heure_fin": "24:00", "pause_minutes": 59},
+                "travail_futur",
+            ),
             ({"date": "2026-11-09"}, "travail_futur"),
             ({"date": "2025-12-31"}, "hors_periode"),
         ):
@@ -48,9 +51,15 @@ class PracticalHourTests(PracticalFixture):
         before = self.state()
         for day in ("2026-03-29", "2026-10-25"):
             for start, end in (("01:30", "03:30"), ("02:15", "02:45")):
-                response = self.command("heures/", self.learner_user, **self.hour_payload(
-                    date=day, heure_debut=start, heure_fin=end,
-                ))
+                response = self.command(
+                    "heures/",
+                    self.learner_user,
+                    **self.hour_payload(
+                        date=day,
+                        heure_debut=start,
+                        heure_fin=end,
+                    ),
+                )
                 self.assert_error(response, 400, "transition_horaire")
                 assert self.state() == before
         for day in ("2026-03-29", "2026-10-25"):
@@ -75,9 +84,14 @@ class PracticalHourTests(PracticalFixture):
         assert self.client.get(f"{BASE}dossiers/{first_dossier}/").status_code == 404
         before = self.state()
         for start, end in (("09:00", "12:00"), ("08:30", "09:30"), ("11:00", "11:30"), ("11:30", "12:30")):
-            response = self.command("heures/", self.learner_user, **self.hour_payload(
-                heure_debut=start, heure_fin=end,
-            ))
+            response = self.command(
+                "heures/",
+                self.learner_user,
+                **self.hour_payload(
+                    heure_debut=start,
+                    heure_fin=end,
+                ),
+            )
             self.assert_error(response, 409, "intervalle_occupe")
             assert response.data["errors"] == {}
             assert response.data["criteres_non_satisfaits"] == []
@@ -93,8 +107,10 @@ class PracticalHourTests(PracticalFixture):
         original_row = practical_model("HeurePratique").objects.values().get(pk=original["id"])
         first_decision = practical_model("DecisionHeurePratique").objects.values().get(heure_id=original["id"])
         replacement = self.command(
-            f"heures/{original['id']}/remplacer/", self.learner_user,
-            **self.hour_payload(heure_fin="10:30"), motif="Fin réelle corrigée.",
+            f"heures/{original['id']}/remplacer/",
+            self.learner_user,
+            **self.hour_payload(heure_fin="10:30"),
+            motif="Fin réelle corrigée.",
         )
         assert replacement.status_code == 201, replacement.data
         hour = replacement.data["heure"]
@@ -106,18 +122,34 @@ class PracticalHourTests(PracticalFixture):
         assert practical_model("HeurePratique").objects.values().get(pk=original["id"]) == original_row
         assert practical_model("DecisionHeurePratique").objects.values().get(pk=first_decision["id"]) == first_decision
         before = self.state()
-        self.assert_error(self.command(
-            f"heures/{original['id']}/remplacer/", self.learner_user, **self.hour_payload(), motif="Encore",
-        ), 409, "etat_incompatible")
+        self.assert_error(
+            self.command(
+                f"heures/{original['id']}/remplacer/",
+                self.learner_user,
+                **self.hour_payload(),
+                motif="Encore",
+            ),
+            409,
+            "etat_incompatible",
+        )
         assert self.state() == before
         assert self.command(f"heures/{hour['id']}/soumettre/", self.learner_user).status_code == 200
         before = self.state()
-        self.assert_error(self.command(
-            f"heures/{hour['id']}/remplacer/", self.learner_user, **self.hour_payload(), motif="Soumise",
-        ), 409, "etat_incompatible")
+        self.assert_error(
+            self.command(
+                f"heures/{hour['id']}/remplacer/",
+                self.learner_user,
+                **self.hour_payload(),
+                motif="Soumise",
+            ),
+            409,
+            "etat_incompatible",
+        )
         assert self.state() == before
         assert self.command(f"heures/{hour['id']}/valider/", self.tutor).status_code == 200
-        validation = practical_model("DecisionHeurePratique").objects.values().get(heure_id=hour["id"], action="validation")
+        validation = (
+            practical_model("DecisionHeurePratique").objects.values().get(heure_id=hour["id"], action="validation")
+        )
         assert self.report()["heures"]["minutes_validees"] == 90
         before = self.state()
         self.assert_error(self.command(f"heures/{hour['id']}/invalider/", motif="Gestion sans habilitation"), 403)
@@ -205,10 +237,18 @@ class PracticalLearnerLockTests(PracticalFixture):
                     client.defaults["SERVER_NAME"] = domain
                     client.force_authenticate(get_user_model().objects.get(pk=user_id))
                     with connections["default"].execute_wrapper(observe_learner_lock):
-                        response = client.post(f"{BASE}dossiers/{dossier_id}/heures/", {
-                            "version": 1, "date": "2026-11-07", "heure_debut": start, "heure_fin": end,
-                            "pause_minutes": 0, "activite": "Saisie concurrente",
-                        }, format="json")
+                        response = client.post(
+                            f"{BASE}dossiers/{dossier_id}/heures/",
+                            {
+                                "version": 1,
+                                "date": "2026-11-07",
+                                "heure_debut": start,
+                                "heure_fin": end,
+                                "pause_minutes": 0,
+                                "activite": "Saisie concurrente",
+                            },
+                            format="json",
+                        )
                     return response.status_code, response.data
             finally:
                 connections["default"].close()

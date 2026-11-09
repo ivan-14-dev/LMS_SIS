@@ -25,8 +25,12 @@ describe('finance real API boundary', () => {
     getAuthenticatedHttpClient.mockReturnValue(client);
     const proof = new File(['%PDF-1.4'], 'test.pdf', { type: 'application/pdf' });
     const payload = paymentPayload({
-      facture: '4', montant: '25.50', mode: 'virement',
-      reference_externe: 'BANK-TEST', preuve_paiement: proof, date_paiement: '2026-11-09',
+      facture: '4',
+      montant: '25.50',
+      mode: 'virement',
+      reference_externe: 'BANK-TEST',
+      preuve_paiement: proof,
+      date_paiement: '2026-11-09',
     });
     await financeRequest('transactions/', 'post', payload);
     expect(client.post).toHaveBeenCalledWith('https://school.example.test/api/v1/paiements/transactions/', payload);
@@ -40,7 +44,11 @@ describe('finance real API boundary', () => {
   });
 
   it('requires evidence and a reconciliation reference for manual payment', () => {
-    expect(() => paymentPayload({ facture: '4', montant: '25', mode: 'especes', reference_externe: '' })).toThrow('Référence');
-    expect(() => paymentPayload({ facture: '4', montant: '25', mode: 'especes', reference_externe: 'CASH-TEST' })).toThrow('Justificatif');
+    expect(() => paymentPayload({
+      facture: '4', montant: '25', mode: 'especes', reference_externe: '',
+    })).toThrow('Référence');
+    expect(() => paymentPayload({
+      facture: '4', montant: '25', mode: 'especes', reference_externe: 'CASH-TEST',
+    })).toThrow('Justificatif');
   });
 });

@@ -25,29 +25,28 @@ class BulletinFixture(TenantAPITestCase):
 
     def setUp(self):
         super().setUp()
-        self.manager = Utilisateur.objects.create_user(
-            "bulletin-manager", role="direction", etablissement=self.tenant
+        self.manager = Utilisateur.objects.create_user("bulletin-manager", role="direction", etablissement=self.tenant)
+        self.manager.user_permissions.add(
+            *Permission.objects.filter(
+                content_type__app_label="notes",
+                codename__in=["view_bulletin", "add_bulletin", "change_bulletin"],
+            )
         )
-        self.manager.user_permissions.add(*Permission.objects.filter(
-            content_type__app_label="notes",
-            codename__in=["view_bulletin", "add_bulletin", "change_bulletin"],
-        ))
-        self.teacher = Utilisateur.objects.create_user(
-            "bulletin-teacher", role="enseignant", etablissement=self.tenant
-        )
-        personnel = Personnel.objects.create(
-            user=self.teacher, matricule="BUL-PROF", date_embauche=date(2026, 9, 1)
-        )
-        self.student = Utilisateur.objects.create_user(
-            "bulletin-student", role="eleve", etablissement=self.tenant
-        )
+        self.teacher = Utilisateur.objects.create_user("bulletin-teacher", role="enseignant", etablissement=self.tenant)
+        personnel = Personnel.objects.create(user=self.teacher, matricule="BUL-PROF", date_embauche=date(2026, 9, 1))
+        self.student = Utilisateur.objects.create_user("bulletin-student", role="eleve", etablissement=self.tenant)
         self.year = AnneeScolaire.objects.create(
-            etablissement=self.tenant, libelle="2026-2027",
-            date_debut=date(2026, 9, 1), date_fin=date(2027, 7, 1),
+            etablissement=self.tenant,
+            libelle="2026-2027",
+            date_debut=date(2026, 9, 1),
+            date_fin=date(2027, 7, 1),
         )
         self.period = Periode.objects.create(
-            annee_scolaire=self.year, type="trimestre", numero=1,
-            date_debut=date(2026, 9, 1), date_fin=date(2026, 12, 31),
+            annee_scolaire=self.year,
+            type="trimestre",
+            numero=1,
+            date_debut=date(2026, 9, 1),
+            date_fin=date(2026, 12, 31),
         )
         level = Niveau.objects.create(etablissement=self.tenant, code="6e", libelle="Sixième")
         self.level = level
@@ -55,26 +54,45 @@ class BulletinFixture(TenantAPITestCase):
             etablissement=self.tenant, niveau=level, annee_scolaire=self.year, nom="6e A"
         )
         self.pupil = Eleve.objects.create(
-            etablissement=self.tenant, user=self.student, matricule="BUL-ELEVE",
-            date_naissance=date(2013, 1, 1), lieu_naissance="Ville fictive", sexe="F",
+            etablissement=self.tenant,
+            user=self.student,
+            matricule="BUL-ELEVE",
+            date_naissance=date(2013, 1, 1),
+            lieu_naissance="Ville fictive",
+            sexe="F",
             date_inscription=date(2026, 9, 1),
         )
         self.enrollment = Inscription.objects.create(
-            eleve=self.pupil, classe=self.classe, annee_scolaire=self.year,
-            date_inscription=date(2026, 9, 1), statut="validee",
+            eleve=self.pupil,
+            classe=self.classe,
+            annee_scolaire=self.year,
+            date_inscription=date(2026, 9, 1),
+            statut="validee",
         )
         self.subject = Matiere.objects.create(etablissement=self.tenant, code="MATH", nom="Mathématiques")
         self.evaluation = Evaluation.objects.create(
-            classe=self.classe, matiere=self.subject, periode=self.period, enseignant=personnel,
-            titre="Contrôle", date=date(2026, 11, 9),
+            classe=self.classe,
+            matiere=self.subject,
+            periode=self.period,
+            enseignant=personnel,
+            titre="Contrôle",
+            date=date(2026, 11, 9),
         )
         self.note = Note.objects.create(evaluation=self.evaluation, eleve=self.pupil, valeur=Decimal("16.50"))
         self.client.force_authenticate(self.manager)
 
     def prepare(self):
-        return self.client.post(f"{self.base}preparer/", {
-            "eleve": self.pupil.pk, "classe": self.classe.pk, "periode": self.period.pk, "methode": METHOD,
-        }, format="json", secure=True)
+        return self.client.post(
+            f"{self.base}preparer/",
+            {
+                "eleve": self.pupil.pk,
+                "classe": self.classe.pk,
+                "periode": self.period.pk,
+                "methode": METHOD,
+            },
+            format="json",
+            secure=True,
+        )
 
     def create_draft(self):
         response = self.prepare()
@@ -82,9 +100,15 @@ class BulletinFixture(TenantAPITestCase):
         return response.data
 
     def act(self, draft, action, **data):
-        return self.client.post(f"{self.base}{draft['id']}/{action}/", {
-            "version": draft["updated_at"], **data,
-        }, format="json", secure=True)
+        return self.client.post(
+            f"{self.base}{draft['id']}/{action}/",
+            {
+                "version": draft["updated_at"],
+                **data,
+            },
+            format="json",
+            secure=True,
+        )
 
     def validate(self, draft):
         return self.act(draft, "valider", confirmer=True, appreciation_conseil="Vérifié.", decision="")
@@ -102,15 +126,24 @@ class CalculatedBulletinTests(BulletinFixture):
         self.note.valeur = Decimal("10")
         self.note.save()
         second = Evaluation.objects.create(
-            classe=self.classe, matiere=self.subject, periode=self.period,
-            enseignant=self.evaluation.enseignant, titre="Deuxième contrôle",
-            date=self.evaluation.date, bareme=10, coefficient=3,
+            classe=self.classe,
+            matiere=self.subject,
+            periode=self.period,
+            enseignant=self.evaluation.enseignant,
+            titre="Deuxième contrôle",
+            date=self.evaluation.date,
+            bareme=10,
+            coefficient=3,
         )
         Note.objects.create(evaluation=second, eleve=self.pupil, valeur=10)
         french = Matiere.objects.create(etablissement=self.tenant, code="FR", nom="Français")
         third = Evaluation.objects.create(
-            classe=self.classe, matiere=french, periode=self.period,
-            enseignant=self.evaluation.enseignant, titre="Français", date=self.evaluation.date,
+            classe=self.classe,
+            matiere=french,
+            periode=self.period,
+            enseignant=self.evaluation.enseignant,
+            titre="Français",
+            date=self.evaluation.date,
         )
         Note.objects.create(evaluation=third, eleve=self.pupil, valeur=10)
         ProgrammeMatiere.objects.create(classe=self.classe, matiere=self.subject, coefficient=2)
@@ -170,9 +203,15 @@ class CalculatedBulletinTests(BulletinFixture):
     def test_generated_fields_cannot_be_forged_or_patched(self):
         draft = self.create_draft()
         for route in (self.base, "/api/v1/notes/bulletins/"):
-            response = self.client.patch(f"{route}{draft['id']}/", {
-                "moyenne_generale": "20", "valide_par": self.manager.pk,
-            }, format="json", secure=True)
+            response = self.client.patch(
+                f"{route}{draft['id']}/",
+                {
+                    "moyenne_generale": "20",
+                    "valide_par": self.manager.pk,
+                },
+                format="json",
+                secure=True,
+            )
             assert response.status_code == 400, response.data
         bulletin = Bulletin.objects.get(pk=draft["id"])
         assert bulletin.moyenne_generale == Decimal("16.5")
@@ -212,8 +251,10 @@ class CalculatedBulletinTests(BulletinFixture):
 
     def test_period_from_another_year_is_rejected(self):
         other = AnneeScolaire.objects.create(
-            etablissement=self.tenant, libelle="2027-2028",
-            date_debut=date(2027, 9, 1), date_fin=date(2028, 7, 1),
+            etablissement=self.tenant,
+            libelle="2027-2028",
+            date_debut=date(2027, 9, 1),
+            date_fin=date(2028, 7, 1),
         )
         self.period.annee_scolaire = other
         self.period.save()
@@ -224,8 +265,12 @@ class CalculatedBulletinTests(BulletinFixture):
         ProgrammeMatiere.objects.create(classe=self.classe, matiere=sport, coefficient=2)
         assert self.prepare().status_code == 400
         evaluation = Evaluation.objects.create(
-            classe=self.classe, matiere=sport, periode=self.period,
-            enseignant=self.evaluation.enseignant, titre="Sport", date=self.evaluation.date,
+            classe=self.classe,
+            matiere=sport,
+            periode=self.period,
+            enseignant=self.evaluation.enseignant,
+            titre="Sport",
+            date=self.evaluation.date,
         )
         Note.objects.create(evaluation=evaluation, eleve=self.pupil, statut="dispensee")
         draft = self.create_draft()
@@ -322,11 +367,15 @@ class BulletinConcurrencyTests(BulletinFixture):
 
 class BulletinRectificationTests(BulletinFixture):
     def rectify(self, published, **overrides):
-        return self.act(published, "rectifier", **{
-            "motif": "Erreur de transcription corrigée.",
-            "cle_idempotence": str(uuid4()),
-            **overrides,
-        })
+        return self.act(
+            published,
+            "rectifier",
+            **{
+                "motif": "Erreur de transcription corrigée.",
+                "cle_idempotence": str(uuid4()),
+                **overrides,
+            },
+        )
 
     def test_rectification_preserves_original_and_pdf_until_separately_validated_and_published(self):
         published = self.publish_draft()
@@ -435,12 +484,16 @@ class BulletinRectificationTests(BulletinFixture):
             self.manager.save()
             self.client.force_authenticate(Utilisateur.objects.get(pk=self.manager.pk))
             assert self.rectify(published).status_code in (403, 404)
-        self.manager.attributs_acces = {"permission_scopes": {
-            f"notes.{permission}": {
-                "classes": [self.classe.pk], "annees": [self.year.pk], "periodes": [self.period.pk],
+        self.manager.attributs_acces = {
+            "permission_scopes": {
+                f"notes.{permission}": {
+                    "classes": [self.classe.pk],
+                    "annees": [self.year.pk],
+                    "periodes": [self.period.pk],
+                }
+                for permission in ("view_bulletin", "add_bulletin", "change_bulletin")
             }
-            for permission in ("view_bulletin", "add_bulletin", "change_bulletin")
-        }}
+        }
         self.manager.save()
         self.client.force_authenticate(Utilisateur.objects.get(pk=self.manager.pk))
         draft = self.rectify(published)
@@ -449,9 +502,12 @@ class BulletinRectificationTests(BulletinFixture):
 
     def test_legacy_direction_role_and_change_permission_do_not_replace_creation_permission(self):
         published = self.publish_draft()
-        self.manager.user_permissions.remove(Permission.objects.get(
-            content_type__app_label="notes", codename="add_bulletin",
-        ))
+        self.manager.user_permissions.remove(
+            Permission.objects.get(
+                content_type__app_label="notes",
+                codename="add_bulletin",
+            )
+        )
         self.client.force_authenticate(Utilisateur.objects.get(pk=self.manager.pk))
         assert self.rectify(published).status_code == 403
         assert Bulletin.objects.count() == 1
@@ -460,14 +516,30 @@ class BulletinRectificationTests(BulletinFixture):
         published = self.publish_draft()
         draft = self.rectify(published).data
         for base in (self.base, "/api/v1/notes/bulletins/"):
-            response = self.client.patch(f"{base}{draft['id']}/", {
-                "rectifie": None, "revision": 1, "motif_rectification": "Faux motif", "moyenne_generale": "20",
-            }, format="json", secure=True)
+            response = self.client.patch(
+                f"{base}{draft['id']}/",
+                {
+                    "rectifie": None,
+                    "revision": 1,
+                    "motif_rectification": "Faux motif",
+                    "moyenne_generale": "20",
+                },
+                format="json",
+                secure=True,
+            )
             assert response.status_code == 400, response.data
-            response = self.client.post(base, {
-                "eleve": self.pupil.pk, "classe": self.classe.pk, "periode": self.period.pk,
-                "revision": 3, "rectifie": published["id"],
-            }, format="json", secure=True)
+            response = self.client.post(
+                base,
+                {
+                    "eleve": self.pupil.pk,
+                    "classe": self.classe.pk,
+                    "periode": self.period.pk,
+                    "revision": 3,
+                    "rectifie": published["id"],
+                },
+                format="json",
+                secure=True,
+            )
             assert response.status_code == 400, response.data
             assert self.client.delete(f"{base}{draft['id']}/", secure=True).status_code == 400
         assert Bulletin.objects.count() == 2

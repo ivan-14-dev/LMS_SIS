@@ -101,7 +101,8 @@ def _superior_finance_recipients(request, etudiant):
         recipients.append(user)
     actor = getattr(request, "user", None)
     if (
-        getattr(actor, "is_authenticated", False) and actor not in recipients
+        getattr(actor, "is_authenticated", False)
+        and actor not in recipients
         and getattr(actor, "etablissement_id", None) == tenant_id
     ):
         recipients.append(actor)
@@ -162,12 +163,7 @@ def visible_invoices(request):
         etudiant__universite_id=tenant_id,
         type_frais__annee_universitaire__universite_id=tenant_id,
     )
-    if (
-        tenant_id is None
-        or not user.is_authenticated
-        or not user.is_active
-        or user.etablissement_id != tenant_id
-    ):
+    if tenant_id is None or not user.is_authenticated or not user.is_active or user.etablissement_id != tenant_id:
         return queryset.none()
 
     scope_fields = {
@@ -181,12 +177,10 @@ def visible_invoices(request):
     elif user.role == "parent" or not IsFinanceManager().has_permission(request, None):
         return queryset.none()
     else:
-        queryset = filter_queryset_by_scopes(
-            queryset, user, "paiements.change_paiementfrais", scope_fields
-        )
-    visible_ids = filter_queryset_by_scopes(
-        queryset, user, "paiements.view_facturefrais", scope_fields
-    ).order_by().values("pk")
+        queryset = filter_queryset_by_scopes(queryset, user, "paiements.change_paiementfrais", scope_fields)
+    visible_ids = (
+        filter_queryset_by_scopes(queryset, user, "paiements.view_facturefrais", scope_fields).order_by().values("pk")
+    )
     return base_queryset.filter(pk__in=visible_ids)
 
 
@@ -239,7 +233,10 @@ class FacturesViewSet(viewsets.ModelViewSet):
         numero = f"FACT-{timezone.now().strftime('%Y%m')}-{uuid.uuid4().hex[:6].upper()}"
         facture = serializer.save(numero=numero)
         record_workflow_event(
-            self.request, facture, "emission", "Facture émise",
+            self.request,
+            facture,
+            "emission",
+            "Facture émise",
             recipients=_superior_finance_recipients(self.request, facture.etudiant),
             metadata={"facture_id": facture.pk, "montant": str(facture.montant), "devise": facture.devise},
         )
@@ -253,7 +250,10 @@ class FacturesViewSet(viewsets.ModelViewSet):
         facture.statut = "annulee"
         facture.save(update_fields=["statut", "updated_at"])
         record_workflow_event(
-            request, facture, "annulation", "Facture annulée",
+            request,
+            facture,
+            "annulation",
+            "Facture annulée",
             recipients=_superior_finance_recipients(request, facture.etudiant),
             metadata={"facture_id": facture.pk},
         )
@@ -263,9 +263,7 @@ class FacturesViewSet(viewsets.ModelViewSet):
     def solde(self, request, pk=None):
         """Calcule le solde à partir des seuls paiements validés encore actifs."""
         facture = self.get_object()
-        confirme = (
-            facture.paiements.filter(statut="valide").aggregate(total=Sum("montant"))["total"] or Decimal("0.00")
-        )
+        confirme = facture.paiements.filter(statut="valide").aggregate(total=Sum("montant"))["total"] or Decimal("0.00")
         return Response(
             {
                 "facture": facture.pk,
@@ -453,9 +451,7 @@ class PaiementsViewSet(PaymentReviewMixin, viewsets.ModelViewSet):
                     return Response({"error": "Montant invalide pour cette devise."}, status=409)
                 if paiement.mode not in (*MANUAL_MODES, "carte"):
                     return Response({"error": "Prestataire non configuré."}, status=503)
-                if not callback and (
-                    not paiement.enregistre_par_id or paiement.enregistre_par_id == request.user.pk
-                ):
+                if not callback and (not paiement.enregistre_par_id or paiement.enregistre_par_id == request.user.pk):
                     return Response({"error": "Un contrôleur distinct du déclarant est obligatoire."}, status=403)
                 if paiement.mode in MANUAL_MODES and (
                     not paiement.preuve_paiement or not paiement.reference_externe.strip()
@@ -468,14 +464,14 @@ class PaiementsViewSet(PaymentReviewMixin, viewsets.ModelViewSet):
                 if paiement.montant > reste:
                     return Response({"error": "Le paiement dépasse le solde de la facture."}, status=409)
                 reused = (
-                        PaiementFrais.objects.filter(
-                            reference_externe=paiement.reference_externe,
-                            mode=paiement.mode,
-                            statut__in=("valide", "rembourse"),
-                        )
-                        .exclude(pk=paiement.pk)
-                        .exists()
+                    PaiementFrais.objects.filter(
+                        reference_externe=paiement.reference_externe,
+                        mode=paiement.mode,
+                        statut__in=("valide", "rembourse"),
                     )
+                    .exclude(pk=paiement.pk)
+                    .exists()
+                )
                 if reused:
                     return Response({"error": "Référence de paiement déjà utilisée."}, status=409)
                 if paiement.mode == "carte":
@@ -494,11 +490,16 @@ class PaiementsViewSet(PaymentReviewMixin, viewsets.ModelViewSet):
                 facture.statut = "payee" if facture.montant_paye >= facture.montant else "partielle"
                 facture.save(update_fields=["montant_paye", "statut", "updated_at"])
         except IntegrityError:
-            if paiement is None or not PaiementFrais.objects.filter(
-                reference_externe=paiement.reference_externe,
-                mode=paiement.mode,
-                statut__in=("valide", "rembourse"),
-            ).exclude(pk=paiement.pk).exists():
+            if (
+                paiement is None
+                or not PaiementFrais.objects.filter(
+                    reference_externe=paiement.reference_externe,
+                    mode=paiement.mode,
+                    statut__in=("valide", "rembourse"),
+                )
+                .exclude(pk=paiement.pk)
+                .exists()
+            ):
                 raise
             return Response({"error": "Référence de carte déjà utilisée."}, status=409)
         record_workflow_event(

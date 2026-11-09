@@ -34,9 +34,7 @@ def verify_callback(body, signature):
         signatures = [value for key, value in parts if key == "v1"]
         if len(timestamps) != 1 or abs(time.time() - int(timestamps[0])) > 300:
             raise ValueError
-        expected = hmac.new(
-            secret.encode(), timestamps[0].encode() + b"." + body, hashlib.sha256
-        ).hexdigest()
+        expected = hmac.new(secret.encode(), timestamps[0].encode() + b"." + body, hashlib.sha256).hexdigest()
         if not any(hmac.compare_digest(expected, value) for value in signatures):
             raise ValueError
         event = json.loads(body)
@@ -90,23 +88,28 @@ def confirm_card_payment(paiement, facture, tenant, *, refunded=False):
     metadata = intent.get("metadata") if isinstance(intent, dict) else None
     charge = intent.get("latest_charge") if isinstance(intent, dict) else None
     method = charge.get("payment_method_details") if isinstance(charge, dict) else None
-    if not isinstance(metadata, dict) or not isinstance(charge, dict) or not isinstance(method, dict) or not (
-        intent.get("id") == reference
-        and intent.get("status") == "succeeded"
-        and intent.get("livemode") is True
-        and intent.get("currency") == currency.lower()
-        and type(intent.get("amount")) is int
-        and type(intent.get("amount_received")) is int
-        and intent["amount"] == intent["amount_received"] == expected_cents
-        and charge.get("paid") is True
-        and charge.get("captured") is True
-        and charge.get("disputed") is False
-        and charge.get("refunded") is refunded
-        and charge.get("amount_refunded") == (expected_cents if refunded else 0)
-        and method.get("type") == "card"
-        and metadata.get("sis_variant") == settings.SIS_VARIANT
-        and metadata.get("sis_tenant_id") == str(tenant.pk)
-        and metadata.get("sis_tenant_schema") == tenant.schema_name
-        and metadata.get("sis_invoice") == facture.numero
+    if (
+        not isinstance(metadata, dict)
+        or not isinstance(charge, dict)
+        or not isinstance(method, dict)
+        or not (
+            intent.get("id") == reference
+            and intent.get("status") == "succeeded"
+            and intent.get("livemode") is True
+            and intent.get("currency") == currency.lower()
+            and type(intent.get("amount")) is int
+            and type(intent.get("amount_received")) is int
+            and intent["amount"] == intent["amount_received"] == expected_cents
+            and charge.get("paid") is True
+            and charge.get("captured") is True
+            and charge.get("disputed") is False
+            and charge.get("refunded") is refunded
+            and charge.get("amount_refunded") == (expected_cents if refunded else 0)
+            and method.get("type") == "card"
+            and metadata.get("sis_variant") == settings.SIS_VARIANT
+            and metadata.get("sis_tenant_id") == str(tenant.pk)
+            and metadata.get("sis_tenant_schema") == tenant.schema_name
+            and metadata.get("sis_invoice") == facture.numero
+        )
     ):
         raise PaymentConfirmationRejected

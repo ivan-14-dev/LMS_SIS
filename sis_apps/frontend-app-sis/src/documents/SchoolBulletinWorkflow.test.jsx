@@ -127,7 +127,9 @@ it('does not expose mutations when the account can only read the bulletin', asyn
 
 it('creates a separate rectification using a reason and the published version', async () => {
   fetchApi.mockResolvedValue({ ...draft, publie: true, revision: 1 });
-  postApi.mockResolvedValue({ ...draft, id: 9, revision: 2, rectifie: 8 });
+  postApi.mockResolvedValue({
+    ...draft, id: 9, revision: 2, rectifie: 8,
+  });
   const selected = show({ selectedId: 8 });
   await screen.findByText(/Bulletin publié/);
   const button = screen.getByRole('button', { name: 'Créer une rectification' });
@@ -149,7 +151,9 @@ it('creates a separate rectification using a reason and the published version', 
 it('retains the same idempotency key and payload when retrying a lost response', async () => {
   fetchApi.mockResolvedValue({ ...draft, publie: true });
   postApi.mockRejectedValueOnce(new Error('Connexion interrompue'));
-  postApi.mockResolvedValueOnce({ ...draft, id: 9, rectifie: 8, revision: 2 });
+  postApi.mockResolvedValueOnce({
+    ...draft, id: 9, rectifie: 8, revision: 2,
+  });
   const selected = show({ selectedId: 8 });
   await screen.findByText(/Bulletin publié/);
   fireEvent.change(screen.getByLabelText(/^Motif de rectification/), { target: { value: 'Erreur de saisie.' } });

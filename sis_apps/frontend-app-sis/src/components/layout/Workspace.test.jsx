@@ -114,6 +114,28 @@ it('keeps the group editor reachable without account-view permission', () => {
   expect(links.some(item => item.label === 'Établissement')).toBe(false);
 });
 
+it.each(['eleves.view_tuteur', 'eleves.view_elevetuteur'])(
+  'allows school family management with %s but does not grant university account access',
+  (permission) => {
+    const capabilities = { role: 'family_manager', permissions: [permission] };
+    const school = getNavigation('secondaire', 'secondaire', capabilities).flatMap(section => section.items);
+    expect(school.some(item => item.path === '/admin/utilisateurs?sis=secondaire')).toBe(true);
+    const university = getNavigation('superieur', 'superieur', capabilities).flatMap(section => section.items);
+    expect(university.some(item => item.path === '/admin/utilisateurs?sis=superieur')).toBe(false);
+  },
+);
+
+it.each([
+  ['secondaire', 'paiements.view_paiement'],
+  ['superieur', 'paiements.view_paiementfrais'],
+])('exposes %s finance only with its effective permission', (variant, permission) => {
+  const capabilities = { role: 'comptable', permissions: [permission] };
+  const links = getNavigation(variant, variant, capabilities).flatMap(section => section.items);
+  expect(links.some(item => item.path === `/${variant}/paiements`)).toBe(true);
+  const revoked = getNavigation(variant, variant, { ...capabilities, permissions: [], is_staff: true });
+  expect(revoked.flatMap(section => section.items).some(item => item.path.endsWith('/paiements'))).toBe(false);
+});
+
 it.each([
   ['secondaire', 'eleve'], ['secondaire', 'parent'], ['secondaire', 'enseignant'],
   ['superieur', 'etudiant'], ['superieur', 'parent'], ['superieur', 'enseignant'],

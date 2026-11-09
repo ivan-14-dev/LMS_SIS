@@ -1,5 +1,7 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent, render, screen, waitFor,
+} from '@testing-library/react';
 import { useQuery } from '@tanstack/react-query';
 import PaiementsPage from './PaiementsPage';
 import { financeRequest } from './financeApi';
@@ -26,8 +28,14 @@ jest.mock('./financeApi', () => ({
 
 describe('payment review screen', () => {
   const payment = {
-    id: 8, numero: 'PAY-8', montant: '25.00', devise: 'EUR', statut: 'en_attente',
-    reference_externe: 'BANK-TEST', enregistre_par: 12, remboursement: {},
+    id: 8,
+    numero: 'PAY-8',
+    montant: '25.00',
+    devise: 'EUR',
+    statut: 'en_attente',
+    reference_externe: 'BANK-TEST',
+    enregistre_par: 12,
+    remboursement: {},
   };
   beforeEach(() => {
     jest.clearAllMocks();

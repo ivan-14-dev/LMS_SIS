@@ -120,7 +120,9 @@ describe('LMS contract availability', () => {
 
   it('does not present a heartbeat or an unverified extension as ready', async () => {
     useIntegrationHealth.mockReturnValue({
-      data: { configured: true, connected: false, oauth_status: 'unverified', webhook_status: 'unverified' },
+      data: {
+        configured: true, connected: false, oauth_status: 'unverified', webhook_status: 'unverified',
+      },
       refetch: jest.fn(),
     });
     await renderPage();

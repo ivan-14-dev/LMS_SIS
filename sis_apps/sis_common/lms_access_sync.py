@@ -238,9 +238,11 @@ def queue_revoked_access():
     from apps.integration.models import EdxAccessIntent, EdxEnrollment, EdxUserMapping
 
     model, field = learner_model()
-    registration_model = apps.get_model(
-        "eleves", "Inscription"
-    ) if field == "eleve" else apps.get_model("etudiants", "InscriptionAdministrative")
+    registration_model = (
+        apps.get_model("eleves", "Inscription")
+        if field == "eleve"
+        else apps.get_model("etudiants", "InscriptionAdministrative")
+    )
     blocked_learners = model.objects.filter(
         Q(statut__in=REVOKED_LEARNER_STATUSES)
         | Q(pk__in=registration_model.objects.exclude(statut="validee").values(f"{field}_id"))

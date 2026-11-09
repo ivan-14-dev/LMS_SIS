@@ -74,27 +74,21 @@ class WebhookSigningMixin:
     def _post_webhook(self, kind, payload, event_type, event_id=None):
         url = f"/api/v1/integration/webhook/{kind}/"
         body = json.dumps(payload).encode()
-        signature = hmac.new(
-            settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
         headers = {
             "HTTP_X_SIGNATURE": signature,
             "HTTP_X_EVENT_TYPE": event_type,
         }
         if event_id:
             headers["HTTP_X_EVENT_ID"] = event_id
-        return self.client.post(
-            url, data=body, content_type="application/json", **headers
-        )
+        return self.client.post(url, data=body, content_type="application/json", **headers)
 
 
 class UserWebhookTestCase(WebhookSigningMixin, TenantAPITestCase):
     """Tests des webhooks utilisateur."""
 
     def setUp(self):
-        self.admin = Utilisateur.objects.create_superuser(
-            "admin", "admin@test.com", TEST_USER_PASSWORD
-        )
+        self.admin = Utilisateur.objects.create_superuser("admin", "admin@test.com", TEST_USER_PASSWORD)
         self.client.force_authenticate(user=self.admin)
 
     @patch("apps.integration.tasks.process_user_webhook.delay")
@@ -123,9 +117,7 @@ class UserWebhookTestCase(WebhookSigningMixin, TenantAPITestCase):
     def test_webhook_with_non_object_payload_is_rejected(self):
         """Un corps JSON qui n'est pas un objet est rejeté avant mise en file."""
         body = json.dumps([1, 2, 3]).encode()
-        signature = hmac.new(
-            settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
 
         response = self.client.post(
             "/api/v1/integration/webhook/lms/",
@@ -193,20 +185,14 @@ class IntegrationAPIEndpointsTestCase(TenantAPITestCase):
     """Tests des endpoints API d'intégration."""
 
     def setUp(self):
-        self.admin_user = Utilisateur.objects.create_superuser(
-            "api_admin", "admin@test.com", TEST_USER_PASSWORD
-        )
+        self.admin_user = Utilisateur.objects.create_superuser("api_admin", "admin@test.com", TEST_USER_PASSWORD)
         self.client.force_authenticate(user=self.admin_user)
 
     def test_list_user_mappings_authenticated(self):
         """Un administrateur peut lister les mappings utilisateurs."""
         # Créer quelques mappings
-        user1 = Utilisateur.objects.create_user(
-            "mapped1", "m1@test.com", TEST_USER_PASSWORD
-        )
-        user2 = Utilisateur.objects.create_user(
-            "mapped2", "m2@test.com", TEST_USER_PASSWORD
-        )
+        user1 = Utilisateur.objects.create_user("mapped1", "m1@test.com", TEST_USER_PASSWORD)
+        user2 = Utilisateur.objects.create_user("mapped2", "m2@test.com", TEST_USER_PASSWORD)
         EdxUserMapping.objects.create(user_sis=user1, username_edx="edx1")
         EdxUserMapping.objects.create(user_sis=user2, username_edx="edx2")
 
@@ -229,9 +215,7 @@ class IntegrationAPIEndpointsTestCase(TenantAPITestCase):
 
     def test_list_user_mappings_requires_admin(self):
         """Un utilisateur standard ne peut pas consulter les mappings."""
-        user = Utilisateur.objects.create_user(
-            "standard_user", "standard@test.com", TEST_USER_PASSWORD
-        )
+        user = Utilisateur.objects.create_user("standard_user", "standard@test.com", TEST_USER_PASSWORD)
         self.client.force_authenticate(user=user)
 
         response = self.client.get("/api/v1/integration/mappings/users/")
@@ -267,17 +251,13 @@ class SyncServiceAPITestCase(TenantAPITestCase):
     """Tests des endpoints de synchronisation manuelle."""
 
     def setUp(self):
-        self.admin_user = Utilisateur.objects.create_superuser(
-            "sync_admin", "syncadmin@test.com", TEST_USER_PASSWORD
-        )
+        self.admin_user = Utilisateur.objects.create_superuser("sync_admin", "syncadmin@test.com", TEST_USER_PASSWORD)
         self.client.force_authenticate(user=self.admin_user)
 
     @patch("apps.integration.api.SyncService")
     def test_trigger_user_sync(self, mock_service_class):
         """Déclencher une synchronisation utilisateur manuelle."""
-        user = Utilisateur.objects.create_user(
-            "sync_target", "target@test.com", TEST_USER_PASSWORD
-        )
+        user = Utilisateur.objects.create_user("sync_target", "target@test.com", TEST_USER_PASSWORD)
         mock_service = mock_service_class.return_value
         mock_mapping = mock_service.sync_user_to_lms.return_value
         mock_mapping.username_edx = "sis-u-sync-target"

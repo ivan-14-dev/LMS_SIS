@@ -13,8 +13,11 @@ jest.mock('../../services/resources', () => ({
   resourceUrl: (variant, resource) => `/${variant}/${resource}/`,
   apiErrorMessage: error => error.message,
 }));
-jest.mock('./WorkflowHistoryPanel', () => function History({ endpoint }) {
-  return <div data-testid="history">{endpoint}</div>;
+jest.mock('./WorkflowHistoryPanel', () => {
+  const PropTypes = jest.requireActual('prop-types');
+  const History = ({ endpoint }) => <div data-testid="history">{endpoint}</div>;
+  History.propTypes = { endpoint: PropTypes.string.isRequired };
+  return History;
 });
 
 let enrollments;
@@ -96,7 +99,9 @@ it('does not present a failed catalogue or rejected request as a success', async
 });
 
 it('shows existing decisions without allowing another first admission', async () => {
-  enrollments = [{ id: 12, annee_libelle: 'Année ouverte', classe_nom: 'Classe A', statut_display: 'Suspendue' }];
+  enrollments = [{
+    id: 12, annee_libelle: 'Année ouverte', classe_nom: 'Classe A', statut_display: 'Suspendue',
+  }];
   renderPanel();
   expect(await screen.findByText('Suspendue')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Déposer ma première demande' })).not.toBeInTheDocument();

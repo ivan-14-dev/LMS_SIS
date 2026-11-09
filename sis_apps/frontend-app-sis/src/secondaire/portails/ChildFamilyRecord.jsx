@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import {
+  Alert, Box, Button, MenuItem, Stack, TextField, Typography,
+} from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { SISDataTable } from '../../components/common';
 import RecordsTabs from '../../components/common/RecordsTabs';
@@ -37,49 +39,80 @@ const ChildRecord = ({ childId }) => {
   }
   const { data } = record;
   const table = (title, rows, columns) => (
-    <SISDataTable title={title} showTitle={false} data={rows || []} columns={columns} searchable={false} exportable={false} />
+    <SISDataTable
+      title={title}
+      showTitle={false}
+      data={rows || []}
+      columns={columns}
+      searchable={false}
+      exportable={false}
+    />
   );
   return (
     <Box>
       <Typography component="h2" variant="h6">{data.enfant?.nom}</Typography>
       <Button onClick={() => record.refetch()}>Actualiser le dossier</Button>
       {downloadError && <Alert severity="error">{downloadError}</Alert>}
-      <RecordsTabs label="Dossier de l’enfant" panels={[
-        { label: 'Notes récentes', content: table('Notes récentes', data.notes, [
-          { Header: 'Matière', accessor: 'matiere' }, { Header: 'Évaluation', accessor: 'evaluation' },
-          { Header: 'Note', accessor: 'note' }, { Header: 'Statut', accessor: 'statut' }, { Header: 'Date', accessor: 'date' },
-        ]) },
-        { label: 'Absences et retards', content: table('Absences et retards', data.absences, [
-          { Header: 'Date', accessor: 'date' }, { Header: 'Statut', accessor: 'statut' },
-          { Header: 'Retard (minutes)', accessor: 'retard_minutes' },
-        ]) },
-        { label: 'Planning', content: table('Planning', data.planning, [
-          { Header: 'Jour (1 = lundi)', accessor: 'jour' }, { Header: 'Début', accessor: 'heure_debut' },
-          { Header: 'Fin', accessor: 'heure_fin' }, { Header: 'Matière', accessor: 'matiere' },
-          { Header: 'Enseignant', accessor: 'enseignant' }, { Header: 'Salle', accessor: 'salle' },
-        ]) },
-        { label: 'Factures et paiements', content: <Stack spacing={2}>
-          {table('Factures', data.factures, [
-            { Header: 'Numéro', accessor: 'numero' }, { Header: 'Statut', accessor: 'statut' },
-            { Header: 'Montant', accessor: 'montant' }, { Header: 'Payé', accessor: 'montant_paye' },
-            { Header: 'Reste à payer', accessor: 'reste_a_payer' },
-          ])}
-          {table('Paiements', (data.factures || []).flatMap(invoice => invoice.paiements.map(payment => ({ ...payment, facture: invoice.numero }))), [
-            { Header: 'Facture', accessor: 'facture' }, { Header: 'Numéro', accessor: 'numero' },
-            { Header: 'Date', accessor: 'date' }, { Header: 'Montant', accessor: 'montant' },
-            { Header: 'Statut', accessor: 'statut' },
-          ])}
-        </Stack> },
-        { label: 'Bulletins publiés', content: <Stack spacing={1}>
-          {(data.bulletins || []).map(bulletin => (
-            <Box key={bulletin.id}>
-              <Typography>{bulletin.periode} · {bulletin.classe} · Moyenne : {bulletin.moyenne ?? '—'}</Typography>
-              <Button disabled={downloading} onClick={() => download(bulletin.id)}>Télécharger le bulletin {bulletin.id}</Button>
-            </Box>
-          ))}
-          {data.bulletins?.length === 0 && <Typography>Aucun bulletin publié.</Typography>}
-        </Stack> },
-      ]} />
+      <RecordsTabs
+        label="Dossier de l’enfant"
+        panels={[
+          {
+            label: 'Notes récentes',
+            content: table('Notes récentes', data.notes, [
+              { Header: 'Matière', accessor: 'matiere' }, { Header: 'Évaluation', accessor: 'evaluation' },
+              { Header: 'Note', accessor: 'note' }, { Header: 'Statut', accessor: 'statut' }, { Header: 'Date', accessor: 'date' },
+            ]),
+          },
+          {
+            label: 'Absences et retards',
+            content: table('Absences et retards', data.absences, [
+              { Header: 'Date', accessor: 'date' }, { Header: 'Statut', accessor: 'statut' },
+              { Header: 'Retard (minutes)', accessor: 'retard_minutes' },
+            ]),
+          },
+          {
+            label: 'Planning',
+            content: table('Planning', data.planning, [
+              { Header: 'Jour (1 = lundi)', accessor: 'jour' }, { Header: 'Début', accessor: 'heure_debut' },
+              { Header: 'Fin', accessor: 'heure_fin' }, { Header: 'Matière', accessor: 'matiere' },
+              { Header: 'Enseignant', accessor: 'enseignant' }, { Header: 'Salle', accessor: 'salle' },
+            ]),
+          },
+          {
+            label: 'Factures et paiements',
+            content: (
+              <Stack spacing={2}>
+                {table('Factures', data.factures, [
+                  { Header: 'Numéro', accessor: 'numero' }, { Header: 'Statut', accessor: 'statut' },
+                  { Header: 'Montant', accessor: 'montant' }, { Header: 'Payé', accessor: 'montant_paye' },
+                  { Header: 'Reste à payer', accessor: 'reste_a_payer' },
+                ])}
+                {table('Paiements', (data.factures || []).flatMap(invoice => invoice.paiements.map(payment => ({ ...payment, facture: invoice.numero }))), [
+                  { Header: 'Facture', accessor: 'facture' }, { Header: 'Numéro', accessor: 'numero' },
+                  { Header: 'Date', accessor: 'date' }, { Header: 'Montant', accessor: 'montant' },
+                  { Header: 'Statut', accessor: 'statut' },
+                ])}
+              </Stack>
+            ),
+          },
+          {
+            label: 'Bulletins publiés',
+            content: (
+              <Stack spacing={1}>
+                {(data.bulletins || []).map(bulletin => (
+                  <Box key={bulletin.id}>
+                    <Typography>{bulletin.periode} · {bulletin.classe} · Moyenne : {bulletin.moyenne ?? '—'}</Typography>
+                    <Button disabled={downloading} onClick={() => download(bulletin.id)}>
+                      Télécharger le bulletin {bulletin.id}
+                    </Button>
+                  </Box>
+                ))}
+                {data.bulletins?.length === 0 && <Typography>Aucun bulletin publié.</Typography>}
+              </Stack>
+            ),
+          },
+        ]}
+      />
     </Box>
   );
 };
@@ -100,6 +133,8 @@ const ChildFamilyRecord = ({ pupils }) => {
   );
 };
 
-ChildFamilyRecord.propTypes = { pupils: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.number, nom: PropTypes.string })).isRequired };
+ChildFamilyRecord.propTypes = {
+  pupils: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.number, nom: PropTypes.string })).isRequired,
+};
 
 export default ChildFamilyRecord;

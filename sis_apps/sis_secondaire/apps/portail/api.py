@@ -1,11 +1,11 @@
 """Consolidated learner/family and staff/admin portal APIs for SIS Secondaire."""
 
-from apps.portail_eleve.api import PortailEleveViewSet
-from apps.portail_enseignant.api import PortailEnseignantViewSet
-from apps.portail_parent.api import PortailParentViewSet
 from apps.classes.models import Classe
 from apps.emplois_du_temps.models import Creneau
 from apps.enseignants.models import AffectationEnseignant
+from apps.portail_eleve.api import PortailEleveViewSet
+from apps.portail_enseignant.api import PortailEnseignantViewSet
+from apps.portail_parent.api import PortailParentViewSet
 from apps.presences.models import Appel
 from django.db.models import F, Prefetch
 from django.utils import timezone
@@ -69,15 +69,17 @@ class _TenantTeacherPortal(PortailEnseignantViewSet):
                 user__etablissement_id=request.tenant.pk,
             ).count()
             total_eleves += count
-            classes.append({
-                "classe_id": classe.id,
-                "classe_nom": classe.nom,
-                "niveau": classe.niveau.libelle,
-                "matiere": assignment.matiere.nom,
-                "annee_scolaire": assignment.annee_scolaire.libelle,
-                "nb_eleves": count,
-                "heures_semaine": float(assignment.heures_semaine),
-            })
+            classes.append(
+                {
+                    "classe_id": classe.id,
+                    "classe_nom": classe.nom,
+                    "niveau": classe.niveau.libelle,
+                    "matiere": assignment.matiere.nom,
+                    "annee_scolaire": assignment.annee_scolaire.libelle,
+                    "nb_eleves": count,
+                    "heures_semaine": float(assignment.heures_semaine),
+                }
+            )
         tenant_id = request.tenant.pk
         classes_pp = [
             {"id": classe.id, "nom": classe.nom, "niveau": classe.niveau.libelle if classe.niveau else None}
@@ -86,65 +88,77 @@ class _TenantTeacherPortal(PortailEnseignantViewSet):
                 etablissement_id=tenant_id,
                 annee_scolaire__etablissement_id=tenant_id,
                 niveau__etablissement_id=tenant_id,
-            ).select_related("niveau").order_by("niveau__ordre", "nom")
+            )
+            .select_related("niveau")
+            .order_by("niveau__ordre", "nom")
         ]
-        return Response({
-            "enseignant": {
-                "nom": enseignant.user.get_full_name(),
-                "matricule": enseignant.matricule,
-                "statut": enseignant.statut,
-            },
-            "classes": classes,
-            "classes_pp": classes_pp,
-            "statistiques": {
-                "nb_affectations": self._affectations_queryset(enseignant).count(),
-                "nb_classes": len({item["classe_id"] for item in classes}),
-                "nb_eleves_total": total_eleves,
-            },
-        })
+        return Response(
+            {
+                "enseignant": {
+                    "nom": enseignant.user.get_full_name(),
+                    "matricule": enseignant.matricule,
+                    "statut": enseignant.statut,
+                },
+                "classes": classes,
+                "classes_pp": classes_pp,
+                "statistiques": {
+                    "nb_affectations": self._affectations_queryset(enseignant).count(),
+                    "nb_classes": len({item["classe_id"] for item in classes}),
+                    "nb_eleves_total": total_eleves,
+                },
+            }
+        )
 
     def mes_classes(self, request):
-        return Response([
-            {
-                "id": classe.id,
-                "nom": classe.nom,
-                "niveau": classe.niveau.libelle,
-                "matiere": assignment.matiere.nom,
-                "nb_eleves": classe.eleves_actuels.filter(
-                    etablissement_id=request.tenant.pk,
-                    user__etablissement_id=request.tenant.pk,
-                ).count(),
-                "heures_semaine": float(assignment.heures_semaine),
-                "annee_scolaire": assignment.annee_scolaire.libelle,
-            }
-            for assignment, classe in self._assigned_classes(request)
-        ])
+        return Response(
+            [
+                {
+                    "id": classe.id,
+                    "nom": classe.nom,
+                    "niveau": classe.niveau.libelle,
+                    "matiere": assignment.matiere.nom,
+                    "nb_eleves": classe.eleves_actuels.filter(
+                        etablissement_id=request.tenant.pk,
+                        user__etablissement_id=request.tenant.pk,
+                    ).count(),
+                    "heures_semaine": float(assignment.heures_semaine),
+                    "annee_scolaire": assignment.annee_scolaire.libelle,
+                }
+                for assignment, classe in self._assigned_classes(request)
+            ]
+        )
 
     def absences_a_saisir(self, request):
         today = timezone.localdate()
         tenant_id = request.tenant.pk
         affectations = self._affectations_queryset(request.user.personnel_profile)
-        creneaux = Creneau.objects.filter(
-            enseignant=request.user.personnel_profile,
-            jour=today.weekday() + 1,
-            actif=True,
-            classe__etablissement_id=tenant_id,
-            classe__annee_scolaire__etablissement_id=tenant_id,
-            matiere__etablissement_id=tenant_id,
-            classe__affectations_enseignant__in=affectations,
-            classe__affectations_enseignant__matiere_id=F("matiere_id"),
-            classe__affectations_enseignant__annee_scolaire_id=F("classe__annee_scolaire_id"),
-        ).distinct().select_related("classe", "matiere")
-        return Response([
-            {
-                "creneau_id": creneau.id,
-                "classe": creneau.classe.nom,
-                "matiere": creneau.matiere.nom,
-                "heure": str(creneau.heure_debut),
-            }
-            for creneau in creneaux
-            if not Appel.objects.filter(creneau=creneau, date=today).exists()
-        ])
+        creneaux = (
+            Creneau.objects.filter(
+                enseignant=request.user.personnel_profile,
+                jour=today.weekday() + 1,
+                actif=True,
+                classe__etablissement_id=tenant_id,
+                classe__annee_scolaire__etablissement_id=tenant_id,
+                matiere__etablissement_id=tenant_id,
+                classe__affectations_enseignant__in=affectations,
+                classe__affectations_enseignant__matiere_id=F("matiere_id"),
+                classe__affectations_enseignant__annee_scolaire_id=F("classe__annee_scolaire_id"),
+            )
+            .distinct()
+            .select_related("classe", "matiere")
+        )
+        return Response(
+            [
+                {
+                    "creneau_id": creneau.id,
+                    "classe": creneau.classe.nom,
+                    "matiere": creneau.matiere.nom,
+                    "heure": str(creneau.heure_debut),
+                }
+                for creneau in creneaux
+                if not Appel.objects.filter(creneau=creneau, date=today).exists()
+            ]
+        )
 
 
 class _TenantParentPortal(PortailParentViewSet):
@@ -161,15 +175,9 @@ class IsApprenantFamille(IsAuthenticated):
         if tenant is None:
             return False
         if request.user.role == "eleve":
-            return (
-                hasattr(request.user, "eleve_profile")
-                and request.user.eleve_profile.etablissement_id == tenant.pk
-            )
+            return hasattr(request.user, "eleve_profile") and request.user.eleve_profile.etablissement_id == tenant.pk
         if request.user.role == "parent":
-            return (
-                hasattr(request.user, "tuteur_profile")
-                and request.user.tuteur_profile.etablissement_id == tenant.pk
-            )
+            return hasattr(request.user, "tuteur_profile") and request.user.tuteur_profile.etablissement_id == tenant.pk
         return False
 
 

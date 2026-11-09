@@ -94,7 +94,9 @@ def snapshot(options, configuration):
     for key in ["redis", *[f"data-{variant}" for variant in selected]]:
         try:
             subprocess.run(
-                ["docker", "volume", "inspect", volumes[key]], check=True, capture_output=True,
+                ["docker", "volume", "inspect", volumes[key]],
+                check=True,
+                capture_output=True,
             )
         except subprocess.CalledProcessError as exc:
             raise ValueError(
@@ -103,9 +105,9 @@ def snapshot(options, configuration):
     images = json.loads(compose(configuration, "images", "--format", "json", capture_output=True).stdout)
     if not isinstance(images, list) or not images:
         raise ValueError("Cannot record deployed image IDs; refusing a snapshot without its runtime inventory.")
-    staging_directory = (
-        getattr(options, "staging_dir", None) or Path(configuration["_ENV_FILE"]).parent
-    ).resolve(strict=True)
+    staging_directory = (getattr(options, "staging_dir", None) or Path(configuration["_ENV_FILE"]).parent).resolve(
+        strict=True
+    )
     if not staging_directory.is_dir():
         raise ValueError("The private staging directory must already exist and have room for the database dumps.")
     if staging_directory.is_relative_to(options.repository):
@@ -138,8 +140,15 @@ def snapshot(options, configuration):
                     )
                 with dump.open("rb") as source:
                     compose(
-                        configuration, "exec", "-T", f"postgres-{variant}", "pg_restore", "--list",
-                        stdin=source, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                        configuration,
+                        "exec",
+                        "-T",
+                        f"postgres-{variant}",
+                        "pg_restore",
+                        "--list",
+                        stdin=source,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.PIPE,
                     )
             manifest = {
                 "format": 2,
@@ -354,11 +363,13 @@ def main():
     parser.add_argument("--password-file", type=Path, required=True)
     parser.add_argument("--env-file", type=Path, default=ROOT / ".env")
     parser.add_argument(
-        "--staging-dir", type=Path,
+        "--staging-dir",
+        type=Path,
         help="Existing private directory for database dumps (default: environment file directory, never /tmp).",
     )
     parser.add_argument(
-        "--require-mount", type=Path,
+        "--require-mount",
+        type=Path,
         help="Refuse operations unless this repository ancestor is a mounted filesystem.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
@@ -404,10 +415,15 @@ def main():
             )
             if not isinstance(manifest, dict):
                 raise ValueError("Invalid snapshot manifest.")
-            print(json.dumps({
-                "snapshot": snapshot_id,
-                **{key: manifest.get(key) for key in ("format", "project", "created_at", "variants", "images")},
-            }, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "snapshot": snapshot_id,
+                        **{key: manifest.get(key) for key in ("format", "project", "created_at", "variants", "images")},
+                    },
+                    indent=2,
+                )
+            )
         elif options.command == "recover-config":
             snapshot_id = resolve_snapshot(options)
             data = restic(

@@ -85,7 +85,10 @@ class SyncService:
         """Crée ou met à jour un cours sans changer son identité à la reprise."""
         requested_at = course_sync_requested_at(requested_at)
         event = begin_delivery(
-            self, "course.create", "matiere", matiere.pk,
+            self,
+            "course.create",
+            "matiere",
+            matiere.pk,
             {"classe_id": classe.pk, "display_name": display_name, "requested_at": requested_at.isoformat()},
         )
         try:

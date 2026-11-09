@@ -30,7 +30,9 @@ class PracticalAccessTests(PracticalFixture):
         self.prepare()
         self.login(self.learner_user)
         allowed = (
-            {}, {"permission_scopes": {}}, {"permission_scopes": {CONSULT: {}}},
+            {},
+            {"permission_scopes": {}},
+            {"permission_scopes": {CONSULT: {}}},
             {"permission_scopes": {MANAGE: {"unknown": []}}},
             {"permission_scopes": {CONSULT: {"dossier_id": [self.dossier["id"]]}}},
             {"permission_scopes": {CONSULT: {"programme_id": [self.programme["id"]]}}},
@@ -42,12 +44,22 @@ class PracticalAccessTests(PracticalFixture):
             assert response.status_code == 200, (attributes, response.data)
             assert self.client.get(f"{BASE}dossiers/").data["count"] == 1
         denied = (
-            {"permission_scopes": None}, {"permission_scopes": []},
-            *({"permission_scopes": {CONSULT: value}} for value in (
-                None, [], {"unknown": [1]}, {"dossier_id": []}, {"dossier_id": [True]},
-                {"dossier_id": ["1"]}, {"dossier_id": [0]}, {"dossier_id": [-1]},
-                {"dossier_id": None},
-            )),
+            {"permission_scopes": None},
+            {"permission_scopes": []},
+            *(
+                {"permission_scopes": {CONSULT: value}}
+                for value in (
+                    None,
+                    [],
+                    {"unknown": [1]},
+                    {"dossier_id": []},
+                    {"dossier_id": [True]},
+                    {"dossier_id": ["1"]},
+                    {"dossier_id": [0]},
+                    {"dossier_id": [-1]},
+                    {"dossier_id": None},
+                )
+            ),
         )
         before = self.state()
         for attributes in denied:
@@ -55,9 +67,11 @@ class PracticalAccessTests(PracticalFixture):
             self.assert_error(self.client.get(self.url()), 404, "not_found")
             self.assert_error(self.client.get(f"{BASE}dossiers/"), 403)
             assert self.state() == before
-        get_user_model().objects.filter(pk=self.learner_user.pk).update(attributs_acces={
-            "permission_scopes": {CONSULT: {"dossier_id": [self.dossier["id"]], "programme_id": [999999]}}
-        })
+        get_user_model().objects.filter(pk=self.learner_user.pk).update(
+            attributs_acces={
+                "permission_scopes": {CONSULT: {"dossier_id": [self.dossier["id"]], "programme_id": [999999]}}
+            }
+        )
         self.assert_error(self.client.get(self.url()), 404)
         assert self.client.get(f"{BASE}dossiers/").data["count"] == 0
 
@@ -85,17 +99,25 @@ class PracticalAccessTests(PracticalFixture):
         self.prepare()
         self.login(self.outsider)
         self.assert_error(self.client.get(self.url()), 404)
-        self.assert_error(self.client.post(f"{BASE}programmes/", self.programme_payload(code="staff"), format="json"), 403)
+        self.assert_error(
+            self.client.post(f"{BASE}programmes/", self.programme_payload(code="staff"), format="json"), 403
+        )
         self.grant(self.outsider, CONSULT, ENTER, VALIDATE, EVALUATE)
         self.assert_error(self.client.get(self.url()), 404)
         self.grant(self.outsider, MANAGE)
         assert self.client.get(self.url()).status_code == 200
         before = self.state()
         self.assert_error(self.command("heures/", self.outsider, **self.hour_payload()), 403)
-        self.assert_error(self.command(
-            "competences/securite/evaluer/", self.outsider, acquise=True,
-            contexte_professionnel="Sans affectation", date_observation="2026-11-07",
-        ), 403)
+        self.assert_error(
+            self.command(
+                "competences/securite/evaluer/",
+                self.outsider,
+                acquise=True,
+                contexte_professionnel="Sans affectation",
+                date_observation="2026-11-07",
+            ),
+            403,
+        )
         assert self.state() == before
         self.partner.user_permissions.clear()
         self.login(self.partner)
@@ -116,8 +138,10 @@ class PracticalAccessTests(PracticalFixture):
         get_user_model().objects.filter(pk=self.partner.pk).update(is_active=True)
         for changes, restoration in (
             ({"enabled": {"sis.practical_training": False}}, {"enabled": {"sis.practical_training": True}}),
-            ({"enabled": {"sis.practical_training": True, "core.notifications": False}},
-             {"enabled": {"sis.practical_training": True}}),
+            (
+                {"enabled": {"sis.practical_training": True, "core.notifications": False}},
+                {"enabled": {"sis.practical_training": True}},
+            ),
         ):
             ModuleConfiguration.objects.filter(etablissement=self.tenant).update(**changes)
             self.assert_error(self.client.get(self.url()), 403)
@@ -149,24 +173,40 @@ class PracticalAccessTests(PracticalFixture):
             foreign.save()
         if self.secondary:
             year = self.create(
-                "etablissement.AnneeScolaire", etablissement=foreign, libelle="Externe 2026",
-                date_debut=self.year.date_debut, date_fin=self.year.date_fin,
+                "etablissement.AnneeScolaire",
+                etablissement=foreign,
+                libelle="Externe 2026",
+                date_debut=self.year.date_debut,
+                date_fin=self.year.date_fin,
             )
             level = self.create("etablissement.Niveau", etablissement=foreign, code="EXT", libelle="Externe")
             source = self.create(
-                "classes.Classe", etablissement=foreign, niveau=level, annee_scolaire=year, nom="Externe",
+                "classes.Classe",
+                etablissement=foreign,
+                niveau=level,
+                annee_scolaire=year,
+                nom="Externe",
             )
         else:
             faculty = self.create("structure.Faculte", universite=foreign, code="EXT", nom="Externe")
             department = self.create("structure.Departement", faculte=faculty, code="EXT", nom="Externe")
-            source = self.create("formations.Formation", departement=department, code="EXT", nom="Externe", type="licence")
+            source = self.create(
+                "formations.Formation", departement=department, code="EXT", nom="Externe", type="licence"
+            )
         foreign_user = get_user_model().objects.create_user("foreign-stage-manager", etablissement=foreign)
         foreign_programme = practical_model("ProgrammePratique").objects.create(
-            etablissement=foreign, curriculum=source, code="foreign", cree_par=foreign_user,
+            etablissement=foreign,
+            curriculum=source,
+            code="foreign",
+            cree_par=foreign_user,
         )
         practical_model("RevisionProgrammePratique").objects.create(
-            programme=foreign_programme, numero=1, titre="Exigences externes",
-            minutes_requises=120, competences=[{"code": "externe", "label": "Externe"}], cree_par=foreign_user,
+            programme=foreign_programme,
+            numero=1,
+            titre="Exigences externes",
+            minutes_requises=120,
+            competences=[{"code": "externe", "label": "Externe"}],
+            cree_par=foreign_user,
         )
         self.login(self.manager)
         self.assert_error(self.client.get(f"{BASE}programmes/{foreign_programme.pk}/"), 404)
@@ -246,10 +286,16 @@ class PracticalAccessTests(PracticalFixture):
         self.login(self.partner)
         assert self.client.get(self.url()).status_code == 200
         before = self.state()
-        self.assert_error(self.command(
-            "competences/securite/evaluer/", self.partner, acquise=True,
-            contexte_professionnel="Accès administratif seulement", date_observation="2026-11-07",
-        ), 403)
+        self.assert_error(
+            self.command(
+                "competences/securite/evaluer/",
+                self.partner,
+                acquise=True,
+                contexte_professionnel="Accès administratif seulement",
+                date_observation="2026-11-07",
+            ),
+            403,
+        )
         assert self.state() == before
         self.partner.user_permissions.remove(self.partner.user_permissions.get(codename=MANAGE.split(".")[1]))
         self.assert_error(self.client.get(self.url()), 404)
@@ -257,13 +303,25 @@ class PracticalAccessTests(PracticalFixture):
     def test_generic_workflow_excludes_practical_history_but_preserves_legacy_stages(self):
         self.prepare()
         for name in (
-            "programmepratique", "revisionprogrammepratique", "dossierpratique", "heurepratique",
-            "decisionheurepratique", "evaluationcompetencepratique", "auditpratique", "conventionstage",
+            "programmepratique",
+            "revisionprogrammepratique",
+            "dossierpratique",
+            "heurepratique",
+            "decisionheurepratique",
+            "evaluationcompetencepratique",
+            "auditpratique",
+            "conventionstage",
         ):
             event = WorkflowEvent.objects.create(
-                actor=self.manager, tenant_id=self.tenant.pk, app_label="stages", model=name,
-                object_id="1", object_repr="Suivi confidentiel", action="practical_privacy_regression",
-                title="Suivi", metadata={"private_marker": "do-not-export"},
+                actor=self.manager,
+                tenant_id=self.tenant.pk,
+                app_label="stages",
+                model=name,
+                object_id="1",
+                object_repr="Suivi confidentiel",
+                action="practical_privacy_regression",
+                title="Suivi",
+                metadata={"private_marker": "do-not-export"},
             )
             if name == "conventionstage":
                 legacy_id = event.pk
@@ -291,7 +349,9 @@ class PracticalTerminalACLTests(PracticalFixture):
         assert response.status_code == 200, response.data
         before_dto = deepcopy(response.data["dossier"])
         assert before_dto["actions"]["can_revoke_partner"] is True
-        assert not any(before_dto["actions"][key] for key in ("can_enter_hours", "can_evaluate", "can_close", "can_cancel"))
+        assert not any(
+            before_dto["actions"][key] for key in ("can_enter_hours", "can_evaluate", "can_close", "can_cancel")
+        )
         self.learner.statut = "diplome"
         self.learner.save(update_fields=["statut"])
         self.registration.statut = "annulee"

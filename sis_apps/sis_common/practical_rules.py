@@ -102,8 +102,12 @@ def criteria(value, *, published=False):
             raise PracticalRuleError("Une compétence attend code et label.", field="competences")
         code, label = item["code"], item["label"]
         if (
-            not isinstance(code, str) or not re.fullmatch(CODE_PATTERN, code) or code in seen
-            or not isinstance(label, str) or not 1 <= len(label) <= 240 or label != label.strip()
+            not isinstance(code, str)
+            or not re.fullmatch(CODE_PATTERN, code)
+            or code in seen
+            or not isinstance(label, str)
+            or not 1 <= len(label) <= 240
+            or label != label.strip()
         ):
             raise PracticalRuleError("Code unique et libellé non vide requis.", field="competences")
         seen.add(code)

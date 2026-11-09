@@ -446,15 +446,29 @@ it('refuses to duplicate a group whose permission list was not supplied by the s
   expect(screen.queryByRole('button', { name: 'Dupliquer le groupe' })).not.toBeInTheDocument();
 });
 
-it('preserves the accounts tab and refuses unauthorized group and membership changes', async () => {
+it('disables unauthorized account access and refuses group and membership changes', async () => {
   renderPage({ capabilities: { permissions: ['auth.view_group'] } });
+  expect(screen.getByRole('tab', { name: 'Comptes' })).toBeDisabled();
   fireEvent.click(screen.getByRole('tab', { name: 'Comptes' }));
-  expect(screen.getByText('Liste des comptes')).toBeVisible();
+  expect(screen.queryByText('Liste des comptes')).not.toBeInTheDocument();
   expect(fetchAllResourcePages).not.toHaveBeenCalledWith(usersUrl);
   fireEvent.click(screen.getByRole('tab', { name: 'Groupes et permissions' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
   expect(screen.getByText('Modification non autorisée pour ce compte.')).toBeVisible();
   expect(screen.getByText(/Affectation non autorisée/)).toBeVisible();
+  expect(fetchAllResourcePages).not.toHaveBeenCalledWith(usersUrl);
+});
+
+it('opens family links without fetching accounts or granting group access', async () => {
+  fetchAllResourcePages.mockResolvedValue([]);
+  renderPage({ capabilities: { permissions: ['eleves.view_elevetuteur'] } });
+  expect(screen.getByRole('tab', { name: 'Parents et enfants' })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('tab', { name: 'Comptes' })).toBeDisabled();
+  expect(screen.getByRole('tab', { name: 'Groupes et permissions' })).toBeDisabled();
+  expect(screen.queryByText('Liste des comptes')).not.toBeInTheDocument();
+  await waitFor(() => expect(fetchAllResourcePages).toHaveBeenCalledWith(
+    'https://sis.example/api/v1/utilisateurs/liens-parent/',
+  ));
   expect(fetchAllResourcePages).not.toHaveBeenCalledWith(usersUrl);
 });
 

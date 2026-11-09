@@ -27,7 +27,9 @@ class LMSDeliveryTests(EnrollmentFixtureMixin, TenantAPITestCase):
     def setUp(self):
         super().setUp()
         self.remote = Mock()
-        self.factory = self.enterContext(patch("apps.integration.sync_service.get_edx_client", return_value=self.remote))
+        self.factory = self.enterContext(
+            patch("apps.integration.sync_service.get_edx_client", return_value=self.remote)
+        )
         self.learner_class, self.learner_field = learner_model()
         self.learner = self.learner_class.objects.get(user=self.user)
         self.remote.create_user.return_value = {"id": 505}
@@ -84,8 +86,11 @@ class LMSDeliveryTests(EnrollmentFixtureMixin, TenantAPITestCase):
 
     def test_missing_configuration_releases_claim_with_backoff_instead_of_sticking_processing(self):
         event = OutboxEvent.objects.create(
-            event_type="user.sync", aggregate_type="user", aggregate_id=str(self.user.pk),
-            payload={"role": "student"}, nb_tentatives=8,
+            event_type="user.sync",
+            aggregate_type="user",
+            aggregate_id=str(self.user.pk),
+            payload={"role": "student"},
+            nb_tentatives=8,
         )
         self.factory.side_effect = ImproperlyConfigured("LMS unavailable")
         assert _publish_outbox_events_for_current_schema() == 1
@@ -100,7 +105,9 @@ class LMSDeliveryTests(EnrollmentFixtureMixin, TenantAPITestCase):
 
     def test_api_unconfigured_provider_returns_503_and_retains_identity_request(self):
         admin = get_user_model().objects.create_user(
-            username="lms-unavailable-admin", is_staff=True, etablissement=self.tenant,
+            username="lms-unavailable-admin",
+            is_staff=True,
+            etablissement=self.tenant,
         )
         self.client.force_authenticate(admin)
         self.factory.side_effect = ImproperlyConfigured("LMS unavailable")
@@ -112,8 +119,11 @@ class LMSDeliveryTests(EnrollmentFixtureMixin, TenantAPITestCase):
 
     def test_http_outage_does_not_exhaust_provisioning_after_five_attempts(self):
         event = OutboxEvent.objects.create(
-            event_type="user.sync", aggregate_type="user", aggregate_id=str(self.user.pk),
-            payload={"role": "student"}, nb_tentatives=8,
+            event_type="user.sync",
+            aggregate_type="user",
+            aggregate_id=str(self.user.pk),
+            payload={"role": "student"},
+            nb_tentatives=8,
         )
         self.remote.create_user.side_effect = requests.ConnectionError("Simulated outage")
         assert _publish_outbox_events_for_current_schema() == 1
@@ -161,13 +171,15 @@ class LMSDeliveryTests(EnrollmentFixtureMixin, TenantAPITestCase):
         if self.learner_field == "eleve":
             model = apps.get_model("eleves", "Inscription")
             values = {
-                "eleve": self.learner, "classe": course.classe,
+                "eleve": self.learner,
+                "classe": course.classe,
                 "annee_scolaire": course.classe.annee_scolaire,
             }
         else:
             model = apps.get_model("etudiants", "InscriptionAdministrative")
             values = {
-                "etudiant": self.learner, "formation": course.ecue.ue.maquette.formation,
+                "etudiant": self.learner,
+                "formation": course.ecue.ue.maquette.formation,
                 "annee_universitaire": course.ecue.ue.semestre.annee_universitaire,
             }
         registration = model.objects.create(**values, date_inscription="2026-09-01", statut="validee")
@@ -184,13 +196,18 @@ class LMSDeliveryTests(EnrollmentFixtureMixin, TenantAPITestCase):
             self.skipTest("School class assignment is specific to the secondary SIS.")
         course = self.course_mapping
         registration = apps.get_model("eleves", "Inscription").objects.create(
-            eleve=self.learner, classe=course.classe, annee_scolaire=course.classe.annee_scolaire,
-            date_inscription="2026-09-01", statut="validee",
+            eleve=self.learner,
+            classe=course.classe,
+            annee_scolaire=course.classe.annee_scolaire,
+            date_inscription="2026-09-01",
+            statut="validee",
         )
         SyncService().sync_enrollment_to_lms(self.learner, course)
         other_class = type(course.classe).objects.create(
-            etablissement=self.tenant, annee_scolaire=course.classe.annee_scolaire,
-            niveau=course.classe.niveau, nom="Transferred class",
+            etablissement=self.tenant,
+            annee_scolaire=course.classe.annee_scolaire,
+            niveau=course.classe.niveau,
+            nom="Transferred class",
         )
         registration.classe = other_class
         registration.save(update_fields=["classe"])

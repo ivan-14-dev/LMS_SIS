@@ -343,8 +343,16 @@ class BulletinDetailSerializer(BulletinRevisionMixin, serializers.ModelSerialize
             "rectification_publiee",
         ]
         read_only_fields = [
-            "id", "created_at", "updated_at", "calcul_detail", "valide_par", "date_validation",
-            "revision", "rectifie", "motif_rectification", "rectification_demandee_par",
+            "id",
+            "created_at",
+            "updated_at",
+            "calcul_detail",
+            "valide_par",
+            "date_validation",
+            "revision",
+            "rectifie",
+            "motif_rectification",
+            "rectification_demandee_par",
         ]
 
     def validate(self, attrs):

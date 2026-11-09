@@ -12,26 +12,35 @@ from sis_common.lms_diagnostics import check_health, integration_health
 class LMSDiagnosticsTests(TestCase):
     def setUp(self):
         self.settings = SimpleNamespace(
-            EDX_LMS_URL="https://lms.example.test", EDX_CMS_URL="https://studio.example.test",
-            EDX_OAUTH_CLIENT_ID="synthetic-client", EDX_OAUTH_CLIENT_SECRET="synthetic-secret",
+            EDX_LMS_URL="https://lms.example.test",
+            EDX_CMS_URL="https://studio.example.test",
+            EDX_OAUTH_CLIENT_ID="synthetic-client",
+            EDX_OAUTH_CLIENT_SECRET="synthetic-secret",
         )
         self.client = SimpleNamespace(
-            lms_url=self.settings.EDX_LMS_URL, cms_url=self.settings.EDX_CMS_URL,
-            verify_ssl=True, _headers=Mock(return_value={"Authorization": "JWT synthetic-token"}),
+            lms_url=self.settings.EDX_LMS_URL,
+            cms_url=self.settings.EDX_CMS_URL,
+            verify_ssl=True,
+            _headers=Mock(return_value={"Authorization": "JWT synthetic-token"}),
         )
         self.client.health_check = lambda: check_health(self.client)
 
     def response(self, status=200, **changes):
         return Mock(
             status_code=status,
-            json=Mock(return_value={
-                "contract": "sis-provisioning/v1",
-                "capabilities": {
-                    "accounts": True, "enrollments": True, "teaching": True,
-                    "courses": True, "publication": True,
-                },
-                **changes,
-            }),
+            json=Mock(
+                return_value={
+                    "contract": "sis-provisioning/v1",
+                    "capabilities": {
+                        "accounts": True,
+                        "enrollments": True,
+                        "teaching": True,
+                        "courses": True,
+                        "publication": True,
+                    },
+                    **changes,
+                }
+            ),
         )
 
     def test_unconfigured_provider_never_constructs_client_or_calls_http(self):

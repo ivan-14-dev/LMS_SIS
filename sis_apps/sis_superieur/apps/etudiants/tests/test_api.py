@@ -286,9 +286,7 @@ class InscriptionsAdminWorkflowTestCase(SimpleTestCase):
         inscription.save.assert_called_once_with(update_fields=["statut", "updated_at"])
         assert etudiant.statut == "inscrit"
         assert etudiant.annee_universitaire_actuelle == inscription.annee_universitaire
-        etudiant.save.assert_called_once_with(
-            update_fields=["annee_universitaire_actuelle", "statut", "updated_at"]
-        )
+        etudiant.save.assert_called_once_with(update_fields=["annee_universitaire_actuelle", "statut", "updated_at"])
         mock_event.assert_called_once()
 
     @patch("apps.etudiants.api.record_workflow_event")

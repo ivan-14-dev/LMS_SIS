@@ -16,8 +16,11 @@ from sis_common.practical_rules import PERMISSIONS, PracticalRuleError, constrai
 def refresh_context(request):
     user, tenant = getattr(request, "user", None), getattr(request, "tenant", None)
     if (
-        not user or not user.is_authenticated or not tenant
-        or tenant.schema_name == "public" or getattr(connection, "schema_name", None) != tenant.schema_name
+        not user
+        or not user.is_authenticated
+        or not tenant
+        or tenant.schema_name == "public"
+        or getattr(connection, "schema_name", None) != tenant.schema_name
         or user.etablissement_id != tenant.pk
     ):
         raise PermissionDenied("Contexte pratique inaccessible.", code="contexte_inactif")
@@ -98,10 +101,7 @@ def actor_kind(user, dossier, tenant):
     convention = dossier.convention
     if dossier.apprenant_user_id == user.pk and dossier.apprenant.user_id == user.pk:
         return "learner"
-    tutor_id = (
-        convention.maitre_stage_etablissement_id if secondary()
-        else convention.tuteur_pedagogique.user_id
-    )
+    tutor_id = convention.maitre_stage_etablissement_id if secondary() else convention.tuteur_pedagogique.user_id
     if dossier.tuteur_interne_user_id == user.pk == tutor_id:
         return "tutor"
     if dossier.partenaire_user_id != user.pk or dossier.partenaire_revoque_le:
@@ -114,9 +114,11 @@ def actor_kind(user, dossier, tenant):
     if not secondary():
         contact = convention.maitre_stage
         if (
-            not contact.actif or not convention.entreprise.actif
+            not contact.actif
+            or not convention.entreprise.actif
             or contact.pk != dossier.contact_entreprise_id
-            or contact.user_id != user.pk or contact.entreprise_id != convention.entreprise_id
+            or contact.user_id != user.pk
+            or contact.entreprise_id != convention.entreprise_id
         ):
             return None
     return "partner"
@@ -140,7 +142,8 @@ def readable(request, dossier):
 
 def usable(request, dossier):
     return (
-        dossier.statut == "ouvert" and dossier.fuseau_horaire == request.tenant.fuseau_horaire
+        dossier.statut == "ouvert"
+        and dossier.fuseau_horaire == request.tenant.fuseau_horaire
         and binding_status(dossier, request.tenant)
     )
 
@@ -162,7 +165,4 @@ def can_decide(request, dossier, kind, hour=None):
 
 
 def effective_permissions(request, *, programme=None, dossier=None):
-    return [
-        name for name in PERMISSIONS.values()
-        if permission(request.user, name, request.tenant, programme, dossier)
-    ]
+    return [name for name in PERMISSIONS.values() if permission(request.user, name, request.tenant, programme, dossier)]

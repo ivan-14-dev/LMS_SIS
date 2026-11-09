@@ -81,7 +81,10 @@ class SyncService:
     ) -> EdxCourseMapping:
         requested_at = course_sync_requested_at(requested_at)
         event = begin_delivery(
-            self, "course.create", "ecue", ecue.pk,
+            self,
+            "course.create",
+            "ecue",
+            ecue.pk,
             {
                 "annee_universitaire_id": annee_universitaire.pk,
                 "display_name": display_name,
@@ -132,7 +135,9 @@ class SyncService:
 
         if mode != "audit":
             raise ValueError("Le contrat d'inscription à droits limités accepte uniquement le mode audit.")
-        dispatch_access(self, etudiant.user, course_mapping, kind="enrollment", active=active, requested_at=requested_at)
+        dispatch_access(
+            self, etudiant.user, course_mapping, kind="enrollment", active=active, requested_at=requested_at
+        )
         return EdxEnrollment.objects.filter(etudiant=etudiant, course=course_mapping).first()
 
     def sync_teaching_to_lms(self, user, course_mapping, *, active):

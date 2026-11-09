@@ -27,29 +27,52 @@ class PaymentReviewTests(TenantAPITestCase):
         self.author = User.objects.create_user("finance-author", role="comptable", etablissement=self.tenant)
         self.reviewer = User.objects.create_user("finance-reviewer", role="comptable", etablissement=self.tenant)
         self.student_user = User.objects.create_user(
-            "finance-student", role="etudiant" if superior else "eleve", etablissement=self.tenant,
+            "finance-student",
+            role="etudiant" if superior else "eleve",
+            etablissement=self.tenant,
         )
         tenant_field = "universite" if superior else "etablissement"
         today = timezone.localdate()
         student = Student.objects.create(
-            **{tenant_field: self.tenant, "user": self.student_user, "matricule": "FIN-REVIEW",
-               "date_naissance": today, "lieu_naissance": "Test", "sexe": "F",
-               **({} if superior else {"date_inscription": today})},
+            **{
+                tenant_field: self.tenant,
+                "user": self.student_user,
+                "matricule": "FIN-REVIEW",
+                "date_naissance": today,
+                "lieu_naissance": "Test",
+                "sexe": "F",
+                **({} if superior else {"date_inscription": today}),
+            },
         )
         year = Year.objects.create(
-            **{tenant_field: self.tenant}, libelle="Finance test", date_debut=today, date_fin=today,
+            **{tenant_field: self.tenant},
+            libelle="Finance test",
+            date_debut=today,
+            date_fin=today,
         )
         fee = Fee.objects.create(
             **{"annee_universitaire" if superior else "annee_scolaire": year},
-            code="FIN-REVIEW", libelle="Frais de test", montant="100",
+            code="FIN-REVIEW",
+            libelle="Frais de test",
+            montant="100",
         )
         self.invoice = Invoice.objects.create(
-            **{"etudiant" if superior else "eleve": student}, type_frais=fee,
-            numero="FIN-INV", montant="100", devise="EUR", date_emission=today, date_echeance=today,
+            **{"etudiant" if superior else "eleve": student},
+            type_frais=fee,
+            numero="FIN-INV",
+            montant="100",
+            devise="EUR",
+            date_emission=today,
+            date_echeance=today,
         )
         self.payment = self.Payment.objects.create(
-            facture=self.invoice, numero="FIN-PAY", montant="25", mode="virement",
-            reference_externe="TEST-BANK-1", date_paiement=today, enregistre_par=self.author,
+            facture=self.invoice,
+            numero="FIN-PAY",
+            montant="25",
+            mode="virement",
+            reference_externe="TEST-BANK-1",
+            date_paiement=today,
+            enregistre_par=self.author,
             preuve_paiement="private/test.pdf",
         )
         self.detail = f"/api/v1/paiements/transactions/{self.payment.pk}/"
@@ -69,11 +92,15 @@ class PaymentReviewTests(TenantAPITestCase):
         self.client.force_authenticate(self.author)
         storage = self.Payment._meta.get_field("preuve_remboursement").storage
         with patch.object(storage, "save", return_value="private/refund.pdf"):
-            response = self.client.post(f"{self.detail}demander-remboursement/", {
-                "motif": "Remboursement intégral documenté",
-                "reference": "TEST-REFUND-1",
-                "preuve": SimpleUploadedFile("refund.pdf", b"%PDF-1.4\nproof", content_type="application/pdf"),
-            }, format="multipart")
+            response = self.client.post(
+                f"{self.detail}demander-remboursement/",
+                {
+                    "motif": "Remboursement intégral documenté",
+                    "reference": "TEST-REFUND-1",
+                    "preuve": SimpleUploadedFile("refund.pdf", b"%PDF-1.4\nproof", content_type="application/pdf"),
+                },
+                format="multipart",
+            )
         assert response.status_code == 200, response.data
         assert self.client.post(f"{self.detail}rembourser/").status_code == 403
         self.client.force_authenticate(self.reviewer)
@@ -114,8 +141,12 @@ class PaymentReviewTests(TenantAPITestCase):
 
     def test_overpayment_uses_ledger_not_stale_cache(self):
         self.Payment.objects.create(
-            facture=self.invoice, numero="FIN-EXIST", montant="90", mode="especes",
-            statut="valide", date_paiement=timezone.localdate(),
+            facture=self.invoice,
+            numero="FIN-EXIST",
+            montant="90",
+            mode="especes",
+            statut="valide",
+            date_paiement=timezone.localdate(),
         )
         assert self.client.post(f"{self.detail}valider/").status_code == 409
         self.payment.refresh_from_db()
@@ -124,9 +155,14 @@ class PaymentReviewTests(TenantAPITestCase):
     def test_confirmed_reference_cannot_credit_another_payment(self):
         assert self.client.post(f"{self.detail}valider/").status_code == 200
         duplicate = self.Payment.objects.create(
-            facture=self.invoice, numero="FIN-DUPLICATE", montant="10", mode="virement",
-            reference_externe=self.payment.reference_externe, date_paiement=timezone.localdate(),
-            enregistre_par=self.author, preuve_paiement="private/test.pdf",
+            facture=self.invoice,
+            numero="FIN-DUPLICATE",
+            montant="10",
+            mode="virement",
+            reference_externe=self.payment.reference_externe,
+            date_paiement=timezone.localdate(),
+            enregistre_par=self.author,
+            preuve_paiement="private/test.pdf",
         )
         response = self.client.post(f"/api/v1/paiements/transactions/{duplicate.pk}/valider/")
         assert response.status_code == 409, response.data
@@ -169,10 +205,14 @@ class PaymentReviewTests(TenantAPITestCase):
 
     def callback(self, *, event_type="payment_intent.succeeded", tenant_id=None, amount=2500, signed=True):
         intent = {
-            "id": "pi_TEST1", "amount": amount, "currency": "eur",
+            "id": "pi_TEST1",
+            "amount": amount,
+            "currency": "eur",
             "metadata": {
-                "sis_variant": settings.SIS_VARIANT, "sis_tenant_id": str(tenant_id or self.tenant.pk),
-                "sis_tenant_schema": self.tenant.schema_name, "sis_invoice": self.invoice.numero,
+                "sis_variant": settings.SIS_VARIANT,
+                "sis_tenant_id": str(tenant_id or self.tenant.pk),
+                "sis_tenant_schema": self.tenant.schema_name,
+                "sis_invoice": self.invoice.numero,
             },
         }
         body = json.dumps({"id": "evt_TEST1", "type": event_type, "data": {"object": intent}}).encode()
@@ -182,8 +222,10 @@ class PaymentReviewTests(TenantAPITestCase):
         self.client.force_authenticate(None)
         with patch.dict("os.environ", {"SIS_STRIPE_WEBHOOK_SECRET": "only-test-secret"}):
             return self.client.post(
-                "/api/v1/paiements/transactions/callback-stripe/", body,
-                content_type="application/json", HTTP_STRIPE_SIGNATURE=signature,
+                "/api/v1/paiements/transactions/callback-stripe/",
+                body,
+                content_type="application/json",
+                HTTP_STRIPE_SIGNATURE=signature,
             )
 
     def test_signed_callback_replay_failure_and_recovery(self):

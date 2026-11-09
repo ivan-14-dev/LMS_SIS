@@ -117,6 +117,14 @@ const schoolModules = [
     ],
   },
   {
+    title: 'Finances',
+    items: [
+      {
+        path: 'paiements', label: 'Paiements', icon: Money, permission: 'paiements.view_paiement', roles: [...schoolRegistry, 'comptable'],
+      },
+    ],
+  },
+  {
     title: 'Services',
     items: [
       libraryModule,
@@ -241,7 +249,15 @@ const administrativeModules = (variant) => {
       path: 'annees-academiques', label: 'Années académiques', icon: CalendarMonth, permission: `etablissement.view_${variant === 'secondaire' ? 'anneescolaire' : 'anneeuniversitaire'}`, roles,
     },
     {
-      path: 'utilisateurs', label: 'Utilisateurs', icon: People, permission: 'utilisateurs.view_utilisateur', alternatePermissions: ['auth.view_group'], roles,
+      path: 'utilisateurs',
+      label: 'Utilisateurs',
+      icon: People,
+      permission: 'utilisateurs.view_utilisateur',
+      alternatePermissions: [
+        'auth.view_group',
+        ...(variant === 'secondaire' ? ['eleves.view_tuteur', 'eleves.view_elevetuteur'] : []),
+      ],
+      roles,
     },
     {
       path: 'structure', label: 'Structure', icon: Business, permission: variant === 'secondaire' ? 'etablissement.view_niveau' : 'structure.view_departement', roles,

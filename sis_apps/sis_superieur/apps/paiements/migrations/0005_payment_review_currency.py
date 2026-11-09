@@ -1,5 +1,6 @@
-import sis_common.exam_files
 from django.db import migrations, models
+
+import sis_common.exam_files
 
 
 class Migration(migrations.Migration):
@@ -27,7 +28,8 @@ class Migration(migrations.Migration):
             model_name="paiementfrais",
             name="preuve_remboursement",
             field=models.FileField(
-                blank=True, null=True,
+                blank=True,
+                null=True,
                 storage=sis_common.exam_files.PrivateFinancialStorage(),
                 upload_to=sis_common.exam_files.payment_proof_upload_to,
                 validators=[sis_common.exam_files.validate_payment_proof],
@@ -38,10 +40,14 @@ class Migration(migrations.Migration):
             name="statut",
             field=models.CharField(
                 choices=[
-                    ("en_attente", "En attente"), ("valide", "Validé"),
-                    ("echec", "Échec"), ("rejete", "Rejeté"), ("rembourse", "Remboursé"),
+                    ("en_attente", "En attente"),
+                    ("valide", "Validé"),
+                    ("echec", "Échec"),
+                    ("rejete", "Rejeté"),
+                    ("rembourse", "Remboursé"),
                 ],
-                default="en_attente", max_length=20,
+                default="en_attente",
+                max_length=20,
             ),
         ),
     ]

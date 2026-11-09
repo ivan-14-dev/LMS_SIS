@@ -90,20 +90,14 @@ def _paginated_response(request, queryset, serializer_class):
 def webhook_lms(request):
     """Webhook entrant depuis le LMS Open edX."""
     if not _verify_hmac(request):
-        return Response(
-            {"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED
-        )
+        return Response({"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED)
     payload_error = _validate_webhook_payload(request)
     if payload_error:
         return Response({"error": payload_error}, status=status.HTTP_400_BAD_REQUEST)
     event_type = request.headers.get("X-Event-Type", "")
     payload = dict(request.data)
     supplied_event_id = request.headers.get("X-Event-ID")
-    event_material = (
-        supplied_event_id.encode()
-        if supplied_event_id
-        else event_type.encode() + b":" + request.body
-    )
+    event_material = supplied_event_id.encode() if supplied_event_id else event_type.encode() + b":" + request.body
     payload["_event_id"] = hashlib.sha256(event_material).hexdigest()
     schema_name = getattr(getattr(request, "tenant", None), "schema_name", None)
     if not schema_name:
@@ -168,9 +162,7 @@ def webhook_lms(request):
 def webhook_cms(request):
     """Webhook entrant depuis le CMS Studio."""
     if not _verify_hmac(request):
-        return Response(
-            {"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED
-        )
+        return Response({"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED)
     payload_error = _validate_webhook_payload(request)
     if payload_error:
         return Response({"error": payload_error}, status=status.HTTP_400_BAD_REQUEST)
@@ -231,9 +223,7 @@ def sync_status(request):
 @permission_classes([IsCurrentLmsTenantAdmin])
 def user_mappings(request):
     """Liste paginée des correspondances entre utilisateurs SIS et Open edX."""
-    queryset = EdxUserMapping.objects.select_related("user_sis").order_by(
-        "-date_sync", "-created_at"
-    )
+    queryset = EdxUserMapping.objects.select_related("user_sis").order_by("-date_sync", "-created_at")
     return _paginated_response(request, queryset, EdxUserMappingSerializer)
 
 
@@ -253,12 +243,16 @@ def visible_course_mappings(request):
         classe__annee_scolaire__etablissement_id=tenant_id,
         classe__niveau__etablissement_id=tenant_id,
     )
-    return filter_queryset_by_scopes(
-        queryset,
-        request.user,
-        "integration.view_edxcoursemapping",
-        {"cours": "pk", "classes": "classe_id", "matieres": "matiere_id", "annees": "classe__annee_scolaire_id"},
-    ).select_related("matiere", "classe").order_by("course_name", "pk")
+    return (
+        filter_queryset_by_scopes(
+            queryset,
+            request.user,
+            "integration.view_edxcoursemapping",
+            {"cours": "pk", "classes": "classe_id", "matieres": "matiere_id", "annees": "classe__annee_scolaire_id"},
+        )
+        .select_related("matiere", "classe")
+        .order_by("course_name", "pk")
+    )
 
 
 @api_view(["GET"])
@@ -397,9 +391,7 @@ def sync_course_live(request, mapping_id):
                 {"error": result["message"]},
                 status=status.HTTP_409_CONFLICT,
             )
-        if result.get("provider_type") != "big_blue_button" or not result.get(
-            "enabled"
-        ):
+        if result.get("provider_type") != "big_blue_button" or not result.get("enabled"):
             return Response(
                 {"error": "Open edX did not activate BigBlueButton."},
                 status=status.HTTP_502_BAD_GATEWAY,
@@ -451,9 +443,7 @@ def sync_grade(request):
         return Response({"error": "Eleve or Course not found"}, status=404)
     service = SyncService()
     try:
-        result = service.sync_grade_to_lms(
-            eleve, course_mapping, subsection_id, score, max_score
-        )
+        result = service.sync_grade_to_lms(eleve, course_mapping, subsection_id, score, max_score)
         return Response({"status": "ok", "result": result})
     except ImproperlyConfigured:
         return unavailable_response()

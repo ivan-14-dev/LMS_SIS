@@ -39,8 +39,10 @@ def transient_delivery_failure(error):
     if isinstance(error, (ImproperlyConfigured, requests.ConnectionError, requests.Timeout)):
         return True
     response = getattr(error, "response", None)
-    return isinstance(error, requests.HTTPError) and response is not None and (
-        response.status_code >= 500 or response.status_code in (408, 429)
+    return (
+        isinstance(error, requests.HTTPError)
+        and response is not None
+        and (response.status_code >= 500 or response.status_code in (408, 429))
     )
 
 

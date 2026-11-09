@@ -15,13 +15,15 @@ class LMSCapabilitiesView(APIView):
     }
 
     def get(self, request):
-        return Response({
-            "contract": "sis-provisioning/v1",
-            "capabilities": {
-                name: bool(request.user.is_active and request.user.has_perm(f"sis_provisioning.{permission}"))
-                for name, permission in self.capabilities.items()
-            },
-        })
+        return Response(
+            {
+                "contract": "sis-provisioning/v1",
+                "capabilities": {
+                    name: bool(request.user.is_active and request.user.has_perm(f"sis_provisioning.{permission}"))
+                    for name, permission in self.capabilities.items()
+                },
+            }
+        )
 
 
 class CMSCapabilitiesView(LMSCapabilitiesView):

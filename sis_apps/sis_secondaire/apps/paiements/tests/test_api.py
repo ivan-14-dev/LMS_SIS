@@ -70,8 +70,18 @@ class ConfirmedInvoiceBalanceTests(SimpleTestCase):
         view.get_object = Mock(return_value=invoice)
         cases = (
             ([], "0.00", "100.00"),
-            ([("valide", "30.00"), ("valide", "20.00"), ("en_attente", "90.00"),
-              ("echec", "90.00"), ("rejete", "90.00"), ("rembourse", "90.00")], "50.00", "50.00"),
+            (
+                [
+                    ("valide", "30.00"),
+                    ("valide", "20.00"),
+                    ("en_attente", "90.00"),
+                    ("echec", "90.00"),
+                    ("rejete", "90.00"),
+                    ("rembourse", "90.00"),
+                ],
+                "50.00",
+                "50.00",
+            ),
             ([("valide", "100.00"), ("rembourse", "20.00")], "100.00", "0.00"),
             ([("valide", "120.00"), ("echec", "50.00")], "120.00", "-20.00"),
             ([("rembourse", "100.00")], "0.00", "100.00"),
@@ -82,21 +92,28 @@ class ConfirmedInvoiceBalanceTests(SimpleTestCase):
                 def aggregate_for(**filters):
                     return SimpleNamespace(
                         aggregate=lambda **kwargs: {
-                            "total": sum(
-                                (Decimal(amount) for status, amount in rows if status == filters["statut"]),
-                                Decimal("0.00"),
-                            ) if rows else None,
+                            "total": (
+                                sum(
+                                    (Decimal(amount) for status, amount in rows if status == filters["statut"]),
+                                    Decimal("0.00"),
+                                )
+                                if rows
+                                else None
+                            ),
                         },
                     )
 
                 payments.filter.side_effect = aggregate_for
                 response = view.solde_confirme(SimpleNamespace())
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.data, {
-                    "montant_facture": Decimal("100.00"),
-                    "total_paiements_confirmes": Decimal(expected_total),
-                    "solde_confirme": Decimal(expected_balance),
-                })
+                self.assertEqual(
+                    response.data,
+                    {
+                        "montant_facture": Decimal("100.00"),
+                        "total_paiements_confirmes": Decimal(expected_total),
+                        "solde_confirme": Decimal(expected_balance),
+                    },
+                )
                 payments.filter.assert_called_once_with(facture=invoice, statut="valide")
                 self.assertEqual(invoice.montant_paye, Decimal("99.00"))
                 invoice.save.assert_not_called()
@@ -116,8 +133,14 @@ class ConfirmedInvoiceBalanceTests(SimpleTestCase):
                     request = APIRequestFactory().get(path)
                     request.tenant = tenant
                     user = SimpleNamespace(
-                        id=1, pk=1, role=role, etablissement_id=etablissement_id,
-                        is_authenticated=True, is_active=True, is_superuser=False, has_perm=lambda permission: False,
+                        id=1,
+                        pk=1,
+                        role=role,
+                        etablissement_id=etablissement_id,
+                        is_authenticated=True,
+                        is_active=True,
+                        is_superuser=False,
+                        has_perm=lambda permission: False,
                     )
                     force_authenticate(request, user=user)
                     self.assertEqual(endpoint(request, pk="5").status_code, 404)
@@ -126,8 +149,13 @@ class ConfirmedInvoiceBalanceTests(SimpleTestCase):
         view = FacturesViewSet()
         view.action = "solde_confirme"
         manager = SimpleNamespace(
-            id=1, etablissement_id=7, role="comptable", is_authenticated=True,
-            is_active=True, is_superuser=False, has_perm=lambda permission: False,
+            id=1,
+            etablissement_id=7,
+            role="comptable",
+            is_authenticated=True,
+            is_active=True,
+            is_superuser=False,
+            has_perm=lambda permission: False,
         )
         view.request = SimpleNamespace(user=manager, tenant=SimpleNamespace(pk=7, configuration_academique={}))
         with patch.object(Facture, "objects") as invoices:
@@ -136,13 +164,16 @@ class ConfirmedInvoiceBalanceTests(SimpleTestCase):
             queryset.distinct.return_value = queryset
             self.assertIs(view.get_queryset(), queryset)
             queryset.filter.assert_any_call(
-                eleve__etablissement_id=7, type_frais__annee_scolaire__etablissement_id=7,
+                eleve__etablissement_id=7,
+                type_frais__annee_scolaire__etablissement_id=7,
             )
             queryset.filter.assert_any_call(pk__in=queryset.order_by.return_value.values.return_value)
 
-            for tenant, user_id in ((SimpleNamespace(pk=8, configuration_academique={}), 7),
-                                    (SimpleNamespace(pk=7, configuration_academique={}), 8),
-                                    (None, 7)):
+            for tenant, user_id in (
+                (SimpleNamespace(pk=8, configuration_academique={}), 7),
+                (SimpleNamespace(pk=7, configuration_academique={}), 8),
+                (None, 7),
+            ):
                 with self.subTest(tenant=tenant, user_id=user_id):
                     manager.etablissement_id = user_id
                     view.request.tenant = tenant
@@ -178,27 +209,44 @@ class InvoiceCancellationTests(TenantAPITestCase):
             "invoice-cancellation-student", role="eleve", etablissement=self.tenant
         )
         self.eleve = Eleve.objects.create(
-            etablissement=self.tenant, user=student, matricule="REFUND-1",
-            date_naissance="2010-01-01", lieu_naissance="Paris", sexe="F",
+            etablissement=self.tenant,
+            user=student,
+            matricule="REFUND-1",
+            date_naissance="2010-01-01",
+            lieu_naissance="Paris",
+            sexe="F",
             date_inscription="2026-09-01",
         )
         year = AnneeScolaire.objects.create(
-            etablissement=self.tenant, libelle="2026-2027",
-            date_debut="2026-09-01", date_fin="2027-08-31",
+            etablissement=self.tenant,
+            libelle="2026-2027",
+            date_debut="2026-09-01",
+            date_fin="2027-08-31",
         )
         self.fee = TypeFrais.objects.create(
-            annee_scolaire=year, code="TUITION", libelle="Scolarité", montant="100.00",
+            annee_scolaire=year,
+            code="TUITION",
+            libelle="Scolarité",
+            montant="100.00",
         )
         self.facture = Facture.objects.create(
-            eleve=self.eleve, type_frais=self.fee, numero="FAC-REFUND-1",
-            date_emission="2026-09-01", date_echeance="2026-10-01", montant="100.00",
+            eleve=self.eleve,
+            type_frais=self.fee,
+            numero="FAC-REFUND-1",
+            date_emission="2026-09-01",
+            date_echeance="2026-10-01",
+            montant="100.00",
         )
         self.url = f"/api/v1/paiements/factures/{self.facture.pk}/annuler/"
 
     def test_unpaid_invoice_can_be_cancelled_once_and_replay_does_not_repeat_event(self):
         Paiement.objects.create(
-            facture=self.facture, numero="PAY-PENDING-1", date_paiement="2026-09-02",
-            montant="25.00", mode="especes", statut="en_attente",
+            facture=self.facture,
+            numero="PAY-PENDING-1",
+            date_paiement="2026-09-02",
+            montant="25.00",
+            mode="especes",
+            statut="en_attente",
         )
         with patch("apps.paiements.api.record_workflow_event") as event:
             response = self.client.post(self.url)
@@ -211,8 +259,12 @@ class InvoiceCancellationTests(TenantAPITestCase):
 
     def test_confirmed_payment_blocks_cancellation_even_when_cached_total_is_stale(self):
         Paiement.objects.create(
-            facture=self.facture, numero="PAY-CONFIRMED-1", date_paiement="2026-09-02",
-            montant="25.00", mode="especes", statut="valide",
+            facture=self.facture,
+            numero="PAY-CONFIRMED-1",
+            date_paiement="2026-09-02",
+            montant="25.00",
+            mode="especes",
+            statut="valide",
         )
         self.facture.statut = "partielle"
         self.facture.save(update_fields=["statut"])
@@ -231,11 +283,16 @@ class InvoiceCancellationTests(TenantAPITestCase):
         with schema_context("public"):
             foreign.save()
         foreign_year = AnneeScolaire.objects.create(
-            etablissement=foreign, libelle="2026-2027",
-            date_debut="2026-09-01", date_fin="2027-08-31",
+            etablissement=foreign,
+            libelle="2026-2027",
+            date_debut="2026-09-01",
+            date_fin="2027-08-31",
         )
         foreign_fee = TypeFrais.objects.create(
-            annee_scolaire=foreign_year, code="FOREIGN", libelle="Autre", montant="100.00",
+            annee_scolaire=foreign_year,
+            code="FOREIGN",
+            libelle="Autre",
+            montant="100.00",
         )
         with patch("apps.paiements.api.record_workflow_event") as event:
             for pupil_school, fee in ((foreign, self.fee), (self.tenant, foreign_fee)):
@@ -257,38 +314,55 @@ class PaymentSchoolIsolationTests(TenantAPITestCase):
             "payment-school-manager", role="comptable", etablissement=self.tenant
         )
         self.client.force_authenticate(self.manager)
-        student = Utilisateur.objects.create_user(
-            "payment-school-student", role="eleve", etablissement=self.tenant
-        )
+        student = Utilisateur.objects.create_user("payment-school-student", role="eleve", etablissement=self.tenant)
         pupil = Eleve.objects.create(
-            etablissement=self.tenant, user=student, matricule="PAY-SCHOOL-1",
-            date_naissance="2010-01-01", lieu_naissance="Paris", sexe="F",
+            etablissement=self.tenant,
+            user=student,
+            matricule="PAY-SCHOOL-1",
+            date_naissance="2010-01-01",
+            lieu_naissance="Paris",
+            sexe="F",
             date_inscription="2026-09-01",
         )
         year = AnneeScolaire.objects.create(
-            etablissement=self.tenant, libelle="2026-2027",
-            date_debut="2026-09-01", date_fin="2027-08-31",
+            etablissement=self.tenant,
+            libelle="2026-2027",
+            date_debut="2026-09-01",
+            date_fin="2027-08-31",
         )
         fee = TypeFrais.objects.create(
-            annee_scolaire=year, code="PAY-SCHOOL", libelle="Scolarité", montant="100.00",
+            annee_scolaire=year,
+            code="PAY-SCHOOL",
+            libelle="Scolarité",
+            montant="100.00",
         )
         self.invoice = Facture.objects.create(
-            eleve=pupil, type_frais=fee, numero="FAC-PAY-SCHOOL",
+            eleve=pupil,
+            type_frais=fee,
+            numero="FAC-PAY-SCHOOL",
             devise="EUR",
-            date_emission="2026-09-01", date_echeance="2026-10-01", montant="100.00",
+            date_emission="2026-09-01",
+            date_echeance="2026-10-01",
+            montant="100.00",
         )
         self.transactions_url = "/api/v1/paiements/transactions/"
 
     def submit(self, invoice):
         with patch.object(Paiement._meta.get_field("preuve_paiement").storage, "save", return_value="private/test.pdf"):
-            return self.client.post(self.transactions_url, {
-                "facture": invoice.pk,
-                "date_paiement": "2026-09-02",
-                "montant": "25.00",
-                "mode": "especes",
-                "reference_externe": "CASH-TEST",
-                "preuve_paiement": SimpleUploadedFile("test.pdf", b"%PDF-1.4\nproof", content_type="application/pdf"),
-            }, format="multipart")
+            return self.client.post(
+                self.transactions_url,
+                {
+                    "facture": invoice.pk,
+                    "date_paiement": "2026-09-02",
+                    "montant": "25.00",
+                    "mode": "especes",
+                    "reference_externe": "CASH-TEST",
+                    "preuve_paiement": SimpleUploadedFile(
+                        "test.pdf", b"%PDF-1.4\nproof", content_type="application/pdf"
+                    ),
+                },
+                format="multipart",
+            )
 
     def test_manager_cannot_submit_or_settle_another_schools_invoice(self):
         foreign = type(self.tenant)(schema_name="foreign_payment_scope")
@@ -300,24 +374,41 @@ class PaymentSchoolIsolationTests(TenantAPITestCase):
             "foreign-payment-student", role="eleve", etablissement=foreign
         )
         foreign_pupil = Eleve.objects.create(
-            etablissement=foreign, user=foreign_student, matricule="PAY-SCHOOL-FOREIGN",
-            date_naissance="2010-01-01", lieu_naissance="Paris", sexe="F",
+            etablissement=foreign,
+            user=foreign_student,
+            matricule="PAY-SCHOOL-FOREIGN",
+            date_naissance="2010-01-01",
+            lieu_naissance="Paris",
+            sexe="F",
             date_inscription="2026-09-01",
         )
         foreign_year = AnneeScolaire.objects.create(
-            etablissement=foreign, libelle="2026-2027",
-            date_debut="2026-09-01", date_fin="2027-08-31",
+            etablissement=foreign,
+            libelle="2026-2027",
+            date_debut="2026-09-01",
+            date_fin="2027-08-31",
         )
         foreign_fee = TypeFrais.objects.create(
-            annee_scolaire=foreign_year, code="PAY-FOREIGN", libelle="Autre", montant="100.00",
+            annee_scolaire=foreign_year,
+            code="PAY-FOREIGN",
+            libelle="Autre",
+            montant="100.00",
         )
         foreign_invoice = Facture.objects.create(
-            eleve=foreign_pupil, type_frais=foreign_fee, numero="FAC-PAY-FOREIGN",
-            date_emission="2026-09-01", date_echeance="2026-10-01", montant="100.00",
+            eleve=foreign_pupil,
+            type_frais=foreign_fee,
+            numero="FAC-PAY-FOREIGN",
+            date_emission="2026-09-01",
+            date_echeance="2026-10-01",
+            montant="100.00",
         )
         mixed_invoice = Facture.objects.create(
-            eleve=self.invoice.eleve, type_frais=foreign_fee, numero="FAC-PAY-MIXED",
-            date_emission="2026-09-01", date_echeance="2026-10-01", montant="100.00",
+            eleve=self.invoice.eleve,
+            type_frais=foreign_fee,
+            numero="FAC-PAY-MIXED",
+            date_emission="2026-09-01",
+            date_echeance="2026-10-01",
+            montant="100.00",
         )
         for invoice in (foreign_invoice, mixed_invoice):
             response = self.submit(invoice)
@@ -325,8 +416,12 @@ class PaymentSchoolIsolationTests(TenantAPITestCase):
             assert not Paiement.objects.filter(facture=invoice).exists()
 
             pending = Paiement.objects.create(
-                facture=invoice, numero=f"PAY-SCHOOL-FOREIGN-{invoice.pk}",
-                date_paiement="2026-09-02", montant="25.00", mode="especes", statut="en_attente",
+                facture=invoice,
+                numero=f"PAY-SCHOOL-FOREIGN-{invoice.pk}",
+                date_paiement="2026-09-02",
+                montant="25.00",
+                mode="especes",
+                statut="en_attente",
             )
             detail = f"{self.transactions_url}{pending.pk}/"
             assert self.client.get(detail).status_code == 404
@@ -342,7 +437,9 @@ class PaymentSchoolIsolationTests(TenantAPITestCase):
         local_payment = Paiement.objects.get(facture=self.invoice)
         assert local_payment.statut == "en_attente"
         reviewer = Utilisateur.objects.create_user(
-            "payment-school-reviewer", role="comptable", etablissement=self.tenant,
+            "payment-school-reviewer",
+            role="comptable",
+            etablissement=self.tenant,
         )
         self.client.force_authenticate(reviewer)
         with patch("apps.paiements.api.record_workflow_event"):

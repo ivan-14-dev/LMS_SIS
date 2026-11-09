@@ -103,7 +103,8 @@ def _secondary_finance_recipients(request, eleve):
         recipients.append(user)
     actor = getattr(request, "user", None)
     if (
-        getattr(actor, "is_authenticated", False) and actor not in recipients
+        getattr(actor, "is_authenticated", False)
+        and actor not in recipients
         and getattr(actor, "etablissement_id", None) == tenant_id
     ):
         recipients.append(actor)
@@ -164,12 +165,7 @@ def visible_invoices(request):
     queryset = base_queryset
     tenant_id = getattr(getattr(request, "tenant", None), "pk", None)
     user = request.user
-    if (
-        tenant_id is None
-        or not user.is_authenticated
-        or not user.is_active
-        or user.etablissement_id != tenant_id
-    ):
+    if tenant_id is None or not user.is_authenticated or not user.is_active or user.etablissement_id != tenant_id:
         return queryset.none()
     queryset = queryset.filter(
         eleve__etablissement_id=tenant_id,
@@ -192,9 +188,9 @@ def visible_invoices(request):
         queryset = filter_queryset_by_scopes(queryset, user, "paiements.change_paiement", scope_fields)
     else:
         return queryset.none()
-    visible_ids = filter_queryset_by_scopes(
-        queryset, user, "paiements.view_facture", scope_fields
-    ).order_by().values("pk")
+    visible_ids = (
+        filter_queryset_by_scopes(queryset, user, "paiements.view_facture", scope_fields).order_by().values("pk")
+    )
     # Keep DISTINCT inside the authorization subquery so invoice rows remain lockable.
     return base_queryset.filter(pk__in=visible_ids)
 
@@ -206,8 +202,10 @@ class IsBudgetManager(IsAuthenticated):
         tenant = getattr(request, "tenant", None)
         if not getattr(tenant, "pk", None):
             return False
-        operation = "add" if view.action == "create" else (
-            "change" if view.action in ("partial_update", "cloturer") else "view"
+        operation = (
+            "add"
+            if view.action == "create"
+            else ("change" if view.action in ("partial_update", "cloturer") else "view")
         )
         return has_business_permission_or_role(
             request.user,
@@ -229,9 +227,11 @@ class BudgetsPrevisionnelsViewSet(viewsets.ModelViewSet):
         tenant = getattr(self.request, "tenant", None)
         if not getattr(tenant, "pk", None):
             return BudgetPrevisionnel.objects.none()
-        return BudgetPrevisionnel.objects.filter(
-            annee_scolaire__etablissement_id=tenant.pk
-        ).select_related("annee_scolaire").order_by("annee_scolaire_id", "code")
+        return (
+            BudgetPrevisionnel.objects.filter(annee_scolaire__etablissement_id=tenant.pk)
+            .select_related("annee_scolaire")
+            .order_by("annee_scolaire_id", "code")
+        )
 
     def perform_create(self, serializer):
         with transaction.atomic():
@@ -286,8 +286,10 @@ class TypesFraisViewSet(viewsets.ModelViewSet):
     ordering = ["libelle"]
 
     def get_queryset(self):
-        return TypeFrais.objects.select_related("annee_scolaire").prefetch_related("factures").filter(
-            annee_scolaire__etablissement_id=getattr(getattr(self.request, "tenant", None), "pk", None)
+        return (
+            TypeFrais.objects.select_related("annee_scolaire")
+            .prefetch_related("factures")
+            .filter(annee_scolaire__etablissement_id=getattr(getattr(self.request, "tenant", None), "pk", None))
         )
 
 
@@ -321,21 +323,26 @@ class FacturesViewSet(viewsets.ModelViewSet):
     def solde_confirme(self, request, pk=None):
         """Solde signé calculé uniquement sur les paiements validés, sans modifier la facture."""
         facture = self.get_object()
-        total = Paiement.objects.filter(facture=facture, statut="valide").aggregate(
-            total=Sum("montant")
-        )["total"] or Decimal("0.00")
-        return Response({
-            "montant_facture": facture.montant,
-            "total_paiements_confirmes": total,
-            "solde_confirme": facture.montant - total,
-        })
+        total = Paiement.objects.filter(facture=facture, statut="valide").aggregate(total=Sum("montant"))[
+            "total"
+        ] or Decimal("0.00")
+        return Response(
+            {
+                "montant_facture": facture.montant,
+                "total_paiements_confirmes": total,
+                "solde_confirme": facture.montant - total,
+            }
+        )
 
     @transaction.atomic
     def perform_create(self, serializer):
         numero = f"FAC-{timezone.now().strftime('%Y%m')}-{uuid.uuid4().hex[:6].upper()}"
         facture = serializer.save(numero=numero)
         record_workflow_event(
-            self.request, facture, "emission", "Facture émise",
+            self.request,
+            facture,
+            "emission",
+            "Facture émise",
             recipients=_secondary_finance_recipients(self.request, facture.eleve),
             metadata={"facture_id": facture.pk, "montant": str(facture.montant), "devise": facture.devise},
         )
@@ -357,9 +364,7 @@ class FacturesViewSet(viewsets.ModelViewSet):
             facture = self.get_queryset().select_for_update().get(pk=facture.pk)
             if facture.statut == "payee":
                 return Response({"error": "Facture déjà payée."}, status=400)
-            if facture.statut == "annulee" or Paiement.objects.filter(
-                facture=facture, statut="valide"
-            ).exists():
+            if facture.statut == "annulee" or Paiement.objects.filter(facture=facture, statut="valide").exists():
                 return Response({"error": "Facture déjà annulée ou comportant un paiement confirmé."}, status=409)
             facture.statut = "annulee"
             facture.save(update_fields=["statut"])
@@ -539,9 +544,7 @@ class PaiementsViewSet(PaymentReviewMixin, viewsets.ModelViewSet):
                     return Response({"error": "Montant invalide pour cette devise."}, status=409)
                 if paiement.mode not in (*MANUAL_MODES, "carte"):
                     return Response({"error": "Prestataire non configuré."}, status=503)
-                if not callback and (
-                    not paiement.enregistre_par_id or paiement.enregistre_par_id == request.user.pk
-                ):
+                if not callback and (not paiement.enregistre_par_id or paiement.enregistre_par_id == request.user.pk):
                     return Response({"error": "Un contrôleur distinct du déclarant est obligatoire."}, status=403)
                 if paiement.mode in MANUAL_MODES and (
                     not paiement.preuve_paiement or not paiement.reference_externe.strip()
@@ -554,14 +557,14 @@ class PaiementsViewSet(PaymentReviewMixin, viewsets.ModelViewSet):
                 if paiement.montant > reste:
                     return Response({"error": "Le paiement dépasse le solde de la facture."}, status=409)
                 reused = (
-                        Paiement.objects.filter(
-                            reference_externe=paiement.reference_externe,
-                            mode=paiement.mode,
-                            statut__in=("valide", "rembourse"),
-                        )
-                        .exclude(pk=paiement.pk)
-                        .exists()
+                    Paiement.objects.filter(
+                        reference_externe=paiement.reference_externe,
+                        mode=paiement.mode,
+                        statut__in=("valide", "rembourse"),
                     )
+                    .exclude(pk=paiement.pk)
+                    .exists()
+                )
                 if reused:
                     return Response({"error": "Référence de paiement déjà utilisée."}, status=409)
                 if paiement.mode == "carte":
@@ -580,11 +583,16 @@ class PaiementsViewSet(PaymentReviewMixin, viewsets.ModelViewSet):
                 facture.statut = "payee" if facture.montant_paye >= facture.montant else "partielle"
                 facture.save(update_fields=["montant_paye", "statut", "updated_at"])
         except IntegrityError:
-            if paiement is None or not Paiement.objects.filter(
-                reference_externe=paiement.reference_externe,
-                mode=paiement.mode,
-                statut__in=("valide", "rembourse"),
-            ).exclude(pk=paiement.pk).exists():
+            if (
+                paiement is None
+                or not Paiement.objects.filter(
+                    reference_externe=paiement.reference_externe,
+                    mode=paiement.mode,
+                    statut__in=("valide", "rembourse"),
+                )
+                .exclude(pk=paiement.pk)
+                .exists()
+            ):
                 raise
             return Response({"error": "Référence de carte déjà utilisée."}, status=409)
         record_workflow_event(

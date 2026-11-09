@@ -70,15 +70,16 @@ class SessionRevocationTestCase(TenantAPITestCase):
 
     def test_force_logout_by_admin_revokes_target_user_token(self):
         """Un administrateur explicitement habilité peut révoquer les sessions d'un autre utilisateur."""
-        self.user.user_permissions.add(*Permission.objects.filter(
-            content_type__app_label="utilisateurs", codename__in=["view_utilisateur", "change_utilisateur"],
-        ))
+        self.user.user_permissions.add(
+            *Permission.objects.filter(
+                content_type__app_label="utilisateurs",
+                codename__in=["view_utilisateur", "change_utilisateur"],
+            )
+        )
         Token.objects.create(user=self.other_user)
         self.client.force_authenticate(user=self.user)
 
-        response = self.client.post(
-            f"/api/v1/utilisateurs/comptes/{self.other_user.pk}/force_logout/"
-        )
+        response = self.client.post(f"/api/v1/utilisateurs/comptes/{self.other_user.pk}/force_logout/")
 
         assert response.status_code == 200
         assert response.data["token_revoked"] is True
@@ -89,9 +90,7 @@ class SessionRevocationTestCase(TenantAPITestCase):
         Token.objects.create(user=self.user)
         self.client.force_authenticate(user=self.other_user)
 
-        response = self.client.post(
-            f"/api/v1/utilisateurs/comptes/{self.user.pk}/force_logout/"
-        )
+        response = self.client.post(f"/api/v1/utilisateurs/comptes/{self.user.pk}/force_logout/")
 
         assert response.status_code == 403
         assert Token.objects.filter(user=self.user).exists()
@@ -185,9 +184,7 @@ class MFAEnrollmentTestCase(TenantAPITestCase):
         self.user.refresh_from_db()
         code = pyotp.TOTP(self.user.mfa_secret).now()
 
-        response = self.client.post(
-            "/api/v1/utilisateurs/comptes/mfa_activate/", {"code": code}
-        )
+        response = self.client.post("/api/v1/utilisateurs/comptes/mfa_activate/", {"code": code})
 
         assert response.status_code == 200
         assert response.data["mfa_active"] is True
@@ -199,9 +196,7 @@ class MFAEnrollmentTestCase(TenantAPITestCase):
         self.client.force_authenticate(user=self.user)
         self.client.post("/api/v1/utilisateurs/comptes/mfa_enroll/")
 
-        response = self.client.post(
-            "/api/v1/utilisateurs/comptes/mfa_activate/", {"code": "000000"}
-        )
+        response = self.client.post("/api/v1/utilisateurs/comptes/mfa_activate/", {"code": "000000"})
 
         assert response.status_code == 400
         self.user.refresh_from_db()
@@ -319,9 +314,7 @@ class PasswordResetTestCase(TenantAPITestCase):
     def test_request_reset_sends_email_for_known_account(self):
         from django.core import mail
 
-        response = self.client.post(
-            "/api/v1/auth/password-reset/request/", {"email": self.user.email}
-        )
+        response = self.client.post("/api/v1/auth/password-reset/request/", {"email": self.user.email})
 
         assert response.status_code == 200
         assert len(mail.outbox) == 1
@@ -331,9 +324,7 @@ class PasswordResetTestCase(TenantAPITestCase):
         """Ne doit pas permettre l'énumération de comptes : même réponse."""
         from django.core import mail
 
-        response = self.client.post(
-            "/api/v1/auth/password-reset/request/", {"email": "unknown@test.com"}
-        )
+        response = self.client.post("/api/v1/auth/password-reset/request/", {"email": "unknown@test.com"})
 
         assert response.status_code == 200
         assert len(mail.outbox) == 0

@@ -54,7 +54,8 @@ class CardReferencePreflightTests(unittest.TestCase):
 
     def test_database_read_failure_is_not_treated_as_clean(self):
         with patch.object(
-            sisctl, "compose",
+            sisctl,
+            "compose",
             side_effect=subprocess.CalledProcessError(1, ["psql"]),
         ):
             with self.assertRaisesRegex(ValueError, "No migration was attempted"):
@@ -63,10 +64,17 @@ class CardReferencePreflightTests(unittest.TestCase):
     def test_init_aborts_before_bootstrap_on_duplicate_refs(self):
         with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
             institution = Path(directory) / "institution.json"
-            institution.write_text(json.dumps({
-                "schema_name": "school_a", "domain": "school-a.example.test",
-                "institution": {}, "admin": {},
-            }), encoding="utf-8")
+            institution.write_text(
+                json.dumps(
+                    {
+                        "schema_name": "school_a",
+                        "domain": "school-a.example.test",
+                        "institution": {},
+                        "admin": {},
+                    }
+                ),
+                encoding="utf-8",
+            )
             calls = []
 
             def fake_compose(_configuration, *arguments, **_kwargs):
@@ -77,8 +85,13 @@ class CardReferencePreflightTests(unittest.TestCase):
                     return SimpleNamespace(stdout='{"count": 1, "samples": [[17, 22]]}\n')
                 return SimpleNamespace()
 
-            with patch.object(sisctl, "compose", side_effect=fake_compose), patch.object(
-                sisctl.getpass, "getpass", side_effect=AssertionError("Password prompt must not run"),
+            with (
+                patch.object(sisctl, "compose", side_effect=fake_compose),
+                patch.object(
+                    sisctl.getpass,
+                    "getpass",
+                    side_effect=AssertionError("Password prompt must not run"),
+                ),
             ):
                 with self.assertRaisesRegex(ValueError, "school_a"):
                     sisctl.initialize(
@@ -86,9 +99,14 @@ class CardReferencePreflightTests(unittest.TestCase):
                         SimpleNamespace(variant="secondaire", institution=institution),
                     )
 
-        self.assertEqual([call[:2] for call in calls[:3]], [
-            ("config", "--quiet"), ("build", "api-secondaire"), ("up", "-d"),
-        ])
+        self.assertEqual(
+            [call[:2] for call in calls[:3]],
+            [
+                ("config", "--quiet"),
+                ("build", "api-secondaire"),
+                ("up", "-d"),
+            ],
+        )
         self.assertFalse(any(call[0] == "run" for call in calls))
 
     def test_init_rejects_malformed_institution_before_compose_or_password_prompt(self):
@@ -98,16 +116,17 @@ class CardReferencePreflightTests(unittest.TestCase):
                 [],
                 {"schema_name": "school_a"},
                 {
-                    "schema_name": "school_a", "domain": "school-a.example.test",
-                    "institution": [], "admin": {},
+                    "schema_name": "school_a",
+                    "domain": "school-a.example.test",
+                    "institution": [],
+                    "admin": {},
                 },
             ):
                 with self.subTest(content=content):
                     institution.write_text(json.dumps(content), encoding="utf-8")
-                    with patch.object(
-                        sisctl, "compose", side_effect=AssertionError("Must not start Compose")
-                    ), patch.object(
-                        sisctl.getpass, "getpass", side_effect=AssertionError("Must not prompt")
+                    with (
+                        patch.object(sisctl, "compose", side_effect=AssertionError("Must not start Compose")),
+                        patch.object(sisctl.getpass, "getpass", side_effect=AssertionError("Must not prompt")),
                     ):
                         with self.assertRaisesRegex(ValueError, "Institution JSON requires"):
                             sisctl.initialize(
@@ -120,12 +139,14 @@ class InitSchemaPreflightTests(unittest.TestCase):
     def options(self, schema, variant):
         institution = Mock(spec=Path)
         institution.resolve.return_value = institution
-        institution.read_text.return_value = json.dumps({
-            "schema_name": schema,
-            "domain": "school.example.test",
-            "institution": {"nom": "School"},
-            "admin": {"username": "admin", "email": "admin@example.test"},
-        })
+        institution.read_text.return_value = json.dumps(
+            {
+                "schema_name": schema,
+                "domain": "school.example.test",
+                "institution": {"nom": "School"},
+                "admin": {"username": "admin", "email": "admin@example.test"},
+            }
+        )
         return SimpleNamespace(variant=variant, institution=institution)
 
     def test_rejects_reserved_or_invalid_schema_before_effects_or_password_prompt(self):
@@ -134,9 +155,14 @@ class InitSchemaPreflightTests(unittest.TestCase):
                 with self.subTest(variant=variant, schema=schema):
                     options = self.options(schema, variant)
                     configuration = {"SIS_MODE": variant}
-                    with patch.object(sisctl, "compose") as compose, patch.object(
-                        sisctl, "preflight_card_references",
-                    ) as preflight, patch.object(sisctl.getpass, "getpass", return_value="unused") as prompt:
+                    with (
+                        patch.object(sisctl, "compose") as compose,
+                        patch.object(
+                            sisctl,
+                            "preflight_card_references",
+                        ) as preflight,
+                        patch.object(sisctl.getpass, "getpass", return_value="unused") as prompt,
+                    ):
                         with self.assertRaisesRegex(ValueError, "schema_name.*non-public.*lowercase"):
                             sisctl.initialize(configuration, options)
                         compose.assert_not_called()
@@ -150,9 +176,14 @@ class InitSchemaPreflightTests(unittest.TestCase):
                 with self.subTest(variant=variant, schema=schema):
                     options = self.options(schema, variant)
                     configuration = {"SIS_MODE": "dual"}
-                    with patch.object(sisctl, "compose") as compose, patch.object(
-                        sisctl, "preflight_card_references",
-                    ) as preflight, patch.object(sisctl.getpass, "getpass", return_value="test-only") as prompt:
+                    with (
+                        patch.object(sisctl, "compose") as compose,
+                        patch.object(
+                            sisctl,
+                            "preflight_card_references",
+                        ) as preflight,
+                        patch.object(sisctl.getpass, "getpass", return_value="test-only") as prompt,
+                    ):
                         sisctl.initialize(configuration, options)
                     preflight.assert_called_once_with({"SIS_MODE": variant})
                     prompt.assert_called_once()
@@ -213,8 +244,11 @@ class ConfigureSafetyTests(unittest.TestCase):
         public = {"kty": "RSA", "n": "AQAB", "e": "AQAB"}
         with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
             for url in (
-                "https://", "https://lms.school.example/oauth2", "https://user@lms.school.example",
-                "https://lms school.example", "https://lms.\nschool.example",
+                "https://",
+                "https://lms.school.example/oauth2",
+                "https://user@lms.school.example",
+                "https://lms school.example",
+                "https://lms.\nschool.example",
             ):
                 with self.subTest(lms=url):
                     options = self.options(directory, [public])
@@ -285,10 +319,19 @@ class OperationsTests(unittest.TestCase):
 
     def test_compose_uses_file_project_and_keys_not_shell_overrides(self):
         configuration = {**self.configuration, "COMPOSE_PROJECT_NAME": "isolated-recovery"}
-        with patch.dict(os.environ, {
-            "COMPOSE_PROJECT_NAME": "historic-production", "COMPOSE_PROFILES": "superieur",
-            "SIS_IMAGE": "wrong-image", "DB_PASSWORD_SECONDAIRE": "wrong-key", "SIS_ENV_FILE": "wrong.env",
-        }), patch.object(sisctl.subprocess, "run") as run:
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "COMPOSE_PROJECT_NAME": "historic-production",
+                    "COMPOSE_PROFILES": "superieur",
+                    "SIS_IMAGE": "wrong-image",
+                    "DB_PASSWORD_SECONDAIRE": "wrong-key",
+                    "SIS_ENV_FILE": "wrong.env",
+                },
+            ),
+            patch.object(sisctl.subprocess, "run") as run,
+        ):
             sisctl.compose(configuration, "config", "--quiet", env={"PGPASSWORD": "explicit-restore-password"})
         command = run.call_args.args[0]
         environment = run.call_args.kwargs["env"]
@@ -315,9 +358,11 @@ class OperationsTests(unittest.TestCase):
             ("EDX_OAUTH_CLIENT_SECRET", "$OTHER_KEY", "literal"),
         ]
         for key, value, message in cases:
-            with self.subTest(key=key), patch("builtins.print") as output, patch.object(
-                sisctl.subprocess, "run"
-            ) as run:
+            with (
+                self.subTest(key=key),
+                patch("builtins.print") as output,
+                patch.object(sisctl.subprocess, "run") as run,
+            ):
                 with self.assertRaisesRegex(ValueError, message):
                     sisctl.validate_configuration({**self.configuration, key: value})
                 run.assert_not_called()
@@ -355,14 +400,19 @@ class OperationsTests(unittest.TestCase):
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
             self.configuration["SIS_HTTP_PORT"] = str(listener.getsockname()[1])
-            with patch.object(
-                sisctl.subprocess, "run", return_value=SimpleNamespace(stdout="2.30.0\n")
-            ) as run, patch.object(sisctl, "compose") as compose:
+            with (
+                patch.object(sisctl.subprocess, "run", return_value=SimpleNamespace(stdout="2.30.0\n")) as run,
+                patch.object(sisctl, "compose") as compose,
+            ):
                 with self.assertRaisesRegex(ValueError, "without stopping another service"):
                     sisctl.installation_preflight(self.configuration, check_ports=True)
-            self.assertEqual([call.args[0] for call in run.call_args_list], [
-                ["docker", "compose", "version", "--short"], ["docker", "info"],
-            ])
+            self.assertEqual(
+                [call.args[0] for call in run.call_args_list],
+                [
+                    ["docker", "compose", "version", "--short"],
+                    ["docker", "info"],
+                ],
+            )
             self.assertEqual(compose.call_args.args[1:], ("config", "--quiet"))
 
     def test_old_compose_and_unreachable_daemon_are_blocking(self):
@@ -376,8 +426,10 @@ class OperationsTests(unittest.TestCase):
     def runtime_records(self):
         return [
             {"Service": service, "State": "running", "Health": "" if service.startswith("beat-") else "healthy"}
-            for service in ["redis", "frontend", "gateway"] + [
-                f"{role}-{variant}" for variant in ("secondaire", "superieur")
+            for service in ["redis", "frontend", "gateway"]
+            + [
+                f"{role}-{variant}"
+                for variant in ("secondaire", "superieur")
                 for role in ("postgres", "api", "worker", "beat")
             ]
         ]
@@ -391,9 +443,15 @@ class OperationsTests(unittest.TestCase):
     def test_doctor_checks_both_workers_and_duplicate_beat_without_executing_tasks(self):
         configuration = {**self.configuration, "SIS_MODE": "dual"}
         records = self.runtime_records()
-        with patch.object(sisctl, "installation_preflight"), patch.object(
-            sisctl, "service_status", return_value=records,
-        ), patch("builtins.print") as output:
+        with (
+            patch.object(sisctl, "installation_preflight"),
+            patch.object(
+                sisctl,
+                "service_status",
+                return_value=records,
+            ),
+            patch("builtins.print") as output,
+        ):
             sisctl.doctor(configuration)
             next(record for record in records if record["Service"] == "worker-superieur")["Health"] = "unhealthy"
             records.append({"Service": "beat-secondaire", "State": "running", "Health": ""})
@@ -412,13 +470,26 @@ class OperationsTests(unittest.TestCase):
     def test_update_migrates_all_tenants_without_bootstrap_or_password_prompt(self):
         configuration = {**self.configuration, "SIS_MODE": "dual"}
         calls = []
-        with patch.object(sisctl, "installation_preflight"), patch.object(
-            sisctl, "service_status", return_value=self.runtime_records(),
-        ), patch.object(
-            sisctl, "compose", side_effect=lambda _configuration, *args: calls.append(args),
-        ), patch.object(
-            sisctl, "preflight_card_references", side_effect=lambda _configuration: calls.append(("preflight",)),
-        ), patch.object(sisctl, "doctor") as doctor, patch.object(sisctl.getpass, "getpass") as prompt:
+        with (
+            patch.object(sisctl, "installation_preflight"),
+            patch.object(
+                sisctl,
+                "service_status",
+                return_value=self.runtime_records(),
+            ),
+            patch.object(
+                sisctl,
+                "compose",
+                side_effect=lambda _configuration, *args: calls.append(args),
+            ),
+            patch.object(
+                sisctl,
+                "preflight_card_references",
+                side_effect=lambda _configuration: calls.append(("preflight",)),
+            ),
+            patch.object(sisctl, "doctor") as doctor,
+            patch.object(sisctl.getpass, "getpass") as prompt,
+        ):
             sisctl.update(configuration, SimpleNamespace(confirm_backup=True))
         self.assertEqual([call[0] for call in calls[:4]], ["build", "build", "stop", "preflight"])
         self.assertEqual(calls[:2], [("build", "api-secondaire"), ("build", "frontend")])
@@ -438,11 +509,20 @@ class OperationsTests(unittest.TestCase):
             if "migrate_schemas" in args:
                 raise subprocess.CalledProcessError(1, ["migration"])
 
-        with patch.object(sisctl, "installation_preflight"), patch.object(
-            sisctl, "service_status", return_value=self.runtime_records(),
-        ), patch.object(sisctl, "compose", side_effect=fake_compose), patch.object(
-            sisctl, "preflight_card_references",
-        ), patch.object(sisctl, "doctor") as doctor:
+        with (
+            patch.object(sisctl, "installation_preflight"),
+            patch.object(
+                sisctl,
+                "service_status",
+                return_value=self.runtime_records(),
+            ),
+            patch.object(sisctl, "compose", side_effect=fake_compose),
+            patch.object(
+                sisctl,
+                "preflight_card_references",
+            ),
+            patch.object(sisctl, "doctor") as doctor,
+        ):
             with self.assertRaisesRegex(ValueError, "remain stopped"):
                 sisctl.update(self.configuration, SimpleNamespace(confirm_backup=True))
         self.assertTrue(any(call[0] == "stop" for call in calls))
@@ -450,11 +530,20 @@ class OperationsTests(unittest.TestCase):
         doctor.assert_not_called()
 
     def test_update_can_use_prepared_release_images_without_rebuilding(self):
-        with patch.object(sisctl, "installation_preflight"), patch.object(
-            sisctl, "service_status", return_value=self.runtime_records(),
-        ), patch.object(sisctl, "compose") as compose, patch.object(
-            sisctl, "preflight_card_references",
-        ), patch.object(sisctl, "doctor"):
+        with (
+            patch.object(sisctl, "installation_preflight"),
+            patch.object(
+                sisctl,
+                "service_status",
+                return_value=self.runtime_records(),
+            ),
+            patch.object(sisctl, "compose") as compose,
+            patch.object(
+                sisctl,
+                "preflight_card_references",
+            ),
+            patch.object(sisctl, "doctor"),
+        ):
             sisctl.update(self.configuration, SimpleNamespace(confirm_backup=True, no_build=True))
         self.assertFalse(any(call.args[1] == "build" for call in compose.call_args_list))
 

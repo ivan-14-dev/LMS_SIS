@@ -89,9 +89,11 @@ class ConventionsStageViewSet(PracticalLegacyAPIMixin, viewsets.ModelViewSet):
     ordering = ["-date_debut"]
 
     def get_queryset(self):
-        return visible_conventions(self.request).select_related(
-            "eleve__user", "entreprise", "maitre_stage_etablissement"
-        ).prefetch_related("suivis")
+        return (
+            visible_conventions(self.request)
+            .select_related("eleve__user", "entreprise", "maitre_stage_etablissement")
+            .prefetch_related("suivis")
+        )
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -118,9 +120,7 @@ class ConventionsStageViewSet(PracticalLegacyAPIMixin, viewsets.ModelViewSet):
         changes = {"statut": statut}
         if statut == "complete":
             changes["date_signature_complete"] = timezone.now()
-        if not visible_conventions(request).filter(
-            pk=convention.pk, statut=convention.statut
-        ).update(**changes):
+        if not visible_conventions(request).filter(pk=convention.pk, statut=convention.statut).update(**changes):
             return Response({"error": "Impossible de signer."}, status=400)
 
         return Response({"detail": f"Convention {statut}.", "id": convention.id})
@@ -144,9 +144,9 @@ class SuivisStageViewSet(viewsets.ModelViewSet):
     ordering = ["-date"]
 
     def get_queryset(self):
-        return SuiviStage.objects.filter(
-            convention__in=visible_conventions(self.request)
-        ).select_related("convention__eleve__user")
+        return SuiviStage.objects.filter(convention__in=visible_conventions(self.request)).select_related(
+            "convention__eleve__user"
+        )
 
 
 class EvaluationsStageViewSet(viewsets.ModelViewSet):
@@ -159,9 +159,7 @@ class EvaluationsStageViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        return EvaluationStage.objects.filter(
-            convention__in=visible_conventions(self.request)
-        ).select_related(
+        return EvaluationStage.objects.filter(convention__in=visible_conventions(self.request)).select_related(
             "convention__eleve__user", "convention__entreprise"
         )
 

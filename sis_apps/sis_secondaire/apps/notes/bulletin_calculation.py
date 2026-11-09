@@ -112,9 +112,7 @@ def _locked_calculation(eleve, classe, periode):
         eleve=eleve, classe=classe, annee_scolaire_id=classe.annee_scolaire_id, statut="validee"
     ).exists():
         raise serializers.ValidationError({"eleve": "Une inscription validée dans cette classe est requise."})
-    if AffectationMatiereIndividuelle.objects.filter(
-        eleve=eleve, annee_scolaire_id=classe.annee_scolaire_id
-    ).exists():
+    if AffectationMatiereIndividuelle.objects.filter(eleve=eleve, annee_scolaire_id=classe.annee_scolaire_id).exists():
         raise serializers.ValidationError({"calcul": "Les parcours individualisés exigent un calcul dédié."})
     evaluations = list(
         Evaluation.objects.select_for_update(nowait=True).filter(classe=classe, periode=periode).order_by("pk")
@@ -124,16 +122,19 @@ def _locked_calculation(eleve, classe, periode):
     evaluations = [item for item in evaluations if item.eleve_cible_id is None]
     notes = {
         note.evaluation_id: note
-        for note in Note.objects.select_for_update(nowait=True).filter(eleve=eleve, evaluation__in=evaluations).order_by("pk")
+        for note in Note.objects.select_for_update(nowait=True)
+        .filter(eleve=eleve, evaluation__in=evaluations)
+        .order_by("pk")
     }
     programmes = {
         item.matiere_id: item
         for item in ProgrammeMatiere.objects.select_for_update(nowait=True).filter(classe=classe).order_by("pk")
     }
     subjects = {
-        item.pk: item for item in Matiere.objects.select_for_update(nowait=True).filter(
-            pk__in={item.matiere_id for item in evaluations} | set(programmes)
-        ).order_by("pk")
+        item.pk: item
+        for item in Matiere.objects.select_for_update(nowait=True)
+        .filter(pk__in={item.matiere_id for item in evaluations} | set(programmes))
+        .order_by("pk")
     }
     grouped = {}
     excluded = []
@@ -144,7 +145,9 @@ def _locked_calculation(eleve, classe, periode):
             continue
         assessment = evaluation.offre_configuration.get("assessment", {})
         if assessment.get("mode", "numeric") != "numeric" or Decimal(str(assessment.get("minimum", 0))) != 0:
-            raise serializers.ValidationError({"calcul": "Ce protocole exige des barèmes numériques commençant à zéro."})
+            raise serializers.ValidationError(
+                {"calcul": "Ce protocole exige des barèmes numériques commençant à zéro."}
+            )
         subject = subjects[evaluation.matiere_id]
         if subject.etablissement_id != classe.etablissement_id:
             raise serializers.ValidationError({"calcul": "Une matière n'appartient pas à cet établissement."})
@@ -156,28 +159,42 @@ def _locked_calculation(eleve, classe, periode):
             excluded.append({"evaluation": evaluation.pk, "note": note.pk, "motif": "dispense"})
             continue
         if note.statut != "presente" or note.valeur is None:
-            raise serializers.ValidationError({
-                "notes": f"Évaluation {evaluation.pk} : absence, travail non rendu ou statut non chiffrable à traiter."
-            })
+            raise serializers.ValidationError(
+                {
+                    "notes": (
+                        f"Évaluation {evaluation.pk} : "
+                        "absence, travail non rendu ou statut non chiffrable à traiter."
+                    )
+                }
+            )
         validate_offering_grade(evaluation, note.valeur, note.resultat, note.statut)
         bareme = _positive(evaluation.bareme, "Le barème")
         if not note.valeur.is_finite() or not 0 <= note.valeur <= bareme:
             raise serializers.ValidationError({"notes": f"Note hors barème pour l'évaluation {evaluation.pk}."})
-        weight = _positive(evaluation.coefficient, "Le coefficient") * _positive(
-            evaluation.ponderation, "La pondération"
-        ) / Decimal(100)
+        weight = (
+            _positive(evaluation.coefficient, "Le coefficient")
+            * _positive(evaluation.ponderation, "La pondération")
+            / Decimal(100)
+        )
         item = grouped.setdefault(subject.pk, {"sum": Decimal(0), "weight": Decimal(0), "notes": []})
         item["sum"] += note.valeur / bareme * 20 * weight
         item["weight"] += weight
-        item["notes"].append({
-            "id": note.pk, "evaluation": evaluation.pk, "titre": evaluation.titre,
-            "valeur": str(note.valeur), "bareme": str(bareme), "coefficient": str(evaluation.coefficient),
-            "ponderation": str(evaluation.ponderation), "appreciation": note.appreciation,
-            "statut": note.statut, "offre_configuration": evaluation.offre_configuration,
-        })
+        item["notes"].append(
+            {
+                "id": note.pk,
+                "evaluation": evaluation.pk,
+                "titre": evaluation.titre,
+                "valeur": str(note.valeur),
+                "bareme": str(bareme),
+                "coefficient": str(evaluation.coefficient),
+                "ponderation": str(evaluation.ponderation),
+                "appreciation": note.appreciation,
+                "statut": note.statut,
+                "offre_configuration": evaluation.offre_configuration,
+            }
+        )
     missing = [
-        item.matiere_id for item in programmes.values()
-        if item.obligatoire and item.matiere_id not in covered_subjects
+        item.matiere_id for item in programmes.values() if item.obligatoire and item.matiere_id not in covered_subjects
     ]
     if missing:
         raise serializers.ValidationError({"matieres": "Des matières obligatoires n'ont aucun résultat calculable."})
@@ -195,15 +212,20 @@ def _locked_calculation(eleve, classe, periode):
         average = item["sum"] / item["weight"]
         weighted_sum += average * coefficient
         total_weight += coefficient
-        details.append({
-            "id": subject_id, "nom": subject.nom, "coefficient": str(coefficient),
-            "origine_coefficient": "programme" if programme else "matiere",
-            "moyenne": _rounded(average), "notes": item["notes"],
-        })
+        details.append(
+            {
+                "id": subject_id,
+                "nom": subject.nom,
+                "coefficient": str(coefficient),
+                "origine_coefficient": "programme" if programme else "matiere",
+                "moyenne": _rounded(average),
+                "notes": item["notes"],
+            }
+        )
     return {
         "methode": METHOD,
         "formule": "Notes ramenées sur 20, pondérées par coefficient × pondération / 100 ; "
-                   "moyennes de matières pondérées par leurs coefficients, sans arrondi intermédiaire.",
+        "moyennes de matières pondérées par leurs coefficients, sans arrondi intermédiaire.",
         "arrondi": "Deux décimales, demi supérieur ; aucun rang ou passage automatique.",
         "eleve": {"id": eleve.pk, "nom": eleve.user.get_full_name(), "matricule": eleve.matricule},
         "classe": {"id": classe.pk, "nom": classe.nom},

@@ -33,9 +33,7 @@ class WebhookSecurityTestCase(APITestCase):
 
     def test_webhook_without_signature_rejected(self):
         """Un webhook sans signature est rejeté."""
-        response = self.client.post(
-            self.webhook_url, data={"event": "user.created"}, format="json"
-        )
+        response = self.client.post(self.webhook_url, data={"event": "user.created"}, format="json")
         # 401/403 si la route est bien câblée, ou 404 si l'URL de ce test
         # (placeholder historique) ne correspond pas encore à la route réelle.
         assert response.status_code in [401, 403, 404]
@@ -78,27 +76,21 @@ class WebhookSigningMixin:
 
         url = f"/api/v1/integration/webhook/{kind}/"
         body = json.dumps(payload).encode()
-        signature = hmac.new(
-            settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
         headers = {
             "HTTP_X_SIGNATURE": signature,
             "HTTP_X_EVENT_TYPE": event_type,
         }
         if event_id:
             headers["HTTP_X_EVENT_ID"] = event_id
-        return self.client.post(
-            url, data=body, content_type="application/json", **headers
-        )
+        return self.client.post(url, data=body, content_type="application/json", **headers)
 
 
 class UserWebhookTestCase(WebhookSigningMixin, TenantAPITestCase):
     """Tests des webhooks utilisateur."""
 
     def setUp(self):
-        self.admin = Utilisateur.objects.create_superuser(
-            "admin", "admin@test.com", TEST_USER_PASSWORD
-        )
+        self.admin = Utilisateur.objects.create_superuser("admin", "admin@test.com", TEST_USER_PASSWORD)
         self.client.force_authenticate(user=self.admin)
 
     @patch("apps.integration.tasks.process_user_webhook.delay")
@@ -131,9 +123,7 @@ class UserWebhookTestCase(WebhookSigningMixin, TenantAPITestCase):
         body = json.dumps([1, 2, 3]).encode()
         from django.conf import settings
 
-        signature = hmac.new(
-            settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256
-        ).hexdigest()
+        signature = hmac.new(settings.WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
 
         response = self.client.post(
             "/api/v1/integration/webhook/lms/",
@@ -230,9 +220,7 @@ class IntegrationAPIEndpointsTestCase(TenantAPITestCase):
             password="pass",
             role="etudiant",
         )
-        EdxUserMapping.objects.create(
-            user_sis=user, username_edx="sis-s-mapped", user_id_edx=111
-        )
+        EdxUserMapping.objects.create(user_sis=user, username_edx="sis-s-mapped", user_id_edx=111)
 
         response = self.client.get("/api/v1/integration/mappings/users/")
 
@@ -263,9 +251,7 @@ class IntegrationAPIEndpointsTestCase(TenantAPITestCase):
 
     def test_list_outbox_events(self):
         """Lister les événements outbox."""
-        OutboxEvent.objects.create(
-            event_type="test.event", aggregate_type="test", aggregate_id="1", payload={}
-        )
+        OutboxEvent.objects.create(event_type="test.event", aggregate_type="test", aggregate_id="1", payload={})
 
         response = self.client.get("/api/v1/integration/outbox/")
 

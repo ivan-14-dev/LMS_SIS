@@ -3,7 +3,7 @@ import { getSuperieurApiUrl, getSecondaireApiUrl, normalizePageResponse } from '
 import { localHttpClient, usesLocalSession } from '../../services/localSession';
 import { isMockMode } from '../../services/mockApi';
 
-export const financeRequest = async (path, method = 'get', data, variant = 'superieur') => {
+export const financeRequest = async (path, method = 'get', data = undefined, variant = 'superieur') => {
   if (isMockMode()) { throw new Error('Finance indisponible en mode simulé : utilisez une API réelle.'); }
   const base = variant === 'secondaire' ? getSecondaireApiUrl() : getSuperieurApiUrl();
   const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();

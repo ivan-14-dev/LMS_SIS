@@ -12,11 +12,21 @@ from django.db.models.signals import pre_delete
 from rest_framework.response import Response
 
 COMMON = {
-    "date_debut", "date_fin", "entreprise_id", "missions", "horaires", "statut", "date_signature_complete",
+    "date_debut",
+    "date_fin",
+    "entreprise_id",
+    "missions",
+    "horaires",
+    "statut",
+    "date_signature_complete",
 }
 SECONDARY = {
-    "eleve_id", "maitre_stage_etablissement_id", "duree_heures",
-    "tuteur_entreprise", "telephone_tuteur", "email_tuteur",
+    "eleve_id",
+    "maitre_stage_etablissement_id",
+    "duree_heures",
+    "tuteur_entreprise",
+    "telephone_tuteur",
+    "email_tuteur",
 }
 UPPER = {"etudiant_id", "offre_id", "maitre_stage_id", "tuteur_pedagogique_id"}
 _checked_bulk_update = ContextVar("practical_checked_legacy_bulk_update", default=False)
@@ -38,7 +48,8 @@ def locked_legacy(queryset):
         convention_model = apps.get_model("stages", "ConventionStage")
         conventions = (
             convention_model.objects.filter(offre_id__in=queryset.values("pk"))
-            if queryset.model._meta.model_name == "offrestage" else queryset
+            if queryset.model._meta.model_name == "offrestage"
+            else queryset
         )
         field = "eleve" if settings.SIS_VARIANT == "secondaire" else "etudiant"
         learner_model = convention_model._meta.get_field(field).remote_field.model
@@ -88,11 +99,21 @@ class ProtectedLegacyQuerySet(models.QuerySet):
             finally:
                 _checked_bulk_update.reset(token)
 
-    def bulk_create(self, objs, batch_size=None, ignore_conflicts=False, update_conflicts=False,
-                    update_fields=None, unique_fields=None):
+    def bulk_create(
+        self,
+        objs,
+        batch_size=None,
+        ignore_conflicts=False,
+        update_conflicts=False,
+        update_fields=None,
+        unique_fields=None,
+    ):
         options = {
-            "batch_size": batch_size, "ignore_conflicts": ignore_conflicts,
-            "update_conflicts": update_conflicts, "update_fields": update_fields, "unique_fields": unique_fields,
+            "batch_size": batch_size,
+            "ignore_conflicts": ignore_conflicts,
+            "update_conflicts": update_conflicts,
+            "update_fields": update_fields,
+            "unique_fields": unique_fields,
         }
         names = {self.model._meta.get_field(name).attname for name in (update_fields or [])}
         relevant = structural_fields(self.model) & names
@@ -155,17 +176,22 @@ class ProtectedLegacyBase(models.Model):
 
 class PracticalLegacyAPIMixin:
     def handle_exception(self, exc):
-        if (
-            isinstance(exc, ValidationError) and getattr(exc, "code", None) == "structure_protegee"
-        ) or (
+        if (isinstance(exc, ValidationError) and getattr(exc, "code", None) == "structure_protegee") or (
             isinstance(exc, ProtectedError)
-            and any(obj._meta.app_label == "stages" and "pratique" in obj._meta.model_name
-                    for obj in exc.protected_objects)
+            and any(
+                obj._meta.app_label == "stages" and "pratique" in obj._meta.model_name for obj in exc.protected_objects
+            )
         ):
-            return Response({
-                "detail": "Structure liée à un dossier pratique protégé.", "code": "structure_protegee",
-                "errors": {}, "current_version": None, "criteres_non_satisfaits": [],
-            }, status=409)
+            return Response(
+                {
+                    "detail": "Structure liée à un dossier pratique protégé.",
+                    "code": "structure_protegee",
+                    "errors": {},
+                    "current_version": None,
+                    "criteres_non_satisfaits": [],
+                },
+                status=409,
+            )
         return super().handle_exception(exc)
 
 
@@ -180,12 +206,19 @@ def reject_linked_delete(sender, instance, **kwargs):
 
 def connect_practical_guards():
     for name in (
-        "ProgrammePratique", "RevisionProgrammePratique", "DossierPratique", "HeurePratique",
-        "DecisionHeurePratique", "EvaluationCompetencePratique", "AuditPratique",
+        "ProgrammePratique",
+        "RevisionProgrammePratique",
+        "DossierPratique",
+        "HeurePratique",
+        "DecisionHeurePratique",
+        "EvaluationCompetencePratique",
+        "AuditPratique",
     ):
         model = apps.get_model("stages", name)
         pre_delete.connect(reject_practical_delete, sender=model, dispatch_uid=f"pratique.delete.{name}")
     for name in (("ConventionStage", "OffreStage") if settings.SIS_VARIANT == "superieur" else ("ConventionStage",)):
         pre_delete.connect(
-            reject_linked_delete, sender=apps.get_model("stages", name), dispatch_uid=f"pratique.legacy.{name}",
+            reject_linked_delete,
+            sender=apps.get_model("stages", name),
+            dispatch_uid=f"pratique.legacy.{name}",
         )

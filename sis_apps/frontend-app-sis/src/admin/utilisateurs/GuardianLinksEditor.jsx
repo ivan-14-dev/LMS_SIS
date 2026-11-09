@@ -88,13 +88,20 @@ const GuardianLinksEditor = ({ capabilities }) => {
           ]}
           fields={[
             {
-              name: 'user', label: 'Compte parent', resource: 'utilisateurs/comptes',
-              filters: { role: 'parent', is_active: true }, labelField: 'username', required: true, createOnly: true,
+              name: 'user',
+              label: 'Compte parent',
+              resource: 'utilisateurs/comptes',
+              filters: { role: 'parent', is_active: true },
+              labelField: 'username',
+              required: true,
+              createOnly: true,
             },
             { name: 'nom', label: 'Nom', required: true },
             { name: 'prenom', label: 'Prénom', required: true },
             {
-              name: 'lien_parente', label: 'Lien de parenté', required: true,
+              name: 'lien_parente',
+              label: 'Lien de parenté',
+              required: true,
               choices: [
                 { value: 'pere', label: 'Père' }, { value: 'mere', label: 'Mère' },
                 { value: 'tuteur_legal', label: 'Tuteur légal' },
@@ -102,7 +109,9 @@ const GuardianLinksEditor = ({ capabilities }) => {
               ],
             },
             { name: 'telephone', label: 'Téléphone', required: true },
-            { name: 'email', label: 'Email', type: 'email', required: true },
+            {
+              name: 'email', label: 'Email', type: 'email', required: true,
+            },
           ]}
         />
       )}
@@ -112,41 +121,63 @@ const GuardianLinksEditor = ({ capabilities }) => {
           {notice && <Alert severity="success">{notice}</Alert>}
           {mutation.error && <Alert severity="error">{apiErrorMessage(mutation.error)}</Alert>}
           <Button onClick={() => links.refetch()} disabled={busy}>Actualiser les liaisons</Button>
-          {links.isFetching || links.isPending ? <Typography role="status">Vérification des liaisons…</Typography> : (
-            links.error ? <Alert severity="error">{apiErrorMessage(links.error)}</Alert> : (
-              <Stack spacing={1}>
-                {(links.data || []).map(link => (
-                  <Box key={link.id}>
-                    <Typography>{link.tuteur_nom} → {link.eleve_nom} · {link.autorise_acces_portail ? 'Accès autorisé' : 'Accès révoqué'}</Typography>
-                    {can('eleves.change_elevetuteur') && (
-                      <Button disabled={busy} onClick={() => submit({ id: link.id, data: { autorise_acces_portail: !link.autorise_acces_portail } })}>
-                        {link.autorise_acces_portail ? 'Révoquer' : 'Autoriser'} l’accès
-                      </Button>
-                    )}
-                    {can('eleves.delete_elevetuteur') && (
-                      <Button disabled={busy} onClick={() => setRemoving(link)}>Retirer la liaison</Button>
-                    )}
-                  </Box>
-                ))}
-                {links.data?.length === 0 && <Typography>Aucune liaison.</Typography>}
-              </Stack>
-            )
+          {(links.isFetching || links.isPending) && <Typography role="status">Vérification des liaisons…</Typography>}
+          {!links.isFetching && !links.isPending && links.error && (
+            <Alert severity="error">{apiErrorMessage(links.error)}</Alert>
+          )}
+          {!links.isFetching && !links.isPending && !links.error && (
+          <Stack spacing={1}>
+            {(links.data || []).map(link => (
+              <Box key={link.id}>
+                <Typography>{link.tuteur_nom} → {link.eleve_nom} · {link.autorise_acces_portail ? 'Accès autorisé' : 'Accès révoqué'}</Typography>
+                {can('eleves.change_elevetuteur') && (
+                <Button
+                  disabled={busy}
+                  onClick={() => submit({
+                    id: link.id, data: { autorise_acces_portail: !link.autorise_acces_portail },
+                  })}
+                >
+                  {link.autorise_acces_portail ? 'Révoquer' : 'Autoriser'} l’accès
+                </Button>
+                )}
+                {can('eleves.delete_elevetuteur') && (
+                <Button disabled={busy} onClick={() => setRemoving(link)}>Retirer la liaison</Button>
+                )}
+              </Box>
+            ))}
+            {links.data?.length === 0 && <Typography>Aucune liaison.</Typography>}
+          </Stack>
           )}
           {canAdd && (
-            <Box component="form" onSubmit={(event) => {
-              event.preventDefault();
-              submit({ data: { tuteur: Number(guardianId), eleve: Number(childId), autorise_acces_portail: authorized } });
-            }} sx={{ mt: 2 }}>
+            <Box
+              component="form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                submit({
+                  data: { tuteur: Number(guardianId), eleve: Number(childId), autorise_acces_portail: authorized },
+                });
+              }}
+              sx={{ mt: 2 }}
+            >
               <Typography component="h3" variant="subtitle1">Lier un parent à un enfant</Typography>
               {referencesError && <Alert severity="error">{apiErrorMessage(referencesError)}</Alert>}
               <Stack spacing={2}>
                 <TextField select label="Parent" value={guardianId} required onChange={event => setGuardianId(event.target.value)}>
-                  {(guardians.data || []).map(item => <MenuItem key={item.id} value={item.id}>{item.prenom} {item.nom} ({item.compte})</MenuItem>)}
+                  {(guardians.data || []).map(item => (
+                    <MenuItem key={item.id} value={item.id}>{item.prenom} {item.nom} ({item.compte})</MenuItem>
+                  ))}
                 </TextField>
                 <TextField select label="Enfant" value={childId} required onChange={event => setChildId(event.target.value)}>
-                  {(children.data || []).map(item => <MenuItem key={item.id} value={item.id}>{item.full_name || item.nom_complet || item.matricule}</MenuItem>)}
+                  {(children.data || []).map(item => (
+                    <MenuItem key={item.id} value={item.id}>
+                      {item.full_name || item.nom_complet || item.matricule}
+                    </MenuItem>
+                  ))}
                 </TextField>
-                <FormControlLabel label="Autoriser l’accès au portail" control={<Checkbox checked={authorized} onChange={event => setAuthorized(event.target.checked)} />} />
+                <FormControlLabel
+                  label="Autoriser l’accès au portail"
+                  control={<Checkbox checked={authorized} onChange={event => setAuthorized(event.target.checked)} />}
+                />
                 <Button type="submit" disabled={busy || Boolean(referencesError) || !guardianId || !childId}>Créer la liaison</Button>
               </Stack>
             </Box>
@@ -155,7 +186,9 @@ const GuardianLinksEditor = ({ capabilities }) => {
       )}
       <Dialog open={Boolean(removing)} onClose={() => !busy && setRemoving(null)}>
         <DialogTitle>Retirer la liaison parent-enfant ?</DialogTitle>
-        <DialogContent>Les prochaines consultations du dossier et des bulletins seront refusées pour ce parent.</DialogContent>
+        <DialogContent>
+          Les prochaines consultations du dossier et des bulletins seront refusées pour ce parent.
+        </DialogContent>
         <DialogActions>
           <Button disabled={busy} onClick={() => setRemoving(null)}>Annuler</Button>
           <Button disabled={busy} onClick={() => submit({ operation: 'delete', id: removing.id })}>Confirmer le retrait</Button>
@@ -165,6 +198,8 @@ const GuardianLinksEditor = ({ capabilities }) => {
   );
 };
 
-GuardianLinksEditor.propTypes = { capabilities: PropTypes.shape({ permissions: PropTypes.arrayOf(PropTypes.string) }).isRequired };
+GuardianLinksEditor.propTypes = {
+  capabilities: PropTypes.shape({ permissions: PropTypes.arrayOf(PropTypes.string) }).isRequired,
+};
 
 export default GuardianLinksEditor;

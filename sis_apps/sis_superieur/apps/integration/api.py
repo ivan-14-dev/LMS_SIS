@@ -72,20 +72,14 @@ def _paginated_response(request, queryset, serializer_class):
 @permission_classes([AllowAny])
 def webhook_lms(request):
     if not _verify_hmac(request):
-        return Response(
-            {"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED
-        )
+        return Response({"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED)
     payload_error = _validate_webhook_payload(request)
     if payload_error:
         return Response({"error": payload_error}, status=status.HTTP_400_BAD_REQUEST)
     event_type = request.headers.get("X-Event-Type", "")
     payload = dict(request.data)
     supplied_event_id = request.headers.get("X-Event-ID")
-    event_material = (
-        supplied_event_id.encode()
-        if supplied_event_id
-        else event_type.encode() + b":" + request.body
-    )
+    event_material = supplied_event_id.encode() if supplied_event_id else event_type.encode() + b":" + request.body
     payload["_event_id"] = hashlib.sha256(event_material).hexdigest()
     schema_name = getattr(getattr(request, "tenant", None), "schema_name", None)
     if not schema_name:
@@ -149,9 +143,7 @@ def webhook_lms(request):
 @permission_classes([AllowAny])
 def webhook_cms(request):
     if not _verify_hmac(request):
-        return Response(
-            {"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED
-        )
+        return Response({"error": "Invalid signature"}, status=status.HTTP_401_UNAUTHORIZED)
     payload_error = _validate_webhook_payload(request)
     if payload_error:
         return Response({"error": payload_error}, status=status.HTTP_400_BAD_REQUEST)
@@ -204,9 +196,7 @@ def sync_status(request):
 @permission_classes([IsCurrentLmsTenantAdmin])
 def user_mappings(request):
     """Liste paginée des correspondances entre utilisateurs SIS et Open edX."""
-    queryset = EdxUserMapping.objects.select_related("user_sis").order_by(
-        "-date_sync", "-created_at"
-    )
+    queryset = EdxUserMapping.objects.select_related("user_sis").order_by("-date_sync", "-created_at")
     return _paginated_response(request, queryset, EdxUserMappingSerializer)
 
 
@@ -368,9 +358,7 @@ def sync_course_live(request, mapping_id):
                 {"error": result["message"]},
                 status=status.HTTP_409_CONFLICT,
             )
-        if result.get("provider_type") != "big_blue_button" or not result.get(
-            "enabled"
-        ):
+        if result.get("provider_type") != "big_blue_button" or not result.get("enabled"):
             return Response(
                 {"error": "Open edX did not activate BigBlueButton."},
                 status=status.HTTP_502_BAD_GATEWAY,
@@ -419,9 +407,7 @@ def sync_grade(request):
         return Response({"error": "Not found"}, status=404)
     service = SyncService()
     try:
-        result = service.sync_grade_to_lms(
-            etudiant, course_mapping, subsection_id, score, max_score
-        )
+        result = service.sync_grade_to_lms(etudiant, course_mapping, subsection_id, score, max_score)
         return Response({"status": "ok", "result": result})
     except ImproperlyConfigured:
         return unavailable_response()

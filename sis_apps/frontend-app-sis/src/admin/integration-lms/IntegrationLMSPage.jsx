@@ -169,7 +169,7 @@ const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
             Un heartbeat seul ne valide pas les identités, cours ou inscriptions.
           </Alert>
         )}
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert severity="info" role="note" sx={{ mb: 2 }}>
           Les webhooks, propositions de notes et fournisseurs pédagogiques nécessitent une qualification distincte.
           Les notes LMS restent des propositions jusqu’à validation humaine dans le SIS.
         </Alert>

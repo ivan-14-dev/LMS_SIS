@@ -209,6 +209,15 @@ const App = () => (
             <Route path="workflows" element={<WorkflowCenterPage apiType="secondaire" title="Centre workflow secondaire" subtitle="Notifications et historique global des workflows du secondaire" />} />
             <Route path="conseil-classe" element={<ConseilClassePage />} />
 
+            <Route
+              path="paiements"
+              element={(
+                <PermissionGuard type="secondaire" permission="paiements.view_paiement">
+                  <PaiementsPage apiType="secondaire" />
+                </PermissionGuard>
+              )}
+            />
+
             {/* Vie scolaire */}
             <Route path="presences" element={<PresencesPage />} />
             <Route path="discipline" element={<PermissionGuard type="secondaire" permission="discipline.view_incident"><DisciplinePage /></PermissionGuard>} />

@@ -12,292 +12,642 @@ import sis_common.practical_models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('entreprises', '0002_initial'),
-        ('etablissement', '0003_universite_configuration_academique_and_more'),
-        ('etudiants', '0005_learning_offering_bindings'),
-        ('formations', '0006_formation_configuration_origine_and_more'),
-        ('stages', '0001_initial'),
+        ("entreprises", "0002_initial"),
+        ("etablissement", "0003_universite_configuration_academique_and_more"),
+        ("etudiants", "0005_learning_offering_bindings"),
+        ("formations", "0006_formation_configuration_origine_and_more"),
+        ("stages", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='DossierPratique',
+            name="DossierPratique",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('snapshot', models.JSONField(default=dict)),
-                ('programme_snapshot', models.JSONField(default=dict)),
-                ('identite', models.JSONField(default=dict)),
-                ('date_debut', models.DateField()),
-                ('date_fin', models.DateField()),
-                ('fuseau_horaire', models.CharField(max_length=64)),
-                ('statut', models.CharField(default='ouvert', max_length=10)),
-                ('version', models.PositiveIntegerField(default=1)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('closed_at', models.DateTimeField(null=True)),
-                ('cancelled_at', models.DateTimeField(null=True)),
-                ('motif_annulation', models.TextField(null=True)),
-                ('partenaire_revoque_le', models.DateTimeField(null=True)),
-                ('motif_revocation', models.TextField(null=True)),
-                ('annule_par', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('apprenant', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to='etudiants.etudiant')),
-                ('apprenant_user', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('clos_par', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('contact_entreprise', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to='entreprises.contactentreprise')),
-                ('convention', models.OneToOneField(on_delete=django.db.models.deletion.PROTECT, related_name='dossier_pratique', to='stages.conventionstage')),
-                ('cree_par', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('etablissement', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to='etablissement.universite')),
-                ('inscription', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to='etudiants.inscriptionadministrative')),
-                ('partenaire_revoque_par', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('partenaire_user', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('tuteur_interne_user', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("snapshot", models.JSONField(default=dict)),
+                ("programme_snapshot", models.JSONField(default=dict)),
+                ("identite", models.JSONField(default=dict)),
+                ("date_debut", models.DateField()),
+                ("date_fin", models.DateField()),
+                ("fuseau_horaire", models.CharField(max_length=64)),
+                ("statut", models.CharField(default="ouvert", max_length=10)),
+                ("version", models.PositiveIntegerField(default=1)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("closed_at", models.DateTimeField(null=True)),
+                ("cancelled_at", models.DateTimeField(null=True)),
+                ("motif_annulation", models.TextField(null=True)),
+                ("partenaire_revoque_le", models.DateTimeField(null=True)),
+                ("motif_revocation", models.TextField(null=True)),
+                (
+                    "annule_par",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "apprenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to="etudiants.etudiant"
+                    ),
+                ),
+                (
+                    "apprenant_user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
+                (
+                    "clos_par",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "contact_entreprise",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to="entreprises.contactentreprise",
+                    ),
+                ),
+                (
+                    "convention",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="dossier_pratique",
+                        to="stages.conventionstage",
+                    ),
+                ),
+                (
+                    "cree_par",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
+                (
+                    "etablissement",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to="etablissement.universite"
+                    ),
+                ),
+                (
+                    "inscription",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to="etudiants.inscriptionadministrative",
+                    ),
+                ),
+                (
+                    "partenaire_revoque_par",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "partenaire_user",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "tuteur_interne_user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
             ],
             options={
-                'abstract': False,
-                'default_permissions': (),
+                "abstract": False,
+                "default_permissions": (),
             },
         ),
         migrations.CreateModel(
-            name='HeurePratique',
+            name="HeurePratique",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('fichier', models.FileField(blank=True, max_length=350, storage=sis_common.exam_files.PrivateExamStorage(), upload_to=sis_common.practical_models.evidence_path, validators=[sis_common.exam_files.validate_exam_copy])),
-                ('fichier_nom', models.CharField(blank=True, max_length=200)),
-                ('fichier_taille', models.PositiveIntegerField(default=0)),
-                ('fichier_sha256', models.CharField(blank=True, max_length=64)),
-                ('version_creation', models.PositiveIntegerField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('date', models.DateField()),
-                ('minute_debut', models.PositiveSmallIntegerField()),
-                ('minute_fin', models.PositiveSmallIntegerField()),
-                ('pause_minutes', models.PositiveSmallIntegerField()),
-                ('minutes', models.PositiveSmallIntegerField()),
-                ('activite', models.TextField()),
-                ('statut', models.CharField(default='brouillon', max_length=12)),
-                ('apprenant', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to='etudiants.etudiant')),
-                ('dossier', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='heures', to='stages.dossierpratique')),
-                ('remplace', models.OneToOneField(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='remplacement', to='stages.heurepratique')),
-                ('saisi_par', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "fichier",
+                    models.FileField(
+                        blank=True,
+                        max_length=350,
+                        storage=sis_common.exam_files.PrivateExamStorage(),
+                        upload_to=sis_common.practical_models.evidence_path,
+                        validators=[sis_common.exam_files.validate_exam_copy],
+                    ),
+                ),
+                ("fichier_nom", models.CharField(blank=True, max_length=200)),
+                ("fichier_taille", models.PositiveIntegerField(default=0)),
+                ("fichier_sha256", models.CharField(blank=True, max_length=64)),
+                ("version_creation", models.PositiveIntegerField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("date", models.DateField()),
+                ("minute_debut", models.PositiveSmallIntegerField()),
+                ("minute_fin", models.PositiveSmallIntegerField()),
+                ("pause_minutes", models.PositiveSmallIntegerField()),
+                ("minutes", models.PositiveSmallIntegerField()),
+                ("activite", models.TextField()),
+                ("statut", models.CharField(default="brouillon", max_length=12)),
+                (
+                    "apprenant",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to="etudiants.etudiant"
+                    ),
+                ),
+                (
+                    "dossier",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="heures", to="stages.dossierpratique"
+                    ),
+                ),
+                (
+                    "remplace",
+                    models.OneToOneField(
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="remplacement",
+                        to="stages.heurepratique",
+                    ),
+                ),
+                (
+                    "saisi_par",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
             ],
             options={
-                'abstract': False,
-                'default_permissions': (),
+                "abstract": False,
+                "default_permissions": (),
             },
         ),
         migrations.CreateModel(
-            name='DecisionHeurePratique',
+            name="DecisionHeurePratique",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('sequence', models.PositiveIntegerField()),
-                ('action', models.CharField(max_length=24)),
-                ('etat_avant', models.CharField(max_length=12, null=True)),
-                ('etat_apres', models.CharField(max_length=12)),
-                ('motif', models.TextField(null=True)),
-                ('acteur_nom', models.CharField(max_length=300)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('version_dossier', models.PositiveIntegerField()),
-                ('acteur', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('heure', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='decisions', to='stages.heurepratique')),
-                ('heure_remplacement', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to='stages.heurepratique')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("sequence", models.PositiveIntegerField()),
+                ("action", models.CharField(max_length=24)),
+                ("etat_avant", models.CharField(max_length=12, null=True)),
+                ("etat_apres", models.CharField(max_length=12)),
+                ("motif", models.TextField(null=True)),
+                ("acteur_nom", models.CharField(max_length=300)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("version_dossier", models.PositiveIntegerField()),
+                (
+                    "acteur",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
+                (
+                    "heure",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="decisions", to="stages.heurepratique"
+                    ),
+                ),
+                (
+                    "heure_remplacement",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to="stages.heurepratique",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['sequence'],
-                'abstract': False,
-                'default_permissions': (),
+                "ordering": ["sequence"],
+                "abstract": False,
+                "default_permissions": (),
             },
         ),
         migrations.CreateModel(
-            name='ProgrammePratique',
+            name="ProgrammePratique",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code', models.CharField(max_length=64)),
-                ('version', models.PositiveIntegerField(default=1)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('cree_par', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('curriculum', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to='formations.formation')),
-                ('etablissement', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to='etablissement.universite')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("code", models.CharField(max_length=64)),
+                ("version", models.PositiveIntegerField(default=1)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "cree_par",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
+                (
+                    "curriculum",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to="formations.formation"
+                    ),
+                ),
+                (
+                    "etablissement",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to="etablissement.universite"
+                    ),
+                ),
             ],
             options={
-                'permissions': [('gerer_suivi_pratique', 'Gérer les programmes et dossiers pratiques'), ('consulter_suivi_pratique', 'Consulter un dossier pratique attribué'), ('saisir_heures_pratiques', 'Saisir les heures pratiques'), ('valider_heures_pratiques', 'Valider les heures pratiques attribuées'), ('evaluer_competences_pratiques', 'Évaluer les compétences pratiques attribuées')],
-                'abstract': False,
-                'default_permissions': (),
+                "permissions": [
+                    ("gerer_suivi_pratique", "Gérer les programmes et dossiers pratiques"),
+                    ("consulter_suivi_pratique", "Consulter un dossier pratique attribué"),
+                    ("saisir_heures_pratiques", "Saisir les heures pratiques"),
+                    ("valider_heures_pratiques", "Valider les heures pratiques attribuées"),
+                    ("evaluer_competences_pratiques", "Évaluer les compétences pratiques attribuées"),
+                ],
+                "abstract": False,
+                "default_permissions": (),
             },
         ),
         migrations.CreateModel(
-            name='AuditPratique',
+            name="AuditPratique",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('version', models.PositiveIntegerField()),
-                ('action', models.CharField(max_length=40)),
-                ('acteur_nom', models.CharField(max_length=300)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('metadata', models.JSONField(default=dict)),
-                ('acteur', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('dossier', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='historique', to='stages.dossierpratique')),
-                ('programme', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='historique', to='stages.programmepratique')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("version", models.PositiveIntegerField()),
+                ("action", models.CharField(max_length=40)),
+                ("acteur_nom", models.CharField(max_length=300)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("metadata", models.JSONField(default=dict)),
+                (
+                    "acteur",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
+                (
+                    "dossier",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="historique",
+                        to="stages.dossierpratique",
+                    ),
+                ),
+                (
+                    "programme",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="historique",
+                        to="stages.programmepratique",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-version', '-id'],
-                'abstract': False,
-                'default_permissions': (),
+                "ordering": ["-version", "-id"],
+                "abstract": False,
+                "default_permissions": (),
             },
         ),
         migrations.CreateModel(
-            name='RevisionProgrammePratique',
+            name="RevisionProgrammePratique",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('numero', models.PositiveIntegerField()),
-                ('statut', models.CharField(default='brouillon', max_length=12)),
-                ('titre', models.CharField(max_length=200)),
-                ('minutes_requises', models.PositiveIntegerField()),
-                ('competences', models.JSONField(default=list)),
-                ('snapshot', models.JSONField(default=dict)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('published_at', models.DateTimeField(null=True)),
-                ('archived_at', models.DateTimeField(null=True)),
-                ('archive_par', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('cree_par', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('programme', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='revisions', to='stages.programmepratique')),
-                ('publie_par', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("numero", models.PositiveIntegerField()),
+                ("statut", models.CharField(default="brouillon", max_length=12)),
+                ("titre", models.CharField(max_length=200)),
+                ("minutes_requises", models.PositiveIntegerField()),
+                ("competences", models.JSONField(default=list)),
+                ("snapshot", models.JSONField(default=dict)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("published_at", models.DateTimeField(null=True)),
+                ("archived_at", models.DateTimeField(null=True)),
+                (
+                    "archive_par",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "cree_par",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
+                (
+                    "programme",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="revisions",
+                        to="stages.programmepratique",
+                    ),
+                ),
+                (
+                    "publie_par",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-numero'],
-                'abstract': False,
-                'default_permissions': (),
+                "ordering": ["-numero"],
+                "abstract": False,
+                "default_permissions": (),
             },
         ),
         migrations.AddField(
-            model_name='dossierpratique',
-            name='programme_revision',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='dossiers', to='stages.revisionprogrammepratique'),
+            model_name="dossierpratique",
+            name="programme_revision",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="dossiers",
+                to="stages.revisionprogrammepratique",
+            ),
         ),
         migrations.CreateModel(
-            name='EvaluationCompetencePratique',
+            name="EvaluationCompetencePratique",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('fichier', models.FileField(blank=True, max_length=350, storage=sis_common.exam_files.PrivateExamStorage(), upload_to=sis_common.practical_models.evidence_path, validators=[sis_common.exam_files.validate_exam_copy])),
-                ('fichier_nom', models.CharField(blank=True, max_length=200)),
-                ('fichier_taille', models.PositiveIntegerField(default=0)),
-                ('fichier_sha256', models.CharField(blank=True, max_length=64)),
-                ('version_creation', models.PositiveIntegerField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('code', models.CharField(max_length=64)),
-                ('revision', models.PositiveIntegerField()),
-                ('acquise', models.BooleanField()),
-                ('contexte_professionnel', models.TextField()),
-                ('date_observation', models.DateField()),
-                ('motif_revision', models.TextField(null=True)),
-                ('evaluateur_nom', models.CharField(max_length=300)),
-                ('dossier', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='evaluations_pratiques', to='stages.dossierpratique')),
-                ('evalue_par', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('remplace', models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to='stages.evaluationcompetencepratique')),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "fichier",
+                    models.FileField(
+                        blank=True,
+                        max_length=350,
+                        storage=sis_common.exam_files.PrivateExamStorage(),
+                        upload_to=sis_common.practical_models.evidence_path,
+                        validators=[sis_common.exam_files.validate_exam_copy],
+                    ),
+                ),
+                ("fichier_nom", models.CharField(blank=True, max_length=200)),
+                ("fichier_taille", models.PositiveIntegerField(default=0)),
+                ("fichier_sha256", models.CharField(blank=True, max_length=64)),
+                ("version_creation", models.PositiveIntegerField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("code", models.CharField(max_length=64)),
+                ("revision", models.PositiveIntegerField()),
+                ("acquise", models.BooleanField()),
+                ("contexte_professionnel", models.TextField()),
+                ("date_observation", models.DateField()),
+                ("motif_revision", models.TextField(null=True)),
+                ("evaluateur_nom", models.CharField(max_length=300)),
+                (
+                    "dossier",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="evaluations_pratiques",
+                        to="stages.dossierpratique",
+                    ),
+                ),
+                (
+                    "evalue_par",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, related_name="+", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
+                (
+                    "remplace",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to="stages.evaluationcompetencepratique",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['code', '-revision'],
-                'abstract': False,
-                'default_permissions': (),
-                'constraints': [models.UniqueConstraint(fields=('dossier', 'code', 'revision'), name='practical_assessment_revision'), models.CheckConstraint(condition=models.Q(('revision__gte', 1)), name='practical_assessment_positive')],
+                "ordering": ["code", "-revision"],
+                "abstract": False,
+                "default_permissions": (),
+                "constraints": [
+                    models.UniqueConstraint(
+                        fields=("dossier", "code", "revision"), name="practical_assessment_revision"
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(("revision__gte", 1)), name="practical_assessment_positive"
+                    ),
+                ],
             },
         ),
         migrations.AddIndex(
-            model_name='heurepratique',
-            index=models.Index(fields=['apprenant', 'date', 'statut'], name='practical_learner_hours'),
+            model_name="heurepratique",
+            index=models.Index(fields=["apprenant", "date", "statut"], name="practical_learner_hours"),
         ),
         migrations.AddIndex(
-            model_name='heurepratique',
-            index=models.Index(fields=['dossier', 'date'], name='practical_dossier_hours'),
+            model_name="heurepratique",
+            index=models.Index(fields=["dossier", "date"], name="practical_dossier_hours"),
         ),
         migrations.AddConstraint(
-            model_name='heurepratique',
-            constraint=models.CheckConstraint(condition=models.Q(('minute_debut__gte', 0), ('minute_fin__gt', models.F('minute_debut')), ('minute_fin__lte', 1440)), name='practical_hour_interval'),
+            model_name="heurepratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    ("minute_debut__gte", 0), ("minute_fin__gt", models.F("minute_debut")), ("minute_fin__lte", 1440)
+                ),
+                name="practical_hour_interval",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='heurepratique',
-            constraint=models.CheckConstraint(condition=models.Q(('pause_minutes__gte', 0), ('pause_minutes__lt', django.db.models.expressions.CombinedExpression(models.F('minute_fin'), '-', models.F('minute_debut')))), name='practical_hour_break'),
+            model_name="heurepratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    ("pause_minutes__gte", 0),
+                    (
+                        "pause_minutes__lt",
+                        django.db.models.expressions.CombinedExpression(
+                            models.F("minute_fin"), "-", models.F("minute_debut")
+                        ),
+                    ),
+                ),
+                name="practical_hour_break",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='heurepratique',
-            constraint=models.CheckConstraint(condition=models.Q(('minutes', django.db.models.expressions.CombinedExpression(django.db.models.expressions.CombinedExpression(models.F('minute_fin'), '-', models.F('minute_debut')), '-', models.F('pause_minutes'))), ('minutes__gt', 0)), name='practical_hour_minutes'),
+            model_name="heurepratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    (
+                        "minutes",
+                        django.db.models.expressions.CombinedExpression(
+                            django.db.models.expressions.CombinedExpression(
+                                models.F("minute_fin"), "-", models.F("minute_debut")
+                            ),
+                            "-",
+                            models.F("pause_minutes"),
+                        ),
+                    ),
+                    ("minutes__gt", 0),
+                ),
+                name="practical_hour_minutes",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='heurepratique',
-            constraint=models.CheckConstraint(condition=models.Q(('statut__in', ['brouillon', 'soumise', 'validee', 'rejetee', 'annulee'])), name='practical_hour_state'),
+            model_name="heurepratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("statut__in", ["brouillon", "soumise", "validee", "rejetee", "annulee"])),
+                name="practical_hour_state",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='decisionheurepratique',
-            constraint=models.UniqueConstraint(fields=('heure', 'sequence'), name='practical_hour_decision_sequence'),
+            model_name="decisionheurepratique",
+            constraint=models.UniqueConstraint(fields=("heure", "sequence"), name="practical_hour_decision_sequence"),
         ),
         migrations.AddConstraint(
-            model_name='decisionheurepratique',
-            constraint=models.CheckConstraint(condition=models.Q(('sequence__gte', 1)), name='practical_decision_positive'),
+            model_name="decisionheurepratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("sequence__gte", 1)), name="practical_decision_positive"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='programmepratique',
-            constraint=models.UniqueConstraint(fields=('etablissement', 'curriculum', 'code'), name='practical_programme_code'),
+            model_name="programmepratique",
+            constraint=models.UniqueConstraint(
+                fields=("etablissement", "curriculum", "code"), name="practical_programme_code"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='programmepratique',
-            constraint=models.CheckConstraint(condition=models.Q(('version__gte', 1)), name='practical_programme_version'),
+            model_name="programmepratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("version__gte", 1)), name="practical_programme_version"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='auditpratique',
-            constraint=models.CheckConstraint(condition=models.Q(models.Q(('dossier__isnull', True), ('programme__isnull', False)), models.Q(('dossier__isnull', False), ('programme__isnull', True)), _connector='OR'), name='practical_audit_aggregate'),
+            model_name="auditpratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    models.Q(("dossier__isnull", True), ("programme__isnull", False)),
+                    models.Q(("dossier__isnull", False), ("programme__isnull", True)),
+                    _connector="OR",
+                ),
+                name="practical_audit_aggregate",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='auditpratique',
-            constraint=models.UniqueConstraint(fields=('programme', 'version'), name='practical_programme_audit'),
+            model_name="auditpratique",
+            constraint=models.UniqueConstraint(fields=("programme", "version"), name="practical_programme_audit"),
         ),
         migrations.AddConstraint(
-            model_name='auditpratique',
-            constraint=models.UniqueConstraint(fields=('dossier', 'version'), name='practical_dossier_audit'),
+            model_name="auditpratique",
+            constraint=models.UniqueConstraint(fields=("dossier", "version"), name="practical_dossier_audit"),
         ),
         migrations.AddConstraint(
-            model_name='revisionprogrammepratique',
-            constraint=models.UniqueConstraint(fields=('programme', 'numero'), name='practical_revision_number'),
+            model_name="revisionprogrammepratique",
+            constraint=models.UniqueConstraint(fields=("programme", "numero"), name="practical_revision_number"),
         ),
         migrations.AddConstraint(
-            model_name='revisionprogrammepratique',
-            constraint=models.UniqueConstraint(condition=models.Q(('statut', 'brouillon')), fields=('programme',), name='practical_one_draft'),
+            model_name="revisionprogrammepratique",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("statut", "brouillon")), fields=("programme",), name="practical_one_draft"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='revisionprogrammepratique',
-            constraint=models.UniqueConstraint(condition=models.Q(('statut', 'publie')), fields=('programme',), name='practical_one_published'),
+            model_name="revisionprogrammepratique",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("statut", "publie")), fields=("programme",), name="practical_one_published"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='revisionprogrammepratique',
-            constraint=models.CheckConstraint(condition=models.Q(('numero__gte', 1)), name='practical_revision_positive'),
+            model_name="revisionprogrammepratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("numero__gte", 1)), name="practical_revision_positive"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='revisionprogrammepratique',
-            constraint=models.CheckConstraint(condition=models.Q(('statut__in', ['brouillon', 'publie', 'archive'])), name='practical_revision_state'),
+            model_name="revisionprogrammepratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("statut__in", ["brouillon", "publie", "archive"])), name="practical_revision_state"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='dossierpratique',
-            constraint=models.CheckConstraint(condition=models.Q(('date_fin__gte', models.F('date_debut'))), name='practical_dossier_dates'),
+            model_name="dossierpratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("date_fin__gte", models.F("date_debut"))), name="practical_dossier_dates"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='dossierpratique',
-            constraint=models.CheckConstraint(condition=models.Q(('apprenant_user', models.F('tuteur_interne_user')), _negated=True), name='practical_tutor_not_learner'),
+            model_name="dossierpratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("apprenant_user", models.F("tuteur_interne_user")), _negated=True),
+                name="practical_tutor_not_learner",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='dossierpratique',
-            constraint=models.CheckConstraint(condition=models.Q(('partenaire_user__isnull', True), models.Q(models.Q(('partenaire_user', models.F('apprenant_user')), _negated=True), models.Q(('partenaire_user', models.F('tuteur_interne_user')), _negated=True)), _connector='OR'), name='practical_partner_distinct'),
+            model_name="dossierpratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    ("partenaire_user__isnull", True),
+                    models.Q(
+                        models.Q(("partenaire_user", models.F("apprenant_user")), _negated=True),
+                        models.Q(("partenaire_user", models.F("tuteur_interne_user")), _negated=True),
+                    ),
+                    _connector="OR",
+                ),
+                name="practical_partner_distinct",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='dossierpratique',
-            constraint=models.CheckConstraint(condition=models.Q(('version__gte', 1)), name='practical_dossier_version'),
+            model_name="dossierpratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("version__gte", 1)), name="practical_dossier_version"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='dossierpratique',
-            constraint=models.CheckConstraint(condition=models.Q(('statut__in', ['ouvert', 'clos', 'annule'])), name='practical_dossier_state'),
+            model_name="dossierpratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("statut__in", ["ouvert", "clos", "annule"])), name="practical_dossier_state"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='dossierpratique',
-            constraint=models.CheckConstraint(condition=models.Q(models.Q(('annule_par__isnull', True), ('cancelled_at__isnull', True), ('clos_par__isnull', True), ('closed_at__isnull', True), ('statut', 'ouvert')), models.Q(('annule_par__isnull', True), ('cancelled_at__isnull', True), ('clos_par__isnull', False), ('closed_at__isnull', False), ('statut', 'clos')), models.Q(('annule_par__isnull', False), ('cancelled_at__isnull', False), ('clos_par__isnull', True), ('closed_at__isnull', True), ('statut', 'annule')), _connector='OR'), name='practical_terminal_actor'),
+            model_name="dossierpratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    models.Q(
+                        ("annule_par__isnull", True),
+                        ("cancelled_at__isnull", True),
+                        ("clos_par__isnull", True),
+                        ("closed_at__isnull", True),
+                        ("statut", "ouvert"),
+                    ),
+                    models.Q(
+                        ("annule_par__isnull", True),
+                        ("cancelled_at__isnull", True),
+                        ("clos_par__isnull", False),
+                        ("closed_at__isnull", False),
+                        ("statut", "clos"),
+                    ),
+                    models.Q(
+                        ("annule_par__isnull", False),
+                        ("cancelled_at__isnull", False),
+                        ("clos_par__isnull", True),
+                        ("closed_at__isnull", True),
+                        ("statut", "annule"),
+                    ),
+                    _connector="OR",
+                ),
+                name="practical_terminal_actor",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='dossierpratique',
-            constraint=models.CheckConstraint(condition=models.Q(models.Q(('partenaire_revoque_le__isnull', True), ('partenaire_revoque_par__isnull', True)), models.Q(('partenaire_revoque_le__isnull', False), ('partenaire_revoque_par__isnull', False), ('partenaire_user__isnull', False)), _connector='OR'), name='practical_revocation_actor'),
+            model_name="dossierpratique",
+            constraint=models.CheckConstraint(
+                condition=models.Q(
+                    models.Q(("partenaire_revoque_le__isnull", True), ("partenaire_revoque_par__isnull", True)),
+                    models.Q(
+                        ("partenaire_revoque_le__isnull", False),
+                        ("partenaire_revoque_par__isnull", False),
+                        ("partenaire_user__isnull", False),
+                    ),
+                    _connector="OR",
+                ),
+                name="practical_revocation_actor",
+            ),
         ),
     ]

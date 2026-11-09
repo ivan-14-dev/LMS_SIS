@@ -10,7 +10,8 @@ class CapabilitiesTests(SimpleTestCase):
     def test_capabilities_only_report_existing_permissions_without_granting_rights(self):
         request = APIRequestFactory().get("/api/sis/v1/capabilities/")
         user = SimpleNamespace(
-            is_authenticated=True, is_active=True,
+            is_authenticated=True,
+            is_active=True,
             has_perm=lambda name: name == "sis_provisioning.provision_accounts",
         )
         force_authenticate(request, user=user)

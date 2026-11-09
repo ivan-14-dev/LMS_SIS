@@ -69,8 +69,10 @@ class PracticalEvidenceTests(PracticalFixture):
         original = response.data["heure"]
         old_files = self.state()["files"]
         replacement = self.command(
-            f"heures/{original['id']}/remplacer/", self.learner_user,
-            **self.hour_payload(heure_fin="10:00"), motif="Correction sans nouvelle pièce.",
+            f"heures/{original['id']}/remplacer/",
+            self.learner_user,
+            **self.hour_payload(heure_fin="10:00"),
+            motif="Correction sans nouvelle pièce.",
         )
         assert replacement.status_code == 201, replacement.data
         assert replacement.data["heure"]["preuve"] is None
@@ -80,9 +82,7 @@ class PracticalEvidenceTests(PracticalFixture):
         download = self.client.get(original["preuve"]["download_url"])
         assert b"".join(download.streaming_content) == PDF
         other = self.open_dossier(self.make_convention())
-        self.assert_error(self.client.get(
-            f"{BASE}dossiers/{other['id']}/heures/{original['id']}/preuve/"
-        ), 404)
+        self.assert_error(self.client.get(f"{BASE}dossiers/{other['id']}/heures/{original['id']}/preuve/"), 404)
         self.login(self.outsider)
         before = self.state()
         self.assert_error(self.upload(user=self.outsider, content=PDF + b"unauthorized"), 404)
@@ -91,23 +91,34 @@ class PracticalEvidenceTests(PracticalFixture):
     def test_assessment_revision_keeps_both_private_files_and_only_new_revision_effective(self):
         self.prepare()
         payload = {
-            "version": self.dossier["version"], "acquise": False,
-            "contexte_professionnel": "Protection non maîtrisée.", "date_observation": "2026-11-07",
+            "version": self.dossier["version"],
+            "acquise": False,
+            "contexte_professionnel": "Protection non maîtrisée.",
+            "date_observation": "2026-11-07",
         }
         first = self.upload("competences/securite/evaluer/", self.tutor, payload=payload)
         assert first.status_code == 201, first.data
         original = first.data["evaluation"]
-        second = self.upload("competences/securite/evaluer/", self.tutor, payload={
-            **payload, "version": self.dossier["version"], "acquise": True,
-            "motif_revision": "Observation complémentaire.", "date_observation": "2026-11-06",
-        }, content=PDF + b"second decision")
+        second = self.upload(
+            "competences/securite/evaluer/",
+            self.tutor,
+            payload={
+                **payload,
+                "version": self.dossier["version"],
+                "acquise": True,
+                "motif_revision": "Observation complémentaire.",
+                "date_observation": "2026-11-06",
+            },
+            content=PDF + b"second decision",
+        )
         assert second.status_code == 201, second.data
         assert second.data["evaluation"]["remplace_id"] == original["id"]
         assert second.data["evaluation"]["preuve"]["sha256"] != original["preuve"]["sha256"]
         history = self.client.get(self.url("evaluations/"))
         assert history.status_code == 200, history.data
         assert [(row["id"], row["effective"]) for row in history.data["results"]] == [
-            (second.data["evaluation"]["id"], True), (original["id"], False),
+            (second.data["evaluation"]["id"], True),
+            (original["id"], False),
         ]
         assert self.report()["competences_acquises"] == 1
         for assessment, content in ((original, PDF), (second.data["evaluation"], PDF + b"second decision")):
@@ -125,10 +136,13 @@ class PracticalEvidenceTests(PracticalFixture):
             {"payload": valid_payload, "reusable_evidence_id": 1},
             {"payload": [valid_payload, valid_payload]},
             {"payload": json.dumps(self.hour_payload(version=str(self.dossier["version"])))},
-            {"payload": valid_payload, "fichier": [
-                SimpleUploadedFile("one.pdf", PDF, content_type="application/pdf"),
-                SimpleUploadedFile("two.pdf", PDF, content_type="application/pdf"),
-            ]},
+            {
+                "payload": valid_payload,
+                "fichier": [
+                    SimpleUploadedFile("one.pdf", PDF, content_type="application/pdf"),
+                    SimpleUploadedFile("two.pdf", PDF, content_type="application/pdf"),
+                ],
+            },
         )
         self.login(self.learner_user)
         for wrapper in invalid_wrappers:
@@ -141,9 +155,11 @@ class PracticalEvidenceTests(PracticalFixture):
         with override_settings(EXAM_COPY_MAX_SIZE=4):
             self.assert_error(self.upload(), 400, "pdf_invalide")
         assert self.state() == before
-        self.assert_error(self.command(
-            "heures/", self.learner_user, **self.hour_payload(), fichier="existing-private-key.pdf"
-        ), 400, "validation_error")
+        self.assert_error(
+            self.command("heures/", self.learner_user, **self.hour_payload(), fichier="existing-private-key.pdf"),
+            400,
+            "validation_error",
+        )
         assert self.state() == before
         self.record()
         before = self.state()
@@ -157,14 +173,18 @@ class PracticalEvidenceTests(PracticalFixture):
         existing = self.upload()
         assert existing.status_code == 201, existing.data
         practical_model("AuditPratique").objects.create(
-            dossier_id=self.dossier["id"], version=self.dossier["version"] + 1,
-            action="heure_creation", acteur=self.manager, acteur_nom="Audit collision",
+            dossier_id=self.dossier["id"],
+            version=self.dossier["version"] + 1,
+            action="heure_creation",
+            acteur=self.manager,
+            acteur_nom="Audit collision",
         )
         before = self.state()
         self.client.raise_request_exception = False
         try:
             response = self.upload(
-                payload=self.hour_payload(heure_debut="12:00", heure_fin="13:00"), content=PDF + b"must be removed",
+                payload=self.hour_payload(heure_debut="12:00", heure_fin="13:00"),
+                content=PDF + b"must be removed",
             )
         finally:
             self.client.raise_request_exception = True

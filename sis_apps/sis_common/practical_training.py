@@ -80,8 +80,11 @@ def validate(command, data):
 def compare_version(aggregate, version, *, programme=False):
     if aggregate.version != version:
         raise PracticalConflict(
-            "Le programme a été modifié. Rechargez sa version." if aggregate._meta.model_name == "programmepratique"
-            else "Le dossier a été modifié. Rechargez sa version.",
+            (
+                "Le programme a été modifié. Rechargez sa version."
+                if aggregate._meta.model_name == "programmepratique"
+                else "Le dossier a été modifié. Rechargez sa version."
+            ),
             "version_perimee",
             current_version=aggregate.version,
             errors={"programme_version": ["current_version désigne la version du programme."]} if programme else {},
@@ -89,9 +92,7 @@ def compare_version(aggregate, version, *, programme=False):
 
 
 def programme_queryset(request):
-    return scoped(
-        model("ProgrammePratique").objects.all(), request.user, "manage", request.tenant
-    )
+    return scoped(model("ProgrammePratique").objects.all(), request.user, "manage", request.tenant)
 
 
 def get_programme(request, programme_id, *, locked=False):
@@ -233,9 +234,7 @@ def capabilities(request):
     programme_manager = programme_queryset(request).exists() if manager else False
     # A new programme has neither programme_id nor dossier_id to satisfy a scope.
     create = manages(request)
-    limits = {} if request.user.is_superuser else constraints(
-        request.user.attributs_acces, PERMISSIONS["manage"]
-    )
+    limits = {} if request.user.is_superuser else constraints(request.user.attributs_acces, PERMISSIONS["manage"])
     list_programmes = manager and limits is not None and "dossier_id" not in limits
     return {
         "contract_version": 1,
@@ -307,7 +306,10 @@ def dossiers(request, query):
             continue
         if query.get("q"):
             snapshot = dossier.snapshot
-            labels = f"{snapshot['apprenant']['utilisateur']['nom']} {snapshot['apprenant']['matricule']} {snapshot['entreprise']['nom']}"
+            labels = (
+                f"{snapshot['apprenant']['utilisateur']['nom']} "
+                f"{snapshot['apprenant']['matricule']} {snapshot['entreprise']['nom']}"
+            )
             if query["q"].casefold() not in labels.casefold():
                 continue
         result.append(dossier)
@@ -329,7 +331,8 @@ def eligible_convention(convention, programme, request):
     if not permissions["can_validate"] and not permissions["can_evaluate"]:
         raise PracticalRuleError("Le tuteur doit être habilité à valider ou évaluer.", field="convention")
     binding["dto"]["habilitations_tuteur"] = {
-        "can_validate": permissions["can_validate"], "can_evaluate": permissions["can_evaluate"]
+        "can_validate": permissions["can_validate"],
+        "can_evaluate": permissions["can_evaluate"],
     }
     if binding["partner"]:
         partner = get_user_model().objects.get(pk=binding["partner"].pk)
@@ -348,7 +351,8 @@ def _convention_context(convention, programme, tenant):
             raise NotFound()
         if secondary():
             registrations = learner.inscriptions.filter(
-                classe_id=programme.curriculum_id, annee_scolaire__etablissement_id=tenant.pk,
+                classe_id=programme.curriculum_id,
+                annee_scolaire__etablissement_id=tenant.pk,
             )
         else:
             if (
@@ -357,7 +361,8 @@ def _convention_context(convention, programme, tenant):
             ):
                 raise NotFound()
             registrations = learner.inscriptions_admin.filter(
-                formation_id=programme.curriculum_id, annee_universitaire__universite_id=tenant.pk,
+                formation_id=programme.curriculum_id,
+                annee_universitaire__universite_id=tenant.pk,
             )
         if not registrations.exists():
             raise NotFound()
@@ -376,7 +381,9 @@ def convention_candidates(request, programme, numero, query=""):
     require(manages(request, programme=programme))
     selected_revision(programme, numero)
     linked = model("DossierPratique").objects.values("convention_id")
-    queryset = model("ConventionStage").objects.filter(statut="complete").exclude(pk__in=linked).order_by("-date_debut", "pk")
+    queryset = (
+        model("ConventionStage").objects.filter(statut="complete").exclude(pk__in=linked).order_by("-date_debut", "pk")
+    )
     rows = []
     for convention in queryset:
         try:
@@ -401,8 +408,10 @@ def partner_candidates(request, programme, convention_id, numero, query=""):
         binding = eligible_convention(convention, programme, request)
     except (PracticalRuleError, ObjectDoesNotExist, ValueError, TypeError) as error:
         raise NotFound() from error
-    candidates = get_user_model().objects.filter(etablissement_id=request.tenant.pk, is_active=True).exclude(
-        pk__in=[binding["learner"].user_id, binding["tutor"].pk]
+    candidates = (
+        get_user_model()
+        .objects.filter(etablissement_id=request.tenant.pk, is_active=True)
+        .exclude(pk__in=[binding["learner"].user_id, binding["tutor"].pk])
     )
     rows = []
     for user in candidates.order_by("pk"):
@@ -428,23 +437,32 @@ def create_programme(request, data):
                 curriculum_dto(source, request.tenant)
             except PracticalRuleError as error:
                 raise NotFound() from error
-            if model("ProgrammePratique").objects.filter(
-                etablissement=request.tenant, curriculum=source, code=data["code"]
-            ).exists():
+            if (
+                model("ProgrammePratique")
+                .objects.filter(etablissement=request.tenant, curriculum=source, code=data["code"])
+                .exists()
+            ):
                 raise PracticalConflict("Ce programme existe déjà.", "programme_existant")
             programme = model("ProgrammePratique").objects.create(
-                etablissement=request.tenant, curriculum=source, code=data["code"], cree_par=request.user,
+                etablissement=request.tenant,
+                curriculum=source,
+                code=data["code"],
+                cree_par=request.user,
             )
             revision = model("RevisionProgrammePratique").objects.create(
-                programme=programme, numero=1, cree_par=request.user,
+                programme=programme,
+                numero=1,
+                cree_par=request.user,
                 **{field: data[field] for field in ("titre", "minutes_requises", "competences")},
             )
             audit(request, programme, "programme_creation", revision_id=revision.pk)
             return programme_envelope(programme, request)
     except IntegrityError as error:
-        if model("ProgrammePratique").objects.filter(
-            etablissement=request.tenant, curriculum_id=data["curriculum"], code=data["code"]
-        ).exists():
+        if (
+            model("ProgrammePratique")
+            .objects.filter(etablissement=request.tenant, curriculum_id=data["curriculum"], code=data["code"])
+            .exists()
+        ):
             raise PracticalConflict("Ce programme existe déjà.", "programme_existant") from error
         raise
 
@@ -483,8 +501,11 @@ def programme_command(request, programme_id, action, data):
             if source is None or programme.revisions.filter(statut="brouillon").exists():
                 raise PracticalConflict("Une source publiée/archivée et l'absence de brouillon sont requises.")
             current = model("RevisionProgrammePratique").objects.create(
-                programme=programme, numero=current.numero + 1, cree_par=request.user,
-                titre=source.titre, minutes_requises=source.minutes_requises,
+                programme=programme,
+                numero=current.numero + 1,
+                cree_par=request.user,
+                titre=source.titre,
+                minutes_requises=source.minutes_requises,
                 competences=deepcopy(source.competences),
             )
         elif action == "archivage":
@@ -493,9 +514,7 @@ def programme_command(request, programme_id, action, data):
                 raise PracticalConflict("Cette révision ne peut pas être archivée.")
             _archive_revision(current, request.user)
         advance(programme)
-        audit(
-            request, programme, f"programme_{action}", revision_id=current.pk, motif=data.get("motif")
-        )
+        audit(request, programme, f"programme_{action}", revision_id=current.pk, motif=data.get("motif"))
         return programme_envelope(programme, request)
 
 
@@ -516,10 +535,16 @@ def _publish(request, programme, revision):
     curriculum = curriculum_dto(source, request.tenant)
     now = timezone.now()
     snapshot = {
-        "programme_id": programme.pk, "revision_id": revision.pk, "revision": revision.numero,
-        "code": programme.code, "titre": revision.titre, "curriculum": curriculum,
-        "minutes_requises": revision.minutes_requises, "competences": deepcopy(revision.competences),
-        "offre_source": curriculum["offre"], "published_at": stamp(now),
+        "programme_id": programme.pk,
+        "revision_id": revision.pk,
+        "revision": revision.numero,
+        "code": programme.code,
+        "titre": revision.titre,
+        "curriculum": curriculum,
+        "minutes_requises": revision.minutes_requises,
+        "competences": deepcopy(revision.competences),
+        "offre_source": curriculum["offre"],
+        "published_at": stamp(now),
     }
     snapshot["sha256"] = canonical_hash(snapshot)
     for published in programme.revisions.filter(statut="publie").order_by("pk"):
@@ -576,13 +601,22 @@ def open_dossier(request, data):
                     raise ValidationError({"partenaire_utilisateur": ["Partenaire local habilité requis."]})
             extra = {} if secondary() else {"contact_entreprise": binding["contact"]}
             dossier = model("DossierPratique").objects.create(
-                etablissement=request.tenant, convention=convention, programme_revision=revision,
-                apprenant=binding["learner"], inscription=binding["registration"],
-                apprenant_user=binding["learner"].user, tuteur_interne_user=binding["tutor"],
-                partenaire_user=partner, snapshot=deepcopy(binding["dto"]),
-                programme_snapshot=deepcopy(revision.snapshot), identite=deepcopy(binding["identity"]),
-                date_debut=convention.date_debut, date_fin=convention.date_fin,
-                fuseau_horaire=request.tenant.fuseau_horaire, cree_par=request.user, **extra,
+                etablissement=request.tenant,
+                convention=convention,
+                programme_revision=revision,
+                apprenant=binding["learner"],
+                inscription=binding["registration"],
+                apprenant_user=binding["learner"].user,
+                tuteur_interne_user=binding["tutor"],
+                partenaire_user=partner,
+                snapshot=deepcopy(binding["dto"]),
+                programme_snapshot=deepcopy(revision.snapshot),
+                identite=deepcopy(binding["identity"]),
+                date_debut=convention.date_debut,
+                date_fin=convention.date_fin,
+                fuseau_horaire=request.tenant.fuseau_horaire,
+                cree_par=request.user,
+                **extra,
             )
             audit(request, dossier, "dossier_ouverture", revision_id=revision.pk)
             return dossier_envelope(dossier, request)
@@ -596,9 +630,16 @@ def _decision(request, dossier, hour, action, state, *, reason=None, replacement
     before = None if creation else hour.statut
     sequence = (hour.decisions.aggregate(number=Max("sequence"))["number"] or 0) + 1
     decision = model("DecisionHeurePratique").objects.create(
-        heure=hour, sequence=sequence, action=action, etat_avant=before, etat_apres=state,
-        motif=reason, acteur=request.user, acteur_nom=actor(request.user)["nom"],
-        version_dossier=dossier.version, heure_remplacement=replacement,
+        heure=hour,
+        sequence=sequence,
+        action=action,
+        etat_avant=before,
+        etat_apres=state,
+        motif=reason,
+        acteur=request.user,
+        acteur_nom=actor(request.user)["nom"],
+        version_dossier=dossier.version,
+        heure_remplacement=replacement,
     )
     if hour.statut != state:
         hour.statut = state
@@ -622,9 +663,9 @@ def dossier_command(request, dossier_id, action, data):
             dossier.partenaire_revoque_par = request.user
             dossier.motif_revocation = data["motif"]
             dossier.version += 1
-            dossier.save(update_fields=[
-                "version", "partenaire_revoque_le", "partenaire_revoque_par", "motif_revocation"
-            ])
+            dossier.save(
+                update_fields=["version", "partenaire_revoque_le", "partenaire_revoque_par", "motif_revocation"]
+            )
             audit(request, dossier, action, motif=data["motif"], heures_annulees=[])
             return dossier_envelope(dossier, request)
         assert_work_bindings(request, dossier)
@@ -632,7 +673,8 @@ def dossier_command(request, dossier_id, action, data):
             report = wire.report_dto(dossier, request)
             if not report["seuils_atteints"]:
                 raise PracticalConflict(
-                    "Les exigences pratiques ne sont pas atteintes.", "seuils_non_atteints",
+                    "Les exigences pratiques ne sont pas atteintes.",
+                    "seuils_non_atteints",
                     unmet=report["criteres_non_satisfaits"],
                 )
         elif action != "annulation":
@@ -640,8 +682,12 @@ def dossier_command(request, dossier_id, action, data):
         dossier.version += 1
         for hour in dossier.heures.filter(statut__in=["brouillon", "soumise"]).order_by("pk").select_for_update():
             _decision(
-                request, dossier, hour, "fermeture" if action == "cloture" else "annulation",
-                "annulee", reason=data.get("motif"),
+                request,
+                dossier,
+                hour,
+                "fermeture" if action == "cloture" else "annulation",
+                "annulee",
+                reason=data.get("motif"),
             )
             cancelled.append(hour.pk)
         if action == "cloture":
@@ -658,12 +704,22 @@ def dossier_command(request, dossier_id, action, data):
 
 def _interval(request, dossier, data, *, replaced=None):
     left, right, amount = wall_interval(
-        data["date"], data["heure_debut"], data["heure_fin"], data["pause_minutes"],
-        dossier.fuseau_horaire, timezone.now(), dossier.date_debut, dossier.date_fin,
+        data["date"],
+        data["heure_debut"],
+        data["heure_fin"],
+        data["pause_minutes"],
+        dossier.fuseau_horaire,
+        timezone.now(),
+        dossier.date_debut,
+        dossier.date_fin,
     )
     conflicts = model("HeurePratique").objects.filter(
-        dossier__etablissement_id=request.tenant.pk, apprenant_id=dossier.apprenant_id,
-        date=data["date"], statut__in=LIVE_STATES, minute_debut__lt=right, minute_fin__gt=left,
+        dossier__etablissement_id=request.tenant.pk,
+        apprenant_id=dossier.apprenant_id,
+        date=data["date"],
+        statut__in=LIVE_STATES,
+        minute_debut__lt=right,
+        minute_fin__gt=left,
     )
     if replaced:
         conflicts = conflicts.exclude(pk=replaced.pk)
@@ -717,9 +773,13 @@ def _insert_evidenced(owner, upload, metadata, written):
 
 
 HOUR_COMMANDS = {
-    "creation": wire.RecordHour, "remplacement": wire.ReplaceHour,
-    "soumission": wire.Version, "validation": wire.Version,
-    "rejet": wire.Reason, "annulation": wire.Reason, "invalidation": wire.Reason,
+    "creation": wire.RecordHour,
+    "remplacement": wire.ReplaceHour,
+    "soumission": wire.Version,
+    "validation": wire.Version,
+    "rejet": wire.Reason,
+    "annulation": wire.Reason,
+    "invalidation": wire.Reason,
 }
 HOUR_TRANSITIONS = {
     "soumission": (("brouillon",), "soumise"),
@@ -747,24 +807,39 @@ def hour_command(request, dossier_id, action, data, heure_id=None, upload=None):
             previous = None
             if action in ("creation", "remplacement"):
                 if action == "remplacement":
-                    if hour.statut not in ("brouillon", "rejetee", "annulee") or dossier.heures.filter(remplace=hour).exists():
+                    if (
+                        hour.statut not in ("brouillon", "rejetee", "annulee")
+                        or dossier.heures.filter(remplace=hour).exists()
+                    ):
                         raise PracticalConflict("Cette heure ne peut pas être remplacée.")
                     previous = hour
                 left, right, amount = _interval(request, dossier, data, replaced=previous)
                 metadata = _evidence_metadata(upload)
                 dossier.version += 1
                 hour = model("HeurePratique")(
-                    dossier=dossier, apprenant_id=dossier.apprenant_id, date=data["date"],
-                    minute_debut=left, minute_fin=right, pause_minutes=data["pause_minutes"],
-                    minutes=amount, activite=data["activite"], saisi_par=request.user,
-                    version_creation=dossier.version, remplace=previous,
+                    dossier=dossier,
+                    apprenant_id=dossier.apprenant_id,
+                    date=data["date"],
+                    minute_debut=left,
+                    minute_fin=right,
+                    pause_minutes=data["pause_minutes"],
+                    minutes=amount,
+                    activite=data["activite"],
+                    saisi_par=request.user,
+                    version_creation=dossier.version,
+                    remplace=previous,
                 )
                 _insert_evidenced(hour, upload, metadata, written)
                 _decision(request, dossier, hour, "creation", "brouillon", creation=True)
                 if previous:
                     _decision(
-                        request, dossier, previous, "remplacement", "annulee",
-                        reason=data["motif"], replacement=hour,
+                        request,
+                        dossier,
+                        previous,
+                        "remplacement",
+                        "annulee",
+                        reason=data["motif"],
+                        replacement=hour,
                     )
             else:
                 allowed, state = HOUR_TRANSITIONS[action]
@@ -775,7 +850,8 @@ def hour_command(request, dossier_id, action, data, heure_id=None, upload=None):
             dossier.save(update_fields=["version"])
             audit(request, dossier, f"heure_{action}", heure_id=hour.pk, motif=data.get("motif"))
             return {
-                "version": dossier.version, "heure": wire.hour_dto(hour, dossier, request),
+                "version": dossier.version,
+                "heure": wire.hour_dto(hour, dossier, request),
                 "heure_precedente": wire.hour_dto(previous, dossier, request) if previous else None,
             }
 
@@ -803,22 +879,31 @@ def assess_competency(request, dossier_id, code, data, upload=None):
                 raise PracticalRuleError("L'observation ne peut être future.", "travail_futur", "date_observation")
             previous = dossier.evaluations_pratiques.filter(code=code).order_by("-revision").select_for_update().first()
             if bool(previous) != ("motif_revision" in data):
-                raise ValidationError({
-                    "motif_revision": ["Un motif est requis uniquement pour réviser une évaluation existante."]
-                })
+                raise ValidationError(
+                    {"motif_revision": ["Un motif est requis uniquement pour réviser une évaluation existante."]}
+                )
             metadata = _evidence_metadata(upload)
             dossier.version += 1
             assessment = model("EvaluationCompetencePratique")(
-                dossier=dossier, code=code, revision=previous.revision + 1 if previous else 1,
-                acquise=data["acquise"], contexte_professionnel=data["contexte_professionnel"],
-                date_observation=day, motif_revision=data.get("motif_revision"), remplace=previous,
-                evalue_par=request.user, evaluateur_nom=actor(request.user)["nom"],
+                dossier=dossier,
+                code=code,
+                revision=previous.revision + 1 if previous else 1,
+                acquise=data["acquise"],
+                contexte_professionnel=data["contexte_professionnel"],
+                date_observation=day,
+                motif_revision=data.get("motif_revision"),
+                remplace=previous,
+                evalue_par=request.user,
+                evaluateur_nom=actor(request.user)["nom"],
                 version_creation=dossier.version,
             )
             _insert_evidenced(assessment, upload, metadata, written)
             dossier.save(update_fields=["version"])
             audit(
-                request, dossier, "competence_evaluation", evaluation_id=assessment.pk,
+                request,
+                dossier,
+                "competence_evaluation",
+                evaluation_id=assessment.pk,
                 motif=data.get("motif_revision"),
             )
             return {"version": dossier.version, "evaluation": wire.assessment_dto(assessment)}

@@ -328,16 +328,20 @@ def send_notification_email(schema_name, notification_id):
     with schema_context(schema_name):
         WorkflowNotification = _core_model("WorkflowNotification")
         with transaction.atomic():
-            notification = WorkflowNotification.objects.select_for_update(of=("self",)).select_related(
-                "recipient", "event"
-            ).get(pk=notification_id)
+            notification = (
+                WorkflowNotification.objects.select_for_update(of=("self",))
+                .select_related("recipient", "event")
+                .get(pk=notification_id)
+            )
             state = (notification.metadata or {}).get("delivery", {}).get("email", {}).get("status")
             if state == "sent":
                 return {"status": "sent"}
             if state in ("sending", "uncertain"):
                 if state == "sending":
                     _update_notification_channel(
-                        notification, "email", "uncertain",
+                        notification,
+                        "email",
+                        "uncertain",
                         error="Envoi interrompu : rapprochement SMTP obligatoire avant reprise.",
                     )
                 return {"status": "uncertain"}
@@ -357,9 +361,7 @@ def send_notification_email(schema_name, notification_id):
                 or getattr(settings, "EMAIL_HOST", "") in ("", "localhost", "127.0.0.1")
                 or not getattr(settings, "DEFAULT_FROM_EMAIL", "")
             ):
-                _update_notification_channel(
-                    notification, "email", "not_configured", error="SMTP réel non configuré."
-                )
+                _update_notification_channel(notification, "email", "not_configured", error="SMTP réel non configuré.")
                 return {"status": "not_configured"}
             _update_notification_channel(notification, "email", "sending")
         try:
@@ -372,13 +374,18 @@ def send_notification_email(schema_name, notification_id):
             )
         except Exception:
             _update_notification_channel(
-                notification, "email", "uncertain",
+                notification,
+                "email",
+                "uncertain",
                 error="Accusé SMTP incertain : vérifier chez le prestataire avant toute reprise.",
             )
             return {"status": "uncertain"}
         if sent_count == 0:
             _update_notification_channel(
-                notification, "email", "failed", error="Aucun envoi accepté par SMTP.",
+                notification,
+                "email",
+                "failed",
+                error="Aucun envoi accepté par SMTP.",
                 extra={"retry_safe": True},
             )
             raise RuntimeError("Le backend email n'a pas confirmé l'envoi.")

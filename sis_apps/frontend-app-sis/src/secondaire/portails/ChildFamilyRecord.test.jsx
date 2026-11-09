@@ -1,6 +1,8 @@
 /* eslint-disable react/prop-types -- lightweight records-tab rendering stub */
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent, render, screen, waitFor,
+} from '@testing-library/react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '../../services/api';
 import { downloadPdf } from '../../services/resources';
@@ -22,8 +24,14 @@ jest.mock('../../components/common/RecordsTabs', () => function Panels({ panels 
 
 const pupils = [{ id: 4, nom: 'Enfant A' }, { id: 5, nom: 'Enfant B' }];
 const record = {
-  enfant: { id: 4, nom: 'Enfant A' }, notes: [], absences: [], planning: [], factures: [],
-  bulletins: [{ id: 9, periode: 'Trimestre 1', classe: '6e A', moyenne: 15 }],
+  enfant: { id: 4, nom: 'Enfant A' },
+  notes: [],
+  absences: [],
+  planning: [],
+  factures: [],
+  bulletins: [{
+    id: 9, periode: 'Trimestre 1', classe: '6e A', moyenne: 15,
+  }],
 };
 const selectChild = () => {
   fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Consulter le dossier d’un enfant' }));

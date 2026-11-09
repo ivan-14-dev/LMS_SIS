@@ -52,11 +52,18 @@ def audit(request, payment, action_name, title):
     tenant_id = getattr(getattr(request, "tenant", None), "pk", None)
     recipients = [user] if user and user.is_active and user.etablissement_id == tenant_id else []
     return record_workflow_event(
-        request, payment, action_name, title,
+        request,
+        payment,
+        action_name,
+        title,
         message=f"{title} : {payment.numero}, facture {payment.facture.numero}.",
         recipients=recipients,
-        metadata={"paiement_id": payment.pk, "facture_id": payment.facture_id,
-                  "devise": payment.facture.devise, "montant": str(payment.montant)},
+        metadata={
+            "paiement_id": payment.pk,
+            "facture_id": payment.facture_id,
+            "devise": payment.facture.devise,
+            "montant": str(payment.montant),
+        },
     )
 
 
@@ -71,14 +78,20 @@ class PaymentReviewMixin:
         if payment.statut not in ("valide", "rembourse"):
             return Response({"error": "Aucun reçu avant confirmation serveur."}, status=409)
         total = confirmed_total(payment.facture)
-        return Response({
-            "numero": payment.numero, "facture": payment.facture.numero,
-            "montant": payment.montant, "devise": payment.facture.devise,
-            "statut": payment.statut, "reference": payment.reference_externe,
-            "confirme_le": payment.verifie_le,
-            "montant_confirme_facture": total, "solde": payment.facture.montant - total,
-            "remboursement": payment.remboursement,
-        })
+        return Response(
+            {
+                "numero": payment.numero,
+                "facture": payment.facture.numero,
+                "montant": payment.montant,
+                "devise": payment.facture.devise,
+                "statut": payment.statut,
+                "reference": payment.reference_externe,
+                "confirme_le": payment.verifie_le,
+                "montant_confirme_facture": total,
+                "solde": payment.facture.montant - total,
+                "remboursement": payment.remboursement,
+            }
+        )
 
     @action(detail=True, methods=["get"], url_path="justificatif-remboursement")
     def justificatif_remboursement(self, request, pk=None):
@@ -96,7 +109,8 @@ class PaymentReviewMixin:
         serializer = RefundRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payment.remboursement = {
-            "demande_par": request.user.pk, "demande_le": timezone.now().isoformat(),
+            "demande_par": request.user.pk,
+            "demande_le": timezone.now().isoformat(),
             "motif": serializer.validated_data["motif"],
             "reference": serializer.validated_data["reference"],
         }
@@ -105,8 +119,13 @@ class PaymentReviewMixin:
         audit(request, payment, "demande_remboursement", "Remboursement soumis au contrôle distinct")
         return Response(self.get_serializer(payment).data)
 
-    @action(detail=False, methods=["post"], url_path="callback-stripe",
-            authentication_classes=[], permission_classes=[AllowAny])
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="callback-stripe",
+        authentication_classes=[],
+        permission_classes=[AllowAny],
+    )
     @transaction.atomic
     def callback_stripe(self, request):
         try:
@@ -123,27 +142,37 @@ class PaymentReviewMixin:
             return Response({"error": "Événement invalide."}, status=400)
         metadata = intent.get("metadata") or {}
         tenant = getattr(request, "tenant", None)
-        if not isinstance(metadata, dict) or not tenant or (
-            metadata.get("sis_variant") != settings.SIS_VARIANT
-            or metadata.get("sis_tenant_id") != str(tenant.pk)
-            or metadata.get("sis_tenant_schema") != tenant.schema_name
+        if (
+            not isinstance(metadata, dict)
+            or not tenant
+            or (
+                metadata.get("sis_variant") != settings.SIS_VARIANT
+                or metadata.get("sis_tenant_id") != str(tenant.pk)
+                or metadata.get("sis_tenant_schema") != tenant.schema_name
+            )
         ):
             return Response({"error": "Événement hors établissement."}, status=403)
         # The model manager is used only after signature and tenant verification;
         # public callbacks cannot inherit a browser user's invoice scope.
         model = self.serializer_class.Meta.model
-        candidates = list(model.objects.select_related("facture").filter(
-            mode="carte", reference_externe=intent.get("id"), facture__numero=metadata.get("sis_invoice"),
-        )[:2])
+        candidates = list(
+            model.objects.select_related("facture").filter(
+                mode="carte",
+                reference_externe=intent.get("id"),
+                facture__numero=metadata.get("sis_invoice"),
+            )[:2]
+        )
         if len(candidates) != 1:
             return Response({"error": "Paiement absent ou référence ambiguë."}, status=409)
         payment = candidates[0]
         student = learner(payment.facture)
-        year = getattr(payment.facture.type_frais, "annee_universitaire", None) or payment.facture.type_frais.annee_scolaire
-        if (
-            (getattr(student, "universite_id", None) or getattr(student, "etablissement_id", None)) != tenant.pk
-            or (getattr(year, "universite_id", None) or getattr(year, "etablissement_id", None)) != tenant.pk
-        ):
+        year = (
+            getattr(payment.facture.type_frais, "annee_universitaire", None)
+            or payment.facture.type_frais.annee_scolaire
+        )
+        if (getattr(student, "universite_id", None) or getattr(student, "etablissement_id", None)) != tenant.pk or (
+            getattr(year, "universite_id", None) or getattr(year, "etablissement_id", None)
+        ) != tenant.pk:
             return Response({"error": "Facture hors établissement."}, status=403)
         currency = payment.facture.devise
         if currency not in CURRENCY_EXPONENTS or (

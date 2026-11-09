@@ -37,8 +37,10 @@ def stamp(value):
 
 def period(value):
     return {
-        "id": value.pk, "libelle": value.libelle,
-        "date_debut": value.date_debut.isoformat(), "date_fin": value.date_fin.isoformat(),
+        "id": value.pk,
+        "libelle": value.libelle,
+        "date_debut": value.date_debut.isoformat(),
+        "date_fin": value.date_fin.isoformat(),
     }
 
 
@@ -55,8 +57,11 @@ def offering(source):
     except (DjangoValidationError, TypeError, KeyError, ValueError) as error:
         raise PracticalRuleError("L'offre académique est invalide.", field="curriculum") from error
     return {
-        "code": value["code"], "label": value["label"], "version": value["version"],
-        "mode_evaluation": value["assessment"]["mode"], "sha256": canonical_hash(value),
+        "code": value["code"],
+        "label": value["label"],
+        "version": value["version"],
+        "mode_evaluation": value["assessment"]["mode"],
+        "sha256": canonical_hash(value),
     }
 
 
@@ -94,8 +99,10 @@ def curriculum_identity(source, tenant, *, active=True):
 def curriculum_dto(source, tenant, *, active=True, validate_offering=True):
     curriculum_identity(source, tenant, active=active)
     return {
-        "id": source.pk, "type": "classe" if secondary() else "formation",
-        "libelle": source.nom, "code": None if secondary() else source.code,
+        "id": source.pk,
+        "type": "classe" if secondary() else "formation",
+        "libelle": source.nom,
+        "code": None if secondary() else source.code,
         "annee": period(source.annee_scolaire) if secondary() else None,
         "offre": offering(source) if validate_offering else None,
     }
@@ -117,8 +124,10 @@ def convention_binding(convention, programme, tenant, *, active=True, inscriptio
     if active and learner.statut not in ("inscrit", "redoublant"):
         raise PracticalRuleError("L'apprenant n'est pas inscrit.", field="convention")
     if (
-        convention.statut != "complete" or not convention.date_signature_complete
-        or convention.date_fin < convention.date_debut or not convention.missions.strip()
+        convention.statut != "complete"
+        or not convention.date_signature_complete
+        or convention.date_fin < convention.date_debut
+        or not convention.missions.strip()
     ):
         raise PracticalRuleError("Une convention complète et cohérente est requise.", field="convention")
     if secondary():
@@ -133,10 +142,12 @@ def convention_binding(convention, programme, tenant, *, active=True, inscriptio
         if active:
             registrations = registrations.filter(statut="validee")
         year_field = "annee_universitaire"
-    registrations = registrations.filter(**{
-        f"{year_field}__date_debut__lte": convention.date_debut,
-        f"{year_field}__date_fin__gte": convention.date_fin,
-    })
+    registrations = registrations.filter(
+        **{
+            f"{year_field}__date_debut__lte": convention.date_debut,
+            f"{year_field}__date_fin__gte": convention.date_fin,
+        }
+    )
     if inscription_id is not None:
         registrations = registrations.filter(pk=inscription_id)
     candidates = list(registrations.select_related(year_field)[:2])
@@ -157,45 +168,71 @@ def convention_binding(convention, programme, tenant, *, active=True, inscriptio
             active and (not contact.actif or not convention.entreprise.actif)
         ):
             raise PracticalRuleError("Entreprise ou contact incohérent/inactif.", field="convention")
-        if partner and (
-            not local_user(partner, tenant, active=active) or partner.pk in (learner.user_id, tutor.pk)
-        ):
+        if partner and (not local_user(partner, tenant, active=active) or partner.pk in (learner.user_id, tutor.pk)):
             raise PracticalRuleError("Compte de contact incompatible.", field="convention")
     identity = {
-        "convention": convention.pk, "apprenant": learner.pk, "apprenant_user": learner.user_id,
-        "tuteur_user": tutor.pk, "tuteur": None if secondary() else convention.tuteur_pedagogique_id,
-        "contact": contact.pk if contact else None, "contact_user": partner.pk if partner else None,
-        "entreprise": convention.entreprise_id, "offre": None if secondary() else convention.offre_id,
-        "date_debut": convention.date_debut.isoformat(), "date_fin": convention.date_fin.isoformat(),
-        "signature": stamp(convention.date_signature_complete), "missions": convention.missions,
-        "statut": convention.statut, "curriculum": ancestry, "inscription": registration.pk,
+        "convention": convention.pk,
+        "apprenant": learner.pk,
+        "apprenant_user": learner.user_id,
+        "tuteur_user": tutor.pk,
+        "tuteur": None if secondary() else convention.tuteur_pedagogique_id,
+        "contact": contact.pk if contact else None,
+        "contact_user": partner.pk if partner else None,
+        "entreprise": convention.entreprise_id,
+        "offre": None if secondary() else convention.offre_id,
+        "date_debut": convention.date_debut.isoformat(),
+        "date_fin": convention.date_fin.isoformat(),
+        "signature": stamp(convention.date_signature_complete),
+        "missions": convention.missions,
+        "statut": convention.statut,
+        "curriculum": ancestry,
+        "inscription": registration.pk,
         "annee": {"id": year.pk, "debut": year.date_debut.isoformat(), "fin": year.date_fin.isoformat()},
     }
     dto = {
-        "id": convention.pk, "empreinte": canonical_hash(identity),
+        "id": convention.pk,
+        "empreinte": canonical_hash(identity),
         "libelle": f"{actor(learner.user)['nom']} — {convention.entreprise.raison_sociale}",
         "statut": "complete",
         "apprenant": {"id": learner.pk, "utilisateur": actor(learner.user), "matricule": learner.matricule},
         "curriculum": curriculum_dto(source, tenant, active=active, validate_offering=active and validate_offering),
-        "inscription": {"id": registration.pk, "type": "inscription" if secondary() else "inscription_administrative",
-                        "annee": period(year)},
+        "inscription": {
+            "id": registration.pk,
+            "type": "inscription" if secondary() else "inscription_administrative",
+            "annee": period(year),
+        },
         "entreprise": {"id": convention.entreprise_id, "nom": convention.entreprise.raison_sociale},
-        "tuteur_interne": actor(tutor), "habilitations_tuteur": {"can_validate": False, "can_evaluate": False},
-        "partenaire_lie": actor(partner), "mode_partenaire": "affectation_explicite" if secondary() else "contact_entreprise",
+        "tuteur_interne": actor(tutor),
+        "habilitations_tuteur": {"can_validate": False, "can_evaluate": False},
+        "partenaire_lie": actor(partner),
+        "mode_partenaire": "affectation_explicite" if secondary() else "contact_entreprise",
         "contact_entreprise_id": contact.pk if contact else None,
-        "date_debut": identity["date_debut"], "date_fin": identity["date_fin"],
-        "date_signature_complete": identity["signature"], "missions": convention.missions,
+        "date_debut": identity["date_debut"],
+        "date_fin": identity["date_fin"],
+        "date_signature_complete": identity["signature"],
+        "missions": convention.missions,
         "duree_planifiee_minutes": convention.duree_heures * 60 if secondary() else None,
     }
-    return {"identity": identity, "dto": dto, "learner": learner, "tutor": tutor,
-            "partner": partner, "contact": contact, "registration": registration}
+    return {
+        "identity": identity,
+        "dto": dto,
+        "learner": learner,
+        "tutor": tutor,
+        "partner": partner,
+        "contact": contact,
+        "registration": registration,
+    }
 
 
 def binding_status(dossier, tenant, *, active=True):
     try:
         binding = convention_binding(
-            dossier.convention, dossier.programme_revision.programme, tenant,
-            active=active, inscription_id=dossier.inscription_id, validate_offering=False,
+            dossier.convention,
+            dossier.programme_revision.programme,
+            tenant,
+            active=active,
+            inscription_id=dossier.inscription_id,
+            validate_offering=False,
         )
         return binding["identity"] == dossier.identite
     except (PracticalRuleError, ObjectDoesNotExist, ValueError, TypeError):

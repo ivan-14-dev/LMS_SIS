@@ -103,15 +103,26 @@ class FactureFraisDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "numero", "montant_paye", "statut", "pdf_path", "qr_paiement", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "numero",
+            "montant_paye",
+            "statut",
+            "pdf_path",
+            "qr_paiement",
+            "created_at",
+            "updated_at",
+        ]
 
     def validate(self, data):
         request = self.context["request"]
         tenant_id = getattr(getattr(request, "tenant", None), "pk", None)
         student = data.get("etudiant", getattr(self.instance, "etudiant", None))
         fee = data.get("type_frais", getattr(self.instance, "type_frais", None))
-        if not tenant_id or request.user.etablissement_id != tenant_id or (
-            student.universite_id != tenant_id or fee.annee_universitaire.universite_id != tenant_id
+        if (
+            not tenant_id
+            or request.user.etablissement_id != tenant_id
+            or (student.universite_id != tenant_id or fee.annee_universitaire.universite_id != tenant_id)
         ):
             raise serializers.ValidationError("Facture hors établissement.")
         if self.instance and self.instance.paiements.exists():

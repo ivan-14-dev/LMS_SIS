@@ -45,8 +45,15 @@ class GuardianSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer
     class Meta:
         model = Tuteur
         fields = [
-            "id", "etablissement", "user", "compte", "nom", "prenom", "lien_parente",
-            "telephone", "email",
+            "id",
+            "etablissement",
+            "user",
+            "compte",
+            "nom",
+            "prenom",
+            "lien_parente",
+            "telephone",
+            "email",
         ]
         read_only_fields = ["id", "etablissement"]
         extra_kwargs = {"user": {"required": True, "allow_null": False}}
@@ -54,7 +61,9 @@ class GuardianSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer
     def get_fields(self):
         fields = super().get_fields()
         fields["user"].queryset = Utilisateur.objects.filter(
-            etablissement=self.context["request"].tenant, role="parent", is_active=True,
+            etablissement=self.context["request"].tenant,
+            role="parent",
+            is_active=True,
         )
         return fields
 
@@ -72,7 +81,12 @@ class GuardianLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = EleveTuteur
         fields = [
-            "id", "eleve", "eleve_nom", "tuteur", "tuteur_nom", "autorise_acces_portail",
+            "id",
+            "eleve",
+            "eleve_nom",
+            "tuteur",
+            "tuteur_nom",
+            "autorise_acces_portail",
         ]
         read_only_fields = ["id"]
         extra_kwargs = {"autorise_acces_portail": {"required": True}}
@@ -82,7 +96,10 @@ class GuardianLinkSerializer(serializers.ModelSerializer):
         tenant = self.context["request"].tenant
         fields["eleve"].queryset = Eleve.objects.filter(etablissement=tenant, user__etablissement=tenant)
         fields["tuteur"].queryset = Tuteur.objects.filter(
-            etablissement=tenant, user__etablissement=tenant, user__role="parent", user__is_active=True,
+            etablissement=tenant,
+            user__etablissement=tenant,
+            user__role="parent",
+            user__is_active=True,
         )
         return fields
 
@@ -104,16 +121,26 @@ class FamilyAuditViewSet(viewsets.ModelViewSet):
         return response
 
     def scoped_queryset(self, queryset, scope_fields):
-        visible_ids = filter_queryset_by_scopes(
-            queryset, self.request.user, _permission(self), scope_fields,
-        ).order_by().values("pk")
+        visible_ids = (
+            filter_queryset_by_scopes(
+                queryset,
+                self.request.user,
+                _permission(self),
+                scope_fields,
+            )
+            .order_by()
+            .values("pk")
+        )
         # DISTINCT belongs in the authorization subquery, not the row lock.
         return queryset.filter(pk__in=visible_ids)
 
     def _context(self, instance):
         if isinstance(instance, EleveTuteur):
-            return {"eleves": instance.eleve_id, "classes": instance.eleve.classe_actuelle_id,
-                    "tuteurs": instance.tuteur_id}
+            return {
+                "eleves": instance.eleve_id,
+                "classes": instance.eleve.classe_actuelle_id,
+                "tuteurs": instance.tuteur_id,
+            }
         return {"tuteurs": instance.pk, "comptes": instance.user_id}
 
     def _check_write(self, instance):
@@ -122,14 +149,18 @@ class FamilyAuditViewSet(viewsets.ModelViewSet):
 
     def _snapshot(self, instance):
         names = (
-            ("eleve_id", "tuteur_id", "autorise_acces_portail") if isinstance(instance, EleveTuteur)
+            ("eleve_id", "tuteur_id", "autorise_acces_portail")
+            if isinstance(instance, EleveTuteur)
             else ("user_id", "nom", "prenom", "lien_parente", "telephone", "email")
         )
         return {name: getattr(instance, name) for name in names}
 
     def _audit(self, instance, operation, before, after):
         record_workflow_event(
-            self.request, instance, f"family_{operation}", "Affiliation parent",
+            self.request,
+            instance,
+            f"family_{operation}",
+            "Affiliation parent",
             metadata={"before": before, "after": after},
         )
 
@@ -181,10 +212,16 @@ class FamilyAuditViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("La consultation de l'historique exige une permission explicite.")
         events = workflow_history_queryset(instance).filter(tenant_id=request.tenant.pk)
         page = self.paginate_queryset(events)
-        data = [{
-            "id": event.pk, "action": event.action, "created_at": event.created_at,
-            "actor_id": event.actor_id, "metadata": event.metadata,
-        } for event in (page if page is not None else events)]
+        data = [
+            {
+                "id": event.pk,
+                "action": event.action,
+                "created_at": event.created_at,
+                "actor_id": event.actor_id,
+                "metadata": event.metadata,
+            }
+            for event in (page if page is not None else events)
+        ]
         return self.get_paginated_response(data) if page is not None else Response(data)
 
 
@@ -194,9 +231,11 @@ class GuardiansViewSet(FamilyAuditViewSet):
 
     def get_queryset(self):
         return self.scoped_queryset(
-            Tuteur.objects.filter(etablissement=self.request.tenant).filter(
+            Tuteur.objects.filter(etablissement=self.request.tenant)
+            .filter(
                 Q(user__isnull=True) | Q(user__etablissement=self.request.tenant),
-            ).select_related("user"),
+            )
+            .select_related("user"),
             {"tuteurs": "pk", "comptes": "user_id"},
         ).order_by("nom", "prenom", "pk")
 
@@ -209,8 +248,10 @@ class GuardianLinksViewSet(FamilyAuditViewSet):
         tenant = self.request.tenant
         return self.scoped_queryset(
             EleveTuteur.objects.filter(
-                eleve__etablissement=tenant, eleve__user__etablissement=tenant,
-                tuteur__etablissement=tenant, tuteur__user__etablissement=tenant,
+                eleve__etablissement=tenant,
+                eleve__user__etablissement=tenant,
+                tuteur__etablissement=tenant,
+                tuteur__user__etablissement=tenant,
             ).select_related("eleve__user", "tuteur__user"),
             {"eleves": "eleve_id", "classes": "eleve__classe_actuelle_id", "tuteurs": "tuteur_id"},
         ).order_by("pk")

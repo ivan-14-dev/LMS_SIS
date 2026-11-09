@@ -149,10 +149,7 @@ class WebhookHandler:
             )
             event_id = payload.get("_event_id") or payload.get("event_id")
             if not event_id:
-                material = (
-                    f"{username}|{course_key}|{subsection_id}|{score}|"
-                    f"{max_score}|{timestamp.isoformat()}"
-                )
+                material = f"{username}|{course_key}|{subsection_id}|{score}|" f"{max_score}|{timestamp.isoformat()}"
                 event_id = hashlib.sha256(material.encode()).hexdigest()
 
             with transaction.atomic():
@@ -223,9 +220,7 @@ class WebhookHandler:
                 course__course_id=course_key,
             )
             percent = float(grade.get("percent_grade", 0))
-            enrollment.progression = min(
-                max(percent * 100 if percent <= 1 else percent, 0), 100
-            )
+            enrollment.progression = min(max(percent * 100 if percent <= 1 else percent, 0), 100)
             enrollment.last_sync = timezone.now()
             enrollment.save(update_fields=["progression", "last_sync"])
             return True

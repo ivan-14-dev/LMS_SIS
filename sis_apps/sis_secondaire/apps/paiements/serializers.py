@@ -15,8 +15,14 @@ class BudgetPrevisionnelSerializer(serializers.ModelSerializer):
     class Meta:
         model = BudgetPrevisionnel
         fields = [
-            "id", "annee_scolaire", "code", "libelle", "montant_prevu",
-            "statut", "created_at", "updated_at",
+            "id",
+            "annee_scolaire",
+            "code",
+            "libelle",
+            "montant_prevu",
+            "statut",
+            "created_at",
+            "updated_at",
         ]
         read_only_fields = ["id", "statut", "created_at", "updated_at"]
 
@@ -24,9 +30,7 @@ class BudgetPrevisionnelSerializer(serializers.ModelSerializer):
         super().__init__(*args, **kwargs)
         tenant = getattr(self.context.get("request"), "tenant", None)
         if tenant and tenant.pk:
-            self.fields["annee_scolaire"].queryset = AnneeScolaire.objects.filter(
-                etablissement_id=tenant.pk
-            )
+            self.fields["annee_scolaire"].queryset = AnneeScolaire.objects.filter(etablissement_id=tenant.pk)
 
     def validate_montant_prevu(self, value):
         if value <= 0:
@@ -159,8 +163,10 @@ class FactureDetailSerializer(serializers.ModelSerializer):
         tenant_id = getattr(getattr(request, "tenant", None), "pk", None)
         student = data.get("eleve", getattr(self.instance, "eleve", None))
         fee = data.get("type_frais", getattr(self.instance, "type_frais", None))
-        if not tenant_id or request.user.etablissement_id != tenant_id or (
-            student.etablissement_id != tenant_id or fee.annee_scolaire.etablissement_id != tenant_id
+        if (
+            not tenant_id
+            or request.user.etablissement_id != tenant_id
+            or (student.etablissement_id != tenant_id or fee.annee_scolaire.etablissement_id != tenant_id)
         ):
             raise serializers.ValidationError("Facture hors établissement.")
         if self.instance and self.instance.paiements.exists():

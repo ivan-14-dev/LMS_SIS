@@ -53,18 +53,12 @@ class ConventionStage(ProtectedLegacyBase):
         ("complete", "Complète"),
         ("annulee", "Annulée"),
     ]
-    eleve = models.ForeignKey(
-        Eleve, on_delete=models.CASCADE, related_name="conventions_stage"
-    )
-    entreprise = models.ForeignKey(
-        Entreprise, on_delete=models.PROTECT, related_name="conventions"
-    )
+    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="conventions_stage")
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.PROTECT, related_name="conventions")
     tuteur_entreprise = models.CharField(max_length=200)
     telephone_tuteur = models.CharField(max_length=20)
     email_tuteur = models.EmailField()
-    maitre_stage_etablissement = models.ForeignKey(
-        Utilisateur, on_delete=models.PROTECT, related_name="stages_suivis"
-    )
+    maitre_stage_etablissement = models.ForeignKey(Utilisateur, on_delete=models.PROTECT, related_name="stages_suivis")
     date_debut = models.DateField()
     date_fin = models.DateField()
     duree_heures = models.PositiveIntegerField()
@@ -72,9 +66,7 @@ class ConventionStage(ProtectedLegacyBase):
     missions = models.TextField()
     horaires = models.CharField(max_length=200, blank=True)
     pdf_path = models.CharField(max_length=500)
-    statut = models.CharField(
-        max_length=30, choices=STATUT_CHOICES, default="brouillon"
-    )
+    statut = models.CharField(max_length=30, choices=STATUT_CHOICES, default="brouillon")
     date_signature_complete = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -94,9 +86,7 @@ class SuiviStage(models.Model):
         ("appel", "Appel téléphonique"),
         ("rapport", "Rapport écrit"),
     ]
-    convention = models.ForeignKey(
-        ConventionStage, on_delete=models.CASCADE, related_name="suivis"
-    )
+    convention = models.ForeignKey(ConventionStage, on_delete=models.CASCADE, related_name="suivis")
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     date = models.DateField()
     commentaires = models.TextField()
@@ -114,21 +104,11 @@ class SuiviStage(models.Model):
 class EvaluationStage(models.Model):
     """Évaluation finale du stage."""
 
-    convention = models.OneToOneField(
-        ConventionStage, on_delete=models.CASCADE, related_name="evaluation"
-    )
-    note_entreprise = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
-    note_etablissement = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
-    note_soutenance = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
-    note_finale = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
+    convention = models.OneToOneField(ConventionStage, on_delete=models.CASCADE, related_name="evaluation")
+    note_entreprise = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    note_etablissement = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    note_soutenance = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    note_finale = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     rapport = models.FileField(upload_to="stages/rapports/", null=True, blank=True)
     appreciation_globale = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

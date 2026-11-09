@@ -28,9 +28,15 @@ class UpperPracticalBindingTests(PracticalFixture):
         assert self.client.get(path + f"{self.convention.pk}/partenaires/", {"revision": 1}).status_code == 404
         payload = self.opening_payload()
         before = self.state()
-        self.assert_error(self.client.post(
-            f"{BASE}dossiers/", {**payload, "partenaire_utilisateur": None}, format="json",
-        ), 400, "validation_error")
+        self.assert_error(
+            self.client.post(
+                f"{BASE}dossiers/",
+                {**payload, "partenaire_utilisateur": None},
+                format="json",
+            ),
+            400,
+            "validation_error",
+        )
         assert self.state() == before
         dossier = self.open_dossier()
         assert dossier["partenaire"]["id"] == self.partner.pk
@@ -88,7 +94,10 @@ class UpperPracticalBindingTests(PracticalFixture):
             lambda: model.objects.filter(pk=offer.pk).update(formation=None),
             lambda: model.objects.bulk_update([offer], ["formation"]),
             lambda: model.objects.bulk_create(
-                [offer], update_conflicts=True, update_fields=["formation"], unique_fields=["id"],
+                [offer],
+                update_conflicts=True,
+                update_fields=["formation"],
+                unique_fields=["id"],
             ),
         ):
             with self.assertRaises(ValidationError), transaction.atomic():  # noqa: PT027
@@ -104,7 +113,10 @@ class UpperPracticalBindingTests(PracticalFixture):
         model.objects.bulk_update([unlinked], ["formation"])
         unlinked.formation = self.curriculum
         model.objects.bulk_create(
-            [unlinked], update_conflicts=True, update_fields=["formation"], unique_fields=["id"],
+            [unlinked],
+            update_conflicts=True,
+            update_fields=["formation"],
+            unique_fields=["id"],
         )
         assert model.objects.get(pk=unlinked.pk).formation_id == self.curriculum.pk
         assert self.state() == before

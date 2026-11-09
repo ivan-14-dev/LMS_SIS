@@ -772,9 +772,7 @@ def visible_bulletins(request):
         .annotate(
             nb_matieres_individualisees=Count(
                 "eleve__affectations_matiere_individuelles",
-                filter=Q(
-                    eleve__affectations_matiere_individuelles__annee_scolaire_id=F("classe__annee_scolaire_id")
-                ),
+                filter=Q(eleve__affectations_matiere_individuelles__annee_scolaire_id=F("classe__annee_scolaire_id")),
                 distinct=True,
             )
         )
@@ -840,7 +838,10 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
                     raise PermissionDenied()
             else:
                 require_bulletin_permission(
-                    self.request, bulletin.classe, bulletin.periode, preparing=self.action == "rectifier",
+                    self.request,
+                    bulletin.classe,
+                    bulletin.periode,
+                    preparing=self.action == "rectifier",
                 )
         if connection.in_atomic_block and self.request.method not in ("GET", "HEAD", "OPTIONS"):
             return lock_bulletin(bulletin.pk)
@@ -849,9 +850,7 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     @staticmethod
     def _ensure_action_publication(data):
         if data.get("publie"):
-            raise serializers.ValidationError(
-                {"publie": "Utilisez l'action publier pour publier un bulletin."}
-            )
+            raise serializers.ValidationError({"publie": "Utilisez l'action publier pour publier un bulletin."})
 
     def perform_create(self, serializer):
         self._ensure_action_publication(serializer.validated_data)
@@ -861,11 +860,19 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     @staticmethod
     def _ensure_calculation_actions(serializer):
         if (
-            serializer.instance and serializer.instance.calcul_detail
+            serializer.instance
+            and serializer.instance.calcul_detail
             or {
-                "calcul_detail", "valide_par", "date_validation", "revision", "rectifie",
-                "motif_rectification", "rectification_demandee_par", "cle_rectification",
-            } & set(serializer.initial_data)
+                "calcul_detail",
+                "valide_par",
+                "date_validation",
+                "revision",
+                "rectifie",
+                "motif_rectification",
+                "rectification_demandee_par",
+                "cle_rectification",
+            }
+            & set(serializer.initial_data)
         ):
             raise serializers.ValidationError(
                 {"calcul": "Utilisez les actions de préparation, recalcul et validation du bulletin."}
@@ -884,9 +891,7 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         bulletin = lock_bulletin(instance.pk)
         if bulletin.publie:
-            raise serializers.ValidationError(
-                {"publie": "Un bulletin publié ne peut plus être supprimé."}
-            )
+            raise serializers.ValidationError({"publie": "Un bulletin publié ne peut plus être supprimé."})
         if bulletin.calcul_detail:
             require_bulletin_permission(self.request, bulletin.classe, bulletin.periode)
         if bulletin.rectifie_id:
@@ -912,8 +917,11 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
         if Bulletin.objects.filter(eleve=data["eleve"], periode=data["periode"]).exists():
             raise BulletinConflict("Un bulletin existe déjà pour cet élève et cette période.")
         bulletin = Bulletin.objects.create(
-            eleve=data["eleve"], classe=data["classe"], periode=data["periode"],
-            moyenne_generale=calcul["moyenne_generale"], calcul_detail=calcul,
+            eleve=data["eleve"],
+            classe=data["classe"],
+            periode=data["periode"],
+            moyenne_generale=calcul["moyenne_generale"],
+            calcul_detail=calcul,
         )
         record_workflow_event(request, bulletin, "preparation", "Brouillon de bulletin calculé")
         return Response(self.get_serializer(bulletin).data, status=201)
@@ -937,14 +945,23 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
             return Response(self.get_serializer(previous).data)
         calcul = calculate_bulletin(original.eleve, original.classe, original.periode)
         bulletin = Bulletin.objects.create(
-            eleve=original.eleve, classe=original.classe, periode=original.periode,
-            moyenne_generale=calcul["moyenne_generale"], calcul_detail=calcul,
-            revision=original.revision + 1, rectifie=original, motif_rectification=data["motif"],
-            rectification_demandee_par=request.user, cle_rectification=data["cle_idempotence"],
+            eleve=original.eleve,
+            classe=original.classe,
+            periode=original.periode,
+            moyenne_generale=calcul["moyenne_generale"],
+            calcul_detail=calcul,
+            revision=original.revision + 1,
+            rectifie=original,
+            motif_rectification=data["motif"],
+            rectification_demandee_par=request.user,
+            cle_rectification=data["cle_idempotence"],
         )
         # Do not expose a private draft (or its reason) through the original's family-visible history.
         record_workflow_event(
-            request, bulletin, "rectification", "Brouillon de rectification",
+            request,
+            bulletin,
+            "rectification",
+            "Brouillon de rectification",
             metadata={"rectifie": original.pk, "revision": bulletin.revision, "motif": data["motif"]},
         )
         return Response(self.get_serializer(bulletin).data, status=201)
@@ -966,10 +983,19 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
         bulletin.decision = ""
         bulletin.signe = False
         bulletin.date_signature = None
-        bulletin.save(update_fields=[
-            "calcul_detail", "moyenne_generale", "valide_par", "date_validation",
-            "appreciation_conseil", "decision", "signe", "date_signature", "updated_at",
-        ])
+        bulletin.save(
+            update_fields=[
+                "calcul_detail",
+                "moyenne_generale",
+                "valide_par",
+                "date_validation",
+                "appreciation_conseil",
+                "decision",
+                "signe",
+                "date_signature",
+                "updated_at",
+            ]
+        )
         record_workflow_event(request, bulletin, "recalcul", "Bulletin recalculé, validation à renouveler")
         return Response(self.get_serializer(bulletin).data)
 
@@ -988,9 +1014,15 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
         bulletin.date_validation = timezone.now()
         bulletin.appreciation_conseil = payload.validated_data["appreciation_conseil"]
         bulletin.decision = payload.validated_data["decision"]
-        bulletin.save(update_fields=[
-            "valide_par", "date_validation", "appreciation_conseil", "decision", "updated_at",
-        ])
+        bulletin.save(
+            update_fields=[
+                "valide_par",
+                "date_validation",
+                "appreciation_conseil",
+                "decision",
+                "updated_at",
+            ]
+        )
         record_workflow_event(request, bulletin, "validation", "Brouillon de bulletin vérifié et validé")
         return Response(self.get_serializer(bulletin).data)
 
@@ -1036,7 +1068,10 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
         )
         if bulletin.rectifie_id:
             record_workflow_event(
-                request, bulletin.rectifie, "rectification_publiee", "Rectification publiée",
+                request,
+                bulletin.rectifie,
+                "rectification_publiee",
+                "Rectification publiée",
                 metadata={"bulletin": bulletin.pk, "revision": bulletin.revision},
             )
         return Response({"detail": "Bulletin publié.", "id": bulletin.id})
@@ -1123,48 +1158,57 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
         if bulletin.calcul_detail:
             calcul = bulletin.calcul_detail
             sections[0]["rows"] = [
-                ("Élève", calcul["eleve"]["nom"]), ("Matricule", calcul["eleve"]["matricule"]),
-                ("Classe", calcul["classe"]["nom"]), ("Période", calcul["periode"]["libelle"]),
+                ("Élève", calcul["eleve"]["nom"]),
+                ("Matricule", calcul["eleve"]["matricule"]),
+                ("Classe", calcul["classe"]["nom"]),
+                ("Période", calcul["periode"]["libelle"]),
             ]
-            sections.append({
-                "title": "Calcul vérifié",
-                "rows": [("Méthode", calcul["formule"]), ("Arrondi", calcul["arrondi"])],
-            })
+            sections.append(
+                {
+                    "title": "Calcul vérifié",
+                    "rows": [("Méthode", calcul["formule"]), ("Arrondi", calcul["arrondi"])],
+                }
+            )
             for matiere in calcul["matieres"]:
-                sections.append({
-                    "title": matiere["nom"],
-                    "rows": [
-                        ("Moyenne sur 20", matiere["moyenne"]),
-                        ("Coefficient de matière", matiere["coefficient"]),
-                        *[
-                            (
-                                note["titre"],
-                                f"{note['valeur']}/{note['bareme']} ; coefficient {note['coefficient']} ; "
-                                f"pondération {note['ponderation']} % ; {note['appreciation']}",
-                            )
-                            for note in matiere["notes"]
+                sections.append(
+                    {
+                        "title": matiere["nom"],
+                        "rows": [
+                            ("Moyenne sur 20", matiere["moyenne"]),
+                            ("Coefficient de matière", matiere["coefficient"]),
+                            *[
+                                (
+                                    note["titre"],
+                                    f"{note['valeur']}/{note['bareme']} ; coefficient {note['coefficient']} ; "
+                                    f"pondération {note['ponderation']} % ; {note['appreciation']}",
+                                )
+                                for note in matiere["notes"]
+                            ],
                         ],
-                    ],
-                })
+                    }
+                )
         if bulletin.rectifie_id:
-            sections.append({
-                "title": "Rectification",
-                "rows": [
-                    ("Révision", bulletin.revision),
-                    ("Rectifie le bulletin", f"BUL-{bulletin.rectifie_id}"),
-                    ("Motif", bulletin.motif_rectification),
-                    ("Demandée le", bulletin.created_at),
-                    ("Validation humaine", bulletin.date_validation),
-                ],
-            })
+            sections.append(
+                {
+                    "title": "Rectification",
+                    "rows": [
+                        ("Révision", bulletin.revision),
+                        ("Rectifie le bulletin", f"BUL-{bulletin.rectifie_id}"),
+                        ("Motif", bulletin.motif_rectification),
+                        ("Demandée le", bulletin.created_at),
+                        ("Validation humaine", bulletin.date_validation),
+                    ],
+                }
+            )
         footer_rows = [
             ("Publié", "Oui" if bulletin.publie else "Non"),
             ("Signé", "Oui" if bulletin.signe else "Non"),
             ("Date de signature", bulletin.date_signature),
         ]
+        student_name = bulletin.calcul_detail["eleve"]["nom"] if bulletin.calcul_detail else serialized.get("eleve_nom")
         return render_official_pdf(
             f"bulletin-{bulletin.id}.pdf",
-            f"Bulletin - {bulletin.calcul_detail['eleve']['nom'] if bulletin.calcul_detail else serialized.get('eleve_nom')}",
+            f"Bulletin - {student_name}",
             identity_rows,
             sections,
             footer_rows=footer_rows,

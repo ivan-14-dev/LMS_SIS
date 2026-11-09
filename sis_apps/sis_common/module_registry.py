@@ -141,9 +141,7 @@ MODULES = {
 
 
 def available_modules():
-    return {
-        identifier: item for identifier, item in MODULES.items() if settings.SIS_VARIANT in item.variants
-    }
+    return {identifier: item for identifier, item in MODULES.items() if settings.SIS_VARIANT in item.variants}
 
 
 def effective_modules(overrides):

@@ -12,8 +12,12 @@ from scripts import sis_backup
 
 class RestorePreflightTests(unittest.TestCase):
     def restore(
-        self, existing_volume=None, existing_entry="empty-directory", snapshot_selector="test-snapshot",
-        manifest_format=1, fail_import=False,
+        self,
+        existing_volume=None,
+        existing_entry="empty-directory",
+        snapshot_selector="test-snapshot",
+        manifest_format=1,
+        fail_import=False,
     ):
         configuration = {
             "SIS_MODE": "secondaire",
@@ -72,10 +76,11 @@ class RestorePreflightTests(unittest.TestCase):
                 return SimpleNamespace(stdout=output)
             return SimpleNamespace()
 
-        with patch.object(sis_backup, "compose", side_effect=fake_compose), patch.object(
-            sis_backup, "restic", side_effect=fake_restic
-        ), patch.object(sis_backup, "volume_names", return_value=volumes), patch.object(
-            sis_backup.subprocess, "run", side_effect=fake_run
+        with (
+            patch.object(sis_backup, "compose", side_effect=fake_compose),
+            patch.object(sis_backup, "restic", side_effect=fake_restic),
+            patch.object(sis_backup, "volume_names", return_value=volumes),
+            patch.object(sis_backup.subprocess, "run", side_effect=fake_run),
         ):
             if existing_volume:
                 with self.assertRaisesRegex(ValueError, "Volume test-data is not empty"):
@@ -136,11 +141,14 @@ class RestorePreflightTests(unittest.TestCase):
             {},
         ]
         for result in invalid_results:
-            with self.subTest(result=result), patch.object(
-                sis_backup, "restic", return_value=SimpleNamespace(stdout=json.dumps(result).encode())
-            ) as restic, patch.object(sis_backup, "compose") as compose, patch.object(
-                sis_backup.subprocess, "run"
-            ) as run:
+            with (
+                self.subTest(result=result),
+                patch.object(
+                    sis_backup, "restic", return_value=SimpleNamespace(stdout=json.dumps(result).encode())
+                ) as restic,
+                patch.object(sis_backup, "compose") as compose,
+                patch.object(sis_backup.subprocess, "run") as run,
+            ):
                 with self.assertRaisesRegex(ValueError, "exactly one full snapshot ID"):
                     sis_backup.restore(options, configuration)
                 restic.assert_called_once_with(options, "snapshots", "--json", "latest", capture_output=True)
@@ -157,9 +165,12 @@ class SnapshotReliabilityTests(unittest.TestCase):
         self.repository.mkdir()
         (self.repository / "config").touch()
         self.configuration = {
-            "SIS_MODE": "secondaire", "COMPOSE_PROJECT_NAME": "test-source",
-            "FIELD_ENCRYPTION_KEY": "test-field-key", "DJANGO_SECRET_KEY": "test-django-key",
-            "WEBHOOK_SECRET": "test-webhook-key", "_ENV_FILE": str(self.root / ".env"),
+            "SIS_MODE": "secondaire",
+            "COMPOSE_PROJECT_NAME": "test-source",
+            "FIELD_ENCRYPTION_KEY": "test-field-key",
+            "DJANGO_SECRET_KEY": "test-django-key",
+            "WEBHOOK_SECRET": "test-webhook-key",
+            "_ENV_FILE": str(self.root / ".env"),
         }
         self.options = SimpleNamespace(repository=self.repository, staging_dir=None)
         self.volumes = {"redis": "test-redis", "data-secondaire": "test-data"}
@@ -189,15 +200,27 @@ class SnapshotReliabilityTests(unittest.TestCase):
         return SimpleNamespace()
 
     def test_snapshot_records_images_and_keys_and_restarts_only_original_writers(self):
-        with patch.object(sis_backup, "volume_names", return_value=self.volumes), patch.object(
-            sis_backup, "compose", side_effect=self.compose,
-        ), patch.object(sis_backup, "restic", side_effect=self.restic), patch.object(
-            sis_backup.subprocess, "run",
-        ) as run:
+        with (
+            patch.object(sis_backup, "volume_names", return_value=self.volumes),
+            patch.object(
+                sis_backup,
+                "compose",
+                side_effect=self.compose,
+            ),
+            patch.object(sis_backup, "restic", side_effect=self.restic),
+            patch.object(
+                sis_backup.subprocess,
+                "run",
+            ) as run,
+        ):
             sis_backup.snapshot(self.options, self.configuration)
-        self.assertEqual([call.args[0][:3] for call in run.call_args_list], [
-            ["docker", "volume", "inspect"], ["docker", "volume", "inspect"],
-        ])
+        self.assertEqual(
+            [call.args[0][:3] for call in run.call_args_list],
+            [
+                ["docker", "volume", "inspect"],
+                ["docker", "volume", "inspect"],
+            ],
+        )
         self.assertEqual(self.manifest["format"], 2)
         self.assertEqual(self.manifest["project"], "test-source")
         self.assertEqual(self.manifest["images"][0]["ID"], "sha256:example")
@@ -208,10 +231,19 @@ class SnapshotReliabilityTests(unittest.TestCase):
         self.assertFalse(list(self.root.glob(".sis-snapshot-*")))
 
     def test_missing_data_volume_aborts_before_stopping_or_creating_empty_backup(self):
-        with patch.object(sis_backup, "volume_names", return_value=self.volumes), patch.object(
-            sis_backup, "compose", side_effect=self.compose,
-        ), patch.object(sis_backup, "restic") as restic, patch.object(
-            sis_backup.subprocess, "run", side_effect=subprocess.CalledProcessError(1, ["volume", "inspect"]),
+        with (
+            patch.object(sis_backup, "volume_names", return_value=self.volumes),
+            patch.object(
+                sis_backup,
+                "compose",
+                side_effect=self.compose,
+            ),
+            patch.object(sis_backup, "restic") as restic,
+            patch.object(
+                sis_backup.subprocess,
+                "run",
+                side_effect=subprocess.CalledProcessError(1, ["volume", "inspect"]),
+            ),
         ):
             with self.assertRaisesRegex(ValueError, "misleading empty backup"):
                 sis_backup.snapshot(self.options, self.configuration)
@@ -220,9 +252,16 @@ class SnapshotReliabilityTests(unittest.TestCase):
 
     def test_plaintext_staging_cannot_be_placed_inside_encrypted_repository(self):
         self.options.staging_dir = self.repository
-        with patch.object(sis_backup, "volume_names", return_value=self.volumes), patch.object(
-            sis_backup, "compose", side_effect=self.compose,
-        ), patch.object(sis_backup, "restic") as restic, patch.object(sis_backup.subprocess, "run"):
+        with (
+            patch.object(sis_backup, "volume_names", return_value=self.volumes),
+            patch.object(
+                sis_backup,
+                "compose",
+                side_effect=self.compose,
+            ),
+            patch.object(sis_backup, "restic") as restic,
+            patch.object(sis_backup.subprocess, "run"),
+        ):
             with self.assertRaisesRegex(ValueError, "plaintext staging outside"):
                 sis_backup.snapshot(self.options, self.configuration)
         self.assertFalse(any(call[0] == "stop" for call in self.calls))
@@ -235,9 +274,16 @@ class SnapshotReliabilityTests(unittest.TestCase):
                 raise subprocess.CalledProcessError(1, ["pg_dump"])
             return result
 
-        with patch.object(sis_backup, "volume_names", return_value=self.volumes), patch.object(
-            sis_backup, "compose", side_effect=failing_dump,
-        ), patch.object(sis_backup, "restic") as restic, patch.object(sis_backup.subprocess, "run"):
+        with (
+            patch.object(sis_backup, "volume_names", return_value=self.volumes),
+            patch.object(
+                sis_backup,
+                "compose",
+                side_effect=failing_dump,
+            ),
+            patch.object(sis_backup, "restic") as restic,
+            patch.object(sis_backup.subprocess, "run"),
+        ):
             with self.assertRaises(subprocess.CalledProcessError):
                 sis_backup.snapshot(self.options, self.configuration)
         self.assertEqual(self.calls[-1][0], "up")
@@ -247,7 +293,10 @@ class SnapshotReliabilityTests(unittest.TestCase):
 
     def test_restore_refuses_source_project_and_changed_authentication_keys_before_docker(self):
         manifest = {
-            "format": 2, "postgres_major": 16, "variants": ["secondaire"], "project": "test-source",
+            "format": 2,
+            "postgres_major": 16,
+            "variants": ["secondaire"],
+            "project": "test-source",
             "field_key_sha256": hashlib.sha256(b"test-field-key").hexdigest(),
             "secret_sha256": {
                 key: hashlib.sha256(self.configuration[key].encode()).hexdigest()
@@ -260,11 +309,21 @@ class SnapshotReliabilityTests(unittest.TestCase):
             ({"COMPOSE_PROJECT_NAME": "test-restored", "DJANGO_SECRET_KEY": "different"}, "DJANGO_SECRET_KEY"),
             ({"COMPOSE_PROJECT_NAME": "test-restored", "WEBHOOK_SECRET": "different"}, "WEBHOOK_SECRET"),
         ):
-            with self.subTest(changes=changes), patch.object(
-                sis_backup, "resolve_snapshot", return_value="a" * 64,
-            ), patch.object(
-                sis_backup, "restic", return_value=SimpleNamespace(stdout=json.dumps(manifest).encode()),
-            ), patch.object(sis_backup, "compose") as compose, patch.object(sis_backup.subprocess, "run") as run:
+            with (
+                self.subTest(changes=changes),
+                patch.object(
+                    sis_backup,
+                    "resolve_snapshot",
+                    return_value="a" * 64,
+                ),
+                patch.object(
+                    sis_backup,
+                    "restic",
+                    return_value=SimpleNamespace(stdout=json.dumps(manifest).encode()),
+                ),
+                patch.object(sis_backup, "compose") as compose,
+                patch.object(sis_backup.subprocess, "run") as run,
+            ):
                 with self.assertRaisesRegex(ValueError, error):
                     sis_backup.restore(options, {**self.configuration, **changes})
                 compose.assert_not_called()
@@ -275,9 +334,21 @@ class SnapshotReliabilityTests(unittest.TestCase):
         password.write_text("test-only-password")
         password.chmod(0o600)
         missing = self.root / "missing-repository"
-        with patch("sys.argv", [
-            "sis_backup.py", "--repository", str(missing), "--password-file", str(password), "check",
-        ]), patch.object(sis_backup, "restic") as restic, patch("sys.stderr"):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "sis_backup.py",
+                    "--repository",
+                    str(missing),
+                    "--password-file",
+                    str(password),
+                    "check",
+                ],
+            ),
+            patch.object(sis_backup, "restic") as restic,
+            patch("sys.stderr"),
+        ):
             with self.assertRaises(SystemExit) as error:
                 sis_backup.main()
         self.assertEqual(error.exception.code, 1)
@@ -288,10 +359,23 @@ class SnapshotReliabilityTests(unittest.TestCase):
         password = self.root / "password"
         password.write_text("test-only-password")
         password.chmod(0o600)
-        with patch("sys.argv", [
-            "sis_backup.py", "--repository", str(self.repository), "--password-file", str(password),
-            "--require-mount", str(self.root), "backup",
-        ]), patch.object(sis_backup, "restic") as restic, patch("sys.stderr"):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "sis_backup.py",
+                    "--repository",
+                    str(self.repository),
+                    "--password-file",
+                    str(password),
+                    "--require-mount",
+                    str(self.root),
+                    "backup",
+                ],
+            ),
+            patch.object(sis_backup, "restic") as restic,
+            patch("sys.stderr"),
+        ):
             with self.assertRaises(SystemExit) as error:
                 sis_backup.main()
         self.assertEqual(error.exception.code, 1)
@@ -302,16 +386,35 @@ class SnapshotReliabilityTests(unittest.TestCase):
         password.write_text("test-only-password")
         password.chmod(0o600)
         manifest = {
-            "format": 2, "project": "source", "images": [{"ID": "sha256:example"}],
-            "field_key_sha256": "private-fingerprint", "secret_sha256": {"key": "private-fingerprint"},
+            "format": 2,
+            "project": "source",
+            "images": [{"ID": "sha256:example"}],
+            "field_key_sha256": "private-fingerprint",
+            "secret_sha256": {"key": "private-fingerprint"},
             "configuration": "must-not-be-printed",
         }
-        with patch("sys.argv", [
-            "sis_backup.py", "--repository", str(self.repository), "--password-file", str(password),
-            "inspect", "--snapshot", "latest",
-        ]), patch.object(sis_backup, "resolve_snapshot", return_value="a" * 64), patch.object(
-            sis_backup, "restic", return_value=SimpleNamespace(stdout=json.dumps(manifest).encode()),
-        ), patch("builtins.print") as output:
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "sis_backup.py",
+                    "--repository",
+                    str(self.repository),
+                    "--password-file",
+                    str(password),
+                    "inspect",
+                    "--snapshot",
+                    "latest",
+                ],
+            ),
+            patch.object(sis_backup, "resolve_snapshot", return_value="a" * 64),
+            patch.object(
+                sis_backup,
+                "restic",
+                return_value=SimpleNamespace(stdout=json.dumps(manifest).encode()),
+            ),
+            patch("builtins.print") as output,
+        ):
             sis_backup.main()
         printed = output.call_args.args[0]
         self.assertIn("sha256:example", printed)

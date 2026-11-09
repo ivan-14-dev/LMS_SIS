@@ -353,8 +353,11 @@ class SyncServiceEnrollmentTestCase(EnrollmentFixtureMixin, TenantTestCase):
         assert enrollment.enrollment_id == 88888
         assert enrollment.is_active
         mock_client.set_course_access.assert_called_once_with(
-            self.course_mapping.course_id, self.user_mapping.username_edx,
-            kind="enrollment", active=True, requested_at=ANY,
+            self.course_mapping.course_id,
+            self.user_mapping.username_edx,
+            kind="enrollment",
+            active=True,
+            requested_at=ANY,
         )
 
     @patch("apps.integration.sync_service.get_edx_client")
@@ -386,8 +389,11 @@ class SyncServiceEnrollmentTestCase(EnrollmentFixtureMixin, TenantTestCase):
         assert len(enrollments) == 1
         assert enrollments[0].enrollment_id == 1
         mock_client.set_course_access.assert_called_once_with(
-            self.course_mapping.course_id, self.user_mapping.username_edx,
-            kind="enrollment", active=True, requested_at=ANY,
+            self.course_mapping.course_id,
+            self.user_mapping.username_edx,
+            kind="enrollment",
+            active=True,
+            requested_at=ANY,
         )
 
     @patch("apps.integration.sync_service.get_edx_client")

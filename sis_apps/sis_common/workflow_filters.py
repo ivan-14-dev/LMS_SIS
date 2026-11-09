@@ -18,11 +18,20 @@ PRIVATE_WORKFLOW_MODELS = [
 
 def public_workflow_events(queryset):
     return queryset.exclude(
-        Q(app_label="core", model__in=PRIVATE_WORKFLOW_MODELS) | Q(app_label="recherche")
-        | Q(app_label="stages", model__in=[
-            "programmepratique", "revisionprogrammepratique", "dossierpratique", "heurepratique",
-            "decisionheurepratique", "evaluationcompetencepratique", "auditpratique",
-        ])
+        Q(app_label="core", model__in=PRIVATE_WORKFLOW_MODELS)
+        | Q(app_label="recherche")
+        | Q(
+            app_label="stages",
+            model__in=[
+                "programmepratique",
+                "revisionprogrammepratique",
+                "dossierpratique",
+                "heurepratique",
+                "decisionheurepratique",
+                "evaluationcompetencepratique",
+                "auditpratique",
+            ],
+        )
     )
 
 

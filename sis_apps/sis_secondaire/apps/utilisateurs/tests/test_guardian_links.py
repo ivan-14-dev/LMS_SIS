@@ -19,61 +19,104 @@ class GuardianLinkTests(DocumentFixture):
     def setUp(self):
         super().setUp()
         self.manager = Utilisateur.objects.create_user(
-            "family-manager", role="personnel_administratif", etablissement=self.tenant,
+            "family-manager",
+            role="personnel_administratif",
+            etablissement=self.tenant,
         )
         self.manager.user_permissions.add(
             *Permission.objects.filter(
                 content_type__app_label="eleves",
                 codename__in=[
-                    "view_tuteur", "add_tuteur", "change_tuteur", "delete_tuteur",
-                    "view_elevetuteur", "add_elevetuteur", "change_elevetuteur", "delete_elevetuteur",
+                    "view_tuteur",
+                    "add_tuteur",
+                    "change_tuteur",
+                    "delete_tuteur",
+                    "view_elevetuteur",
+                    "add_elevetuteur",
+                    "change_elevetuteur",
+                    "delete_elevetuteur",
                 ],
             ),
             Permission.objects.get(content_type__app_label="core", codename="view_workflowevent"),
         )
         self.parent = Utilisateur.objects.create_user("family-parent", role="parent", etablissement=self.tenant)
         self.client.force_authenticate(self.manager)
-        response = self.client.post(f"{BASE}parents/", {
-            "user": self.parent.pk, "nom": "Parent", "prenom": "Test", "lien_parente": "tuteur_legal",
-            "telephone": "0100000000", "email": "parent@example.test",
-        }, format="json")
+        response = self.client.post(
+            f"{BASE}parents/",
+            {
+                "user": self.parent.pk,
+                "nom": "Parent",
+                "prenom": "Test",
+                "lien_parente": "tuteur_legal",
+                "telephone": "0100000000",
+                "email": "parent@example.test",
+            },
+            format="json",
+        )
         assert response.status_code == 201, response.data
         self.guardian = Tuteur.objects.get(pk=response.data["id"])
         self.learner = self.learners[0]
 
     def create_link(self, **overrides):
-        return self.client.post(f"{BASE}liens-parent/", {
-            "eleve": self.learner.pk, "tuteur": self.guardian.pk, "autorise_acces_portail": True,
-            **overrides,
-        }, format="json")
+        return self.client.post(
+            f"{BASE}liens-parent/",
+            {
+                "eleve": self.learner.pk,
+                "tuteur": self.guardian.pk,
+                "autorise_acces_portail": True,
+                **overrides,
+            },
+            format="json",
+        )
 
     def dossier(self, child=None):
         return self.client.get(
-            "/api/v1/portail/apprenant/dossier_enfant/", {"enfant_id": child or self.learner.pk},
+            "/api/v1/portail/apprenant/dossier_enfant/",
+            {"enfant_id": child or self.learner.pk},
         )
 
     def test_create_revoke_restore_and_remove_cut_portal_api_and_pdf(self):
         self.create("notes.Note", evaluation=self.evaluation, eleve=self.learner, valeur=15)
         self.create("notes.Note", evaluation=self.evaluation, eleve=self.learners[1], valeur=3)
         slot = self.create(
-            "emplois_du_temps.Creneau", classe=self.classe, matiere=self.subject, enseignant=self.author,
-            jour=1, heure_debut="08:00", heure_fin="09:00",
+            "emplois_du_temps.Creneau",
+            classe=self.classe,
+            matiere=self.subject,
+            enseignant=self.author,
+            jour=1,
+            heure_debut="08:00",
+            heure_fin="09:00",
         )
         roll = self.create("presences.Appel", creneau=slot, date=self.today, enseignant=self.author)
         self.create("presences.Presence", appel=roll, eleve=self.learner, statut="retard", retard_minutes=5)
         self.create("presences.Presence", appel=roll, eleve=self.learners[1], statut="absent")
         fee = self.create("paiements.TypeFrais", annee_scolaire=self.year, code="FAMILY", libelle="Frais", montant=100)
         invoice = self.create(
-            "paiements.Facture", eleve=self.learner, type_frais=fee, numero="FAMILY-1",
-            date_emission=self.today, date_echeance=self.today, montant=100, montant_paye=20,
+            "paiements.Facture",
+            eleve=self.learner,
+            type_frais=fee,
+            numero="FAMILY-1",
+            date_emission=self.today,
+            date_echeance=self.today,
+            montant=100,
+            montant_paye=20,
         )
         self.create(
-            "paiements.Facture", eleve=self.learners[1], type_frais=fee, numero="OTHER-1",
-            date_emission=self.today, date_echeance=self.today, montant=200,
+            "paiements.Facture",
+            eleve=self.learners[1],
+            type_frais=fee,
+            numero="OTHER-1",
+            date_emission=self.today,
+            date_echeance=self.today,
+            montant=200,
         )
         self.create(
-            "paiements.Paiement", facture=invoice, numero="PAY-FAMILY-1", date_paiement=self.today,
-            montant=20, mode="virement",
+            "paiements.Paiement",
+            facture=invoice,
+            numero="PAY-FAMILY-1",
+            date_paiement=self.today,
+            montant=20,
+            mode="virement",
         )
         response = self.create_link()
         assert response.status_code == 201, response.data
@@ -122,7 +165,10 @@ class GuardianLinkTests(DocumentFixture):
     def test_explicit_permission_is_required_even_for_staff_or_legacy_role(self):
         for role in ("parent", "direction", "vie_scolaire"):
             user = Utilisateur.objects.create_user(
-                f"family-denied-{role}", role=role, is_staff=True, etablissement=self.tenant,
+                f"family-denied-{role}",
+                role=role,
+                is_staff=True,
+                etablissement=self.tenant,
             )
             self.client.force_authenticate(user)
             assert self.client.get(f"{BASE}liens-parent/").status_code == 403
@@ -142,15 +188,34 @@ class GuardianLinkTests(DocumentFixture):
             foreign.save()
         other_user = Utilisateur.objects.create_user("foreign-child", role="eleve", etablissement=foreign)
         other = self.create(
-            "eleves.Eleve", user=other_user, etablissement=foreign, matricule="FOREIGN",
-            date_naissance="2014-01-01", date_inscription=self.today, sexe="F",
+            "eleves.Eleve",
+            user=other_user,
+            etablissement=foreign,
+            matricule="FOREIGN",
+            date_naissance="2014-01-01",
+            date_inscription=self.today,
+            sexe="F",
         )
         assert self.create_link(eleve=other.pk).status_code == 400
         assert self.client.patch(url, {"eleve": self.learners[1].pk}, format="json").status_code == 400
         assert EleveTuteur.objects.count() == 1
 
     def test_profile_cannot_be_attached_to_a_learner_or_transferred_to_another_parent(self):
-        assert self.client.post(f"{BASE}parents/", {"user": self.learner.user_id, "nom": "Parent", "prenom": "Test", "lien_parente": "mere", "telephone": "0100000000", "email": "parent@example.test"}, format="json").status_code == 400
+        assert (
+            self.client.post(
+                f"{BASE}parents/",
+                {
+                    "user": self.learner.user_id,
+                    "nom": "Parent",
+                    "prenom": "Test",
+                    "lien_parente": "mere",
+                    "telephone": "0100000000",
+                    "email": "parent@example.test",
+                },
+                format="json",
+            ).status_code
+            == 400
+        )
         other = Utilisateur.objects.create_user("family-other-parent", role="parent", etablissement=self.tenant)
         response = self.client.patch(f"{BASE}parents/{self.guardian.pk}/", {"user": other.pk}, format="json")
         assert response.status_code == 400

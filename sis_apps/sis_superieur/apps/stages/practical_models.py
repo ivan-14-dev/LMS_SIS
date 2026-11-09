@@ -24,7 +24,9 @@ class DossierPratique(DossierPratiqueBase):
     etablissement = models.ForeignKey("etablissement.Universite", on_delete=models.PROTECT, related_name="+")
     apprenant = models.ForeignKey("etudiants.Etudiant", on_delete=models.PROTECT, related_name="+")
     inscription = models.ForeignKey("etudiants.InscriptionAdministrative", on_delete=models.PROTECT, related_name="+")
-    contact_entreprise = models.ForeignKey("entreprises.ContactEntreprise", on_delete=models.PROTECT, related_name="+", null=True)
+    contact_entreprise = models.ForeignKey(
+        "entreprises.ContactEntreprise", on_delete=models.PROTECT, related_name="+", null=True
+    )
 
 
 class HeurePratique(HeurePratiqueBase):

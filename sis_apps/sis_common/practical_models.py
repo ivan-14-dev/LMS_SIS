@@ -29,10 +29,7 @@ def evidence_path(instance, filename):
     if not re.fullmatch(r"[a-zA-Z0-9_]+", schema) or schema == "public":
         raise ValidationError("Un schéma établissement est requis.")
     kind = "heures" if instance._meta.model_name == "heurepratique" else "evaluations"
-    return (
-        f"pratique/{schema}/{instance.dossier.etablissement_id}/{instance.dossier_id}/"
-        f"{kind}/{uuid4().hex}.pdf"
-    )
+    return f"pratique/{schema}/{instance.dossier.etablissement_id}/{instance.dossier_id}/" f"{kind}/{uuid4().hex}.pdf"
 
 
 class PracticalQuerySet(models.QuerySet):
@@ -66,7 +63,8 @@ class PracticalModel(models.Model):
         else:
             previous = type(self).objects.get(pk=self.pk)
             changed = {
-                field.attname for field in self._meta.concrete_fields
+                field.attname
+                for field in self._meta.concrete_fields
                 if getattr(previous, field.attname) != getattr(self, field.attname)
             }
             if not _writing.get() or changed - self.allowed_changes(previous):
@@ -78,6 +76,7 @@ class PracticalModel(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Les dossiers et preuves pratiques ne sont pas supprimables.")
+
 
 class ProgrammePratiqueBase(PracticalModel):
     code = models.CharField(max_length=64)
@@ -122,12 +121,12 @@ class RevisionProgrammePratiqueBase(PracticalModel):
         ordering = ["-numero"]
         constraints = [
             models.UniqueConstraint(fields=["programme", "numero"], name="practical_revision_number"),
-            models.UniqueConstraint(
-                fields=["programme"], condition=Q(statut="brouillon"), name="practical_one_draft"
-            ),
+            models.UniqueConstraint(fields=["programme"], condition=Q(statut="brouillon"), name="practical_one_draft"),
             models.UniqueConstraint(fields=["programme"], condition=Q(statut="publie"), name="practical_one_published"),
             models.CheckConstraint(condition=Q(numero__gte=1), name="practical_revision_positive"),
-            models.CheckConstraint(condition=Q(statut__in=["brouillon", "publie", "archive"]), name="practical_revision_state"),
+            models.CheckConstraint(
+                condition=Q(statut__in=["brouillon", "publie", "archive"]), name="practical_revision_state"
+            ),
         ]
 
     def allowed_changes(self, previous):
@@ -142,8 +141,12 @@ class RevisionProgrammePratiqueBase(PracticalModel):
 
 
 class DossierPratiqueBase(PracticalModel):
-    convention = models.OneToOneField("stages.ConventionStage", on_delete=models.PROTECT, related_name="dossier_pratique")
-    programme_revision = models.ForeignKey("stages.RevisionProgrammePratique", on_delete=models.PROTECT, related_name="dossiers")
+    convention = models.OneToOneField(
+        "stages.ConventionStage", on_delete=models.PROTECT, related_name="dossier_pratique"
+    )
+    programme_revision = models.ForeignKey(
+        "stages.RevisionProgrammePratique", on_delete=models.PROTECT, related_name="dossiers"
+    )
     apprenant_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
     tuteur_interne_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
     partenaire_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+", null=True)
@@ -162,7 +165,9 @@ class DossierPratiqueBase(PracticalModel):
     annule_par = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+", null=True)
     cancelled_at = models.DateTimeField(null=True)
     motif_annulation = models.TextField(null=True)  # noqa: DJ001 -- null until administrative cancellation
-    partenaire_revoque_par = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+", null=True)
+    partenaire_revoque_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+", null=True
+    )
     partenaire_revoque_le = models.DateTimeField(null=True)
     motif_revocation = models.TextField(null=True)  # noqa: DJ001 -- null until partner revocation
 
@@ -170,27 +175,51 @@ class DossierPratiqueBase(PracticalModel):
         abstract = True
         constraints = [
             models.CheckConstraint(condition=Q(date_fin__gte=F("date_debut")), name="practical_dossier_dates"),
-            models.CheckConstraint(condition=~Q(apprenant_user=F("tuteur_interne_user")), name="practical_tutor_not_learner"),
             models.CheckConstraint(
-                condition=Q(partenaire_user__isnull=True) | (
-                    ~Q(partenaire_user=F("apprenant_user")) & ~Q(partenaire_user=F("tuteur_interne_user"))
-                ), name="practical_partner_distinct",
+                condition=~Q(apprenant_user=F("tuteur_interne_user")), name="practical_tutor_not_learner"
+            ),
+            models.CheckConstraint(
+                condition=Q(partenaire_user__isnull=True)
+                | (~Q(partenaire_user=F("apprenant_user")) & ~Q(partenaire_user=F("tuteur_interne_user"))),
+                name="practical_partner_distinct",
             ),
             models.CheckConstraint(condition=Q(version__gte=1), name="practical_dossier_version"),
-            models.CheckConstraint(condition=Q(statut__in=["ouvert", "clos", "annule"]), name="practical_dossier_state"),
+            models.CheckConstraint(
+                condition=Q(statut__in=["ouvert", "clos", "annule"]), name="practical_dossier_state"
+            ),
             models.CheckConstraint(
                 condition=(
-                    Q(statut="ouvert", closed_at__isnull=True, clos_par__isnull=True,
-                      cancelled_at__isnull=True, annule_par__isnull=True)
-                    | Q(statut="clos", closed_at__isnull=False, clos_par__isnull=False,
-                        cancelled_at__isnull=True, annule_par__isnull=True)
-                    | Q(statut="annule", closed_at__isnull=True, clos_par__isnull=True,
-                        cancelled_at__isnull=False, annule_par__isnull=False)
-                ), name="practical_terminal_actor",
+                    Q(
+                        statut="ouvert",
+                        closed_at__isnull=True,
+                        clos_par__isnull=True,
+                        cancelled_at__isnull=True,
+                        annule_par__isnull=True,
+                    )
+                    | Q(
+                        statut="clos",
+                        closed_at__isnull=False,
+                        clos_par__isnull=False,
+                        cancelled_at__isnull=True,
+                        annule_par__isnull=True,
+                    )
+                    | Q(
+                        statut="annule",
+                        closed_at__isnull=True,
+                        clos_par__isnull=True,
+                        cancelled_at__isnull=False,
+                        annule_par__isnull=False,
+                    )
+                ),
+                name="practical_terminal_actor",
             ),
             models.CheckConstraint(
                 condition=Q(partenaire_revoque_le__isnull=True, partenaire_revoque_par__isnull=True)
-                | Q(partenaire_revoque_le__isnull=False, partenaire_revoque_par__isnull=False, partenaire_user__isnull=False),
+                | Q(
+                    partenaire_revoque_le__isnull=False,
+                    partenaire_revoque_par__isnull=False,
+                    partenaire_user__isnull=False,
+                ),
                 name="practical_revocation_actor",
             ),
         ]
@@ -206,8 +235,11 @@ class DossierPratiqueBase(PracticalModel):
 
 class PracticalEvidenceBase(PracticalModel):
     fichier = models.FileField(
-        storage=PrivateExamStorage(), upload_to=evidence_path, validators=[validate_exam_copy],
-        max_length=350, blank=True,
+        storage=PrivateExamStorage(),
+        upload_to=evidence_path,
+        validators=[validate_exam_copy],
+        max_length=350,
+        blank=True,
     )
     fichier_nom = models.CharField(max_length=200, blank=True)
     fichier_taille = models.PositiveIntegerField(default=0)
@@ -269,7 +301,9 @@ class DecisionHeurePratiqueBase(PracticalModel):
     acteur_nom = models.CharField(max_length=300)
     created_at = models.DateTimeField(auto_now_add=True)
     version_dossier = models.PositiveIntegerField()
-    heure_remplacement = models.ForeignKey("stages.HeurePratique", on_delete=models.PROTECT, null=True, related_name="+")
+    heure_remplacement = models.ForeignKey(
+        "stages.HeurePratique", on_delete=models.PROTECT, null=True, related_name="+"
+    )
 
     class Meta(PracticalModel.Meta):
         abstract = True
@@ -281,7 +315,9 @@ class DecisionHeurePratiqueBase(PracticalModel):
 
 
 class EvaluationCompetencePratiqueBase(PracticalEvidenceBase):
-    dossier = models.ForeignKey("stages.DossierPratique", on_delete=models.PROTECT, related_name="evaluations_pratiques")
+    dossier = models.ForeignKey(
+        "stages.DossierPratique", on_delete=models.PROTECT, related_name="evaluations_pratiques"
+    )
     code = models.CharField(max_length=64)
     revision = models.PositiveIntegerField()
     acquise = models.BooleanField()
@@ -302,8 +338,12 @@ class EvaluationCompetencePratiqueBase(PracticalEvidenceBase):
 
 
 class AuditPratiqueBase(PracticalModel):
-    programme = models.ForeignKey("stages.ProgrammePratique", on_delete=models.PROTECT, null=True, related_name="historique")
-    dossier = models.ForeignKey("stages.DossierPratique", on_delete=models.PROTECT, null=True, related_name="historique")
+    programme = models.ForeignKey(
+        "stages.ProgrammePratique", on_delete=models.PROTECT, null=True, related_name="historique"
+    )
+    dossier = models.ForeignKey(
+        "stages.DossierPratique", on_delete=models.PROTECT, null=True, related_name="historique"
+    )
     version = models.PositiveIntegerField()
     action = models.CharField(max_length=40)
     acteur = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
@@ -317,7 +357,8 @@ class AuditPratiqueBase(PracticalModel):
         constraints = [
             models.CheckConstraint(
                 condition=Q(programme__isnull=False, dossier__isnull=True)
-                | Q(programme__isnull=True, dossier__isnull=False), name="practical_audit_aggregate",
+                | Q(programme__isnull=True, dossier__isnull=False),
+                name="practical_audit_aggregate",
             ),
             models.UniqueConstraint(fields=["programme", "version"], name="practical_programme_audit"),
             models.UniqueConstraint(fields=["dossier", "version"], name="practical_dossier_audit"),

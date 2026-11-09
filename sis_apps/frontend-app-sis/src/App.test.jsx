@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getConfig } from '@edx/frontend-platform';
 import { fetchApi } from './services/api';
+import { localHttpClient } from './services/localSession';
 import App from './App';
 import { page, scenario } from './practical/practicalTestData';
 
@@ -21,13 +22,14 @@ jest.mock('./secondaire/portails/PortailApprenantFamille', () => {
   return MockFamilyPortal;
 });
 
-const renderRoute = (path, capabilities) => {
+const renderRoute = (path, capabilities, configuration = {}) => {
   window.history.replaceState({}, '', path);
   getConfig.mockReturnValue({
     PUBLIC_PATH: '/',
     SIS_MODE: 'dual',
     SIS_SECONDAIRE_API_URL: 'https://secondaire.example.test/api/v1',
     SIS_SUPERIEUR_API_URL: 'https://superieur.example.test/api/v1',
+    ...configuration,
   });
   fetchApi.mockImplementation(async (url) => {
     if (url.endsWith('/capabilities/')) { return capabilities; }
@@ -60,6 +62,7 @@ const renderRoute = (path, capabilities) => {
 };
 
 afterEach(() => {
+  jest.restoreAllMocks();
   jest.clearAllMocks();
   window.history.replaceState({}, '', '/');
 });
@@ -146,6 +149,39 @@ it('keeps the secondary parent portal accessible to affiliated parents', async (
   });
 
   expect(await screen.findByRole('heading', { name: 'Portail famille' })).toBeInTheDocument();
+});
+
+it.each([
+  ['secondaire', 'paiements.view_paiement'],
+  ['superieur', 'paiements.view_paiementfrais'],
+])('mounts the %s finance route against its own API', async (variant, permission) => {
+  const requests = jest.spyOn(localHttpClient, 'get').mockImplementation(async url => ({
+    data: url.endsWith('/prestataires/')
+      ? { carte: 'non_configure', callback: 'non_configure' } : page([]),
+  }));
+  renderRoute(
+    `/${variant}/paiements`,
+    { role: 'comptable', permissions: [permission] },
+    { SIS_AUTH_MODE: 'local' },
+  );
+
+  expect(await screen.findByRole('heading', { name: 'Factures et paiements', level: 1 })).toBeVisible();
+  await waitFor(() => expect(requests.mock.calls.some(([url]) => (
+    url.startsWith(`https://${variant}.example.test/api/v1/paiements/`)
+  ))).toBe(true));
+  expect(requests.mock.calls.every(([url]) => (
+    url.startsWith(`https://${variant}.example.test/api/v1/`)
+  ))).toBe(true);
+  expect(fetchApi.mock.calls.filter(([url]) => url.endsWith('/capabilities/'))).toHaveLength(1);
+});
+
+it('denies the secondary finance route without the secondary payment permission', async () => {
+  renderRoute('/secondaire/paiements', {
+    role: 'comptable', is_staff: true, permissions: ['paiements.view_paiementfrais'],
+  });
+
+  expect(await screen.findByText(/permission d’accéder à ce module/)).toBeVisible();
+  expect(fetchApi.mock.calls.every(([url]) => url.endsWith('/capabilities/'))).toBe(true);
 });
 
 it.each([

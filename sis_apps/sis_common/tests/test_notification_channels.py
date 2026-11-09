@@ -201,7 +201,9 @@ class NotificationEmailDeliveryTests(TestCase):
         self.send_mail.assert_called_once()
 
     def test_console_backend_is_not_a_delivery(self):
-        with patch.object(notification_channels.settings, "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"):
+        with patch.object(
+            notification_channels.settings, "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+        ):
             assert notification_channels.send_notification_email("school_a", 13) == {"status": "not_configured"}
         self.send_mail.assert_not_called()
 

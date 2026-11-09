@@ -42,9 +42,7 @@ class OffreStage(ProtectedLegacyBase):
         null=True,
         blank=True,
     )
-    entreprise = models.ForeignKey(
-        Entreprise, on_delete=models.CASCADE, related_name="offres_stage"
-    )
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.CASCADE, related_name="offres_stage")
     titre = models.CharField(max_length=200)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     description = models.TextField()
@@ -83,12 +81,8 @@ class CandidatureStage(models.Model):
         ("refusee", "Refusée"),
         ("annulee", "Annulée"),
     ]
-    etudiant = models.ForeignKey(
-        Etudiant, on_delete=models.CASCADE, related_name="candidatures_stage"
-    )
-    offre = models.ForeignKey(
-        OffreStage, on_delete=models.CASCADE, related_name="candidatures"
-    )
+    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="candidatures_stage")
+    offre = models.ForeignKey(OffreStage, on_delete=models.CASCADE, related_name="candidatures")
     lettre_motivation = models.TextField()
     cv = models.FileField(upload_to="stages/cv/")
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="soumise")
@@ -116,15 +110,9 @@ class ConventionStage(ProtectedLegacyBase):
         ("complete", "Complète"),
         ("annulee", "Annulée"),
     ]
-    etudiant = models.ForeignKey(
-        Etudiant, on_delete=models.CASCADE, related_name="conventions_stage"
-    )
-    offre = models.OneToOneField(
-        OffreStage, on_delete=models.PROTECT, related_name="convention"
-    )
-    entreprise = models.ForeignKey(
-        Entreprise, on_delete=models.PROTECT, related_name="conventions"
-    )
+    etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="conventions_stage")
+    offre = models.OneToOneField(OffreStage, on_delete=models.PROTECT, related_name="convention")
+    entreprise = models.ForeignKey(Entreprise, on_delete=models.PROTECT, related_name="conventions")
     maitre_stage = models.ForeignKey(
         "entreprises.ContactEntreprise",
         on_delete=models.PROTECT,
@@ -139,9 +127,7 @@ class ConventionStage(ProtectedLegacyBase):
     horaires = models.CharField(max_length=200, blank=True)
     missions = models.TextField()
     pdf_path = models.CharField(max_length=500)
-    statut = models.CharField(
-        max_length=20, choices=STATUT_CHOICES, default="brouillon"
-    )
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="brouillon")
     date_signature_complete = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -162,9 +148,7 @@ class SuiviStage(models.Model):
         ("point_ecrit", "Point écrit"),
         ("evaluation_mi_parcours", "Évaluation mi-parcours"),
     ]
-    convention = models.ForeignKey(
-        ConventionStage, on_delete=models.CASCADE, related_name="suivis"
-    )
+    convention = models.ForeignKey(ConventionStage, on_delete=models.CASCADE, related_name="suivis")
     type = models.CharField(max_length=30, choices=TYPE_CHOICES)
     date = models.DateField()
     commentaires = models.TextField()
@@ -182,21 +166,11 @@ class SuiviStage(models.Model):
 class EvaluationTuteur(models.Model):
     """Évaluation finale par le tuteur entreprise."""
 
-    convention = models.OneToOneField(
-        ConventionStage, on_delete=models.CASCADE, related_name="evaluation_tuteur"
-    )
-    note_globale = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
-    competences_techniques = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
-    competences_relationnelles = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
-    autonomie = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
+    convention = models.OneToOneField(ConventionStage, on_delete=models.CASCADE, related_name="evaluation_tuteur")
+    note_globale = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    competences_techniques = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    competences_relationnelles = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    autonomie = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     commentaires = models.TextField(blank=True)
     date_evaluation = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -218,18 +192,12 @@ class RapportStage(models.Model):
         ("accepte", "Accepté"),
         ("refuse", "Refusé"),
     ]
-    convention = models.OneToOneField(
-        ConventionStage, on_delete=models.CASCADE, related_name="rapport"
-    )
+    convention = models.OneToOneField(ConventionStage, on_delete=models.CASCADE, related_name="rapport")
     fichier = models.FileField(upload_to="stages/rapports/")
     date_soumission = models.DateTimeField(null=True, blank=True)
-    note_finale = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
+    note_finale = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     appreciation = models.TextField(blank=True)
-    statut = models.CharField(
-        max_length=20, choices=STATUT_CHOICES, default="brouillon"
-    )
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="brouillon")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -161,13 +161,17 @@ const SchoolBulletinWorkflow = ({
                 <Alert severity="info">
                   Rectifie BUL-{bulletin.rectifie}. Motif : {bulletin.motif_rectification}.
                   L’original est conservé ; cette version exige sa propre validation et publication.
-                  <Button disabled={busy} onClick={() => onSelect(bulletin.rectifie)}>Voir la version précédente</Button>
+                  <Button disabled={busy} onClick={() => onSelect(bulletin.rectifie)}>
+                    Voir la version précédente
+                  </Button>
                 </Alert>
               )}
               {bulletin.rectification_publiee && (
                 <Alert severity="warning">
                   Une rectification publiée est disponible : BUL-{bulletin.rectification_publiee}.
-                  <Button disabled={busy} onClick={() => onSelect(bulletin.rectification_publiee)}>Voir la rectification publiée</Button>
+                  <Button disabled={busy} onClick={() => onSelect(bulletin.rectification_publiee)}>
+                    Voir la rectification publiée
+                  </Button>
                 </Alert>
               )}
               <Typography>Moyenne calculée : {bulletin.moyenne_generale}/20</Typography>

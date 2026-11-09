@@ -139,19 +139,30 @@ class Bulletin(models.Model):
     date_publication = models.DateTimeField(null=True, blank=True)
     calcul_detail = models.JSONField(default=dict, blank=True)
     valide_par = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="bulletins_valides",
     )
     date_validation = models.DateTimeField(null=True, blank=True)
     revision = models.PositiveIntegerField(default=1, editable=False)
     rectifie = models.OneToOneField(
-        "self", on_delete=models.PROTECT, null=True, blank=True,
-        related_name="rectification", editable=False,
+        "self",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="rectification",
+        editable=False,
     )
     motif_rectification = models.TextField(blank=True, editable=False)
     rectification_demandee_par = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
-        related_name="rectifications_bulletins_demandees", editable=False,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="rectifications_bulletins_demandees",
+        editable=False,
     )
     cle_rectification = models.UUIDField(null=True, blank=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -161,18 +172,24 @@ class Bulletin(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["eleve", "periode", "revision"], name="unique_bulletin_revision"),
             models.UniqueConstraint(
-                fields=["eleve", "periode"], condition=models.Q(rectifie__isnull=True),
+                fields=["eleve", "periode"],
+                condition=models.Q(rectifie__isnull=True),
                 name="unique_bulletin_original",
             ),
             models.CheckConstraint(
                 condition=(
                     models.Q(
-                        revision=1, rectifie__isnull=True, cle_rectification__isnull=True,
-                        rectification_demandee_par__isnull=True, motif_rectification="",
+                        revision=1,
+                        rectifie__isnull=True,
+                        cle_rectification__isnull=True,
+                        rectification_demandee_par__isnull=True,
+                        motif_rectification="",
                     )
                     | (
                         models.Q(
-                            revision__gt=1, rectifie__isnull=False, cle_rectification__isnull=False,
+                            revision__gt=1,
+                            rectifie__isnull=False,
+                            cle_rectification__isnull=False,
                             rectification_demandee_par__isnull=False,
                         )
                         & ~models.Q(motif_rectification="")

@@ -64,7 +64,9 @@ class InvoiceStateAPITests(SimpleTestCase):
                 facture = FactureFrais(statut=original, montant=Decimal("100.00"), montant_paye=paid)
                 facture.save = Mock()
                 serializer = FactureFraisDetailSerializer(
-                    facture, data={"statut": attempted, "note": "Correction"}, partial=True,
+                    facture,
+                    data={"statut": attempted, "note": "Correction"},
+                    partial=True,
                 )
                 with patch.object(serializer, "validate", side_effect=lambda data: data):
                     assert serializer.is_valid(), serializer.errors
@@ -186,7 +188,9 @@ class ConfirmedInvoiceBalanceTests(TenantAPITestCase):
             "balance-foreign-manager", role="comptable", etablissement=foreign
         )
         foreign_year = AnneeUniversitaire.objects.create(
-            universite=foreign, libelle="foreign-balance", date_debut=timezone.localdate(),
+            universite=foreign,
+            libelle="foreign-balance",
+            date_debut=timezone.localdate(),
             date_fin=timezone.localdate(),
         )
         foreign_rubric = TypeFraisInscription.objects.create(

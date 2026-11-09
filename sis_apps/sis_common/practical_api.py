@@ -32,8 +32,11 @@ QUERY_FIELDS = {
     "capacites": {},
     "curriculums": {"q": "text", "page": "page", "page_size": "size"},
     "programmes": {
-        "q": "text", "curriculum": "id", "statut": ("brouillon", "publie", "archive"),
-        "page": "page", "page_size": "size",
+        "q": "text",
+        "curriculum": "id",
+        "statut": ("brouillon", "publie", "archive"),
+        "page": "page",
+        "page_size": "size",
     },
     "programme": {},
     "revisions": {"page": "page", "page_size": "size"},
@@ -41,15 +44,19 @@ QUERY_FIELDS = {
     "conventions": {"revision": "id", "q": "text", "page": "page", "page_size": "size"},
     "partenaires": {"revision": "id", "q": "text", "page": "page", "page_size": "size"},
     "dossiers": {
-        "q": "text", "programme": "id", "statut": ("ouvert", "clos", "annule"),
-        "page": "page", "page_size": "size",
+        "q": "text",
+        "programme": "id",
+        "statut": ("ouvert", "clos", "annule"),
+        "page": "page",
+        "page_size": "size",
     },
     "dossier": {},
     "rapport": {},
     "dossier_history": {"page": "page", "page_size": "size"},
     "heures": {
         "statut": ("brouillon", "soumise", "validee", "rejetee", "annulee"),
-        "page": "page", "page_size": "size",
+        "page": "page",
+        "page_size": "size",
     },
     "heure": {},
     "decisions": {"page": "page", "page_size": "size"},
@@ -58,13 +65,19 @@ QUERY_FIELDS = {
     "assessment_evidence": {},
 }
 PROGRAMME_ACTIONS = {
-    "configurer": "configuration", "publier": "publication",
-    "reviser": "revision", "archiver": "archivage",
+    "configurer": "configuration",
+    "publier": "publication",
+    "reviser": "revision",
+    "archiver": "archivage",
 }
 DOSSIER_ACTIONS = {"clore": "cloture", "annuler_dossier": "annulation", "revoquer": "partenaire_revocation"}
 HOUR_ACTIONS = {
-    "soumettre": "soumission", "remplacer": "remplacement", "annuler_heure": "annulation",
-    "valider": "validation", "rejeter": "rejet", "invalider": "invalidation",
+    "soumettre": "soumission",
+    "remplacer": "remplacement",
+    "annuler_heure": "annulation",
+    "valider": "validation",
+    "rejeter": "rejet",
+    "invalider": "invalidation",
 }
 UPLOAD_ENDPOINTS = {"heures", "remplacer", "evaluer"}
 
@@ -137,9 +150,7 @@ def command_payload(request, endpoint):
         if "fichier" in data and "fichier" not in request.FILES:
             raise ValidationError({"fichier": ["Un fichier PDF binaire est requis."]})
         try:
-            payload = json.loads(
-                data["payload"], object_pairs_hook=_json_object, parse_constant=_invalid_constant
-            )
+            payload = json.loads(data["payload"], object_pairs_hook=_json_object, parse_constant=_invalid_constant)
         except (ValueError, TypeError, UnicodeError) as error:
             raise ValidationError({"payload": ["Un objet JSON UTF-8 valide est requis."]}) from error
         if not isinstance(payload, dict):
@@ -189,20 +200,30 @@ class PracticalView(APIView):
     def handle_exception(self, exc):
         if isinstance(exc, PracticalRuleError):
             errors = getattr(exc, "errors", {}) or ({exc.field: [str(exc)]} if exc.field else {})
-            return Response({
-                "detail": str(exc), "code": exc.code, "errors": errors,
-                "current_version": getattr(exc, "current_version", None),
-                "criteres_non_satisfaits": getattr(exc, "unmet", []),
-            }, status=exc.status)
+            return Response(
+                {
+                    "detail": str(exc),
+                    "code": exc.code,
+                    "errors": errors,
+                    "current_version": getattr(exc, "current_version", None),
+                    "criteres_non_satisfaits": getattr(exc, "unmet", []),
+                },
+                status=exc.status,
+            )
         if isinstance(exc, DjangoValidationError):
             exc = ValidationError(getattr(exc, "message_dict", None) or exc.messages)
         if not isinstance(exc, (APIException, Http404, DjangoPermissionDenied)):
             logger.error("Échec d'une requête pratique.", exc_info=exc)
-            return Response({
-                "detail": "La requête pratique n'a pas pu aboutir.",
-                "code": "internal_error", "errors": {},
-                "current_version": None, "criteres_non_satisfaits": [],
-            }, status=500)
+            return Response(
+                {
+                    "detail": "La requête pratique n'a pas pu aboutir.",
+                    "code": "internal_error",
+                    "errors": {},
+                    "current_version": None,
+                    "criteres_non_satisfaits": [],
+                },
+                status=500,
+            )
         response = super().handle_exception(exc)
         if isinstance(exc, (ValidationError, ParseError)):
             detail, code = "Données invalides.", "validation_error"
@@ -214,13 +235,19 @@ class PracticalView(APIView):
             if response.status_code == status.HTTP_404_NOT_FOUND:
                 code = "not_found"
             elif response.status_code == status.HTTP_403_FORBIDDEN and code not in (
-                "module_disabled", "module_unavailable", "contexte_inactif", "not_authenticated"
+                "module_disabled",
+                "module_unavailable",
+                "contexte_inactif",
+                "not_authenticated",
             ):
                 code = "permission_denied"
             errors = {}
         response.data = {
-            "detail": detail, "code": code, "errors": errors,
-            "current_version": None, "criteres_non_satisfaits": [],
+            "detail": detail,
+            "code": code,
+            "errors": errors,
+            "current_version": None,
+            "criteres_non_satisfaits": [],
         }
         return response
 
@@ -265,13 +292,15 @@ class PracticalView(APIView):
         if endpoint == "programme_history":
             return self.page(programme.historique.order_by("-version", "-pk"), wire.audit_dto)
         if endpoint == "conventions":
-            return self.page(service.convention_candidates(
-                request, programme, self.query["revision"], self.query.get("q", "")
-            ))
+            return self.page(
+                service.convention_candidates(request, programme, self.query["revision"], self.query.get("q", ""))
+            )
         if endpoint == "partenaires":
-            return self.page(service.partner_candidates(
-                request, programme, self.kwargs["convention_id"], self.query["revision"], self.query.get("q", "")
-            ))
+            return self.page(
+                service.partner_candidates(
+                    request, programme, self.kwargs["convention_id"], self.query["revision"], self.query.get("q", "")
+                )
+            )
         raise NotFound()
 
     def _get_dossier(self, dossier):
@@ -316,7 +345,10 @@ class PracticalView(APIView):
         except (FileNotFoundError, OSError) as error:
             raise NotFound() from error
         return FileResponse(
-            stream, content_type="application/pdf", as_attachment=True, filename=owner.fichier_nom,
+            stream,
+            content_type="application/pdf",
+            as_attachment=True,
+            filename=owner.fichier_nom,
         )
 
     def _preflight(self):
@@ -351,19 +383,30 @@ class PracticalView(APIView):
         if endpoint == "dossiers":
             return Response(service.open_dossier(request, data), status=201)
         if endpoint in DOSSIER_ACTIONS:
-            return Response(service.dossier_command(
-                request, self.kwargs["dossier_id"], DOSSIER_ACTIONS[endpoint], data
-            ))
+            return Response(
+                service.dossier_command(request, self.kwargs["dossier_id"], DOSSIER_ACTIONS[endpoint], data)
+            )
         if endpoint == "heures" or endpoint in HOUR_ACTIONS:
             result = service.hour_command(
-                request, self.kwargs["dossier_id"], "creation" if endpoint == "heures" else HOUR_ACTIONS[endpoint],
-                data, heure_id=self.kwargs.get("heure_id"), upload=upload,
+                request,
+                self.kwargs["dossier_id"],
+                "creation" if endpoint == "heures" else HOUR_ACTIONS[endpoint],
+                data,
+                heure_id=self.kwargs.get("heure_id"),
+                upload=upload,
             )
             return Response(result, status=201 if endpoint in ("heures", "remplacer") else 200)
         if endpoint == "evaluer":
-            return Response(service.assess_competency(
-                request, self.kwargs["dossier_id"], self.kwargs["code"], data, upload=upload,
-            ), status=201)
+            return Response(
+                service.assess_competency(
+                    request,
+                    self.kwargs["dossier_id"],
+                    self.kwargs["code"],
+                    data,
+                    upload=upload,
+                ),
+                status=201,
+            )
         raise NotFound()
 
 

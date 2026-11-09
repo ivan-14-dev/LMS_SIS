@@ -58,7 +58,10 @@ def check_health(client):
             continue
         try:
             response = requests.get(
-                f"{base}/heartbeat", timeout=5, verify=client.verify_ssl, allow_redirects=False,
+                f"{base}/heartbeat",
+                timeout=5,
+                verify=client.verify_ssl,
+                allow_redirects=False,
             )
             check["status"] = response.status_code
             if response.status_code != 200:
@@ -66,7 +69,10 @@ def check_health(client):
                 continue
             response = requests.get(
                 f"{base}/api/sis/v1/capabilities/",
-                headers=client._headers(), timeout=5, verify=client.verify_ssl, allow_redirects=False,
+                headers=client._headers(),
+                timeout=5,
+                verify=client.verify_ssl,
+                allow_redirects=False,
             )
             check["contract_status"] = "unavailable"
             if response.status_code != 200:
@@ -81,8 +87,7 @@ def check_health(client):
                 check["contract_status"] = "incompatible"
                 continue
             check["missing_capabilities"] = [
-                capability for capability in REQUIRED_CAPABILITIES[service]
-                if capabilities.get(capability) is not True
+                capability for capability in REQUIRED_CAPABILITIES[service] if capabilities.get(capability) is not True
             ]
             check["ok"] = not check["missing_capabilities"]
             check["contract_status"] = "ready" if check["ok"] else "forbidden"
