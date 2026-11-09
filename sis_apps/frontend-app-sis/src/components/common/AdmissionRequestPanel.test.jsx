@@ -3,11 +3,11 @@ import {
   fireEvent, render, screen, waitFor,
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { postApi } from '../../services/api';
+import { fetchApi, postApi } from '../../services/api';
 import { fetchAllResourcePages } from '../../services/resources';
 import AdmissionRequestPanel from './AdmissionRequestPanel';
 
-jest.mock('../../services/api', () => ({ postApi: jest.fn() }));
+jest.mock('../../services/api', () => ({ fetchApi: jest.fn(), postApi: jest.fn() }));
 jest.mock('../../services/resources', () => ({
   fetchAllResourcePages: jest.fn(),
   resourceUrl: (variant, resource) => `/${variant}/${resource}/`,
@@ -38,18 +38,18 @@ beforeEach(() => {
   failCatalogue = false;
   fetchAllResourcePages.mockImplementation(async (url) => {
     if (url.endsWith('inscriptions/')) { return enrollments; }
+    throw new Error(`Unexpected resource ${url}`);
+  });
+  fetchApi.mockImplementation(async (url) => {
     if (failCatalogue) { throw new Error('Catalogue inaccessible'); }
-    if (url.includes('etablissement/annees')) {
-      return [{ id: 8, libelle: 'Année ouverte', cloturee: false }, { id: 9, libelle: 'Année close', cloturee: true }];
-    }
-    if (url.includes('classes/classes')) {
-      return [{ id: 4, nom: 'Classe A', annee_scolaire: 8 }, { id: 5, nom: 'Autre année', annee_scolaire: 9 }];
-    }
-    if (url.includes('formations/formations')) { return [{ id: 4, nom: 'Formation A' }]; }
-    if (url.includes('formations/parcours')) {
-      return [{ id: 6, nom: 'Parcours A', formation: 4 }, { id: 7, nom: 'Autre formation', formation: 5 }];
-    }
-    throw new Error(`Unexpected catalogue ${url}`);
+    expect(url).toMatch(/\/inscriptions\/catalogue\/$/);
+    return {
+      years: [{ id: 8, libelle: 'Année ouverte' }],
+      targets: url.startsWith('/secondaire/')
+        ? [{ id: 4, nom: 'Classe A', annee_scolaire: 8 }, { id: 5, nom: 'Autre année', annee_scolaire: 9 }]
+        : [{ id: 4, nom: 'Formation A' }],
+      paths: [{ id: 6, nom: 'Parcours A', formation: 4 }, { id: 7, nom: 'Autre formation', formation: 5 }],
+    };
   });
   postApi.mockImplementation(async () => {
     enrollments = [{
@@ -107,4 +107,5 @@ it('shows existing decisions without allowing another first admission', async ()
   expect(screen.queryByRole('button', { name: 'Déposer ma première demande' })).not.toBeInTheDocument();
   expect(screen.getByTestId('history')).toHaveTextContent('eleves/inscriptions/12/historique/');
   expect(fetchAllResourcePages).toHaveBeenCalledTimes(1);
+  expect(fetchApi).not.toHaveBeenCalled();
 });

@@ -24,6 +24,7 @@ class AdmissionRouteTests(SimpleTestCase):
                 callback = resolve(f"{base}1/{operation}/").func
                 assert callback.actions == {"post": operation}
         assert resolve(f"{base}1/").func.actions["delete"] == "destroy"
+        assert resolve(f"{base}catalogue/").func.actions["get"] == "catalogue"
 
 
 class AdmissionsTests(GradeEntryFixture):
@@ -232,6 +233,10 @@ class AdmissionsTests(GradeEntryFixture):
     def test_authenticated_candidate_deposits_first_dossier_once_with_audit(self):
         candidate = self.learners[2]
         self.client.force_authenticate(candidate.user)
+        catalogue = self.client.get(f"{self.base}catalogue/")
+        assert catalogue.status_code == 200, catalogue.data
+        target_id = self.classe.pk if self.secondary else self.formation.pk
+        assert target_id in [item["id"] for item in catalogue.data["targets"]]
         url = f"{self.base}deposer/"
         payload = {
             self.year_field: self.year.pk,
@@ -252,12 +257,58 @@ class AdmissionsTests(GradeEntryFixture):
         assert history.status_code == 200, history.data
         assert [event["action"] for event in history.data] == ["admission_deposee"]
         assert self.client.post(url, payload, format="json").status_code == 400
+        assert self.client.get(f"{self.base}catalogue/").status_code == 400
         assert type(self.enrollment).objects.filter(**{self.field: candidate}).count() == 1
         assert self.client.post(self.base, {**payload, self.field: candidate.pk}, format="json").status_code == 403
         assert self.client.post(f"{self.base}{enrollment.pk}/valider/", {}, format="json").status_code == 403
         self.client.force_authenticate(self.learner.user)
         assert self.client.post(url, self.next_payload, format="json").status_code == 400
         assert not type(self.enrollment).objects.filter(**{self.year_field: self.new_year}).exists()
+
+    def test_first_admission_catalogue_exposes_only_choices_not_school_records(self):
+        candidate = self.learners[2]
+        self.client.force_authenticate(candidate.user)
+        general_url = "/api/v1/classes/classes/" if self.secondary else "/api/v1/formations/formations/"
+        assert self.client.get(general_url).data["count"] == 0
+        self.new_year.cloturee = True
+        self.new_year.save(update_fields=["cloturee"])
+        if not self.secondary:
+            self.target.actif = False
+            self.target.save(update_fields=["actif"])
+            path = self.create("formations.Parcours", formation=self.formation, code="ADMISSION", nom="Parcours")
+            self.create("formations.Parcours", formation=self.target, code="CLOSED", nom="Masqué")
+        response = self.client.get(f"{self.base}catalogue/")
+        assert response.status_code == 200, response.data
+        assert response["Cache-Control"] == "private, no-store"
+        assert response.data["years"] == [{"id": self.year.pk, "libelle": self.year.libelle}]
+        assert response.data["targets"] == (
+            [{"id": self.classe.pk, "nom": self.classe.nom, "annee_scolaire": self.year.pk}]
+            if self.secondary
+            else [{"id": self.formation.pk, "nom": self.formation.nom}]
+        )
+        assert response.data["paths"] == (
+            [] if self.secondary else [{"id": path.pk, "nom": path.nom, "formation": self.formation.pk}]
+        )
+        assert self.client.get(general_url).data["count"] == 0
+
+    def test_first_admission_catalogue_requires_an_active_same_tenant_learner_profile(self):
+        url = f"{self.base}catalogue/"
+        assert self.client.get(url).status_code == 403
+        self.client.force_authenticate(self.teacher)
+        assert self.client.get(url).status_code == 403
+        candidate = self.learners[2]
+        self.client.force_authenticate(candidate.user)
+        candidate.user.is_active = False
+        assert self.client.get(url).status_code == 403
+        candidate.user.is_active = True
+        candidate.user.etablissement_id = self.tenant.pk + 1
+        assert self.client.get(url).status_code == 403
+        candidate.user.etablissement_id = self.tenant.pk
+        unverified = type(candidate.user).objects.create_user(
+            "admission-without-profile", role=candidate.user.role, etablissement=self.tenant
+        )
+        self.client.force_authenticate(unverified)
+        assert self.client.get(url).status_code == 403
 
     def test_candidate_cannot_deposit_without_proof_or_choose_another_identity_or_closed_year(self):
         candidate = self.learners[2]

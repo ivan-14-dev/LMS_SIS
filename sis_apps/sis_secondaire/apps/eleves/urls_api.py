@@ -15,6 +15,11 @@ urlpatterns = [
         name="inscriptions-list",
     ),
     path(
+        "inscriptions/catalogue/",
+        api.InscriptionsViewSet.as_view({"get": "catalogue"}, permission_classes=[ActiveTenantAccess]),
+        name="inscriptions-catalogue",
+    ),
+    path(
         "inscriptions/deposer/",
         api.InscriptionsViewSet.as_view({"post": "deposer"}, permission_classes=[ActiveTenantAccess]),
         name="inscriptions-deposer",

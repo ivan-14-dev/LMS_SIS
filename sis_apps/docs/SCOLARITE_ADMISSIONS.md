@@ -61,6 +61,12 @@ de convertir des règles, notes ou acquis sans traitement d'équivalence.
 Racine secondaire : `/api/v1/eleves/inscriptions/`.
 Racine supérieur : `/api/v1/inscriptions/`.
 
+- `GET catalogue/` : choix minimaux de première admission (`years`, `targets`,
+  `paths`), réservés au compte apprenant actif avec profil dans le tenant et
+  sans inscription existante. Les années closes/terminées et les formations
+  inactives sont exclues. Seuls identifiants, libellés et rattachements utiles
+  sont exposés, sans dossiers, effectifs ni personnel. Les listes scolaires
+  ordinaires restent limitées aux classes/formations déjà attribuées.
 - `POST deposer/` : première demande du compte apprenant. Corps :
   `annee_scolaire`, `classe`, `motif` facultatif au secondaire ;
   `annee_universitaire`, `formation`, `parcours` facultatif, `motif` facultatif

@@ -4,7 +4,7 @@ import {
   Alert, Box, Button, CircularProgress, MenuItem, Stack, TextField, Typography,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { postApi } from '../../services/api';
+import { fetchApi, postApi } from '../../services/api';
 import { apiErrorMessage, fetchAllResourcePages, resourceUrl } from '../../services/resources';
 import WorkflowHistoryPanel from './WorkflowHistoryPanel';
 
@@ -25,14 +25,7 @@ const AdmissionRequestPanel = ({ variant }) => {
   const catalogue = useQuery({
     queryKey: ['admission-catalogue', variant],
     enabled: canDeposit,
-    queryFn: async ({ signal }) => {
-      const [years, targets, paths] = await Promise.all([
-        fetchAllResourcePages(resourceUrl(variant, 'etablissement/annees'), {}, { signal }),
-        fetchAllResourcePages(resourceUrl(variant, school ? 'classes/classes' : 'formations/formations'), {}, { signal }),
-        school ? [] : fetchAllResourcePages(resourceUrl(variant, 'formations/parcours'), {}, { signal }),
-      ]);
-      return { years, targets, paths };
-    },
+    queryFn: ({ signal }) => fetchApi(`${url}catalogue/`, { signal }),
   });
   const deposit = useMutation({
     mutationFn: () => postApi(`${url}deposer/`, {

@@ -14,7 +14,7 @@ from rest_framework.response import Response
 
 from sis_common.academic_lifecycle import ensure_academic_open
 from sis_common.authorization import filter_queryset_by_scopes, has_business_permission
-from sis_common.delegations import ActiveTenantAccess
+from sis_common.delegations import ActiveTenantAccess, resource_queryset
 from sis_common.enrollment_states import transition_status, validate_enrollment_dates
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
@@ -245,27 +245,17 @@ class ReenrollmentMixin:
         )
         return Response(self.get_serializer(enrollment).data)
 
-    @action(detail=False, methods=["post"], permission_classes=[ActiveTenantAccess])
-    @transaction.atomic
-    def deposer(self, request):
+    def first_admission_learner(self, *, lock=False):
+        request = self.request
         model = self.serializer_class.Meta.model
-        learner_field, year_field, target_field, _, _ = admission_fields(model)
+        learner_field, _, _, _, _ = admission_fields(model)
         roles = ("eleve",) if learner_field == "eleve" else ("etudiant", "doctorant")
         if request.user.role not in roles or request.user.is_superuser:
             raise PermissionDenied("Seul un apprenant peut déposer sa première demande d'admission.")
-        if not isinstance(request.data, Mapping):
-            raise serializers.ValidationError({"detail": "Un dossier d'admission est attendu."})
-        allowed = {year_field, target_field, "motif"}
-        if target_field == "formation":
-            allowed.add("parcours")
-        if set(request.data) - allowed:
-            raise serializers.ValidationError({"detail": "Ce dossier contient des champs non autorisés."})
-
         learner_model = model._meta.get_field(learner_field).remote_field.model
         owner_field = "etablissement" if learner_field == "eleve" else "universite"
-        learner = (
-            learner_model.objects.select_for_update().filter(user=request.user, **{owner_field: request.tenant}).first()
-        )
+        queryset = learner_model.objects.filter(user=request.user, **{owner_field: request.tenant})
+        learner = (queryset.select_for_update() if lock else queryset).first()
         if learner is None:
             raise PermissionDenied("Aucun profil d'apprenant ne vous est attribué dans cet établissement.")
         if model.objects.filter(**{learner_field: learner}).exists():
@@ -277,7 +267,54 @@ class ReenrollmentMixin:
                     )
                 }
             )
+        return learner
 
+    @action(detail=False, methods=["get"], permission_classes=[ActiveTenantAccess])
+    def catalogue(self, request):
+        self.first_admission_learner()
+        model = self.serializer_class.Meta.model
+        learner_field, year_field, _, _, _ = admission_fields(model)
+        school = learner_field == "eleve"
+        owner_field = "etablissement" if school else "universite"
+        years = (
+            model._meta.get_field(year_field)
+            .remote_field.model.objects.filter(
+                **{owner_field: request.tenant}, cloturee=False, date_fin__gte=timezone.localdate()
+            )
+            .order_by("date_debut", "pk")
+        )
+        targets = resource_queryset("classes" if school else "formations", request.tenant)
+        if school:
+            targets = targets.filter(annee_scolaire__in=years)
+            choices = list(targets.order_by("nom", "pk").values("id", "nom", "annee_scolaire"))
+            paths = []
+        else:
+            targets = targets.filter(actif=True)
+            choices = list(targets.order_by("nom", "pk").values("id", "nom"))
+            paths = list(
+                apps.get_model("formations.Parcours")
+                .objects.filter(formation__in=targets)
+                .order_by("nom", "pk")
+                .values("id", "nom", "formation")
+            )
+        return Response(
+            {"years": list(years.values("id", "libelle")), "targets": choices, "paths": paths},
+            headers={"Cache-Control": "private, no-store"},
+        )
+
+    @action(detail=False, methods=["post"], permission_classes=[ActiveTenantAccess])
+    @transaction.atomic
+    def deposer(self, request):
+        model = self.serializer_class.Meta.model
+        learner_field, year_field, target_field, _, _ = admission_fields(model)
+        learner = self.first_admission_learner(lock=True)
+        if not isinstance(request.data, Mapping):
+            raise serializers.ValidationError({"detail": "Un dossier d'admission est attendu."})
+        allowed = {year_field, target_field, "motif"}
+        if target_field == "formation":
+            allowed.add("parcours")
+        if set(request.data) - allowed:
+            raise serializers.ValidationError({"detail": "Ce dossier contient des champs non autorisés."})
         motif = serializers.CharField(allow_blank=True, max_length=2000).run_validation(request.data.get("motif", ""))
         data = {
             learner_field: learner.pk,
