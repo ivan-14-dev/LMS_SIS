@@ -2,6 +2,7 @@
 
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
 from apps.utilisateurs.models import Utilisateur
+from django.contrib.auth.models import Permission
 from rest_framework.authtoken.models import Token
 from rest_framework_simplejwt.token_blacklist.models import (
     BlacklistedToken,
@@ -68,7 +69,10 @@ class SessionRevocationTestCase(TenantAPITestCase):
         assert not Token.objects.filter(user=self.user).exists()
 
     def test_force_logout_by_admin_revokes_target_user_token(self):
-        """Un administrateur (direction) peut révoquer les sessions d'un autre utilisateur."""
+        """Un administrateur explicitement habilité peut révoquer les sessions d'un autre utilisateur."""
+        self.user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="utilisateurs", codename__in=["view_utilisateur", "change_utilisateur"],
+        ))
         Token.objects.create(user=self.other_user)
         self.client.force_authenticate(user=self.user)
 

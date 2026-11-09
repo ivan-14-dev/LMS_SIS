@@ -172,10 +172,10 @@ class PortailAPITestCase(SimpleTestCase):
         parent.request = SimpleNamespace(tenant=SimpleNamespace(pk=7))
         links = parent._authorized_links(
             SimpleNamespace(
-                user=SimpleNamespace(tuteur_profile=SimpleNamespace(pk=12)),
+                user=SimpleNamespace(tuteur_profile=SimpleNamespace(pk=12), is_superuser=False, attributs_acces={}),
                 tenant=SimpleNamespace(pk=7),
             )
         )
         sql, params = links.query.sql_with_params()
-        assert 12 in params and params.count(7) == 2
+        assert 12 in params and params.count(7) >= 3
         assert "etablissement_id" in sql

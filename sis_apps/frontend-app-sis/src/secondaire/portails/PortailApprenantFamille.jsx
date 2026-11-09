@@ -14,6 +14,7 @@ import { canEnterPortal } from '../../components/layout/navigation';
 import { fetchApi, getSecondaireApiUrl } from '../../services/api';
 import { apiErrorMessage } from '../../services/resources';
 import RecordsTabs from '../../components/common/RecordsTabs';
+import ChildFamilyRecord from './ChildFamilyRecord';
 
 const PortailApprenantFamille = () => {
   const {
@@ -162,6 +163,7 @@ const PortailApprenantFamille = () => {
           { label: 'Factures en attente', content: <SISDataTable title="Factures en attente" showTitle={false} data={factures} columns={facturesColumns} searchable={false} exportable={false} /> },
         ]}
       />
+      <ChildFamilyRecord pupils={enfants} />
     </Box>
   );
 };

@@ -4,7 +4,6 @@ from apps.portail_eleve.api import PortailEleveViewSet
 from apps.portail_enseignant.api import PortailEnseignantViewSet
 from apps.portail_parent.api import PortailParentViewSet
 from apps.classes.models import Classe
-from apps.eleves.models import EleveTuteur
 from apps.emplois_du_temps.models import Creneau
 from apps.enseignants.models import AffectationEnseignant
 from apps.presences.models import Appel
@@ -149,14 +148,7 @@ class _TenantTeacherPortal(PortailEnseignantViewSet):
 
 
 class _TenantParentPortal(PortailParentViewSet):
-    def _authorized_links(self, request):
-        tenant_id = request.tenant.pk
-        return EleveTuteur.objects.filter(
-            tuteur_id=request.user.tuteur_profile.pk,
-            autorise_acces_portail=True,
-            eleve__etablissement_id=tenant_id,
-            eleve__user__etablissement_id=tenant_id,
-        ).select_related("eleve__user", "eleve__classe_actuelle__niveau")
+    """Keep the direct parent portal's tenant and ABAC restrictions."""
 
 
 class IsApprenantFamille(IsAuthenticated):
@@ -220,6 +212,11 @@ class IsElevePortal(IsApprenantFamille):
         return super().has_permission(request, view) and request.user.role == "eleve"
 
 
+class IsParentPortal(IsApprenantFamille):
+    def has_permission(self, request, view):
+        return super().has_permission(request, view) and request.user.role == "parent"
+
+
 class IsTeacherPortal(IsStaffAdmin):
     def has_permission(self, request, view):
         return (
@@ -261,6 +258,10 @@ class PortailApprenantViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"], permission_classes=[IsElevePortal])
     def bulletins(self, request):
         return _delegate(PortailEleveViewSet, request, "bulletins")
+
+    @action(detail=False, methods=["get"], permission_classes=[IsParentPortal])
+    def dossier_enfant(self, request):
+        return _delegate(_TenantParentPortal, request, "dossier_enfant")
 
 
 class PortailStaffViewSet(viewsets.ViewSet):

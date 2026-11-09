@@ -15,7 +15,6 @@ from sis_common.academic_lifecycle import AcademicLifecycleMixin
 from sis_common.authorization import (
     can_delegate_permissions,
     has_business_permission,
-    has_business_permission_or_role,
     is_current_tenant_user,
     permission_snapshot,
 )
@@ -71,19 +70,7 @@ class CanManageUsers(IsAuthenticated):
             "create": "utilisateurs.add_utilisateur",
             "destroy": "utilisateurs.delete_utilisateur",
         }.get(view.action, "utilisateurs.change_utilisateur")
-        return has_business_permission_or_role(
-            request.user,
-            permission,
-            (
-                "president",
-                "vice_president",
-                "doyen",
-                "directeur_etudes",
-                "scolarite",
-            ),
-            configuration=getattr(request.tenant, "configuration_academique", {}),
-            tenant_group_codes=("academic_admin_superieur",),
-        )
+        return has_business_permission(request.user, permission)
 
 
 class CanManageAuthorization(IsAuthenticated):
@@ -121,24 +108,15 @@ class UtilisateursViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
         user = self.request.user
         qs = Utilisateur.objects.select_related("etablissement")
 
-        # Les admins voient tous les utilisateurs de leur établissement
+        if not is_current_tenant_user(self.request):
+            return qs.none()
         qs = qs.filter(etablissement=self.request.tenant)
 
-        can_list = has_business_permission_or_role(
-            user,
-            "utilisateurs.view_utilisateur",
-            (
-                "president",
-                "vice_president",
-                "doyen",
-                "directeur_etudes",
-                "scolarite",
-            ),
-            configuration=getattr(self.request.tenant, "configuration_academique", {}),
-            tenant_group_codes=("academic_admin_superieur",),
-        )
+        can_list = has_business_permission(user, "utilisateurs.view_utilisateur")
         if not can_list:
             qs = qs.filter(pk=user.pk)
+        if not user.is_superuser:
+            qs = qs.filter(is_superuser=False)
 
         return qs
 

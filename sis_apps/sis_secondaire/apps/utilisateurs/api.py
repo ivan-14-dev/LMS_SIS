@@ -15,7 +15,6 @@ from sis_common.academic_lifecycle import AcademicLifecycleMixin
 from sis_common.authorization import (
     can_delegate_permissions,
     has_business_permission,
-    has_business_permission_or_role,
     is_current_tenant_user,
     permission_snapshot,
 )
@@ -47,7 +46,7 @@ from .serializers import (
 
 
 class IsDirectionOrReadOnly(IsAuthenticated):
-    """Permission: direction pour écriture, authentifié pour lecture."""
+    """Self-service is separate from explicitly delegated account administration."""
 
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
@@ -72,13 +71,7 @@ class IsDirectionOrReadOnly(IsAuthenticated):
             "create": "utilisateurs.add_utilisateur",
             "destroy": "utilisateurs.delete_utilisateur",
         }.get(view.action, "utilisateurs.change_utilisateur")
-        return has_business_permission_or_role(
-            user,
-            permission,
-            ("direction", "responsable_pedagogique"),
-            configuration=getattr(request.tenant, "configuration_academique", {}),
-            tenant_group_codes=("academic_admin_secondary",),
-        )
+        return has_business_permission(user, permission)
 
 
 class CanManageAuthorization(IsAuthenticated):
@@ -117,16 +110,11 @@ class UtilisateursViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
 
         # Filtrer par établissement du tenant
         request = self.request
-        if hasattr(request, "tenant"):
-            qs = qs.filter(etablissement=request.tenant)
+        if not is_current_tenant_user(request):
+            return qs.none()
+        qs = qs.filter(etablissement=request.tenant)
 
-        can_list = has_business_permission_or_role(
-            request.user,
-            "utilisateurs.view_utilisateur",
-            ("direction", "responsable_pedagogique"),
-            configuration=getattr(request.tenant, "configuration_academique", {}),
-            tenant_group_codes=("academic_admin_secondary",),
-        )
+        can_list = has_business_permission(request.user, "utilisateurs.view_utilisateur")
         if not can_list:
             return qs.filter(pk=request.user.pk)
         if not request.user.is_superuser:
