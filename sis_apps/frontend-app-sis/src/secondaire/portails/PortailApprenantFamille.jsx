@@ -15,6 +15,7 @@ import { fetchApi, getSecondaireApiUrl } from '../../services/api';
 import { apiErrorMessage } from '../../services/resources';
 import RecordsTabs from '../../components/common/RecordsTabs';
 import ChildFamilyRecord from './ChildFamilyRecord';
+import AdmissionRequestPanel from '../../components/common/AdmissionRequestPanel';
 
 const PortailApprenantFamille = () => {
   const {
@@ -113,6 +114,7 @@ const PortailApprenantFamille = () => {
           panels={[
             { label: 'Notes récentes', content: <SISDataTable title="Notes récentes" showTitle={false} data={notes} columns={notesColumns} searchable={false} exportable={false} /> },
             { label: 'Bulletins publiés', content: <SISDataTable title="Bulletins publiés" showTitle={false} data={bulletins} columns={bulletinColumns} searchable={false} exportable={false} /> },
+            { label: 'Admissions et inscriptions', content: <AdmissionRequestPanel variant="secondaire" /> },
           ]}
         />
       </Box>

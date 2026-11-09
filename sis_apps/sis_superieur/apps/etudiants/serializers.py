@@ -7,7 +7,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from sis_common.admissions import AdmissionSerializerMixin
+from sis_common.admissions import AdmissionSerializerMixin, ensure_active_enrollment, validate_learner_lifecycle
 from sis_common.learning_offerings import ModelValidationSerializerMixin
 from sis_common.serializers import TenantBoundSerializerMixin
 
@@ -45,6 +45,18 @@ class EtudiantDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSeri
     regime_display = serializers.CharField(source="get_regime_display", read_only=True)
     sexe_display = serializers.CharField(source="get_sexe_display", read_only=True)
     annee_universitaire_libelle = serializers.CharField(source="annee_universitaire_actuelle.libelle", read_only=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        validate_learner_lifecycle(self.instance, attrs)
+        if (
+            "annee_universitaire_actuelle" in attrs
+            and attrs["annee_universitaire_actuelle"] != self.instance.annee_universitaire_actuelle
+        ):
+            raise serializers.ValidationError(
+                {"annee_universitaire_actuelle": "Validez une inscription ou une reprise pour affecter l'année."}
+            )
+        return attrs
 
     class Meta:
         model = Etudiant
@@ -275,6 +287,8 @@ class AffectationECUEIndividuelleSerializer(serializers.ModelSerializer):
         )
         inscription_admin = attrs.get("inscription_admin") or getattr(self.instance, "inscription_admin", None)
         semestre_cible = attrs.get("semestre_cible") or getattr(self.instance, "semestre_cible", None)
+        if inscription_admin:
+            ensure_active_enrollment(inscription_admin)
         if etudiant and inscription_admin and inscription_admin.etudiant_id != etudiant.id:
             raise serializers.ValidationError(
                 {"inscription_admin": "Cette inscription administrative n'appartient pas à cet étudiant."}

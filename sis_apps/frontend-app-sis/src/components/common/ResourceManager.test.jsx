@@ -11,6 +11,7 @@ import ResourceManager from './ResourceManager';
 import ResourceWorkspace from './ResourceWorkspace';
 import { fetchAllResourcePages } from '../../services/resources';
 import UtilisateursPage from '../../admin/utilisateurs/UtilisateursPage';
+import admissionActions from './admissionActions';
 
 jest.mock('../../services/resources', () => ({
   ...jest.requireActual('../../services/resources'),
@@ -46,6 +47,36 @@ const show = (fields = [], props = {}) => render(
 
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+it.each(['secondaire', 'superieur'])('runs reasoned suspension and resume with refreshed state in %s', async (variant) => {
+  let enrollment = { id: 21, nom: 'Admission', statut: 'validee' };
+  fetchApi.mockImplementation(async () => ({ count: 1, results: [enrollment] }));
+  postApi.mockImplementation(async (url) => {
+    enrollment = { ...enrollment, statut: url.endsWith('/suspendre/') ? 'suspendue' : 'validee' };
+    return enrollment;
+  });
+  show([], {
+    variant,
+    resource: variant === 'secondaire' ? 'eleves/inscriptions' : 'inscriptions',
+    actions: admissionActions(variant),
+    allowCreate: false,
+    allowEdit: false,
+  });
+  fireEvent.click(await screen.findByRole('button', { name: 'Suspendre', exact: true }));
+  fireEvent.change(screen.getByLabelText(/^Justification/), { target: { value: 'Interruption temporaire demandée' } });
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Suspendre', exact: true }));
+  expect(await screen.findByRole('button', { name: 'Reprendre', exact: true })).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Suspendre', exact: true })).not.toBeInTheDocument();
+  expect(postApi.mock.calls[0][0]).toMatch(/\/21\/suspendre\/$/);
+  expect(postApi.mock.calls[0][1]).toEqual({ motif: 'Interruption temporaire demandée' });
+  fireEvent.click(screen.getByRole('button', { name: 'Reprendre', exact: true }));
+  fireEvent.change(screen.getByLabelText(/^Justification/), { target: { value: 'Retour autorisé après contrôle' } });
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reprendre', exact: true }));
+  expect(await screen.findByRole('button', { name: 'Suspendre', exact: true })).toBeVisible();
+  expect(postApi.mock.calls[1][0]).toMatch(/\/21\/reprendre\/$/);
+  expect(postApi.mock.calls[1][1]).toEqual({ motif: 'Retour autorisé après contrôle' });
+  expect(patchApi).not.toHaveBeenCalled();
 });
 
 it.each([

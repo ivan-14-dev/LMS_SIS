@@ -13,9 +13,18 @@ const admissionActions = (variant) => {
       label: 'Annuler la demande', endpoint: 'annuler', statuses: [pending], fields: [reason],
     },
     {
+      label: 'Suspendre', endpoint: 'suspendre', statuses: ['validee'], fields: [reason],
+    },
+    {
+      label: 'Enregistrer un abandon', endpoint: 'abandonner', statuses: ['validee', 'suspendue'], fields: [reason],
+    },
+    {
+      label: 'Reprendre', endpoint: 'reprendre', statuses: ['suspendue'], fields: [reason],
+    },
+    {
       label: 'Réinscrire / changer de cursus',
       endpoint: 'reinscrire',
-      statuses: ['validee'],
+      statuses: ['validee', 'suspendue', 'abandonnee'],
       fields: [
         {
           name: school ? 'annee_scolaire' : 'annee_universitaire',

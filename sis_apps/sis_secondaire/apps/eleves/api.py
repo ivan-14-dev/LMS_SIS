@@ -15,6 +15,9 @@ from sis_common.admissions import (
     AdmissionTenantAccess,
     ReenrollmentMixin,
     activate_school_enrollment,
+    ensure_active_enrollment,
+    ensure_enrollment_dates,
+    ensure_school_capacity,
     scoped_admissions,
 )
 from sis_common.authorization import filter_queryset_by_scopes, is_current_tenant_user, request_has_business_access
@@ -31,19 +34,6 @@ from .serializers import (
     InscriptionSerializer,
     TuteurSerializer,
 )
-
-
-def _ensure_class_capacity(classe, eleve):
-    occupants = (
-        Eleve.objects.filter(
-            Q(classe_actuelle=classe) | Q(inscriptions__classe=classe, inscriptions__statut="validee")
-        )
-        .exclude(pk=eleve.pk)
-        .distinct()
-        .count()
-    )
-    if occupants >= classe.effectif_max:
-        raise serializers.ValidationError({"classe": "La classe a atteint sa capacité."})
 
 
 def visible_learners(request):
@@ -205,6 +195,7 @@ class ElevesViewSet(LearnerImportMixin, AcademicLifecycleMixin, viewsets.ModelVi
             raise serializers.ValidationError(
                 {"detail": "Une inscription validée dans la classe actuelle est requise."}
             )
+        ensure_enrollment_dates(inscription, ongoing=True)
         if (
             inscription.offre_configuration
             or nouvelle_classe.offre_configuration
@@ -221,7 +212,7 @@ class ElevesViewSet(LearnerImportMixin, AcademicLifecycleMixin, viewsets.ModelVi
                     )
                 }
             )
-        _ensure_class_capacity(nouvelle_classe, eleve)
+        ensure_school_capacity(nouvelle_classe, eleve)
         inscription.classe = nouvelle_classe
         inscription.save(update_fields=["classe"])
         eleve.classe_actuelle = nouvelle_classe
@@ -282,6 +273,9 @@ class ElevesViewSet(LearnerImportMixin, AcademicLifecycleMixin, viewsets.ModelVi
                 status=status.HTTP_404_NOT_FOUND,
             )
         ensure_academic_open(affectation, paths=("annee_scolaire",))
+        enrollment = eleve.inscriptions.filter(annee_scolaire=affectation.annee_scolaire).first()
+        if enrollment is not None:
+            ensure_active_enrollment(enrollment)
         affectation.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -335,8 +329,10 @@ class InscriptionsViewSet(ReenrollmentMixin, AcademicLifecycleMixin, viewsets.Mo
                 {"error": "Seules les inscriptions en cours peuvent être validées."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        ensure_enrollment_dates(inscription)
+        eleve = Eleve.objects.select_for_update().get(pk=inscription.eleve_id)
         classe = Classe.objects.select_for_update().get(pk=inscription.classe_id)
-        _ensure_class_capacity(classe, inscription.eleve)
+        ensure_school_capacity(classe, eleve)
         inscription.statut = "validee"
         inscription.save(update_fields=["statut"])
 

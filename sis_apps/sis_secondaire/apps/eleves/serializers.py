@@ -6,7 +6,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from sis_common.admissions import AdmissionSerializerMixin
+from sis_common.admissions import AdmissionSerializerMixin, ensure_active_enrollment, validate_learner_lifecycle
 from sis_common.learning_offerings import ModelValidationSerializerMixin
 from sis_common.serializers import TenantBoundSerializerMixin
 
@@ -60,6 +60,7 @@ class EleveDetailSerializer(TenantBoundSerializerMixin, serializers.ModelSeriali
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        validate_learner_lifecycle(self.instance, attrs)
         if "classe_actuelle" in attrs and attrs["classe_actuelle"] != self.instance.classe_actuelle:
             raise serializers.ValidationError(
                 {"classe_actuelle": "Utilisez le changement de classe motivé ou validez une inscription."}
@@ -333,6 +334,10 @@ class AffectationMatiereIndividuelleSerializer(serializers.ModelSerializer):
         programme_source = attrs.get("programme_source") or getattr(self.instance, "programme_source", None)
         matiere = attrs.get("matiere") or getattr(self.instance, "matiere", None)
         annee_scolaire = attrs.get("annee_scolaire") or getattr(self.instance, "annee_scolaire", None)
+        if eleve and annee_scolaire:
+            enrollment = eleve.inscriptions.filter(annee_scolaire=annee_scolaire).first()
+            if enrollment is not None:
+                ensure_active_enrollment(enrollment)
 
         if programme_source:
             if matiere and programme_source.matiere_id != matiere.id:

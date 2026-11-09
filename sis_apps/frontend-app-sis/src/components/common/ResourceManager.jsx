@@ -108,6 +108,7 @@ const ResourceManager = ({
       setNotice(pendingAction ? `${pendingAction.label} : opération effectuée.` : 'Enregistrement effectué.');
       client.invalidateQueries({ queryKey: ['resource'] });
       client.invalidateQueries({ queryKey: ['reference'] });
+      client.invalidateQueries({ queryKey: ['workflow-history', variant] });
       onSaved?.(result);
     },
     onError: failure => setError(apiErrorMessage(failure)),
@@ -141,6 +142,7 @@ const ResourceManager = ({
       await postApi(`${url}${row.id}/${action.endpoint}/`, {});
       setNotice(`${action.label} : opération effectuée.`);
       client.invalidateQueries({ queryKey: ['resource'] });
+      client.invalidateQueries({ queryKey: ['workflow-history', variant] });
     } catch (failure) {
       setError(apiErrorMessage(failure));
     }

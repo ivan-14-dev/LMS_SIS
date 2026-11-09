@@ -11,6 +11,8 @@ const InscriptionsPage = () => {
       <Alert severity="info" sx={{ mb: 3 }}>
         Une réinscription ouvre une nouvelle demande sur une année postérieure.
         Les notes, choix pédagogiques et règles antérieurs ne sont pas transférés ni convertis automatiquement.
+        Suspension et abandon conservent les acquis. La reprise n’est possible que depuis une suspension,
+        pendant l’année en cours non clôturée ; sinon, ouvrez une réinscription.
       </Alert>
       <ResourceManager
         variant="superieur"

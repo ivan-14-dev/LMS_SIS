@@ -1,8 +1,11 @@
 """API views for etudiants (ViewSets DRF) - SIS Supérieur."""
 
+from collections.abc import Mapping
+
 from apps.core.serializers import WorkflowEventSerializer
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
@@ -11,7 +14,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.academic_lifecycle import AcademicLifecycleMixin, ensure_academic_open
-from sis_common.admissions import AdmissionTenantAccess, ReenrollmentMixin, scoped_admissions
+from sis_common.admissions import (
+    AdmissionTenantAccess,
+    ReenrollmentMixin,
+    ensure_active_enrollment,
+    ensure_enrollment_dates,
+    scoped_admissions,
+    validate_learner_lifecycle,
+)
 from sis_common.authorization import request_has_business_access
 from sis_common.learner_import import LearnerImportMixin
 from sis_common.workflow_tracking import (
@@ -163,6 +173,7 @@ class EtudiantsViewSet(LearnerImportMixin, AcademicLifecycleMixin, viewsets.Mode
             )
 
         ancien_statut = etudiant.statut
+        validate_learner_lifecycle(etudiant, {"statut": nouveau_statut})
         etudiant.statut = nouveau_statut
         etudiant.save(update_fields=["statut", "updated_at"])
 
@@ -219,6 +230,7 @@ class EtudiantsViewSet(LearnerImportMixin, AcademicLifecycleMixin, viewsets.Mode
                 status=status.HTTP_404_NOT_FOUND,
             )
         ensure_academic_open(affectation, paths=("inscription_admin.annee_universitaire", "semestre_cible"))
+        ensure_active_enrollment(affectation.inscription_admin)
         affectation.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -264,6 +276,7 @@ class InscriptionsAdminViewSet(ReenrollmentMixin, AcademicLifecycleMixin, viewse
 
         inscription = self.get_object()
         ensure_academic_open(inscription, paths=self.academic_period_paths)
+        ensure_enrollment_dates(inscription, ongoing=True)
         motif = serializers.CharField(allow_blank=False, max_length=2000).run_validation(request.data.get("motif"))
         serializer = self.get_serializer(
             inscription,
@@ -328,17 +341,20 @@ class InscriptionsAdminViewSet(ReenrollmentMixin, AcademicLifecycleMixin, viewse
                 {"error": "Seules les inscriptions provisoires peuvent être validées."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        ensure_enrollment_dates(inscription)
         inscription.statut = "validee"
         inscription.save(update_fields=["statut", "updated_at"])
         etudiant = Etudiant.objects.select_for_update().get(pk=inscription.etudiant_id)
         current_year = etudiant.annee_universitaire_actuelle
         year = inscription.annee_universitaire
-        if current_year is None or current_year.pk == year.pk or current_year.date_debut < year.date_debut:
+        if year.date_debut <= timezone.localdate() <= year.date_fin and (
+            current_year is None or current_year.pk == year.pk or current_year.date_debut < year.date_debut
+        ):
             fields = []
             if etudiant.annee_universitaire_actuelle_id != year.pk:
                 etudiant.annee_universitaire_actuelle = year
                 fields.append("annee_universitaire_actuelle")
-            if etudiant.statut == "pre_inscrit":
+            if etudiant.statut in ("pre_inscrit", "suspendu", "abandon"):
                 etudiant.statut = "inscrit"
                 fields.append("statut")
             if fields:
@@ -366,6 +382,8 @@ class InscriptionsAdminViewSet(ReenrollmentMixin, AcademicLifecycleMixin, viewse
         ensure_academic_open(inscription, paths=self.academic_period_paths)
         if inscription.statut != "provisoire":
             return Response({"error": "Seule une inscription provisoire peut être refusée."}, status=400)
+        if not isinstance(request.data, Mapping):
+            raise serializers.ValidationError({"detail": "Un motif de décision est attendu."})
         motif = request.data.get("motif", "")
         if not isinstance(motif, str) or not motif.strip() or len(motif) > 2000:
             return Response(

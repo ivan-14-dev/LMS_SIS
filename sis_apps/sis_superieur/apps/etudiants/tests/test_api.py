@@ -142,7 +142,7 @@ class InscriptionValidationConsistencyTestCase(GradeEntryFixture):
         assert student.statut == "inscrit"
         assert student.annee_universitaire_actuelle_id == self.year.pk
 
-    def test_validation_of_older_year_preserves_newer_year_and_suspension(self):
+    def test_validation_of_expired_year_is_refused_and_preserves_newer_year_and_suspension(self):
         student = self.learners[2]
         self.enroll(student)
         student.statut = "suspendu"
@@ -164,7 +164,9 @@ class InscriptionValidationConsistencyTestCase(GradeEntryFixture):
 
         response = self.client.post(f"/api/v1/inscriptions/{inscription.pk}/valider/", {}, format="json")
 
-        assert response.status_code == 200, response.data
+        assert response.status_code == 400, response.data
+        inscription.refresh_from_db()
+        assert inscription.statut == "provisoire"
         student.refresh_from_db()
         assert student.statut == "suspendu"
         assert student.annee_universitaire_actuelle_id == self.year.pk
@@ -186,18 +188,15 @@ class EtudiantsActionsTestCase(SimpleTestCase):
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         etudiant.save.assert_not_called()
 
-    def test_changer_statut_updates_status(self):
+    def test_changer_statut_cannot_bypass_reasoned_enrollment_suspension(self):
         etudiant = SimpleNamespace(id=1, statut="inscrit", save=MagicMock())
         view = self._view_with_etudiant(etudiant)
         request = SimpleNamespace(data={"statut": "suspendu"})
 
-        response = view.changer_statut(request, pk=1)
-
-        assert response.status_code == 200
-        assert etudiant.statut == "suspendu"
-        assert response.data["ancien_statut"] == "inscrit"
-        assert response.data["nouveau_statut"] == "suspendu"
-        etudiant.save.assert_called_once_with(update_fields=["statut", "updated_at"])
+        with pytest.raises(ValidationError, match="inscription"):
+            view.changer_statut(request, pk=1)
+        assert etudiant.statut == "inscrit"
+        etudiant.save.assert_not_called()
 
     @patch("apps.etudiants.api.AffectationECUEIndividuelle")
     def test_retirer_matiere_individuelle_returns_404_when_not_found(self, mock_model):
@@ -211,8 +210,9 @@ class EtudiantsActionsTestCase(SimpleTestCase):
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @patch("apps.etudiants.api.ensure_academic_open")
+    @patch("apps.etudiants.api.ensure_active_enrollment")
     @patch("apps.etudiants.api.AffectationECUEIndividuelle")
-    def test_retirer_matiere_individuelle_deletes_found_affectation(self, mock_model, mock_guard):
+    def test_retirer_matiere_individuelle_deletes_found_affectation(self, mock_model, mock_active, mock_guard):
         affectation = MagicMock()
         mock_model.objects.filter.return_value.first.return_value = affectation
         etudiant = SimpleNamespace(id=1)
@@ -224,6 +224,7 @@ class EtudiantsActionsTestCase(SimpleTestCase):
         mock_guard.assert_called_once_with(
             affectation, paths=("inscription_admin.annee_universitaire", "semestre_cible")
         )
+        mock_active.assert_called_once_with(affectation.inscription_admin)
         affectation.delete.assert_called_once()
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
@@ -263,7 +264,10 @@ class InscriptionsAdminWorkflowTestCase(SimpleTestCase):
     @patch("apps.etudiants.api.record_workflow_event")
     def test_valider_transitions_provisoire_to_validee(self, mock_event, mock_etudiants):
         inscription = self._inscription(statut="provisoire")
-        inscription.annee_universitaire = SimpleNamespace(pk=1, date_debut=date(2026, 1, 1))
+        today = date.today()
+        inscription.annee_universitaire = SimpleNamespace(
+            pk=1, date_debut=today.replace(month=1, day=1), date_fin=today.replace(month=12, day=31)
+        )
         etudiant = SimpleNamespace(
             annee_universitaire_actuelle=None,
             annee_universitaire_actuelle_id=None,
@@ -317,7 +321,10 @@ class EnrollmentFormationTenantTestCase(SimpleTestCase):
     def setUp(self):
         self.tenant = SimpleNamespace(pk=11)
         self.student = SimpleNamespace(pk=1, universite_id=11)
-        self.year = SimpleNamespace(pk=2, universite_id=11)
+        today = date.today()
+        self.year = SimpleNamespace(
+            pk=2, universite_id=11, date_debut=today.replace(month=1, day=1), date_fin=today.replace(month=12, day=31)
+        )
         self.request = SimpleNamespace(tenant=self.tenant, user=SimpleNamespace(is_superuser=True))
 
     def formation(self, owner, *, via):

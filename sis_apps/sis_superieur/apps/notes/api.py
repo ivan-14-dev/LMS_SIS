@@ -179,11 +179,13 @@ def _superior_eligible_students(evaluation):
     enrollments = (
         evaluation.semestre.inscriptions_peda.filter(
             statut="validee",
+            inscription_admin__statut="validee",
         )
         .filter(Q(ecues=evaluation.ecue) | Q(ues=evaluation.ecue.ue))
         .values("inscription_admin__etudiant_id")
     )
     custom_assignments = AffectationECUEIndividuelle.objects.filter(
+        inscription_admin__statut="validee",
         inscription_admin__annee_universitaire=evaluation.semestre.annee_universitaire,
         semestre_cible=evaluation.semestre,
         ecue=evaluation.ecue,

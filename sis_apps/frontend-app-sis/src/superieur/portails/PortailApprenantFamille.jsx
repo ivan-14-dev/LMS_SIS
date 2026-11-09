@@ -14,6 +14,7 @@ import { canEnterPortal } from '../../components/layout/navigation';
 import { fetchApi, getSuperieurApiUrl } from '../../services/api';
 import { apiErrorMessage } from '../../services/resources';
 import RecordsTabs from '../../components/common/RecordsTabs';
+import AdmissionRequestPanel from '../../components/common/AdmissionRequestPanel';
 
 const PortailApprenantFamille = () => {
   const {
@@ -107,6 +108,7 @@ const PortailApprenantFamille = () => {
           { label: 'Notes récentes', content: <SISDataTable title="Notes récentes" showTitle={false} data={notes} columns={notesColumns} searchable={false} exportable={false} /> },
           { label: 'Relevés de notes', content: <SISDataTable title="Relevés de notes" showTitle={false} data={releves} columns={relevesColumns} searchable={false} exportable={false} /> },
           { label: 'Factures en attente', content: <SISDataTable title="Factures en attente" showTitle={false} data={factures} columns={facturesColumns} searchable={false} exportable={false} /> },
+          { label: 'Admissions et inscriptions', content: <AdmissionRequestPanel variant="superieur" /> },
         ]}
       />
     </Box>

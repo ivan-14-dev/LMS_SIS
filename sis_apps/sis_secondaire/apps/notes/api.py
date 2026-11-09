@@ -212,7 +212,7 @@ def _ensure_secondary_continuous_assessment(evaluation):
 
 def _secondary_eligible_students(evaluation):
     enrolled = evaluation.classe.inscriptions.filter(
-        statut__in=("en_cours", "validee"),
+        statut="validee",
     ).values("eleve_id")
     students = Eleve.objects.filter(Q(classe_actuelle=evaluation.classe) | Q(pk__in=enrolled))
     if evaluation.eleve_cible_id:

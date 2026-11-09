@@ -75,6 +75,9 @@ const ClassesPage = () => {
           Une réinscription ouvre une nouvelle demande pour l’année suivante,
           sans modifier les bulletins ou règles antérieurs.
           La validation d’une année future ne remplace pas immédiatement la classe actuelle.
+          Suspension et abandon libèrent la place sans effacer les résultats.
+          La reprise exige une place disponible et une année en cours non clôturée.
+          Après un abandon ou la fin de l’année, utilisez une réinscription.
         </Alert>
         <ResourceManager
           variant="secondaire"

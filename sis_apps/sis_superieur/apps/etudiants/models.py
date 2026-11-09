@@ -84,6 +84,8 @@ class InscriptionAdministrative(OfferingSnapshotModel):
         ("validee", "Validée"),
         ("refusee", "Refusée"),
         ("annulee", "Annulée"),
+        ("suspendue", "Suspendue"),
+        ("abandonnee", "Abandonnée"),
     ]
     etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name="inscriptions_admin")
     annee_universitaire = models.ForeignKey(
@@ -108,6 +110,7 @@ class InscriptionAdministrative(OfferingSnapshotModel):
     pieces_fournies = models.JSONField(default=list, blank=True)
     payeur = models.CharField(max_length=200, blank=True)
     motif_refus = models.TextField(blank=True)
+    statut_apprenant_avant_interruption = models.CharField(max_length=20, blank=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

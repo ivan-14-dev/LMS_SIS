@@ -15,6 +15,7 @@ class Eleve(models.Model):
     STATUT_CHOICES = [
         ("inscrit", "Inscrit"),
         ("redoublant", "Redoublant"),
+        ("suspendu", "Suspendu"),
         ("sortant", "Sortant"),
         ("transfere", "Transféré"),
         ("diplome", "Diplômé"),
@@ -77,6 +78,8 @@ class Inscription(OfferingSnapshotModel):
         ("validee", "Validée"),
         ("refusee", "Refusée"),
         ("annulee", "Annulée"),
+        ("suspendue", "Suspendue"),
+        ("abandonnee", "Abandonnée"),
     ]
 
     eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="inscriptions")
@@ -85,6 +88,7 @@ class Inscription(OfferingSnapshotModel):
     date_inscription = models.DateField()
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="en_cours")
     motif = models.TextField(blank=True)
+    statut_apprenant_avant_interruption = models.CharField(max_length=20, blank=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

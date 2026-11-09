@@ -3,16 +3,19 @@
 from collections.abc import Mapping
 
 from django.apps import apps
-from django.db import transaction
+from django.db import connection, transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from sis_common.academic_lifecycle import ensure_academic_open
 from sis_common.authorization import filter_queryset_by_scopes, has_business_permission
 from sis_common.delegations import ActiveTenantAccess
+from sis_common.enrollment_states import transition_status, validate_enrollment_dates
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
 
@@ -25,6 +28,38 @@ def admission_fields(model):
 def admission_scope_fields(model):
     learner, year, target, _, _ = admission_fields(model)
     return {f"{learner}s": f"{learner}_id", "annees": f"{year}_id", f"{target}s": f"{target}_id"}
+
+
+def ensure_enrollment_dates(enrollment, *, ongoing=False):
+    year = getattr(enrollment, "annee_scolaire", None) or enrollment.annee_universitaire
+    try:
+        validate_enrollment_dates(year.date_debut, year.date_fin, timezone.localdate(), ongoing=ongoing)
+    except ValueError as error:
+        raise serializers.ValidationError({"calendrier": str(error)}) from error
+
+
+def ensure_school_capacity(classe, learner):
+    occupants = (
+        type(learner)
+        .objects.filter(Q(classe_actuelle=classe) | Q(inscriptions__classe=classe, inscriptions__statut="validee"))
+        .exclude(pk=learner.pk)
+        .distinct()
+        .count()
+    )
+    if occupants >= classe.effectif_max:
+        raise serializers.ValidationError({"classe": "La classe a atteint sa capacité."})
+
+
+def ensure_active_enrollment(enrollment):
+    if enrollment.statut != "validee":
+        raise serializers.ValidationError({"inscription": "Une inscription annuelle validée et active est requise."})
+    ensure_enrollment_dates(enrollment)
+
+
+def validate_learner_lifecycle(instance, attrs):
+    status = attrs.get("statut", instance.statut)
+    if status != instance.statut and (status in ("suspendu", "abandon") or instance.statut in ("suspendu", "abandon")):
+        raise serializers.ValidationError({"statut": "Utilisez les actions motivées de l'inscription annuelle."})
 
 
 class AdmissionTenantAccess(ActiveTenantAccess):
@@ -43,6 +78,17 @@ class AdmissionSerializerMixin:
         expected = self.instance.statut if self.instance else pending
         if attrs.get("statut", expected) != expected:
             raise serializers.ValidationError({"statut": "Utilisez les actions de décision d'admission."})
+        if self.instance and expected != pending and not self.context.get("controlled_transfer"):
+            if any(value != getattr(self.instance, field) for field, value in attrs.items()):
+                raise serializers.ValidationError(
+                    {"detail": "Ce dossier a déjà fait l'objet d'une décision. Utilisez une action motivée."}
+                )
+        destination_year = attrs.get(year, getattr(self.instance, year, None))
+        if destination_year:
+            try:
+                validate_enrollment_dates(destination_year.date_debut, destination_year.date_fin, timezone.localdate())
+            except ValueError as error:
+                raise serializers.ValidationError({year: str(error)}) from error
         request = self.context.get("request")
         if request and not request.user.is_superuser:
             permission = f"{self.Meta.model._meta.app_label}.change_{self.Meta.model._meta.model_name}"
@@ -65,6 +111,140 @@ def scoped_admissions(queryset, request):
 
 
 class ReenrollmentMixin:
+    def get_object(self):
+        if connection.in_atomic_block and self.request.method not in ("GET", "HEAD", "OPTIONS"):
+            queryset = self.filter_queryset(self.get_queryset())
+            lookup = self.lookup_url_kwarg or self.lookup_field
+            enrollment = get_object_or_404(queryset, **{self.lookup_field: self.kwargs[lookup]})
+            self.check_object_permissions(self.request, enrollment)
+            learner_field, _, _, _, _ = admission_fields(type(enrollment))
+            learner_model = enrollment._meta.get_field(learner_field).remote_field.model
+            # Match pupil transfers and new admissions: learner before enrollment/class.
+            learner_model.objects.select_for_update().get(pk=getattr(enrollment, f"{learner_field}_id"))
+        return super().get_object()
+
+    def save_academic(self, serializer, **kwargs):
+        if serializer.instance is None:
+            model = serializer.Meta.model
+            learner_field, year_field, _, _, _ = admission_fields(model)
+            learner = serializer.validated_data[learner_field]
+            type(learner).objects.select_for_update().get(pk=learner.pk)
+            if model.objects.filter(
+                **{
+                    learner_field: learner,
+                    year_field: serializer.validated_data[year_field],
+                }
+            ).exists():
+                raise serializers.ValidationError(
+                    {"detail": "Une inscription existe déjà pour cet apprenant et cette année."}
+                )
+        return super().save_academic(serializer, **kwargs)
+
+    def perform_destroy(self, instance):
+        raise serializers.ValidationError(
+            {"detail": "Conservez l'historique : annulez la demande ou enregistrez un abandon."}
+        )
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def suspendre(self, request, pk=None):
+        return self.enrollment_transition(request, "suspendre")
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def abandonner(self, request, pk=None):
+        return self.enrollment_transition(request, "abandonner")
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def reprendre(self, request, pk=None):
+        return self.enrollment_transition(request, "reprendre")
+
+    def enrollment_transition(self, request, operation):
+        enrollment = self.get_object()
+        if not isinstance(request.data, Mapping) or set(request.data) - {"motif"}:
+            raise serializers.ValidationError({"detail": "Seul le motif de cette transition est attendu."})
+        motif = serializers.CharField(trim_whitespace=True, max_length=2000).run_validation(request.data.get("motif"))
+        try:
+            destination = transition_status(enrollment.statut, operation)
+        except ValueError as error:
+            raise serializers.ValidationError({"statut": str(error)}) from error
+        ensure_academic_open(enrollment, paths=self.academic_period_paths)
+        ensure_enrollment_dates(enrollment, ongoing=True)
+        learner_field, year_field, _, _, _ = admission_fields(type(enrollment))
+        learner = getattr(enrollment, learner_field)
+        learner = type(learner).objects.select_for_update().get(pk=learner.pk)
+        if learner.statut in ("sortant", "transfere", "transfert", "diplome", "abandon"):
+            raise serializers.ValidationError(
+                {"statut": "Ce dossier apprenant est sorti du parcours. Une nouvelle inscription est nécessaire."}
+            )
+        year = getattr(enrollment, year_field)
+        if (
+            type(enrollment)
+            .objects.filter(
+                **{
+                    learner_field: learner,
+                    f"{year_field}__date_debut__gt": year.date_debut,
+                    f"{year_field}__date_debut__lte": timezone.localdate(),
+                    "statut__in": ("validee", "suspendue", "abandonnee"),
+                }
+            )
+            .exists()
+        ):
+            raise serializers.ValidationError({"detail": "Un parcours plus récent a déjà commencé."})
+        school = learner_field == "eleve"
+        if school:
+            if learner.classe_actuelle_id not in (None, enrollment.classe_id):
+                raise serializers.ValidationError(
+                    {"detail": "La classe actuelle ne correspond plus à cette inscription."}
+                )
+            classe = type(enrollment.classe).objects.select_for_update().get(pk=enrollment.classe_id)
+            if operation == "reprendre":
+                ensure_school_capacity(classe, learner)
+        elif (
+            learner.annee_universitaire_actuelle_id
+            and learner.annee_universitaire_actuelle.date_debut > year.date_debut
+            and learner.annee_universitaire_actuelle.date_debut <= timezone.localdate()
+        ):
+            raise serializers.ValidationError({"detail": "L'étudiant a déjà commencé une année ultérieure."})
+
+        previous = enrollment.statut
+        if previous == "validee":
+            enrollment.statut_apprenant_avant_interruption = learner.statut
+        enrollment.statut = destination
+        fields = ["statut", "statut_apprenant_avant_interruption"]
+        if hasattr(enrollment, "updated_at"):
+            fields.append("updated_at")
+        enrollment.save(update_fields=fields)
+        if operation == "reprendre":
+            restored = enrollment.statut_apprenant_avant_interruption
+            learner.statut = restored if restored in ("inscrit", "redoublant") else "inscrit"
+        else:
+            learner.statut = "suspendu" if operation == "suspendre" else "abandon"
+        fields = ["statut", "updated_at"]
+        if school:
+            learner.classe_actuelle = classe if operation == "reprendre" else None
+            fields.append("classe_actuelle")
+        else:
+            learner.annee_universitaire_actuelle = year
+            fields.append("annee_universitaire_actuelle")
+        learner.save(update_fields=fields)
+        titles = {
+            "suspendre": "Inscription suspendue",
+            "abandonner": "Abandon enregistré",
+            "reprendre": "Reprise validée",
+        }
+        record_workflow_event(
+            request,
+            enrollment,
+            operation,
+            titles[operation],
+            message=motif,
+            recipients=[learner.user],
+            metadata={"statut_avant": previous, "statut_apres": destination, "annee_id": year.pk},
+        )
+        return Response(self.get_serializer(enrollment).data)
+
     @action(detail=False, methods=["post"], permission_classes=[ActiveTenantAccess])
     @transaction.atomic
     def deposer(self, request):
@@ -83,9 +263,9 @@ class ReenrollmentMixin:
 
         learner_model = model._meta.get_field(learner_field).remote_field.model
         owner_field = "etablissement" if learner_field == "eleve" else "universite"
-        learner = learner_model.objects.select_for_update().filter(
-            user=request.user, **{owner_field: request.tenant}
-        ).first()
+        learner = (
+            learner_model.objects.select_for_update().filter(user=request.user, **{owner_field: request.tenant}).first()
+        )
         if learner is None:
             raise PermissionDenied("Aucun profil d'apprenant ne vous est attribué dans cet établissement.")
         if model.objects.filter(**{learner_field: learner}).exists():
@@ -129,8 +309,8 @@ class ReenrollmentMixin:
     def reinscrire(self, request, pk=None):
         source = self.get_object()
         learner_field, year_field, target_field, pending, _ = admission_fields(type(source))
-        if source.statut != "validee":
-            raise serializers.ValidationError("La réinscription exige une inscription d'origine validée.")
+        if source.statut not in ("validee", "suspendue", "abandonnee"):
+            raise serializers.ValidationError("La réinscription exige un parcours précédemment validé.")
         if not isinstance(request.data, Mapping):
             raise serializers.ValidationError({"detail": "Un dossier de réinscription est attendu."})
         motif = serializers.CharField(trim_whitespace=True, max_length=2000).run_validation(request.data.get("motif"))
@@ -139,20 +319,28 @@ class ReenrollmentMixin:
         fields = [year_field, target_field, "date_inscription"]
         if target_field == "formation":
             fields += ["parcours", "regime"]
+        if set(request.data) - {*fields, "motif"}:
+            raise serializers.ValidationError({"detail": "Ce dossier contient des champs non autorisés."})
         data = {field: request.data[field] for field in fields if field in request.data}
+        if target_field == "formation":
+            data.setdefault("regime", source.regime)
         data[learner_field] = learner.pk
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         destination_year = serializer.validated_data[year_field]
         if destination_year.date_debut <= getattr(source, year_field).date_fin:
             raise serializers.ValidationError({year_field: "Choisissez une année postérieure, sans chevauchement."})
-        if type(source).objects.filter(
-            **{
-                f"{learner_field}_id": learner.pk,
-                f"{year_field}__date_debut__gt": getattr(source, year_field).date_debut,
-                "statut__in": (pending, "validee"),
-            }
-        ).exists():
+        if (
+            type(source)
+            .objects.filter(
+                **{
+                    f"{learner_field}_id": learner.pk,
+                    f"{year_field}__date_debut__gt": getattr(source, year_field).date_debut,
+                    "statut__in": (pending, "validee", "suspendue", "abandonnee"),
+                }
+            )
+            .exists()
+        ):
             raise serializers.ValidationError(
                 {year_field: "Une inscription ultérieure est déjà en cours ou validée pour cet apprenant."}
             )
@@ -192,6 +380,8 @@ class ReenrollmentMixin:
         ensure_academic_open(enrollment, paths=self.academic_period_paths)
         if enrollment.statut != pending:
             raise serializers.ValidationError("Seule une demande d'admission en attente peut être refusée ou annulée.")
+        if not isinstance(request.data, Mapping):
+            raise serializers.ValidationError({"detail": "Un motif de décision est attendu."})
         motif = serializers.CharField(trim_whitespace=True, max_length=2000).run_validation(request.data.get("motif"))
         enrollment.statut = decision
         setattr(enrollment, reason_field, motif)
@@ -222,4 +412,6 @@ def activate_school_enrollment(enrollment):
         current_year is None or current_year.date_debut <= year.date_debut
     ):
         learner.classe_actuelle = enrollment.classe
-        learner.save(update_fields=["classe_actuelle", "updated_at"])
+        if learner.statut in ("suspendu", "abandon"):
+            learner.statut = "inscrit"
+        learner.save(update_fields=["classe_actuelle", "statut", "updated_at"])
