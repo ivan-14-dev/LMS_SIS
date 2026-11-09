@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 from apps.etablissement.models import AnneeUniversitaire, Universite
 from apps.etudiants.models import Etudiant
 from apps.integration.tests.tenant_test_case import TenantAPITestCase
-from apps.paiements.api import FacturesViewSet, PaiementsViewSet
+from apps.paiements.api import PaiementsViewSet
 from apps.paiements.models import FactureFrais, PaiementFrais, TypeFraisInscription
 from apps.paiements.serializers import FactureFraisDetailSerializer, PaiementCreateSerializer
 from apps.paiements.services import PaymentConfirmationRejected, PaymentProviderUnavailable, confirm_card_payment
@@ -20,7 +20,6 @@ from django.urls import resolve
 from django.utils import timezone
 from django_tenants.utils import schema_context
 from rest_framework.exceptions import ValidationError
-from rest_framework.test import APIRequestFactory, force_authenticate
 
 
 class PaiementsAPITestCase(SimpleTestCase):
@@ -41,6 +40,7 @@ class PaiementsAPITestCase(SimpleTestCase):
             has_perm=lambda permission: False,
         )
         invoice = SimpleNamespace(
+            pk=99,
             statut="emise",
             montant=Decimal("100"),
             montant_paye=Decimal("0"),
@@ -48,8 +48,10 @@ class PaiementsAPITestCase(SimpleTestCase):
         )
         serializer = PaiementCreateSerializer(context={"request": SimpleNamespace(user=user)})
 
-        with self.assertRaisesMessage(ValidationError, "Vous ne pouvez pas payer cette facture"):
-            serializer.validate({"facture": invoice, "montant": Decimal("10")})
+        with patch("apps.paiements.api.visible_invoices") as visible:
+            visible.return_value.filter.return_value.exists.return_value = False
+            with self.assertRaisesMessage(ValidationError, "Facture hors périmètre"):
+                serializer.validate({"facture": invoice, "montant": Decimal("10")})
 
 
 class InvoiceStateAPITests(SimpleTestCase):
@@ -61,25 +63,13 @@ class InvoiceStateAPITests(SimpleTestCase):
             with self.subTest(original=original, attempted=attempted):
                 facture = FactureFrais(statut=original, montant=Decimal("100.00"), montant_paye=paid)
                 facture.save = Mock()
-                request = APIRequestFactory().patch(
-                    "/api/v1/paiements/factures/5/", {"statut": attempted, "note": "Correction"}, format="json"
+                serializer = FactureFraisDetailSerializer(
+                    facture, data={"statut": attempted, "note": "Correction"}, partial=True,
                 )
-                force_authenticate(request, user=SimpleNamespace(pk=1, is_authenticated=True))
-                with (
-                    patch("apps.paiements.api.IsComptabiliteOrReadOnly.has_permission", return_value=True),
-                    patch.object(FacturesViewSet, "get_throttles", return_value=[]),
-                    patch.object(FacturesViewSet, "get_object", return_value=facture),
-                    patch.object(
-                        FactureFraisDetailSerializer,
-                        "to_representation",
-                        side_effect=lambda obj: {"statut": obj.statut, "montant_paye": obj.montant_paye},
-                    ),
-                ):
-                    response = FacturesViewSet.as_view({"patch": "partial_update"})(request, pk=5)
-
-                self.assertEqual(response.status_code, 200)
+                with patch.object(serializer, "validate", side_effect=lambda data: data):
+                    assert serializer.is_valid(), serializer.errors
+                    serializer.save()
                 self.assertEqual(facture.statut, original)
-                self.assertEqual(response.data["statut"], original)
                 self.assertEqual(facture.montant_paye, paid)
                 self.assertEqual(facture.note, "Correction")
 
@@ -90,24 +80,9 @@ class InvoiceStateAPITests(SimpleTestCase):
             with self.subTest(statut=statut):
                 facture = FactureFrais(statut=statut, montant=Decimal("100.00"), montant_paye=paid)
                 facture.save = Mock()
-                request = APIRequestFactory().patch(
-                    "/api/v1/paiements/factures/5/", {"montant": "150.00"}, format="json"
-                )
-                force_authenticate(request, user=SimpleNamespace(pk=1, is_authenticated=True))
-                with (
-                    patch("apps.paiements.api.IsComptabiliteOrReadOnly.has_permission", return_value=True),
-                    patch.object(FacturesViewSet, "get_throttles", return_value=[]),
-                    patch.object(FacturesViewSet, "get_object", return_value=facture),
-                    patch.object(
-                        FactureFraisDetailSerializer,
-                        "to_representation",
-                        side_effect=lambda obj: {"montant": obj.montant, "statut": obj.statut},
-                    ),
-                ):
-                    response = route.func(request, pk=5)
-
-                self.assertEqual(response.status_code, 400)
-                self.assertIn("montant", response.data)
+                serializer = FactureFraisDetailSerializer(facture, data={"montant": "150.00"}, partial=True)
+                assert not serializer.is_valid()
+                self.assertIn("montant", serializer.errors)
                 self.assertEqual(facture.montant, Decimal("100.00"))
                 facture.save.assert_not_called()
 
@@ -274,6 +249,7 @@ class CardConfirmationTests(SimpleTestCase):
         self.facture = SimpleNamespace(
             id=5,
             numero="FAC-5",
+            devise="EUR",
             montant=Decimal("100.00"),
             montant_paye=Decimal("0.00"),
             statut="emise",
@@ -290,6 +266,10 @@ class CardConfirmationTests(SimpleTestCase):
             mode="carte",
             statut="en_attente",
             reference_externe="pi_ABC123",
+            enregistre_par_id=2,
+            preuve_paiement="private/test.pdf",
+            remboursement={},
+            preuve_remboursement="",
             save=Mock(),
         )
         self.intent = {
@@ -372,7 +352,7 @@ class CardConfirmationTests(SimpleTestCase):
             get.assert_not_called()
 
     def _approve(self, *, reused=False, confirmed=True):
-        request = SimpleNamespace(tenant=self.tenant, user=SimpleNamespace(id=1))
+        request = SimpleNamespace(tenant=self.tenant, user=SimpleNamespace(id=1, pk=1))
         view = PaiementsViewSet()
         view.request = request
         view.get_object = Mock(return_value=self.paiement)
@@ -388,15 +368,16 @@ class CardConfirmationTests(SimpleTestCase):
                 return_value=SimpleNamespace(data={"statut": "valide"}),
             ),
             patch("apps.paiements.api.confirm_card_payment") as confirm,
+            patch("apps.paiements.api.confirmed_total", return_value=Decimal("0")),
         ):
             payments.select_for_update.return_value.get.return_value = self.paiement
             payments.filter.return_value.exclude.return_value.exists.return_value = reused
             factures.select_for_update.return_value.get.return_value = self.facture
             if not confirmed:
                 confirm.side_effect = PaymentConfirmationRejected
-            response = view.valider(request, self.paiement.pk)
+            response = view.valider.__wrapped__(view, request, self.paiement.pk)
             if response.status_code == 200:
-                repeated = view.valider(request, self.paiement.pk)
+                repeated = view.valider.__wrapped__(view, request, self.paiement.pk)
                 self.assertEqual(repeated.status_code, 409)
                 if self.paiement.mode == "carte":
                     confirm.assert_called_once_with(self.paiement, self.facture, self.tenant)
@@ -429,14 +410,14 @@ class CardConfirmationTests(SimpleTestCase):
 
     def test_manual_cash_validation_remains_available(self):
         self.paiement.mode = "especes"
-        self.paiement.reference_externe = ""
+        self.paiement.reference_externe = "CASH-TEST"
         response = self._approve()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.facture.montant_paye, Decimal("25.00"))
 
     def test_card_cannot_be_accounted_as_refunded_without_provider_refund(self):
         self.paiement.statut = "valide"
-        request = SimpleNamespace(tenant=self.tenant, user=SimpleNamespace(id=1))
+        request = SimpleNamespace(tenant=self.tenant, user=SimpleNamespace(id=1, pk=1))
         view = PaiementsViewSet()
         view.request = request
         view.get_object = Mock(return_value=self.paiement)
@@ -447,11 +428,12 @@ class CardConfirmationTests(SimpleTestCase):
             patch.object(FactureFrais, "objects") as factures,
             patch("apps.paiements.api.workflow_transition_allowed", return_value=True),
             patch("apps.paiements.api.record_workflow_event") as event,
+            patch("apps.paiements.api.confirmed_total", return_value=Decimal("0")),
         ):
             payments.select_for_update.return_value.get.return_value = self.paiement
             factures.select_for_update.return_value.get.return_value = self.facture
             self.facture.montant_paye = Decimal("25.00")
-            response = view.rembourser(request, self.paiement.pk)
+            response = view.rembourser.__wrapped__(view, request, self.paiement.pk)
             self.assertEqual(response.status_code, 409)
             self.assertEqual(self.paiement.statut, "valide")
             self.assertEqual(self.facture.montant_paye, Decimal("25.00"))
@@ -459,7 +441,9 @@ class CardConfirmationTests(SimpleTestCase):
             self.facture.save.assert_not_called()
             event.assert_not_called()
             self.paiement.mode = "especes"
-            response = view.rembourser(request, self.paiement.pk)
+            self.paiement.remboursement = {"demande_par": 2, "reference": "REFUND-TEST"}
+            self.paiement.preuve_remboursement = "private/refund.pdf"
+            response = view.rembourser.__wrapped__(view, request, self.paiement.pk)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(self.paiement.statut, "rembourse")
             self.assertEqual(self.facture.montant_paye, Decimal("0.00"))

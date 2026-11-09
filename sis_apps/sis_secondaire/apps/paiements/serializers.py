@@ -1,11 +1,12 @@
 """Serializers for paiements (SIS Secondaire)."""
 
+from apps.etablissement.models import AnneeScolaire
 from rest_framework import serializers
 
-from apps.etablissement.models import AnneeScolaire
 from sis_common.authorization import has_business_permission_or_role
 
 from .models import BudgetPrevisionnel, Facture, Paiement, TypeFrais
+from .services import CURRENCY_EXPONENTS, MANUAL_MODES, provider_status
 
 
 class BudgetPrevisionnelSerializer(serializers.ModelSerializer):
@@ -97,6 +98,7 @@ class FactureListSerializer(serializers.ModelSerializer):
             "date_emission",
             "date_echeance",
             "montant",
+            "devise",
             "montant_paye",
             "montant_restant",
             "statut",
@@ -113,6 +115,7 @@ class FactureDetailSerializer(serializers.ModelSerializer):
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     montant_restant = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     paiements = serializers.SerializerMethodField()
+    devise = serializers.ChoiceField(choices=list(CURRENCY_EXPONENTS))
 
     class Meta:
         model = Facture
@@ -127,6 +130,7 @@ class FactureDetailSerializer(serializers.ModelSerializer):
             "date_emission",
             "date_echeance",
             "montant",
+            "devise",
             "montant_paye",
             "montant_restant",
             "statut",
@@ -150,6 +154,31 @@ class FactureDetailSerializer(serializers.ModelSerializer):
     def get_paiements(self, obj):
         return PaiementSerializer(obj.paiements.all(), many=True).data
 
+    def validate(self, data):
+        request = self.context["request"]
+        tenant_id = getattr(getattr(request, "tenant", None), "pk", None)
+        student = data.get("eleve", getattr(self.instance, "eleve", None))
+        fee = data.get("type_frais", getattr(self.instance, "type_frais", None))
+        if not tenant_id or request.user.etablissement_id != tenant_id or (
+            student.etablissement_id != tenant_id or fee.annee_scolaire.etablissement_id != tenant_id
+        ):
+            raise serializers.ValidationError("Facture hors établissement.")
+        if self.instance and self.instance.paiements.exists():
+            for name in ("eleve", "type_frais", "montant", "devise", "date_emission", "date_echeance"):
+                if name in data and data[name] != getattr(self.instance, name):
+                    raise serializers.ValidationError("Facture liée à un paiement : données financières figées.")
+        amount = data.get("montant", getattr(self.instance, "montant", 0))
+        currency = data.get("devise", getattr(self.instance, "devise", ""))
+        if amount <= 0 or currency not in CURRENCY_EXPONENTS:
+            raise serializers.ValidationError("Montant positif et devise explicite obligatoires.")
+        if CURRENCY_EXPONENTS[currency] == 0 and amount != amount.to_integral_value():
+            raise serializers.ValidationError("Cette devise n'accepte pas de fraction.")
+        start = data.get("date_emission", getattr(self.instance, "date_emission", None))
+        end = data.get("date_echeance", getattr(self.instance, "date_echeance", None))
+        if end < start:
+            raise serializers.ValidationError("Échéance antérieure à l'émission.")
+        return data
+
 
 class PaiementSerializer(serializers.ModelSerializer):
     """Serializer pour les paiements."""
@@ -158,6 +187,7 @@ class PaiementSerializer(serializers.ModelSerializer):
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     enregistre_par_nom = serializers.CharField(source="enregistre_par.get_full_name", read_only=True)
     preuve_disponible = serializers.SerializerMethodField()
+    devise = serializers.CharField(source="facture.devise", read_only=True)
 
     class Meta:
         model = Paiement
@@ -167,6 +197,8 @@ class PaiementSerializer(serializers.ModelSerializer):
             "numero",
             "date_paiement",
             "montant",
+            "devise",
+            "remboursement",
             "mode",
             "mode_display",
             "reference_externe",
@@ -203,8 +235,23 @@ class PaiementCreateSerializer(serializers.ModelSerializer):
         extra_kwargs = {"preuve_paiement": {"write_only": True}}
 
     def validate(self, data):
+        from .api import visible_invoices
+
         facture = data["facture"]
         request = self.context.get("request")
+        if not visible_invoices(request).filter(pk=facture.pk).exists():
+            raise serializers.ValidationError({"facture": "Facture hors périmètre."})
+        if facture.devise not in CURRENCY_EXPONENTS:
+            raise serializers.ValidationError({"facture": "Devise de la facture non configurée."})
+        if CURRENCY_EXPONENTS[facture.devise] == 0 and data["montant"] != data["montant"].to_integral_value():
+            raise serializers.ValidationError({"montant": "Cette devise n'accepte pas de fraction."})
+        mode = data["mode"]
+        if mode not in MANUAL_MODES and (mode != "carte" or provider_status()["carte"] != "configure"):
+            raise serializers.ValidationError({"mode": "Prestataire non configuré."})
+        if not data.get("reference_externe", "").strip():
+            raise serializers.ValidationError({"reference_externe": "Référence de rapprochement obligatoire."})
+        if mode in MANUAL_MODES and not data.get("preuve_paiement"):
+            raise serializers.ValidationError({"preuve_paiement": "Justificatif obligatoire pour le contrôle."})
         user = getattr(request, "user", None)
         manager_roles = {
             "direction",
@@ -227,7 +274,7 @@ class PaiementCreateSerializer(serializers.ModelSerializer):
             or facture.type_frais.annee_scolaire.etablissement_id != tenant.pk
         ):
             raise serializers.ValidationError({"facture": "Cette facture n'appartient pas à votre établissement."})
-        if facture.statut in ("payee", "annulee"):
+        if facture.statut not in ("emise", "partielle", "en_retard"):
             raise serializers.ValidationError({"facture": "Cette facture n'accepte plus de paiement."})
         if data["montant"] <= 0:
             raise serializers.ValidationError({"montant": "Le montant doit être positif."})

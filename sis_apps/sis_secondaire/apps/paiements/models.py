@@ -86,6 +86,7 @@ class Facture(models.Model):
     date_echeance = models.DateField()
     montant = models.DecimalField(max_digits=10, decimal_places=2)
     montant_paye = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    devise = models.CharField(max_length=3, blank=True, default="")
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="emise")
     note = models.TextField(blank=True)
     pdf_path = models.CharField(max_length=500, blank=True)
@@ -131,7 +132,15 @@ class Paiement(models.Model):
     montant = models.DecimalField(max_digits=10, decimal_places=2)
     mode = models.CharField(max_length=20, choices=MODE_CHOICES)
     reference_externe = models.CharField(max_length=200, blank=True, help_text="N° chèque, transaction ID...")
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="valide")
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="en_attente")
+    remboursement = models.JSONField(default=dict, blank=True)
+    preuve_remboursement = models.FileField(
+        upload_to=payment_proof_upload_to,
+        storage=PrivateFinancialStorage(),
+        validators=[validate_payment_proof],
+        null=True,
+        blank=True,
+    )
     recu_pdf = models.CharField(max_length=500, blank=True)
     preuve_paiement = models.FileField(
         upload_to=payment_proof_upload_to,
@@ -165,6 +174,11 @@ class Paiement(models.Model):
         ]
         constraints = [
             models.UniqueConstraint(
+                fields=["mode", "reference_externe"],
+                condition=models.Q(statut__in=["valide", "rembourse"]) & ~models.Q(reference_externe=""),
+                name="secondaire_payment_reference_once",
+            ),
+            models.UniqueConstraint(
                 fields=["reference_externe"],
                 condition=models.Q(mode="carte", statut__in=["valide", "rembourse"]) & ~models.Q(reference_externe=""),
                 name="secondaire_card_reference_once",
@@ -172,4 +186,4 @@ class Paiement(models.Model):
         ]
 
     def __str__(self):
-        return f"Paiement {self.numero} - {self.montant}€"
+        return f"Paiement {self.numero} - {self.montant} {self.facture.devise or '(devise non configurée)'}"

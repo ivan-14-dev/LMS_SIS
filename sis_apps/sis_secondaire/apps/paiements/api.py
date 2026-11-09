@@ -15,11 +15,12 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.academic_configuration import resolve_financial_workflow, workflow_transition_allowed
 from sis_common.authorization import filter_queryset_by_scopes, has_business_permission_or_role, user_has_any_role
+from sis_common.payment_review import PaymentReviewMixin, audit, confirmed_total, reporting_currency
 from sis_common.reporting import configured_report, export_queryset
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
@@ -32,9 +33,16 @@ from .serializers import (
     PaiementSerializer,
     TypeFraisSerializer,
 )
-from .services import PaymentConfirmationRejected, PaymentProviderUnavailable, confirm_card_payment
+from .services import (
+    CURRENCY_EXPONENTS,
+    MANUAL_MODES,
+    PaymentConfirmationRejected,
+    PaymentProviderUnavailable,
+    confirm_card_payment,
+)
 
 INVOICE_REPORT_FIELDS = {
+    "devise": ("Devise", "devise"),
     "numero": ("Numéro facture", "numero"),
     "eleve": ("Élève", "eleve__user__last_name"),
     "matricule": ("Matricule", "eleve__matricule"),
@@ -59,6 +67,7 @@ INVOICE_REPORT_GROUPS = {
 }
 
 PAYMENT_REPORT_FIELDS = {
+    "devise": ("Devise", "facture__devise"),
     "numero": ("Numéro paiement", "numero"),
     "facture": ("Numéro facture", "facture__numero"),
     "eleve": ("Élève", "facture__eleve__user__last_name"),
@@ -88,11 +97,15 @@ PAYMENT_REPORT_GROUPS = {
 
 def _secondary_finance_recipients(request, eleve):
     recipients = []
+    tenant_id = getattr(getattr(request, "tenant", None), "pk", None)
     user = getattr(eleve, "user", None)
-    if user is not None:
+    if user is not None and user.is_active and user.etablissement_id == tenant_id:
         recipients.append(user)
     actor = getattr(request, "user", None)
-    if getattr(actor, "is_authenticated", False) and actor not in recipients:
+    if (
+        getattr(actor, "is_authenticated", False) and actor not in recipients
+        and getattr(actor, "etablissement_id", None) == tenant_id
+    ):
         recipients.append(actor)
     return recipients
 
@@ -273,7 +286,9 @@ class TypesFraisViewSet(viewsets.ModelViewSet):
     ordering = ["libelle"]
 
     def get_queryset(self):
-        return TypeFrais.objects.select_related("annee_scolaire").prefetch_related("factures")
+        return TypeFrais.objects.select_related("annee_scolaire").prefetch_related("factures").filter(
+            annee_scolaire__etablissement_id=getattr(getattr(self.request, "tenant", None), "pk", None)
+        )
 
 
 class FacturesViewSet(viewsets.ModelViewSet):
@@ -285,9 +300,17 @@ class FacturesViewSet(viewsets.ModelViewSet):
     filterset_fields = ["eleve", "type_frais", "statut", "type_frais__annee_scolaire"]
     search_fields = ["numero", "eleve__user__last_name", "eleve__matricule"]
     ordering = ["-date_emission"]
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        self.get_queryset().select_for_update().get(pk=self.get_object().pk)
+        return super().update(request, *args, **kwargs)
 
     def get_queryset(self):
-        return visible_invoices(self.request)
+        queryset = visible_invoices(self.request)
+        currency = getattr(self.request, "query_params", {}).get("devise")
+        return queryset.filter(devise=currency) if currency else queryset
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -307,9 +330,15 @@ class FacturesViewSet(viewsets.ModelViewSet):
             "solde_confirme": facture.montant - total,
         })
 
+    @transaction.atomic
     def perform_create(self, serializer):
         numero = f"FAC-{timezone.now().strftime('%Y%m')}-{uuid.uuid4().hex[:6].upper()}"
-        serializer.save(numero=numero)
+        facture = serializer.save(numero=numero)
+        record_workflow_event(
+            self.request, facture, "emission", "Facture émise",
+            recipients=_secondary_finance_recipients(self.request, facture.eleve),
+            metadata={"facture_id": facture.pk, "montant": str(facture.montant), "devise": facture.devise},
+        )
 
     @action(detail=False, methods=["get"])
     def en_retard(self, request):
@@ -320,6 +349,7 @@ class FacturesViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def annuler(self, request, pk=None):
         """Annule une facture."""
         with transaction.atomic():
@@ -358,15 +388,17 @@ class FacturesViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def statistiques(self, request):
         """Statistiques des factures."""
-        qs = self.get_queryset()
+        qs = self.get_queryset().exclude(statut="annulee")
         annee = request.query_params.get("annee")
         if annee:
             qs = qs.filter(type_frais__annee_scolaire_id=annee)
 
+        currency = reporting_currency(qs)
         total = qs.aggregate(montant_total=Sum("montant"), montant_paye=Sum("montant_paye"))
         return Response(
             {
                 "nb_factures": qs.count(),
+                "devise": currency,
                 "montant_total": total["montant_total"] or 0,
                 "montant_paye": total["montant_paye"] or 0,
                 "montant_restant": (total["montant_total"] or 0) - (total["montant_paye"] or 0),
@@ -376,6 +408,7 @@ class FacturesViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def bilan(self, request):
+        currency = reporting_currency(self.filter_queryset(self.get_queryset()))
         group_by = request.query_params.get("group_by", "rubrique")
         group_field = INVOICE_REPORT_GROUPS.get(group_by)
         if not group_field:
@@ -393,6 +426,7 @@ class FacturesViewSet(viewsets.ModelViewSet):
             [
                 {
                     "groupe": row[group_field],
+                    "devise": currency,
                     "nombre": row["nombre"],
                     "montant_total": row["montant_total"] or 0,
                     "montant_paye": row["montant_paye"] or 0,
@@ -414,20 +448,24 @@ class FacturesViewSet(viewsets.ModelViewSet):
         )
 
 
-class PaiementsViewSet(viewsets.ModelViewSet):
+class PaiementsViewSet(PaymentReviewMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour paiements."""
 
     permission_classes = [IsIntendanceOrReadOnly]
+    serializer_class = PaiementSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["facture", "mode", "statut"]
     ordering = ["-date_paiement"]
     http_method_names = ["get", "post", "head", "options"]
 
     def get_permissions(self):
+        if self.action == "callback_stripe":
+            return [AllowAny()]
         if self.action in (
             "valider",
             "rejeter",
             "rembourser",
+            "demander_remboursement",
             "destroy",
             "update",
             "partial_update",
@@ -437,33 +475,23 @@ class PaiementsViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Paiement.objects.select_related("facture__eleve__user", "enregistre_par", "verifie_par")
-        user = self.request.user
-        tenant = getattr(self.request, "tenant", None)
-        if not getattr(tenant, "pk", None) or getattr(user, "etablissement_id", None) != tenant.pk:
-            return queryset.none()
-        queryset = queryset.filter(
-            facture__eleve__etablissement_id=tenant.pk,
-            facture__type_frais__annee_scolaire__etablissement_id=tenant.pk,
-        )
-        if IsFinanceManager().has_permission(self.request, self):
-            return queryset
-        if user_has_any_role(user, ("eleve",)):
-            return queryset.filter(facture__eleve__user=user)
-        if user_has_any_role(user, ("parent",)):
-            return queryset.filter(
-                facture__eleve__tuteurs_lies__tuteur__user=user,
-                facture__eleve__tuteurs_lies__autorise_acces_portail=True,
-            ).distinct()
-        return queryset.none()
+        queryset = queryset.filter(facture__in=visible_invoices(self.request))
+        currency = getattr(self.request, "query_params", {}).get("devise")
+        return queryset.filter(facture__devise=currency) if currency else queryset
 
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
             return PaiementCreateSerializer
         return PaiementSerializer
 
+    @transaction.atomic
     def perform_create(self, serializer):
         numero = f"PAY-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        invoice = Facture.objects.select_for_update().get(pk=serializer.validated_data["facture"].pk)
+        serializer.validated_data["facture"] = invoice
+        serializer.validate(serializer.validated_data)
         paiement = serializer.save(numero=numero, enregistre_par=self.request.user, statut="en_attente")
+        audit(self.request, paiement, "soumission", "Paiement en attente de confirmation")
         return paiement
 
     def _workflow_for_facture(self, facture):
@@ -488,6 +516,7 @@ class PaiementsViewSet(viewsets.ModelViewSet):
         )
 
     @action(detail=True, methods=["post"], permission_classes=[IsFinanceManager])
+    @transaction.atomic
     def valider(self, request, pk=None):
         paiement = None
         try:
@@ -495,27 +524,47 @@ class PaiementsViewSet(viewsets.ModelViewSet):
                 paiement = Paiement.objects.select_for_update().get(pk=self.get_object().pk)
                 facture = Facture.objects.select_for_update().get(pk=paiement.facture_id)
                 workflow = self._workflow_for_facture(facture)
-                if paiement.statut != "en_attente":
+                callback = getattr(self, "_provider_callback", False)
+                if callback and paiement.statut in ("valide", "rembourse"):
+                    return Response({"detail": "Confirmation déjà comptabilisée."})
+                if paiement.statut not in ("en_attente", "echec"):
                     return Response({"error": "Ce paiement a déjà été traité."}, status=409)
-                if facture.statut == "annulee":
-                    return Response({"error": "Une facture annulée n'accepte plus de paiement."}, status=409)
-                if not workflow_transition_allowed(workflow, "valider", paiement.statut, "valide"):
+                if facture.statut not in ("emise", "partielle", "en_retard"):
+                    return Response({"error": "Facture non payable."}, status=409)
+                if facture.devise not in CURRENCY_EXPONENTS:
+                    return Response({"error": "Devise non configurée."}, status=409)
+                if paiement.montant <= 0 or (
+                    CURRENCY_EXPONENTS[facture.devise] == 0 and paiement.montant != paiement.montant.to_integral_value()
+                ):
+                    return Response({"error": "Montant invalide pour cette devise."}, status=409)
+                if paiement.mode not in (*MANUAL_MODES, "carte"):
+                    return Response({"error": "Prestataire non configuré."}, status=503)
+                if not callback and (
+                    not paiement.enregistre_par_id or paiement.enregistre_par_id == request.user.pk
+                ):
+                    return Response({"error": "Un contrôleur distinct du déclarant est obligatoire."}, status=403)
+                if paiement.mode in MANUAL_MODES and (
+                    not paiement.preuve_paiement or not paiement.reference_externe.strip()
+                ):
+                    return Response({"error": "Preuve et référence de rapprochement obligatoires."}, status=409)
+                if not workflow_transition_allowed(workflow, "valider", "en_attente", "valide"):
                     return Response({"error": "Transition non autorisée par le workflow financier."}, status=409)
+                facture.montant_paye = confirmed_total(facture)
                 reste = facture.montant - facture.montant_paye
                 if paiement.montant > reste:
                     return Response({"error": "Le paiement dépasse le solde de la facture."}, status=409)
-                if paiement.mode == "carte":
-                    reused = (
+                reused = (
                         Paiement.objects.filter(
                             reference_externe=paiement.reference_externe,
-                            mode="carte",
+                            mode=paiement.mode,
                             statut__in=("valide", "rembourse"),
                         )
                         .exclude(pk=paiement.pk)
                         .exists()
                     )
-                    if reused:
-                        return Response({"error": "Référence de carte déjà utilisée."}, status=409)
+                if reused:
+                    return Response({"error": "Référence de paiement déjà utilisée."}, status=409)
+                if paiement.mode == "carte":
                     try:
                         confirm_card_payment(paiement, facture, request.tenant)
                     except PaymentConfirmationRejected:
@@ -523,7 +572,7 @@ class PaiementsViewSet(viewsets.ModelViewSet):
                     except PaymentProviderUnavailable:
                         return Response({"error": "Prestataire de paiement indisponible."}, status=503)
                 paiement.statut = "valide"
-                paiement.verifie_par = request.user
+                paiement.verifie_par = None if callback else request.user
                 paiement.verifie_le = timezone.now()
                 paiement.motif_rejet = ""
                 paiement.save(update_fields=["statut", "verifie_par", "verifie_le", "motif_rejet"])
@@ -531,9 +580,9 @@ class PaiementsViewSet(viewsets.ModelViewSet):
                 facture.statut = "payee" if facture.montant_paye >= facture.montant else "partielle"
                 facture.save(update_fields=["montant_paye", "statut", "updated_at"])
         except IntegrityError:
-            if paiement is None or paiement.mode != "carte" or not Paiement.objects.filter(
+            if paiement is None or not Paiement.objects.filter(
                 reference_externe=paiement.reference_externe,
-                mode="carte",
+                mode=paiement.mode,
                 statut__in=("valide", "rembourse"),
             ).exclude(pk=paiement.pk).exists():
                 raise
@@ -550,30 +599,41 @@ class PaiementsViewSet(viewsets.ModelViewSet):
                 "facture_id": facture.id,
                 "eleve_id": facture.eleve_id,
                 "statut_facture": facture.statut,
+                "provider_event_id": getattr(self, "_provider_event_id", ""),
             },
         )
         return Response(PaiementSerializer(paiement).data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsFinanceManager])
+    @transaction.atomic
     def rembourser(self, request, pk=None):
         with transaction.atomic():
             paiement = Paiement.objects.select_for_update().get(pk=self.get_object().pk)
+            if paiement.statut == "rembourse":
+                return Response(PaiementSerializer(paiement).data)
             if paiement.statut != "valide":
                 return Response({"error": "Ce paiement ne peut pas être remboursé."}, status=409)
-            if paiement.mode == "carte":
-                return Response(
-                    {"error": "Un remboursement de carte doit être confirmé par Stripe avant sa comptabilisation."},
-                    status=409,
-                )
             facture = Facture.objects.select_for_update().get(pk=paiement.facture_id)
+            if not paiement.remboursement or not paiement.preuve_remboursement:
+                return Response({"error": "Demande et justificatif de remboursement obligatoires."}, status=409)
+            if paiement.remboursement["demande_par"] == request.user.pk:
+                return Response({"error": "Un autre acteur doit contrôler ce remboursement."}, status=403)
+            if paiement.mode == "carte":
+                try:
+                    confirm_card_payment(paiement, facture, request.tenant, refunded=True)
+                except PaymentConfirmationRejected:
+                    return Response({"error": "Remboursement intégral non confirmé par Stripe."}, status=409)
+                except PaymentProviderUnavailable:
+                    return Response({"error": "Prestataire non configuré ou indisponible."}, status=503)
+            elif paiement.mode not in MANUAL_MODES:
+                return Response({"error": "Prestataire non configuré."}, status=503)
             workflow = self._workflow_for_facture(facture)
             if not workflow_transition_allowed(workflow, "rembourser", paiement.statut, "rembourse"):
                 return Response({"error": "Transition non autorisée par le workflow financier."}, status=409)
             paiement.statut = "rembourse"
-            paiement.verifie_par = request.user
-            paiement.verifie_le = timezone.now()
-            paiement.save(update_fields=["statut", "verifie_par", "verifie_le"])
-            facture.montant_paye = max(facture.montant_paye - paiement.montant, 0)
+            paiement.remboursement.update({"confirme_par": request.user.pk, "confirme_le": timezone.now().isoformat()})
+            paiement.save(update_fields=["statut", "remboursement"])
+            facture.montant_paye = confirmed_total(facture)
             facture.statut = "emise" if facture.montant_paye <= 0 else "partielle"
             facture.save(update_fields=["montant_paye", "statut", "updated_at"])
         record_workflow_event(
@@ -593,6 +653,7 @@ class PaiementsViewSet(viewsets.ModelViewSet):
         return Response(PaiementSerializer(paiement).data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsFinanceManager])
+    @transaction.atomic
     def rejeter(self, request, pk=None):
         motif = str(request.data.get("motif", "")).strip()
         if not motif:
@@ -634,6 +695,7 @@ class PaiementsViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def bilan(self, request):
+        currency = reporting_currency(self.filter_queryset(self.get_queryset()), "facture__devise")
         group_by = request.query_params.get("group_by", "statut")
         group_field = PAYMENT_REPORT_GROUPS.get(group_by)
         if not group_field:
@@ -651,6 +713,7 @@ class PaiementsViewSet(viewsets.ModelViewSet):
             [
                 {
                     "groupe": row[group_field],
+                    "devise": currency,
                     "nombre": row["nombre"],
                     "montant_total": row["montant_total"] or 0,
                 }

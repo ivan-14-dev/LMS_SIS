@@ -6,6 +6,7 @@ import requests
 from django.apps import apps
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db import transaction
 from django.utils import timezone
 from django_tenants.utils import schema_context
 
@@ -174,29 +175,38 @@ def summarize_notification_delivery_trends(notifications):
 
 
 def _update_notification_channel(notification, channel, status, attempts=None, error="", detail="", extra=None):
-    metadata, delivery = _delivery_map(notification.metadata)
-    existing = delivery.get(channel, {})
-    payload = {
-        **existing,
-        "status": status,
-        "updated_at": _now_iso(),
-    }
-    if attempts is not None:
-        payload["attempts"] = attempts
-    if error:
-        payload["last_error"] = error
-    elif "last_error" in payload:
-        payload.pop("last_error")
-    if detail:
-        payload["detail"] = detail
-    elif "detail" in payload:
-        payload.pop("detail")
-    if extra:
-        payload.update(extra)
-    delivery[channel] = payload
-    notification.metadata = metadata
-    notification.save(update_fields=["metadata"])
-    return payload
+    with transaction.atomic():
+        current = _core_model("WorkflowNotification").objects.select_for_update().get(pk=notification.id)
+        metadata, delivery = _delivery_map(current.metadata)
+        existing = delivery.get(channel, {})
+        if existing.get("status") == "sent" and status != "sent":
+            return existing
+        if (
+            existing.get("status") in ("sending", "uncertain")
+            and status in ("failed", "retrying")
+            and not (extra or {}).get("retry_safe")
+        ):
+            return existing
+        payload = {**existing, "status": status, "updated_at": _now_iso()}
+        if status in ("sending", "sent", "uncertain"):
+            payload.pop("retry_safe", None)
+        if attempts is not None:
+            payload["attempts"] = attempts
+        if error:
+            payload["last_error"] = error
+        elif "last_error" in payload:
+            payload.pop("last_error")
+        if detail:
+            payload["detail"] = detail
+        elif "detail" in payload:
+            payload.pop("detail")
+        if extra:
+            payload.update(extra)
+        delivery[channel] = payload
+        current.metadata = metadata
+        current.save(update_fields=["metadata"])
+        notification.metadata = metadata
+        return payload
 
 
 def initialize_notification_delivery(created_notifications, channels, sms_gateway_url="", webhook_urls=None):
@@ -314,28 +324,69 @@ def update_event_webhook_status(schema_name, event_id, webhook_url, status, atte
 
 
 def send_notification_email(schema_name, notification_id):
-    """Record success only after backend acknowledgement; otherwise let the task retry."""
+    """Claim once before SMTP. Ambiguous delivery is held for reconciliation, not resent."""
     with schema_context(schema_name):
         WorkflowNotification = _core_model("WorkflowNotification")
-        notification = WorkflowNotification.objects.select_related("recipient", "event").get(pk=notification_id)
-        recipient = notification.recipient
-        if not recipient.email:
-            _update_notification_channel(notification, "email", "skipped", detail="Aucune adresse email.")
-            return {"status": "skipped"}
-        if not _channel_enabled(recipient, "email", notification.category):
-            _update_notification_channel(
-                notification, "email", "skipped", detail="Canal email désactivé par l'utilisateur."
+        with transaction.atomic():
+            notification = WorkflowNotification.objects.select_for_update(of=("self",)).select_related(
+                "recipient", "event"
+            ).get(pk=notification_id)
+            state = (notification.metadata or {}).get("delivery", {}).get("email", {}).get("status")
+            if state == "sent":
+                return {"status": "sent"}
+            if state in ("sending", "uncertain"):
+                if state == "sending":
+                    _update_notification_channel(
+                        notification, "email", "uncertain",
+                        error="Envoi interrompu : rapprochement SMTP obligatoire avant reprise.",
+                    )
+                return {"status": "uncertain"}
+            recipient = notification.recipient
+            if (
+                not recipient.is_active
+                or recipient.etablissement_id != notification.event.tenant_id
+                or not recipient.email
+                or not _channel_enabled(recipient, "email", notification.category)
+            ):
+                _update_notification_channel(
+                    notification, "email", "skipped", detail="Destinataire inactif, hors tenant ou consentement retiré."
+                )
+                return {"status": "skipped"}
+            if (
+                getattr(settings, "EMAIL_BACKEND", "") != "django.core.mail.backends.smtp.EmailBackend"
+                or getattr(settings, "EMAIL_HOST", "") in ("", "localhost", "127.0.0.1")
+                or not getattr(settings, "DEFAULT_FROM_EMAIL", "")
+            ):
+                _update_notification_channel(
+                    notification, "email", "not_configured", error="SMTP réel non configuré."
+                )
+                return {"status": "not_configured"}
+            _update_notification_channel(notification, "email", "sending")
+        try:
+            sent_count = send_mail(
+                notification.title,
+                notification.message,
+                settings.DEFAULT_FROM_EMAIL,
+                [recipient.email],
+                fail_silently=False,
             )
-            return {"status": "skipped"}
-        sent_count = send_mail(
-            notification.title,
-            notification.message,
-            getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@example.com"),
-            [recipient.email],
-            fail_silently=False,
-        )
-        if sent_count != 1:
+        except Exception:
+            _update_notification_channel(
+                notification, "email", "uncertain",
+                error="Accusé SMTP incertain : vérifier chez le prestataire avant toute reprise.",
+            )
+            return {"status": "uncertain"}
+        if sent_count == 0:
+            _update_notification_channel(
+                notification, "email", "failed", error="Aucun envoi accepté par SMTP.",
+                extra={"retry_safe": True},
+            )
             raise RuntimeError("Le backend email n'a pas confirmé l'envoi.")
+        if sent_count != 1:
+            _update_notification_channel(
+                notification, "email", "uncertain", error="Accusé SMTP invalide : rapprochement obligatoire."
+            )
+            return {"status": "uncertain"}
         _update_notification_channel(notification, "email", "sent", detail=recipient.email)
         return {"status": "sent"}
 
