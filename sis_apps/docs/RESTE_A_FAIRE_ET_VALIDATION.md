@@ -57,10 +57,38 @@ Cette comparaison indépendante ne doit pas être présentée comme une bascule
 du navigateur vers les bases restaurées, ni comme une reprise Open edX/production.
 
 Cette qualification locale ne clôt ni F30, ni F31, ni F32 et ne change pas les
-94 exigences de la matrice. Le déploiement effectif de la démonstration doit
-être distingué de ces résultats de qualification.
+94 exigences de la matrice.
 
-## Synthèse de livraison institutionnelle — 9 novembre 2026
+### Mise à jour effective de la démonstration
+
+La démonstration `sis-demo40-20261109` a ensuite été mise à jour, après
+sauvegarde `20261109T223903Z` de ses deux bases, fichiers et configurations
+privées. Les migrations partagées puis locataires ont été appliquées aux deux
+variantes **sans bootstrap, réensemencement ni remise à zéro des comptes**.
+Les sept services restent actifs, avec les bases et volumes existants.
+
+- Image backend des deux variantes :
+  `sha256:7420dd107b7667c698ad6f1546e9e8ca882ed82391ab21fe9ebd136f62b7292b`
+  (code applicatif `a6668d5`).
+- Frontend construit pour le port 32600, depuis `c21063f` (documentation
+  ajoutée au même code) ; SHA-256 de l'index :
+  `cbf61ff2f10729a9645db2757f403fbff8337c21fa168f737c22fa8bcf0a0b52`.
+- Connexions administrateur des deux variantes, douze pages et gestion des
+  familles revérifiées dans Chromium. Le module de suivi pratique a été
+  explicitement simulé puis activé par l'interface dans les deux variantes.
+- Le compte élève existant retrouve son affectation et le bulletin publié
+  `BUL-1`, toujours à **16,50/20**, avec sa note source et son PDF.
+  Aucun nouveau résultat, paiement ou stage fictif de qualification n'a été
+  injecté dans la démonstration.
+
+Accès inchangés : `http://validation.localhost:32600/secondaire` et
+`http://validation.localhost:32600/superieur`. Les secrets existants restent
+dans les fichiers privés ; aucun identifiant sensible n'est publié ici.
+Les services auxiliaires de qualification sont arrêtés. Les limites Open edX,
+SMTP, fiscalité, installation autonome et réception institutionnelle ci-dessus
+restent applicables : démonstration actualisée ne signifie pas production prête.
+
+## Synthèse antérieure à cette intégration — 9 novembre 2026
 
 **Base de cette synthèse : `fa8ac06` ; aucun nouveau déploiement réalisé par
 le travail documentaire.** Les historiques ci-dessous gardent leurs dates,
