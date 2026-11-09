@@ -9,6 +9,48 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
+## Démonstration locale — 9 novembre 2026
+
+La démonstration isolée dispose de deux bases neuves et de comptes locaux,
+sans réutiliser les données de qualification. Elle n'active ni Open edX,
+ni SMTP réel, ni workers/planificateurs. Son lancement ne vaut pas installation
+de production ou acceptation institutionnelle.
+
+Un défaut du formulaire **Élèves** a été reproduit dans le navigateur :
+la sélection directe de `classe_actuelle` provoquait un refus HTTP400,
+conformément à l'API qui impose une inscription validée. Ce champ est retiré
+de la création et de la modification ; un message oriente vers **Classes et
+inscriptions annuelles**, ou vers le transfert motivé pour un élève déjà inscrit.
+Les contrôles backend ne sont pas assouplis. Trois tests frontend ciblés,
+le lint et le build de production ont réussi ; les avertissements de taille
+du bundle restent présents.
+
+Le parcours natif a ensuite créé une année, un niveau, une classe, un dossier
+élève sans classe, une inscription en attente puis sa validation. Les lectures
+authentifiées confirment l'absence d'affectation avant validation, l'affectation
+après celle-ci et sa conservation lors d'une modification des données civiles.
+Une période, une matière, un enseignant et une évaluation ont également été
+créés par l'interface. L'administrateur a attribué au seul enseignant de recette
+la permission explicite `notes.view_evaluation` via un nouveau groupe.
+Cet enseignant a saisi **16,5/20**, puis l'élève a consulté cette note avec son
+propre compte. Le contrôle de saisie refuse une valeur supérieure au barème.
+
+Le frontend corrigé est livré à la démonstration ; les deux connexions et
+six pages scolaires/universitaires ont été revérifiées. Après recréation de
+la seule API scolaire, de nouvelles connexions enseignant/élève retrouvent
+la note sans rejouer les écritures métier. Une lecture PostgreSQL indépendante
+confirme l'inscription validée, la classe, la valeur et l'auteur enseignant.
+Les bases et fichiers ont été sauvegardés avant intervention, avec lecture
+complète des archives ; **aucune restauration indépendante ni preuve hors site**
+n'est déduite de cette sauvegarde.
+
+**Reste ouvert :** calcul, validation et émission des bulletins depuis le
+parcours complet, parent/tuteur, réinscription/transfert dans cette recette,
+ensemble des habilitations, intégration LMS et exploitation de production.
+Le lot stages pratiques reste distinct et non publié. Aucun statut de la
+matrice des 94 exigences n'est promu par cet incrément ; le bilan publié
+ci-dessous conserve son périmètre.
+
 ## État courant — vague39
 
 **Cutoff : 8 novembre 2026 à 20:21:31.738461 UTC**.
