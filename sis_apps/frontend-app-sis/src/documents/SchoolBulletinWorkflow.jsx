@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography,
@@ -31,6 +31,8 @@ const SchoolBulletinWorkflow = ({
   const [values, setValues] = useState({ eleve: '', classe: '', periode: '' });
   const [appreciation, setAppreciation] = useState('');
   const [decision, setDecision] = useState('');
+  const [reason, setReason] = useState('');
+  const rectification = useRef(null);
   const url = resourceUrl('secondaire', 'bulletins');
   const client = useQueryClient();
   const detail = useQuery({
@@ -49,6 +51,10 @@ const SchoolBulletinWorkflow = ({
   });
   const bulletin = detail.data;
   useEffect(() => {
+    setReason('');
+    rectification.current = null;
+  }, [selectedId]);
+  useEffect(() => {
     setAppreciation(bulletin?.appreciation_conseil || '');
     setDecision(bulletin?.decision || '');
   }, [bulletin]);
@@ -56,8 +62,10 @@ const SchoolBulletinWorkflow = ({
     mutationFn: ({ action, payload }) => postApi(`${url}${action === 'preparer' ? '' : `${selectedId}/`}${action}/`, payload),
     onSuccess: async (result, { action }) => {
       await client.invalidateQueries({ queryKey: ['documents'] });
-      if (action === 'preparer') {
+      if (action === 'preparer' || action === 'rectifier') {
         setCreating(false);
+        rectification.current = null;
+        setReason('');
         onSelect(result.id);
       } else {
         await client.invalidateQueries({ queryKey: ['bulletin-calculation', url, selectedId] });
@@ -82,6 +90,14 @@ const SchoolBulletinWorkflow = ({
       } : {}),
     },
   });
+  const rectify = () => {
+    if (!rectification.current) {
+      rectification.current = {
+        version: bulletin.updated_at, motif: reason.trim(), cle_idempotence: crypto.randomUUID(),
+      };
+    }
+    mutation.mutate({ action: 'rectifier', payload: rectification.current });
+  };
   return (
     <>
       {canPrepare && (
@@ -140,6 +156,20 @@ const SchoolBulletinWorkflow = ({
           ) : bulletin && !detail.error && (
             <Stack spacing={2}>
               <Typography>{bulletin.eleve_nom} — {bulletin.classe_nom}</Typography>
+              <Typography>Bulletin BUL-{bulletin.id} — révision {bulletin.revision || 1}</Typography>
+              {bulletin.rectifie && (
+                <Alert severity="info">
+                  Rectifie BUL-{bulletin.rectifie}. Motif : {bulletin.motif_rectification}.
+                  L’original est conservé ; cette version exige sa propre validation et publication.
+                  <Button disabled={busy} onClick={() => onSelect(bulletin.rectifie)}>Voir la version précédente</Button>
+                </Alert>
+              )}
+              {bulletin.rectification_publiee && (
+                <Alert severity="warning">
+                  Une rectification publiée est disponible : BUL-{bulletin.rectification_publiee}.
+                  <Button disabled={busy} onClick={() => onSelect(bulletin.rectification_publiee)}>Voir la rectification publiée</Button>
+                </Alert>
+              )}
               <Typography>Moyenne calculée : {bulletin.moyenne_generale}/20</Typography>
               <Typography>{bulletin.calcul_detail?.formule}</Typography>
               {bulletin.calcul_detail?.matieres?.map(matiere => (
@@ -171,6 +201,21 @@ const SchoolBulletinWorkflow = ({
               {bulletin.date_validation && (
                 <Typography>Validation enregistrée le {bulletin.date_validation}.</Typography>
               )}
+              {bulletin.publie && canPrepare && !bulletin.rectification_publiee && (
+                <TextField
+                  label="Motif de rectification"
+                  helperText="Crée un nouveau brouillon à partir des notes actuelles, sans modifier l’original."
+                  required
+                  multiline
+                  value={reason}
+                  onChange={event => {
+                    setReason(event.target.value);
+                    rectification.current = null;
+                  }}
+                  slotProps={{ htmlInput: { maxLength: 4000 } }}
+                  disabled={busy}
+                />
+              )}
               <TextField
                 label="Appréciation du conseil"
                 multiline
@@ -190,6 +235,9 @@ const SchoolBulletinWorkflow = ({
         </DialogContent>
         <DialogActions>
           <Button onClick={close} disabled={mutation.isPending}>Fermer</Button>
+          {!creating && selectedId && (
+            <Button disabled={busy} onClick={() => detail.refetch()}>Recharger le bulletin</Button>
+          )}
           {creating ? (
             <Button
               type="submit"
@@ -203,6 +251,10 @@ const SchoolBulletinWorkflow = ({
               <Button disabled={busy || Boolean(bulletin.date_validation)} onClick={() => change('valider')}>Valider après vérification</Button>
               <Button disabled={busy || !bulletin.date_validation} onClick={() => change('publier')}>Publier le bulletin</Button>
             </>
+          )}
+          {!creating && bulletin?.calcul_detail?.methode && bulletin.publie
+            && !bulletin.rectification_publiee && canPrepare && !detail.error && (
+              <Button disabled={busy || !reason.trim()} onClick={rectify}>Créer une rectification</Button>
           )}
         </DialogActions>
       </Dialog>

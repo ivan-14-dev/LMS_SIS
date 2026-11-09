@@ -52,6 +52,7 @@ const show = (props = {}) => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  crypto.randomUUID = jest.fn(() => 'c99be92c-bfcc-4c86-a4fa-2a194da04f58');
   fetchApi.mockResolvedValue(draft);
   postApi.mockResolvedValue(draft);
   fetchAllResourcePages.mockImplementation(async url => {
@@ -122,4 +123,72 @@ it('does not expose mutations when the account can only read the bulletin', asyn
   await screen.findByText('Moyenne calculée : 16.50/20');
   expect(screen.queryByRole('button', { name: 'Préparer un bulletin' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Valider après vérification' })).not.toBeInTheDocument();
+});
+
+it('creates a separate rectification using a reason and the published version', async () => {
+  fetchApi.mockResolvedValue({ ...draft, publie: true, revision: 1 });
+  postApi.mockResolvedValue({ ...draft, id: 9, revision: 2, rectifie: 8 });
+  const selected = show({ selectedId: 8 });
+  await screen.findByText(/Bulletin publié/);
+  const button = screen.getByRole('button', { name: 'Créer une rectification' });
+  expect(button).toBeDisabled();
+  fireEvent.change(screen.getByLabelText(/^Motif de rectification/), { target: { value: 'Erreur de transcription.' } });
+  fireEvent.click(button);
+  await waitFor(() => expect(postApi).toHaveBeenCalledWith(
+    'https://school.example/api/v1/bulletins/8/rectifier/',
+    {
+      version: draft.updated_at,
+      motif: 'Erreur de transcription.',
+      cle_idempotence: 'c99be92c-bfcc-4c86-a4fa-2a194da04f58',
+    },
+  ));
+  await waitFor(() => expect(selected).toHaveBeenCalledWith(9));
+  expect(screen.queryByRole('button', { name: 'Valider après vérification' })).not.toBeInTheDocument();
+});
+
+it('retains the same idempotency key and payload when retrying a lost response', async () => {
+  fetchApi.mockResolvedValue({ ...draft, publie: true });
+  postApi.mockRejectedValueOnce(new Error('Connexion interrompue'));
+  postApi.mockResolvedValueOnce({ ...draft, id: 9, rectifie: 8, revision: 2 });
+  const selected = show({ selectedId: 8 });
+  await screen.findByText(/Bulletin publié/);
+  fireEvent.change(screen.getByLabelText(/^Motif de rectification/), { target: { value: 'Erreur de saisie.' } });
+  const button = screen.getByRole('button', { name: 'Créer une rectification' });
+  fireEvent.click(button);
+  await waitFor(() => expect(postApi).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(button).not.toBeDisabled());
+  fireEvent.click(button);
+  await waitFor(() => expect(selected).toHaveBeenCalledWith(9));
+  expect(postApi).toHaveBeenCalledTimes(2);
+  expect(postApi.mock.calls[0]).toEqual(postApi.mock.calls[1]);
+  expect(crypto.randomUUID).toHaveBeenCalledTimes(1);
+});
+
+it('navigates to a published rectification instead of offering a competing branch', async () => {
+  fetchApi.mockResolvedValue({ ...draft, publie: true, rectification_publiee: 9 });
+  const selected = show({ selectedId: 8 });
+  await screen.findByText(/Une rectification publiée est disponible/);
+  expect(screen.queryByRole('button', { name: 'Créer une rectification' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Voir la rectification publiée' }));
+  expect(selected).toHaveBeenCalledWith(9);
+});
+
+it('shows provenance and requires fresh validation for a correction draft', async () => {
+  fetchApi.mockResolvedValue({
+    ...draft, id: 9, revision: 2, rectifie: 8, motif_rectification: 'Correction de saisie.',
+  });
+  const selected = show({ selectedId: 9 });
+  await screen.findByText(/Rectifie BUL-8/);
+  expect(screen.getByRole('button', { name: 'Publier le bulletin' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Valider après vérification' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Voir la version précédente' }));
+  expect(selected).toHaveBeenCalledWith(8);
+});
+
+it('requires creation rights as well as management rights to rectify', async () => {
+  fetchApi.mockResolvedValue({ ...draft, publie: true });
+  show({ selectedId: 8, canPrepare: false, canManage: true });
+  await screen.findByText(/Bulletin publié/);
+  expect(screen.queryByRole('button', { name: 'Créer une rectification' })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText(/^Motif de rectification/)).not.toBeInTheDocument();
 });

@@ -12,7 +12,7 @@ from rest_framework.exceptions import APIException, PermissionDenied
 from sis_common.authorization import has_business_permission
 from sis_common.grade_entry import validate_offering_grade
 
-from .models import Evaluation, Note
+from .models import Bulletin, Evaluation, Note
 
 METHOD = "moyenne_ponderee_20_v1"
 CENT = Decimal("0.01")
@@ -41,6 +41,21 @@ class PrepareBulletinInput(serializers.Serializer):
 
 class BulletinVersionInput(serializers.Serializer):
     version = serializers.DateTimeField()
+
+
+class RectifyBulletinInput(BulletinVersionInput):
+    motif = serializers.CharField(max_length=4000)
+    cle_idempotence = serializers.UUIDField()
+
+
+def lock_bulletin(pk):
+    try:
+        with transaction.atomic():
+            return Bulletin.objects.select_for_update(nowait=True).get(pk=pk)
+    except OperationalError as error:
+        if getattr(getattr(error.__cause__, "diag", None), "sqlstate", None) == "55P03":
+            raise BulletinConflict("Ce bulletin est en cours de modification. Réessayez après rechargement.") from error
+        raise
 
 
 class ValidateBulletinInput(BulletinVersionInput):

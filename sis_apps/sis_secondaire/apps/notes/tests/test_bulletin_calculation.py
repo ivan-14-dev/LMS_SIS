@@ -3,6 +3,7 @@ from datetime import date
 from decimal import Decimal
 from threading import Event
 from unittest.mock import patch
+from uuid import uuid4
 
 from apps.classes.models import Classe, Matiere, ProgrammeMatiere
 from apps.eleves.models import Eleve, Inscription
@@ -88,6 +89,13 @@ class BulletinFixture(TenantAPITestCase):
     def validate(self, draft):
         return self.act(draft, "valider", confirmer=True, appreciation_conseil="Vérifié.", decision="")
 
+    def publish_draft(self, draft=None):
+        approved = self.validate(draft or self.create_draft())
+        assert approved.status_code == 200, approved.data
+        response = self.act(approved.data, "publier")
+        assert response.status_code == 200, response.data
+        return self.client.get(f"{self.base}{approved.data['id']}/", secure=True).data
+
 
 class CalculatedBulletinTests(BulletinFixture):
     def test_numeric_weights_and_scale_are_explicit_and_no_decision_is_invented(self):
@@ -129,10 +137,13 @@ class CalculatedBulletinTests(BulletinFixture):
         assert self.client.get(f"{self.base}{draft['id']}/", secure=True).status_code == 200
         self.note.valeur = Decimal("5")
         self.note.save()
+        self.student.first_name = "Identité modifiée après publication"
+        self.student.save()
         with patch("apps.notes.api.render_official_pdf", return_value=HttpResponse(b"%PDF-test")) as render:
             response = self.client.get(f"{self.base}{draft['id']}/pdf_officiel/", secure=True)
         assert response.status_code == 200
         sections = render.call_args.args[3]
+        assert render.call_args.args[1] == f"Bulletin - {draft['calcul_detail']['eleve']['nom']}"
         assert any("16.50/20" in str(section) for section in sections)
         assert "private" in response["Cache-Control"]
 
@@ -267,3 +278,196 @@ class BulletinConcurrencyTests(BulletinFixture):
                 release.set()
             holder.result(timeout=10)
         assert self.prepare().status_code == 201
+
+    def _assert_rectification_conflicts_with_lock(self, source):
+        assert not connection.in_atomic_block
+        published = self.publish_draft()
+        model, pk = (Bulletin, published["id"]) if source == "bulletin" else (Evaluation, self.evaluation.pk)
+        payload = {"motif": "Correction contrôlée.", "cle_idempotence": str(uuid4())}
+        locked = Event()
+        release = Event()
+
+        def hold_source():
+            try:
+                with schema_context(self.tenant.schema_name), transaction.atomic():
+                    model.objects.select_for_update().get(pk=pk)
+                    locked.set()
+                    assert release.wait(timeout=15), "La rectification a attendu un verrou concurrent."
+            finally:
+                connections["default"].close()
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            holder = pool.submit(hold_source)
+            try:
+                assert locked.wait(timeout=10)
+                response = self.act(published, "rectifier", **payload)
+                assert response.status_code == 409, response.data
+                assert Bulletin.objects.count() == 1
+            finally:
+                release.set()
+            holder.result(timeout=10)
+        created = self.act(published, "rectifier", **payload)
+        assert created.status_code == 201, created.data
+        repeated = self.act(published, "rectifier", **payload)
+        assert repeated.status_code == 200, repeated.data
+        assert repeated.data["id"] == created.data["id"]
+        assert Bulletin.objects.count() == 2
+
+    def test_rectification_never_waits_on_the_original_or_creates_a_partial_revision(self):
+        self._assert_rectification_conflicts_with_lock("bulletin")
+
+    def test_rectification_never_waits_on_sources_and_can_be_retried_after_release(self):
+        self._assert_rectification_conflicts_with_lock("evaluation")
+
+
+class BulletinRectificationTests(BulletinFixture):
+    def rectify(self, published, **overrides):
+        return self.act(published, "rectifier", **{
+            "motif": "Erreur de transcription corrigée.",
+            "cle_idempotence": str(uuid4()),
+            **overrides,
+        })
+
+    def test_rectification_preserves_original_and_pdf_until_separately_validated_and_published(self):
+        published = self.publish_draft()
+        original = Bulletin.objects.values().get(pk=published["id"])
+        with patch("apps.notes.api.render_official_pdf", return_value=HttpResponse(b"%PDF-test")) as render:
+            assert self.client.get(f"{self.base}{published['id']}/pdf_officiel/", secure=True).status_code == 200
+            original_pdf = render.call_args
+        self.note.valeur = Decimal("18")
+        self.note.save()
+        response = self.rectify(published)
+        assert response.status_code == 201, response.data
+        draft = response.data
+        assert draft["revision"] == 2
+        assert draft["rectifie"] == published["id"]
+        assert draft["rectification_demandee_par"] == self.manager.pk
+        assert draft["valide_par"] is None
+        assert draft["date_validation"] is None
+        assert not draft["signe"]
+        assert not draft["publie"]
+        assert draft["decision"] == draft["appreciation_conseil"] == ""
+        assert Decimal(draft["moyenne_generale"]) == Decimal("18")
+        assert self.act(draft, "publier").status_code == 400
+        self.client.force_authenticate(self.student)
+        for action in ("", "pdf_officiel/", "historique/"):
+            assert self.client.get(f"{self.base}{draft['id']}/{action}", secure=True).status_code == 404
+        visible_original = self.client.get(f"{self.base}{published['id']}/", secure=True)
+        assert visible_original.data["rectification_publiee"] is None
+        history = self.client.get(f"{self.base}{published['id']}/historique/", secure=True)
+        assert all(event["action"] != "rectification" for event in history.data)
+        assert draft["motif_rectification"] not in str(history.data)
+        self.client.force_authenticate(self.manager)
+        corrected = self.publish_draft(draft)
+        assert Bulletin.objects.values().get(pk=published["id"]) == original
+        with patch("apps.notes.api.render_official_pdf", return_value=HttpResponse(b"%PDF-test")) as render:
+            assert self.client.get(f"{self.base}{published['id']}/pdf_officiel/", secure=True).status_code == 200
+            assert render.call_args == original_pdf
+            assert self.client.get(f"{self.base}{corrected['id']}/pdf_officiel/", secure=True).status_code == 200
+            assert any(section["title"] == "Rectification" for section in render.call_args.args[3])
+        self.client.force_authenticate(self.student)
+        listing = self.client.get(self.base, secure=True)
+        assert {item["id"] for item in listing.data["results"]} == {published["id"], corrected["id"]}
+        visible_original = self.client.get(f"{self.base}{published['id']}/", secure=True)
+        assert visible_original.data["rectification_publiee"] == corrected["id"]
+
+    def test_retry_is_idempotent_and_a_new_request_cannot_branch_or_rewrite_a_previous_revision(self):
+        published = self.publish_draft()
+        key = str(uuid4())
+        first = self.rectify(published, cle_idempotence=key)
+        assert first.status_code == 201, first.data
+        retry = self.rectify(published, cle_idempotence=key)
+        assert retry.status_code == 200, retry.data
+        assert retry.data["id"] == first.data["id"]
+        assert Bulletin.objects.count() == 2
+        history = self.client.get(f"{self.base}{first.data['id']}/historique/", secure=True)
+        assert [event["action"] for event in history.data] == ["rectification"]
+        assert history.data[0]["metadata"]["rectifie"] == published["id"]
+        assert self.rectify(published).status_code == 409
+        assert self.rectify(published, cle_idempotence=key, motif="Autre motif").status_code == 409
+        corrected = self.publish_draft(first.data)
+        assert self.rectify(published, cle_idempotence=key).data["id"] == corrected["id"]
+        successor = self.rectify(corrected)
+        assert successor.status_code == 201, successor.data
+        assert successor.data["revision"] == 3
+        assert successor.data["rectifie"] == corrected["id"]
+        assert Bulletin.objects.count() == 3
+
+    def test_rectification_requires_a_reason_key_current_version_and_calculated_publication(self):
+        draft = self.create_draft()
+        assert self.rectify(draft).status_code == 400
+        published = self.publish_draft(draft)
+        for overrides in ({"motif": "  "}, {"cle_idempotence": "invalid"}, {"cle_idempotence": None}):
+            assert self.rectify(published, **overrides).status_code == 400
+        assert self.act(published, "rectifier", motif="Motif sans clé").status_code == 400
+        assert self.rectify(published, version=draft["updated_at"]).status_code == 409
+        Bulletin.objects.filter(pk=published["id"]).update(calcul_detail={})
+        assert self.rectify(published).status_code == 400
+        assert Bulletin.objects.count() == 1
+
+    def test_rectification_sources_must_still_be_current_at_validation_and_publication(self):
+        published = self.publish_draft()
+        draft = self.rectify(published).data
+        self.note.valeur = Decimal("19")
+        self.note.save()
+        assert self.validate(draft).status_code == 409
+        refreshed = self.act(draft, "recalculer")
+        assert refreshed.status_code == 200, refreshed.data
+        assert refreshed.data["rectifie"] == published["id"]
+        assert refreshed.data["motif_rectification"] == draft["motif_rectification"]
+        assert self.validate(draft).status_code == 409
+        approved = self.validate(refreshed.data)
+        assert approved.status_code == 200, approved.data
+        self.note.valeur = Decimal("17")
+        self.note.save()
+        assert self.act(approved.data, "publier").status_code == 409
+        assert not Bulletin.objects.get(pk=draft["id"]).publie
+
+    def test_explicit_scoped_permissions_are_enforced_and_matching_scopes_can_complete_the_workflow(self):
+        published = self.publish_draft()
+        self.client.force_authenticate(self.student)
+        assert self.rectify(published).status_code == 403
+        assert self.act(published, "publier").status_code == 403
+        for permission in ("view_bulletin", "add_bulletin", "change_bulletin"):
+            self.manager.attributs_acces = {
+                "permission_scopes": {f"notes.{permission}": {"classes": [self.classe.pk + 100]}}
+            }
+            self.manager.save()
+            self.client.force_authenticate(Utilisateur.objects.get(pk=self.manager.pk))
+            assert self.rectify(published).status_code in (403, 404)
+        self.manager.attributs_acces = {"permission_scopes": {
+            f"notes.{permission}": {
+                "classes": [self.classe.pk], "annees": [self.year.pk], "periodes": [self.period.pk],
+            }
+            for permission in ("view_bulletin", "add_bulletin", "change_bulletin")
+        }}
+        self.manager.save()
+        self.client.force_authenticate(Utilisateur.objects.get(pk=self.manager.pk))
+        draft = self.rectify(published)
+        assert draft.status_code == 201, draft.data
+        assert self.publish_draft(draft.data)["publie"]
+
+    def test_legacy_direction_role_and_change_permission_do_not_replace_creation_permission(self):
+        published = self.publish_draft()
+        self.manager.user_permissions.remove(Permission.objects.get(
+            content_type__app_label="notes", codename="add_bulletin",
+        ))
+        self.client.force_authenticate(Utilisateur.objects.get(pk=self.manager.pk))
+        assert self.rectify(published).status_code == 403
+        assert Bulletin.objects.count() == 1
+
+    def test_provenance_cannot_be_forged_and_correction_drafts_cannot_be_deleted(self):
+        published = self.publish_draft()
+        draft = self.rectify(published).data
+        for base in (self.base, "/api/v1/notes/bulletins/"):
+            response = self.client.patch(f"{base}{draft['id']}/", {
+                "rectifie": None, "revision": 1, "motif_rectification": "Faux motif", "moyenne_generale": "20",
+            }, format="json", secure=True)
+            assert response.status_code == 400, response.data
+            response = self.client.post(base, {
+                "eleve": self.pupil.pk, "classe": self.classe.pk, "periode": self.period.pk,
+                "revision": 3, "rectifie": published["id"],
+            }, format="json", secure=True)
+            assert response.status_code == 400, response.data
+            assert self.client.delete(f"{base}{draft['id']}/", secure=True).status_code == 400
+        assert Bulletin.objects.count() == 2

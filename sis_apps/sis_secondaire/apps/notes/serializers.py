@@ -252,7 +252,12 @@ class NoteSaisieSerializer(serializers.Serializer):
     appreciation = serializers.CharField(required=False, allow_blank=True)
 
 
-class BulletinListSerializer(serializers.ModelSerializer):
+class BulletinRevisionMixin:
+    def get_rectification_publiee(self, obj):
+        return Bulletin.objects.filter(rectifie=obj, publie=True).values_list("pk", flat=True).first()
+
+
+class BulletinListSerializer(BulletinRevisionMixin, serializers.ModelSerializer):
     """Serializer léger pour les listes de bulletins."""
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
@@ -261,6 +266,7 @@ class BulletinListSerializer(serializers.ModelSerializer):
     periode_libelle = serializers.CharField(source="periode.libelle", read_only=True)
     nb_matieres_individualisees = serializers.IntegerField(read_only=True, default=0)
     calcule = serializers.SerializerMethodField()
+    rectification_publiee = serializers.SerializerMethodField()
 
     def get_calcule(self, obj):
         return bool(obj.calcul_detail)
@@ -285,10 +291,13 @@ class BulletinListSerializer(serializers.ModelSerializer):
             "nb_matieres_individualisees",
             "calcule",
             "date_validation",
+            "revision",
+            "rectifie",
+            "rectification_publiee",
         ]
 
 
-class BulletinDetailSerializer(serializers.ModelSerializer):
+class BulletinDetailSerializer(BulletinRevisionMixin, serializers.ModelSerializer):
     """Serializer complet pour un bulletin."""
 
     eleve_matricule = serializers.CharField(source="eleve.matricule", read_only=True)
@@ -297,6 +306,7 @@ class BulletinDetailSerializer(serializers.ModelSerializer):
     periode_libelle = serializers.CharField(source="periode.libelle", read_only=True)
     nb_matieres_individualisees = serializers.IntegerField(read_only=True, default=0)
     matieres_individuelles = serializers.SerializerMethodField()
+    rectification_publiee = serializers.SerializerMethodField()
 
     class Meta:
         model = Bulletin
@@ -326,10 +336,34 @@ class BulletinDetailSerializer(serializers.ModelSerializer):
             "calcul_detail",
             "valide_par",
             "date_validation",
+            "revision",
+            "rectifie",
+            "motif_rectification",
+            "rectification_demandee_par",
+            "rectification_publiee",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "calcul_detail", "valide_par", "date_validation"]
+        read_only_fields = [
+            "id", "created_at", "updated_at", "calcul_detail", "valide_par", "date_validation",
+            "revision", "rectifie", "motif_rectification", "rectification_demandee_par",
+        ]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        existing = Bulletin.objects.filter(
+            eleve=attrs.get("eleve", getattr(self.instance, "eleve_id", None)),
+            periode=attrs.get("periode", getattr(self.instance, "periode_id", None)),
+        )
+        if self.instance:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise serializers.ValidationError(
+                {"bulletin": "Un bulletin existe déjà. Utilisez son circuit de rectification."}
+            )
+        return attrs
 
     def get_matieres_individuelles(self, obj):
+        if obj.calcul_detail:
+            return []
         affectations = (
             AffectationMatiereIndividuelle.objects.filter(
                 eleve=obj.eleve,

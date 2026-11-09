@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from apps.core.serializers import WorkflowEventSerializer
 from apps.eleves.models import Eleve
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Avg, Count, F, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -51,11 +51,13 @@ from .bulletin_calculation import (
     BulletinConflict,
     BulletinVersionInput,
     PrepareBulletinInput,
+    RectifyBulletinInput,
     ValidateBulletinInput,
     calculate_bulletin,
     check_version,
     ensure_calculated_publication,
     ensure_current_sources,
+    lock_bulletin,
     require_bulletin_permission,
 )
 from .models import Bulletin, Evaluation, Note, RegleValidation
@@ -821,7 +823,28 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
         "periode__libelle",
     ]
     filterset_fields = ["eleve", "classe", "periode", "publie"]
-    ordering = ["-periode__date_fin"]
+    ordering = ["-periode__date_fin", "-revision", "-pk"]
+
+    def get_permissions(self):
+        if self.action in ("preparer", "rectifier", "recalculer", "valider", "publier", "signer"):
+            # Scoped permissions need the resolved class/period, checked by each action.
+            return [DocumentTenantPermission(), IsAuthenticated()]
+        return super().get_permissions()
+
+    def get_object(self):
+        # Preserve visibility/object permissions, but never wait on a competing writer.
+        bulletin = viewsets.ModelViewSet.get_object(self)
+        if self.action in ("rectifier", "recalculer", "valider", "publier", "signer"):
+            if self.action in ("publier", "signer") and not bulletin.calcul_detail:
+                if not IsEnseignantOrVieScolarite().has_permission(self.request, self):
+                    raise PermissionDenied()
+            else:
+                require_bulletin_permission(
+                    self.request, bulletin.classe, bulletin.periode, preparing=self.action == "rectifier",
+                )
+        if connection.in_atomic_block and self.request.method not in ("GET", "HEAD", "OPTIONS"):
+            return lock_bulletin(bulletin.pk)
+        return bulletin
 
     @staticmethod
     def _ensure_action_publication(data):
@@ -839,7 +862,10 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     def _ensure_calculation_actions(serializer):
         if (
             serializer.instance and serializer.instance.calcul_detail
-            or {"calcul_detail", "valide_par", "date_validation"} & set(serializer.initial_data)
+            or {
+                "calcul_detail", "valide_par", "date_validation", "revision", "rectifie",
+                "motif_rectification", "rectification_demandee_par", "cle_rectification",
+            } & set(serializer.initial_data)
         ):
             raise serializers.ValidationError(
                 {"calcul": "Utilisez les actions de préparation, recalcul et validation du bulletin."}
@@ -849,20 +875,22 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     def perform_update(self, serializer):
         self._ensure_action_publication(serializer.validated_data)
         self._ensure_calculation_actions(serializer)
-        bulletin = Bulletin.objects.select_for_update().get(pk=serializer.instance.pk)
+        bulletin = lock_bulletin(serializer.instance.pk)
         if bulletin.publie:
             raise serializers.ValidationError({"publie": "Un bulletin publié ne peut plus être modifié."})
         serializer.save()
 
     @transaction.atomic
     def perform_destroy(self, instance):
-        bulletin = Bulletin.objects.select_for_update().get(pk=instance.pk)
+        bulletin = lock_bulletin(instance.pk)
         if bulletin.publie:
             raise serializers.ValidationError(
                 {"publie": "Un bulletin publié ne peut plus être supprimé."}
             )
         if bulletin.calcul_detail:
             require_bulletin_permission(self.request, bulletin.classe, bulletin.periode)
+        if bulletin.rectifie_id:
+            raise serializers.ValidationError({"rectification": "Une rectification doit rester dans l'historique."})
         bulletin.delete()
 
     def get_queryset(self):
@@ -888,6 +916,37 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
             moyenne_generale=calcul["moyenne_generale"], calcul_detail=calcul,
         )
         record_workflow_event(request, bulletin, "preparation", "Brouillon de bulletin calculé")
+        return Response(self.get_serializer(bulletin).data, status=201)
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def rectifier(self, request, pk=None):
+        original = self.get_object()
+        require_bulletin_permission(request, original.classe, original.periode, preparing=True)
+        payload = RectifyBulletinInput(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = payload.validated_data
+        if not original.publie or not original.calcul_detail:
+            raise serializers.ValidationError({"bulletin": "Seul un bulletin calculé et publié peut être rectifié."})
+        if data["version"] != original.updated_at:
+            raise BulletinConflict()
+        previous = Bulletin.objects.filter(rectifie=original).first()
+        if previous:
+            if previous.cle_rectification != data["cle_idempotence"] or previous.motif_rectification != data["motif"]:
+                raise BulletinConflict("Une rectification existe déjà. Consultez les versions de ce bulletin.")
+            return Response(self.get_serializer(previous).data)
+        calcul = calculate_bulletin(original.eleve, original.classe, original.periode)
+        bulletin = Bulletin.objects.create(
+            eleve=original.eleve, classe=original.classe, periode=original.periode,
+            moyenne_generale=calcul["moyenne_generale"], calcul_detail=calcul,
+            revision=original.revision + 1, rectifie=original, motif_rectification=data["motif"],
+            rectification_demandee_par=request.user, cle_rectification=data["cle_idempotence"],
+        )
+        # Do not expose a private draft (or its reason) through the original's family-visible history.
+        record_workflow_event(
+            request, bulletin, "rectification", "Brouillon de rectification",
+            metadata={"rectifie": original.pk, "revision": bulletin.revision, "motif": data["motif"]},
+        )
         return Response(self.get_serializer(bulletin).data, status=201)
 
     @action(detail=True, methods=["post"])
@@ -954,6 +1013,8 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     def publier(self, request, pk=None):
         """Publie un bulletin."""
         bulletin = get_action_object(self)
+        if not bulletin.calcul_detail and not IsEnseignantOrVieScolarite().has_permission(request, self):
+            raise PermissionDenied()
         if bulletin.publie:
             return Response({"error": "Ce bulletin est déjà publié."}, status=400)
         ensure_calculated_publication(request, bulletin)
@@ -973,6 +1034,11 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
                 "eleve_id": bulletin.eleve_id,
             },
         )
+        if bulletin.rectifie_id:
+            record_workflow_event(
+                request, bulletin.rectifie, "rectification_publiee", "Rectification publiée",
+                metadata={"bulletin": bulletin.pk, "revision": bulletin.revision},
+            )
         return Response({"detail": "Bulletin publié.", "id": bulletin.id})
 
     @action(detail=True, methods=["post"])
@@ -980,6 +1046,8 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     def signer(self, request, pk=None):
         """Signe un bulletin (par le chef d'établissement)."""
         bulletin = self.get_object()
+        if not bulletin.calcul_detail and not IsEnseignantOrVieScolarite().has_permission(request, self):
+            raise PermissionDenied()
         ensure_calculated_publication(request, bulletin)
         if bulletin.signe:
             return Response({"error": "Ce bulletin est déjà signé."}, status=400)
@@ -1078,6 +1146,17 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
                         ],
                     ],
                 })
+        if bulletin.rectifie_id:
+            sections.append({
+                "title": "Rectification",
+                "rows": [
+                    ("Révision", bulletin.revision),
+                    ("Rectifie le bulletin", f"BUL-{bulletin.rectifie_id}"),
+                    ("Motif", bulletin.motif_rectification),
+                    ("Demandée le", bulletin.created_at),
+                    ("Validation humaine", bulletin.date_validation),
+                ],
+            })
         footer_rows = [
             ("Publié", "Oui" if bulletin.publie else "Non"),
             ("Signé", "Oui" if bulletin.signe else "Non"),
@@ -1085,7 +1164,7 @@ class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
         ]
         return render_official_pdf(
             f"bulletin-{bulletin.id}.pdf",
-            f"Bulletin - {serialized.get('eleve_nom')}",
+            f"Bulletin - {bulletin.calcul_detail['eleve']['nom'] if bulletin.calcul_detail else serialized.get('eleve_nom')}",
             identity_rows,
             sections,
             footer_rows=footer_rows,
