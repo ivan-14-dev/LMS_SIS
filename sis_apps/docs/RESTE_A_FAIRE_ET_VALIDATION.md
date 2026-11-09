@@ -9,6 +9,50 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
+## Synthèse de livraison institutionnelle — 9 novembre 2026
+
+**Base de cette synthèse : `fa8ac06` ; aucun nouveau déploiement réalisé par
+le travail documentaire.** Les historiques ci-dessous gardent leurs dates,
+preuves et limites. Le bulletin numérique secondaire décrit ensuite est
+**réellement déployé et testé dans la démonstration isolée**, et non un simple
+écran prévu. La présente synthèse n'étend pas cette preuve aux autres domaines.
+
+Les [instructions utilisateurs par rôle](GUIDE_UTILISATEURS.md) complètent
+le [guide opérateur](INSTALLATION_ETABLISSEMENT.md). La
+[checklist de livraison](RECETTE_FONCTIONNELLE.md#checklist-de-livraison-intermédiaire-f30-f31)
+exige un périmètre explicite, des comptes distincts, les refus, des artefacts
+identifiés, la reprise et une décision de réception ; elle ne coche aucun lot.
+Le catalogue des modules préinstallés, les droits et la qualification sont
+trois notions distinctes : activer un module ne prouve ni son usage par un
+rôle ni sa réception dans un établissement.
+
+- **Matrice inchangée : 94 exigences, 7 vérifiées, 66 partielles, 19 absentes
+  et 2 non vérifiées.** Aucune promotion fondée sur le code ou la documentation.
+  Les **397 tâches historiques closes ne sont pas un pourcentage produit**.
+- **F30 reste ouvert :** tous les parcours, variantes, habilitations, cas
+  négatifs, accessibilité et charge ne disposent pas d'une recette complète.
+  Les contrôles responsive historiques ne prouvent ni conformité WCAG globale,
+  ni application Android/iOS, ni travail pédagogique hors ligne.
+  La campagne historique **500 sessions reste rouge**, sans nouvelle mesure.
+- **F31 progresse par la documentation utilisable**, pas par une homologation :
+  aucun tag de release publique, push d'images, installation neuve ou mise à
+  jour réelle n'est produit par cette passe documentaire. Le commit des sources,
+  les images exécutées et la version des schémas doivent être rapprochés avant
+  livraison ; les procédures existantes de sauvegarde et retour arrière
+  restent obligatoires.
+- **F32 reste bloqué :** serveur et domaines autorisés, responsables de
+  réception/formation/support, pays et règles métier, prestataires nécessaires,
+  sauvegardes hors machine, alertes réelles et décision d'ouverture ne sont pas
+  remplacés par des données fictives ou un test local. Aucun pilote réel ni
+  production homologuée n'est annoncé.
+
+Les correctifs parallèles installation, IAM, scolarité, résultats, LMS,
+finances/communications et stages doivent être accompagnés de leurs commandes
+réellement exécutées et limites avant d'être ajoutés à cette synthèse.
+**Leur présence dans une branche ou un build ne signifie pas qu'ils sont
+installés dans la démonstration.** Les dépendances externes ne masquent pas
+les fonctions encore absentes ou partielles dans la matrice.
+
 ## Démonstration locale — 9 novembre 2026
 
 La démonstration isolée dispose de deux bases neuves et de comptes locaux,

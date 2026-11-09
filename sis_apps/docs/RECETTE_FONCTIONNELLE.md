@@ -4,6 +4,151 @@
 [plan directeur et son protocole de preuve](PLAN_DIRECTEUR_LMS_SIS.md#boucle-de-réalisation-et-critères-de-preuve),
 sans créer un nouveau backlog ni modifier les lots F01–F32.
 
+## Checklist de livraison intermédiaire F30 F31
+
+Ajout du **9 novembre 2026** ; les bilans suivants, dont la première matrice
+du 5 novembre, restent historiques. Le bilan courant est **7 vérifiées,
+66 partielles, 19 absentes et 2 non vérifiées sur 94** ; voir la
+[synthèse et les limites](RESTE_A_FAIRE_ET_VALIDATION.md#synthèse-de-livraison-institutionnelle--9-novembre-2026).
+Cette checklist complète la recette existante, **sans valoir exécution ni
+clôture de F30/F31/F32**. Elle s'applique à une livraison limitée explicitement
+décrite ; une option désactivée ne devient pas une exigence terminée.
+
+### Avant toute installation ou ouverture
+
+- [ ] Le responsable de réception identifie la variante, l'établissement,
+  les fonctions **ouvertes/exclues**, les rôles, les règles de résultats et les
+  intégrations retenues. Il distingue environnement de démonstration, cible de
+  recette et cible d'exploitation. Aucun domaine ou prestataire n'est supposé.
+- [ ] Un opérateur autorise la cible et la fenêtre ; les ressources sont
+  disponibles. **Pas de recette Docker, charge ou build sur un hôte partagé
+  sans accord.** Les comptes/données de recette sont fictifs et séparés.
+- [ ] La version source est un commit complet conservé ; les images backend,
+  frontend et, si retenu, Tutor/Open edX sont identifiées par digest. La liste
+  des migrations, les versions de configuration et les modules effectivement
+  actifs sont relevées sans exporter de secrets.
+- [ ] Les [précontrôles d'installation et mise à jour](INSTALLATION_ETABLISSEMENT.md#mises-à-jour-et-retour-arrière)
+  passent sur la cible autorisée. Une vérification de syntaxe ou un `/health/`
+  vert ne prouve ni migrations terminées, ni workers, ni OAuth, ni livraison SMTP.
+- [ ] Le snapshot préalable chiffré a été relu et restauré sur une cible
+  indépendante, avec comptes/MFA/droits/dossiers/fichiers comparés. La sauvegarde
+  du seul SIS ne couvre pas Open edX ; prévoir les deux si le périmètre les utilise.
+
+### Parcours à faire exécuter avec les guides par rôle
+
+Pour chaque case retenue, consigner **date, version/images, variante/tenant,
+acteur, attendu/observé, refus et référence de preuve expurgée** dans le dossier
+de réception privé existant. Une capture de menu ne suffit pas. Ne pas additionner
+les campagnes recouvrantes en un nombre de tests uniques. Un parcours non exercé
+reste « non exécuté », même si son test est présent dans le dépôt.
+
+- [ ] **Administrateur et compte sans droit** : connexions nominatives et MFA,
+  attribution/retrait minimal, refus dans la session déjà ouverte et par URL
+  directe ; second tenant et autre variante sans accès indu. Tester aussi
+  fichier/export/API, pas seulement la disparition d'un menu.
+- [ ] **Scolarité secondaire** : année/classe → dossier élève sans affectation
+  directe → inscription en attente → validation. Avant validation aucune classe
+  n'est attribuée ; après validation la classe persiste après reconnexion.
+  L'année close, le doublon et l'élève hors périmètre sont refusés.
+- [ ] **Scolarité supérieure, si annoncée** : dossier étudiant → inscription
+  administrative → inscription pédagogique/semestre ; conservation des acquis
+  et refus des transitions non prises en charge. La recette secondaire ne
+  couvre pas automatiquement ce parcours.
+- [ ] **Enseignant et élève secondaire** : évaluation → note présente **16,5/20**
+  dans un jeu fictif → consultation personnelle. Note hors barème refusée ;
+  absence/non rendu/manquant non remplacé par zéro. Préserver les notes d'autrui.
+- [ ] **Gestionnaire de bulletins et élève** : préparer le bulletin, contrôler
+  sources/coefficients, valider, publier puis télécharger le PDF. Avant
+  publication, élève et compte voisin ne lisent ni brouillon ni PDF.
+  Publication sans validation et sources périmées refusées ; le PDF publié
+  contient la note et les appréciations attendues. Recalculer un brouillon
+  invalide sa validation ; aucune mutation silencieuse d'un bulletin publié.
+  Ce scénario possède déjà une preuve dans la démonstration du 9 novembre :
+  il doit être revérifié pour la version et la cible d'une nouvelle livraison.
+- [ ] **Famille, comptabilité, LMS et modules facultatifs, si annoncés** :
+  appliquer les limites du [guide utilisateurs](GUIDE_UTILISATEURS.md).
+  Tester enfant lié puis lien retiré ; paiement rapproché et rejeu fournisseur ;
+  cours réel autorisé puis accès retiré ; module désactivé puis réactivé sans
+  perte. En l'absence de fournisseur, un simulateur n'établit pas sa réception.
+  Ne pas inventer une preuve commune à ces parcours différents.
+- [ ] **Accessibilité et mobile sur chaque parcours ouvert** : tout réaliser
+  au clavier (Tab/Maj+Tab/Entrée/Échap), focus visible et retour au déclencheur
+  après fermeture des dialogues ; libellés, erreurs et statut de sauvegarde
+  annoncés au lecteur d'écran ; zoom 200 %, largeurs 320 et 390 px, portrait et
+  paysage. Pas d'action masquée ou hors écran, de piège clavier, de message porté
+  seulement par la couleur ni de défilement horizontal de la page ; un tableau
+  peut défiler dans son conteneur. Répéter connexion/MFA, inscription, note,
+  validation du bulletin et téléchargement, pas seulement l'accueil.
+- [ ] **Perte de connexion, reprise et persistance** : conserver les erreurs,
+  distinguer résultat inconnu et échec avant de rejouer une écriture. Fermer le
+  navigateur, recréer les services autorisés, se reconnecter avec des comptes
+  frais et rapprocher les données par lecture indépendante, sans rejouer les
+  mutations métier. La restauration applicative complète est une preuve
+  distincte de la restauration de la seule base.
+
+Les recettes existantes `verify_installation.py --verify-backup` et
+`frontend-app-sis/e2e/{institution,workspace,design}.e2e.js` couvrent un socle,
+pas l'intégralité des cas ci-dessus ni une certification d'accessibilité.
+Suivre leur préparation dans le [guide opérateur](INSTALLATION_ETABLISSEMENT.md#diagnostic-et-qualification) ;
+**ne pas les lancer pour un simple contrôle documentaire**.
+
+### Artefacts, retrait et décision
+
+- [ ] Conserver ensemble : commit complet/version approuvée, archive de sources
+  et SHA-256, digests des images, changements de schéma/configuration, modules
+  actifs, limites connues, références des preuves, snapshot et procédure de
+  retour arrière. Les secrets, sauvegardes et comptes privés restent hors dépôt
+  et hors archive publique. Un hash identifie un artefact ; il ne certifie pas
+  son fonctionnement. Aucun tag, push ou registre public n'est automatique.
+- [ ] Reprendre la procédure de
+  [retour arrière](INSTALLATION_ETABLISSEMENT.md#mises-à-jour-et-retour-arrière) :
+  suspendre les écritures, identifier celles postérieures au snapshot, restaurer
+  données **et** images compatibles dans un projet isolé, vérifier droits/MFA,
+  documents et intégrations avant bascule autorisée. Ne pas remettre l'ancien
+  code sur une base migrée incompatible, ni annuler une révocation récente.
+- [ ] Le référent métier réalise la tâche de son rôle avec le
+  [guide](GUIDE_UTILISATEURS.md), sans console technique. Identifier les contacts
+  de support et d'astreinte, les règles d'escalade et la formation. L'absence de
+  ces personnes bloque la réception ; un agent automatisé ne signe pas à leur place.
+- [ ] Le responsable consigne « ouvert dans le périmètre décrit » ou « refusé »,
+  avec exclusions et anomalies. **Aucune ouverture institutionnelle n'est
+  attestée ici.** F30/F31 complets et F32 nécessitent leurs critères du
+  [plan directeur](PLAN_DIRECTEUR_LMS_SIS.md#f-qualifier-et-livrer-une-installation-exploitable)
+  et pas seulement cette checklist intermédiaire.
+
+**Critères de blocage immédiat :** fuite entre personnes/tenants, droits
+révoqués encore utilisables, données/MFA perdus, calcul incorrect, brouillon
+exposé, double inscription/paiement, état fournisseur inconnu masqué en succès,
+restauration échouée, version exécutée non identifiée, tâche essentielle
+inaccessible au clavier/mobile, absence d'autorisation de cible ou de référent.
+Conserver le refus et sa preuve, suspendre le parcours concerné et solliciter
+l'opérateur ; ne pas corriger les données directement pour faire passer la recette.
+La charge historique 500 rouge interdit d'annoncer cette capacité ou la clôture
+globale. Un plafond différent ne peut pas être inventé à partir de cette campagne.
+
+### Contrôle documentaire léger, sans service
+
+Depuis la racine du dépôt, ces commandes ne déploient rien et ne valident pas
+les parcours. Le bilan attendu est celui de cette livraison ; une promotion
+future nécessite d'abord une preuve revue, pas une modification du seul compteur.
+
+```sh
+git diff --check
+git rev-parse HEAD
+python3 - <<'PY'
+import json
+from collections import Counter
+from pathlib import Path
+
+matrix = json.loads(Path("sis_apps/docs/functional-acceptance-matrix.json").read_text())
+requirements = matrix["requirements"]
+assert len(requirements) == len({row["id"] for row in requirements}) == 94
+counts = Counter(row["status"] for row in requirements)
+assert counts == {"verified": 7, "partial": 66, "absent": 19, "unverified": 2}, counts
+print(dict(counts))
+PY
+```
+
 ## Matrice de référence
 
 La [matrice JSON](functional-acceptance-matrix.json) conserve les exigences du

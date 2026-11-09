@@ -20,6 +20,45 @@ Ce fork contient deux SIS dans ``sis_apps/``. Le
 décrit le déploiement Compose, l'initialisation, les comptes et les sauvegardes.
 Ce pack SIS nécessite un LMS Open edX administré séparément.
 
+Livraison SIS : périmètre et accès à la documentation
+====================================================
+
+**État du 9 novembre 2026 : livraison intermédiaire, pas de production
+homologuée.** Le bulletin numérique secondaire est réellement déployé et testé
+dans la démonstration isolée : préparation, validation humaine, publication et
+PDF apprenant, avec persistance après recréation de l'API. Cette preuve ne
+qualifie pas l'ensemble des résultats, le supérieur ou un pilote institutionnel.
+
+La `matrice des 94 exigences <sis_apps/docs/functional-acceptance-matrix.json>`_
+compte **7 vérifiées, 66 partielles, 19 absentes et 2 non vérifiées**, dans les
+périmètres déclarés. La présence d'un écran, de code ou d'un test ne promeut
+aucune exigence. Les 397 tâches historiques closes ne mesurent pas l'achèvement
+du produit.
+
+* **Utilisateurs et formation :**
+  `guide par rôle <sis_apps/docs/GUIDE_UTILISATEURS.md>`_ : démarrage, inscription,
+  saisie, bulletin, consultation privée, refus et assistance. Les fonctions
+  dépendant d'un prestataire ou d'une habilitation ne sont pas promises actives.
+* **Administrateurs et exploitation :**
+  `installation établissement <sis_apps/docs/INSTALLATION_ETABLISSEMENT.md>`_,
+  `sauvegarde/restauration <sis_apps/docs/BACKUP_RESTORE.md>`_ et
+  `supervision <sis_apps/docs/MONITORING.md>`_. Les commandes nécessitent une
+  cible autorisée ; elles ne sont pas une invitation à intervenir sur un serveur
+  partagé.
+* **Responsable de réception :**
+  `checklist de livraison et critères de blocage <sis_apps/docs/RECETTE_FONCTIONNELLE.md#checklist-de-livraison-intermédiaire-f30-f31>`_.
+  Elle distingue contrôle documentaire, recette isolée et décision humaine,
+  et exige version, artefacts, sauvegarde vérifiée et retour arrière.
+* **État réel et exclusions :**
+  `reste à faire et preuves datées <sis_apps/docs/RESTE_A_FAIRE_ET_VALIDATION.md>`_.
+  Les historiques conservent leurs cutoffs ; les évolutions du code ne valent
+  pas déploiement.
+
+Une ouverture institutionnelle reste bloquée sans infrastructure/domaines
+autorisés, référents métier, qualifications des intégrations retenues,
+sauvegarde hors machine, alertes et réception. Les lots F30/F31/F32 ne sont pas
+clos par cette documentation ; la charge historique de 500 sessions reste rouge.
+
 Purpose
 *******
 The `Open edX Platform <https://openedx.org>`_ enables the authoring and
