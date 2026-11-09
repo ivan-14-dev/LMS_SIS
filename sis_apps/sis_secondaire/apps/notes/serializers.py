@@ -260,6 +260,10 @@ class BulletinListSerializer(serializers.ModelSerializer):
     classe_nom = serializers.CharField(source="classe.nom", read_only=True)
     periode_libelle = serializers.CharField(source="periode.libelle", read_only=True)
     nb_matieres_individualisees = serializers.IntegerField(read_only=True, default=0)
+    calcule = serializers.SerializerMethodField()
+
+    def get_calcule(self, obj):
+        return bool(obj.calcul_detail)
 
     class Meta:
         model = Bulletin
@@ -279,6 +283,8 @@ class BulletinListSerializer(serializers.ModelSerializer):
             "publie",
             "signe",
             "nb_matieres_individualisees",
+            "calcule",
+            "date_validation",
         ]
 
 
@@ -317,8 +323,11 @@ class BulletinDetailSerializer(serializers.ModelSerializer):
             "date_signature",
             "created_at",
             "updated_at",
+            "calcul_detail",
+            "valide_par",
+            "date_validation",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "calcul_detail", "valide_par", "date_validation"]
 
     def get_matieres_individuelles(self, obj):
         affectations = (

@@ -47,6 +47,17 @@ from sis_common.submission_windows import (
 )
 from sis_common.workflow_tracking import record_workflow_event, workflow_history_queryset
 
+from .bulletin_calculation import (
+    BulletinConflict,
+    BulletinVersionInput,
+    PrepareBulletinInput,
+    ValidateBulletinInput,
+    calculate_bulletin,
+    check_version,
+    ensure_calculated_publication,
+    ensure_current_sources,
+    require_bulletin_permission,
+)
 from .models import Bulletin, Evaluation, Note, RegleValidation
 from .serializers import (
     BulletinDetailSerializer,
@@ -796,7 +807,7 @@ def visible_bulletins(request):
     return queryset
 
 
-class BulletinsViewSet(viewsets.ModelViewSet):
+class BulletinsViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour bulletins."""
 
     permission_classes = [DocumentTenantPermission, IsEnseignantOrVieScolarite]
@@ -821,11 +832,23 @@ class BulletinsViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         self._ensure_action_publication(serializer.validated_data)
+        self._ensure_calculation_actions(serializer)
         serializer.save()
+
+    @staticmethod
+    def _ensure_calculation_actions(serializer):
+        if (
+            serializer.instance and serializer.instance.calcul_detail
+            or {"calcul_detail", "valide_par", "date_validation"} & set(serializer.initial_data)
+        ):
+            raise serializers.ValidationError(
+                {"calcul": "Utilisez les actions de préparation, recalcul et validation du bulletin."}
+            )
 
     @transaction.atomic
     def perform_update(self, serializer):
         self._ensure_action_publication(serializer.validated_data)
+        self._ensure_calculation_actions(serializer)
         bulletin = Bulletin.objects.select_for_update().get(pk=serializer.instance.pk)
         if bulletin.publie:
             raise serializers.ValidationError({"publie": "Un bulletin publié ne peut plus être modifié."})
@@ -838,6 +861,8 @@ class BulletinsViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError(
                 {"publie": "Un bulletin publié ne peut plus être supprimé."}
             )
+        if bulletin.calcul_detail:
+            require_bulletin_permission(self.request, bulletin.classe, bulletin.periode)
         bulletin.delete()
 
     def get_queryset(self):
@@ -848,7 +873,70 @@ class BulletinsViewSet(viewsets.ModelViewSet):
             return BulletinListSerializer
         return BulletinDetailSerializer
 
+    @action(detail=False, methods=["post"])
+    @transaction.atomic
+    def preparer(self, request):
+        payload = PrepareBulletinInput(data=request.data, context={"request": request})
+        payload.is_valid(raise_exception=True)
+        data = payload.validated_data
+        require_bulletin_permission(request, data["classe"], data["periode"], preparing=True)
+        calcul = calculate_bulletin(data["eleve"], data["classe"], data["periode"])
+        if Bulletin.objects.filter(eleve=data["eleve"], periode=data["periode"]).exists():
+            raise BulletinConflict("Un bulletin existe déjà pour cet élève et cette période.")
+        bulletin = Bulletin.objects.create(
+            eleve=data["eleve"], classe=data["classe"], periode=data["periode"],
+            moyenne_generale=calcul["moyenne_generale"], calcul_detail=calcul,
+        )
+        record_workflow_event(request, bulletin, "preparation", "Brouillon de bulletin calculé")
+        return Response(self.get_serializer(bulletin).data, status=201)
+
     @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def recalculer(self, request, pk=None):
+        bulletin = self.get_object()
+        require_bulletin_permission(request, bulletin.classe, bulletin.periode)
+        payload = BulletinVersionInput(data=request.data)
+        payload.is_valid(raise_exception=True)
+        check_version(bulletin, payload.validated_data)
+        calcul = calculate_bulletin(bulletin.eleve, bulletin.classe, bulletin.periode)
+        bulletin.calcul_detail = calcul
+        bulletin.moyenne_generale = calcul["moyenne_generale"]
+        bulletin.valide_par = None
+        bulletin.date_validation = None
+        bulletin.appreciation_conseil = ""
+        bulletin.decision = ""
+        bulletin.signe = False
+        bulletin.date_signature = None
+        bulletin.save(update_fields=[
+            "calcul_detail", "moyenne_generale", "valide_par", "date_validation",
+            "appreciation_conseil", "decision", "signe", "date_signature", "updated_at",
+        ])
+        record_workflow_event(request, bulletin, "recalcul", "Bulletin recalculé, validation à renouveler")
+        return Response(self.get_serializer(bulletin).data)
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def valider(self, request, pk=None):
+        bulletin = self.get_object()
+        require_bulletin_permission(request, bulletin.classe, bulletin.periode)
+        payload = ValidateBulletinInput(data=request.data)
+        payload.is_valid(raise_exception=True)
+        check_version(bulletin, payload.validated_data)
+        ensure_current_sources(bulletin)
+        if bulletin.date_validation:
+            raise BulletinConflict("Ce brouillon a déjà été validé.")
+        bulletin.valide_par = request.user
+        bulletin.date_validation = timezone.now()
+        bulletin.appreciation_conseil = payload.validated_data["appreciation_conseil"]
+        bulletin.decision = payload.validated_data["decision"]
+        bulletin.save(update_fields=[
+            "valide_par", "date_validation", "appreciation_conseil", "decision", "updated_at",
+        ])
+        record_workflow_event(request, bulletin, "validation", "Brouillon de bulletin vérifié et validé")
+        return Response(self.get_serializer(bulletin).data)
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
     @enforce_financial_clearance(
         candidates_getter=lambda _view, request, bulletin: [
             {"scope": "class", "context": {"class_id": bulletin.classe_id}},
@@ -868,6 +956,7 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         bulletin = get_action_object(self)
         if bulletin.publie:
             return Response({"error": "Ce bulletin est déjà publié."}, status=400)
+        ensure_calculated_publication(request, bulletin)
         bulletin.publie = True
         bulletin.date_publication = timezone.now()
         bulletin.save(update_fields=["publie", "date_publication", "updated_at"])
@@ -887,9 +976,11 @@ class BulletinsViewSet(viewsets.ModelViewSet):
         return Response({"detail": "Bulletin publié.", "id": bulletin.id})
 
     @action(detail=True, methods=["post"])
+    @transaction.atomic
     def signer(self, request, pk=None):
         """Signe un bulletin (par le chef d'établissement)."""
         bulletin = self.get_object()
+        ensure_calculated_publication(request, bulletin)
         if bulletin.signe:
             return Response({"error": "Ce bulletin est déjà signé."}, status=400)
         bulletin.signe = True
@@ -961,6 +1052,32 @@ class BulletinsViewSet(viewsets.ModelViewSet):
                 or [("Aucune", "Aucune matière individualisée enregistrée")],
             },
         ]
+        if bulletin.calcul_detail:
+            calcul = bulletin.calcul_detail
+            sections[0]["rows"] = [
+                ("Élève", calcul["eleve"]["nom"]), ("Matricule", calcul["eleve"]["matricule"]),
+                ("Classe", calcul["classe"]["nom"]), ("Période", calcul["periode"]["libelle"]),
+            ]
+            sections.append({
+                "title": "Calcul vérifié",
+                "rows": [("Méthode", calcul["formule"]), ("Arrondi", calcul["arrondi"])],
+            })
+            for matiere in calcul["matieres"]:
+                sections.append({
+                    "title": matiere["nom"],
+                    "rows": [
+                        ("Moyenne sur 20", matiere["moyenne"]),
+                        ("Coefficient de matière", matiere["coefficient"]),
+                        *[
+                            (
+                                note["titre"],
+                                f"{note['valeur']}/{note['bareme']} ; coefficient {note['coefficient']} ; "
+                                f"pondération {note['ponderation']} % ; {note['appreciation']}",
+                            )
+                            for note in matiere["notes"]
+                        ],
+                    ],
+                })
         footer_rows = [
             ("Publié", "Oui" if bulletin.publie else "Non"),
             ("Signé", "Oui" if bulletin.signe else "Non"),

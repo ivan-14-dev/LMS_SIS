@@ -12,6 +12,8 @@ import {
   apiErrorMessage, downloadPdf, exportRecords, fetchAllResourcePages, fetchResourcePage, resourceUrl,
 } from '../services/resources';
 import ArchivedDocuments from './ArchivedDocuments';
+import SchoolBulletinWorkflow from './SchoolBulletinWorkflow';
+import { hasCapability } from '../components/layout/navigation';
 
 const categories = {
   secondaire: [{
@@ -61,18 +63,27 @@ const validationCell = (variant, cell) => {
   return <Chip size="small" label={available ? 'Disponible' : 'Brouillon'} color={available ? 'success' : 'default'} />;
 };
 
-const documentActions = (download, personal, setSelected, cell) => (
+const documentActions = (download, personal, setSelected, review, cell) => (
   <Stack direction="row" useFlexGap sx={{ gap: 1, flexWrap: 'wrap' }}>
     <Button disabled={download.isPending} onClick={() => download.mutate(cell.value)}>Télécharger le PDF</Button>
     {!personal && <Button onClick={() => setSelected(cell.value)}>Historique</Button>}
+    {!personal && review && cell.row.original.calcule && (
+      <Button onClick={() => review(cell.value)}>Vérifier le bulletin</Button>
+    )}
   </Stack>
 );
 
-const DocumentList = ({ category, variant, personal }) => {
+const DocumentList = ({
+  category, variant, personal, capabilities,
+}) => {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
+  const [review, setReview] = useState(null);
+  const schoolManagement = variant === 'secondaire' && !personal;
+  const canManage = hasCapability(capabilities, 'notes.view_bulletin') && hasCapability(capabilities, 'notes.change_bulletin');
+  const canPrepare = canManage && hasCapability(capabilities, 'notes.add_bulletin');
   const url = resourceUrl(variant, category.resource);
   const query = useQuery({
     queryKey: ['documents', url, page, pageSize, search],
@@ -98,10 +109,20 @@ const DocumentList = ({ category, variant, personal }) => {
   columns.push({
     Header: 'Actions',
     accessor: 'id',
-    Cell: documentActions.bind(null, download, personal, setSelected),
+    Cell: documentActions.bind(null, download, personal, setSelected, schoolManagement ? setReview : null),
   });
   return (
     <Box role="tabpanel" aria-label={category.title} sx={{ mt: 2, minWidth: 0 }}>
+      {schoolManagement && (
+        <SchoolBulletinWorkflow
+          key={review || 'new'}
+          selectedId={review}
+          onSelect={setReview}
+          onClose={() => setReview(null)}
+          canPrepare={canPrepare}
+          canManage={canManage}
+        />
+      )}
       {(download.error || exportList.error) && <Alert severity="error" sx={{ mb: 2 }}>{apiErrorMessage(download.error || exportList.error)}</Alert>}
       {download.isPending && <Alert severity="info" sx={{ mb: 2 }}>Préparation du PDF…</Alert>}
       {download.isSuccess && <Alert severity="success" sx={{ mb: 2 }}>Téléchargement du PDF lancé.</Alert>}
@@ -155,7 +176,9 @@ DocumentList.propTypes = {
   }).isRequired,
   variant: PropTypes.oneOf(['secondaire', 'superieur']).isRequired,
   personal: PropTypes.bool.isRequired,
+  capabilities: PropTypes.shape({ permissions: PropTypes.arrayOf(PropTypes.string) }),
 };
+DocumentList.defaultProps = { capabilities: undefined };
 
 const DocumentsPage = ({ variant, personal = true }) => {
   const [tab, setTab] = useState(0);
@@ -184,7 +207,7 @@ const DocumentsPage = ({ variant, personal = true }) => {
         <Tab label="Versions signées" />
       </Tabs>
       {tab === categories[variant].length ? <ArchivedDocuments variant={variant} /> : (
-        <DocumentList key={`${variant}-${tab}`} category={categories[variant][tab]} variant={variant} personal={personal} />
+        <DocumentList key={`${variant}-${tab}`} category={categories[variant][tab]} variant={variant} personal={personal} capabilities={capabilities.data} />
       )}
     </>
   );

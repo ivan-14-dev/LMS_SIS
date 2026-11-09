@@ -41,12 +41,63 @@ la seule API scolaire, de nouvelles connexions enseignant/élève retrouvent
 la note sans rejouer les écritures métier. Une lecture PostgreSQL indépendante
 confirme l'inscription validée, la classe, la valeur et l'auteur enseignant.
 Les bases et fichiers ont été sauvegardés avant intervention, avec lecture
-complète des archives ; **aucune restauration indépendante ni preuve hors site**
-n'est déduite de cette sauvegarde.
+complète des archives.
 
-**Reste ouvert :** calcul, validation et émission des bulletins depuis le
-parcours complet, parent/tuteur, réinscription/transfert dans cette recette,
-ensemble des habilitations, intégration LMS et exploitation de production.
+### Bulletins numériques : préparation, validation et publication
+
+Le parcours **Secondaire → Bulletins** permet maintenant de préparer un
+brouillon pour un élève inscrit dans la classe et l'année de la période.
+Le gestionnaire consulte les sources, saisit une appréciation et une décision
+facultative, puis utilise **Valider après vérification** avant **Publier le
+bulletin**. Les permissions explicites `notes.view_bulletin` et
+`notes.change_bulletin` sont requises, avec `notes.add_bulletin` pour préparer ;
+les périmètres autorisés restent contrôlés côté serveur.
+
+Le protocole `moyenne_ponderee_20_v1` ramène chaque note sur 20, pondère les
+évaluations par coefficient × pondération / 100, puis les moyennes des
+matières par les coefficients du programme ou, à défaut, ceux des matières.
+Il n'effectue aucun arrondi intermédiaire ; l'affichage final est arrondi
+à deux décimales, demi supérieur. Les dispenses explicites et pondérations
+nulles sont exclues et visibles dans le détail. Une note manquante ou un
+statut absent/non rendu/non chiffrable bloque le calcul : aucun zéro n'est
+inventé. Les compétences, barèmes ne commençant pas à zéro et parcours
+individualisés restent hors de ce protocole. Aucun rang, passage ou diplôme
+n'est décidé automatiquement.
+
+Le brouillon conserve un instantané des notes et coefficients. Une version
+périmée ou des sources modifiées empêchent sa validation/publication.
+Une source verrouillée par une écriture concurrente renvoie un conflit
+HTTP409 sans bulletin partiel ni attente croisée ; aucun rejeu automatique
+n'est effectué. Un recalcul annule la validation et les appréciations précédentes. L'acteur et
+la date de validation sont conservés. Le bulletin calculé publié est
+immuable dans ce circuit ; les bulletins historiques ne sont pas convertis.
+Le PDF reprend l'identité et les résultats figés, mais son en-tête
+institutionnel reste courant : ce n'est pas une archive PDF cryptographique
+ni une garantie d'identité octet à octet.
+
+L'API scolaire et le frontend de la démo ont été actualisés, avec migration
+additive et sauvegarde préalable. **28 tests backend et 9 tests frontend**,
+lint, vérification des migrations et build ont réussi. Dans Chromium,
+l'administrateur a préparé le bulletin de recette à **16,50/20** ; l'élève
+ne pouvait lire ni le brouillon ni son PDF, et la publication sans validation
+était refusée par l'API. Après validation explicite du scénario fictif et
+publication, l'élève a téléchargé le PDF : son texte contient la vraie note,
+l'évaluation, les coefficients et l'appréciation. La recréation de l'API,
+de nouvelles connexions et une lecture PostgreSQL indépendante retrouvent
+le même résultat sans rejouer les écritures. Les deux variantes restent
+accessibles.
+
+Une sauvegarde post-publication de la base scolaire a aussi été **restaurée
+dans un PostgreSQL isolé**, avec comparaison du bulletin publié et de ses
+sources figées. Les fichiers scolaires ont été restaurés dans un volume
+neuf, avec comparaison de **980 entrées**. Les services de contrôle sont
+arrêtés, la démo reste active. Cette preuve ne couvre ni une restauration
+applicative complète, ni le supérieur, ni un site distant, ni un RPO/RTO.
+
+**Reste ouvert :** règles institutionnelles avancées de résultats et
+rectification après publication, parent/tuteur, réinscription/transfert dans
+cette recette, ensemble des habilitations, intégration LMS et exploitation
+de production.
 Le lot stages pratiques reste distinct et non publié. Aucun statut de la
 matrice des 94 exigences n'est promu par cet incrément ; le bilan publié
 ci-dessous conserve son périmètre.

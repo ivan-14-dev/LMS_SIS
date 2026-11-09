@@ -4,6 +4,7 @@ from apps.classes.models import Classe, Matiere
 from apps.eleves.models import Eleve
 from apps.enseignants.models import Personnel
 from apps.etablissement.models import Periode
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -136,6 +137,12 @@ class Bulletin(models.Model):
     date_signature = models.DateTimeField(null=True, blank=True)
     publie = models.BooleanField(default=False)
     date_publication = models.DateTimeField(null=True, blank=True)
+    calcul_detail = models.JSONField(default=dict, blank=True)
+    valide_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="bulletins_valides",
+    )
+    date_validation = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
