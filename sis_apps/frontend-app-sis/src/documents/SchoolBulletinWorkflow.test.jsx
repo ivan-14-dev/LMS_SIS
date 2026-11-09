@@ -177,6 +177,39 @@ it('navigates to a published rectification instead of offering a competing branc
   expect(selected).toHaveBeenCalledWith(9);
 });
 
+it('refreshes the cached original when returning after publishing its rectification', async () => {
+  const url = 'https://school.example/api/v1/bulletins/';
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+  const original = { ...draft, publie: true, rectification_publiee: null };
+  const correction = {
+    ...draft, id: 9, rectifie: 8, revision: 2, date_validation: '2026-11-09T16:00:00Z',
+  };
+  client.setQueryData(['bulletin-calculation', url, 8], original);
+  client.setQueryData(['bulletin-calculation', url, 9], correction);
+  let published = false;
+  fetchApi.mockImplementation(async endpoint => (endpoint === `${url}8/`
+    ? { ...original, rectification_publiee: published ? 9 : null }
+    : { ...correction, publie: published }));
+  postApi.mockImplementation(async () => { published = true; return { ...correction, publie: true }; });
+  const tree = selectedId => (
+    <QueryClientProvider client={client}>
+      <SchoolBulletinWorkflow
+        selectedId={selectedId}
+        onSelect={jest.fn()}
+        onClose={jest.fn()}
+        canPrepare
+        canManage
+      />
+    </QueryClientProvider>
+  );
+  const view = render(tree(9));
+  fireEvent.click(await screen.findByRole('button', { name: 'Publier le bulletin' }));
+  await screen.findByText(/Bulletin publié/);
+  view.rerender(tree(8));
+  expect(await screen.findByRole('button', { name: 'Voir la rectification publiée' })).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Créer une rectification' })).not.toBeInTheDocument();
+});
+
 it('shows provenance and requires fresh validation for a correction draft', async () => {
   fetchApi.mockResolvedValue({
     ...draft, id: 9, revision: 2, rectifie: 8, motif_rectification: 'Correction de saisie.',

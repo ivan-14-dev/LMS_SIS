@@ -68,7 +68,7 @@ const SchoolBulletinWorkflow = ({
         setReason('');
         onSelect(result.id);
       } else {
-        await client.invalidateQueries({ queryKey: ['bulletin-calculation', url, selectedId] });
+        await client.invalidateQueries({ queryKey: ['bulletin-calculation', url] });
       }
     },
   });
