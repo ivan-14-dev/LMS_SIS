@@ -21,7 +21,7 @@ urlpatterns = [
     ),
     path(
         "inscriptions/<int:pk>/",
-        api.InscriptionsViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
+        api.InscriptionsViewSet.as_view({"get": "retrieve", "patch": "partial_update", "delete": "destroy"}),
         name="inscriptions-detail",
     ),
     path(
@@ -43,6 +43,21 @@ urlpatterns = [
         "inscriptions/<int:pk>/annuler/",
         api.InscriptionsViewSet.as_view({"post": "annuler"}),
         name="inscriptions-annuler",
+    ),
+    path(
+        "inscriptions/<int:pk>/suspendre/",
+        api.InscriptionsViewSet.as_view({"post": "suspendre"}),
+        name="inscriptions-suspendre",
+    ),
+    path(
+        "inscriptions/<int:pk>/abandonner/",
+        api.InscriptionsViewSet.as_view({"post": "abandonner"}),
+        name="inscriptions-abandonner",
+    ),
+    path(
+        "inscriptions/<int:pk>/reprendre/",
+        api.InscriptionsViewSet.as_view({"post": "reprendre"}),
+        name="inscriptions-reprendre",
     ),
     path(
         "inscriptions/<int:pk>/historique/",

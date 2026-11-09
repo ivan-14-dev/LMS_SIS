@@ -4,14 +4,26 @@ from unittest.mock import patch
 
 import pytest
 from django.apps import apps
+from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.db import transaction
+from django.test import SimpleTestCase
 from django.urls import resolve
 from django_tenants.utils import schema_context
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from sis_common.tests.test_grade_entry import GradeEntryFixture
+
+
+class AdmissionRouteTests(SimpleTestCase):
+    def test_interruption_actions_and_protected_deletion_are_routed_in_each_variant(self):
+        base = "/api/v1/eleves/inscriptions/" if settings.SIS_VARIANT == "secondaire" else "/api/v1/inscriptions/"
+        for operation in ("suspendre", "reprendre", "abandonner"):
+            with self.subTest(operation=operation):
+                callback = resolve(f"{base}1/{operation}/").func
+                assert callback.actions == {"post": operation}
+        assert resolve(f"{base}1/").func.actions["delete"] == "destroy"
 
 
 class AdmissionsTests(GradeEntryFixture):
