@@ -9,6 +9,57 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
+## Intégration des huit chantiers — qualification locale du 9 novembre 2026
+
+Les huit contributions ont été assemblées et corrigées sur la base de code
+`a6668d5`. Une pile native neuve, distincte de la démonstration et des anciennes
+preuves, a servi aux parcours réels avec des comptes séparés. Les écritures
+métier ci-dessous proviennent des formulaires du produit, pas d'appels API
+d'écriture du harnais. Les prérequis synthétiques restent identifiés comme tels.
+
+| Chantier | Livré et constaté | Limite conservée |
+|---|---|---|
+| Exploitation | Préflight/doctor, verrou de maintenance, mise à jour sans recréer l'administrateur, sauvegarde format 2 ; 42 tests opérateur réussis. | L'installateur en mode local demande encore des paramètres OAuth/JWK ; la pile native a utilisé une configuration privée explicite, pas une installation autonome qualifiée. |
+| Comptes et familles | Compte parent, profil et liaison créés par UI ; notes/PDF du seul enfant autorisé, refus de l'autre enfant, révocation immédiate dans une session déjà ouverte puis retrait. | La recette porte sur le portail familial secondaire ; elle ne vaut pas homologation de toutes les politiques d'habilitation. |
+| Scolarité | Première demande, validation, suspension et reprise motivées dans les deux variantes ; historique et refus d'accès d'un autre apprenant. | Candidature publique sans profil, pièces, concours, équivalences et contrôle financier préalable restent hors du circuit. |
+| Résultats | Bulletin secondaire publié à 16,50, source corrigée à 18,00, original conservé ; rectification privée puis nouvelle validation/publication ; versions et PDF consultés par l'élève. | Ni compensation nationale, ni calcul complet des diplômes, ni archive PDF probante ; les règles institutionnelles ne sont pas inventées. |
+| LMS | Outbox durable, reprise et diagnostic LMS/CMS, protection contre la réactivation de liens retirés ; suites backend des deux variantes réussies. | Aucun raccordement réel Open edX/Studio, JWT, webhook ou compte externe n'est qualifié par cette pile native. |
+| Finances et communications | Dans les deux variantes : facture, justificatif privé, refus d'auto-validation, contrôle par un second acteur, reçu, remboursement contrôlé et rapprochement des octets des preuves. | Tarif synthétique de 25 EUR créé explicitement comme prérequis, faute de formulaire de tarif. Aucun transfert bancaire réel ; reçu JSON non fiscal, PDF imprimé par Chromium ; SMTP/prestataires réels non configurés. |
+| Stages | N1 à N16 exécutés dans les deux variantes : programme versionné, heures, compétences, clôture/annulation distinctes, preuve privée et révocation partenaire. | Conventions et inscriptions initiales synthétiques ; pas de signature électronique, soutenance ni archivage probant qualifiés. |
+| Livraison | Guides par rôle, installation, activation, reprise et limites actualisés ; aucune promotion automatique de la matrice. | Réception institutionnelle, pays/règles, infrastructure publique, formation/support et décision d'ouverture restent nécessaires. |
+
+Deux défauts produit ont été trouvés par ces parcours et corrigés : le cache du
+bulletin original ne révélait pas immédiatement sa rectification publiée ;
+les nouvelles admissions consultaient les listes ordinaires, correctement
+limitées aux classes/formations déjà attribuées, donc vides pour un débutant.
+Un catalogue minimal de première admission remplace cette dernière lecture
+sans ouvrir les dossiers scolaires. Les régressions ciblées ont réussi :
+15 tests documents/bulletins, 4 tests UI d'admission et 25 tests backend
+d'admission par variante (un cas non applicable ignoré au supérieur).
+
+Les tentatives interrompues restent conservées. Aucune publication, admission
+ou décision financière réussie n'a été rejouée pour fabriquer une recette
+verte. Les limites de débit du produit sont restées actives ; les gestes du
+harnais ont été espacés. Le serveur natif limité à un worker synchrone bloquait
+sur une connexion sans requête lors du rechargement après déconnexion : seul
+son lancement privé est passé à un worker `gthread`, deux threads, avec les
+mêmes limites mémoire.
+
+La sauvegarde native `20261109T222516Z` a été **restaurée dans des bases et
+volumes distincts** : empreintes de toutes les lignes de 159 tables secondaires
+et 175 tables supérieures identiques ; contenu, propriétaires et modes des
+983 fichiers de chaque variante identiques. Les API d'origine ont ensuite été
+recréées sans bootstrap ni réensemencement, en conservant leurs volumes.
+Les huit relectures navigateur ont réussi après cette recréation : résultats,
+familles, scolarité, finances et stages, dans leurs variantes respectives,
+sans rejouer les écritures métier.
+Cette comparaison indépendante ne doit pas être présentée comme une bascule
+du navigateur vers les bases restaurées, ni comme une reprise Open edX/production.
+
+Cette qualification locale ne clôt ni F30, ni F31, ni F32 et ne change pas les
+94 exigences de la matrice. Le déploiement effectif de la démonstration doit
+être distingué de ces résultats de qualification.
+
 ## Synthèse de livraison institutionnelle — 9 novembre 2026
 
 **Base de cette synthèse : `fa8ac06` ; aucun nouveau déploiement réalisé par
