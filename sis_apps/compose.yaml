@@ -98,7 +98,7 @@ services:
     environment:
       <<: *runtime
       SIS_VARIANT: secondaire
-    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency=2"]
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency=${SIS_WORKER_CONCURRENCY:-2}"]
     healthcheck: &worker-health
       test:
         - CMD-SHELL
@@ -137,7 +137,7 @@ services:
     profiles: [superieur]
     environment: *superieur
     healthcheck: *worker-health
-    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency=2"]
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency=${SIS_WORKER_CONCURRENCY:-2}"]
     volumes: [data-superieur:/data]
     depends_on:
       api-superieur: {condition: service_healthy}

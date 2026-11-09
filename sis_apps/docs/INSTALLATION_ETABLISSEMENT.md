@@ -21,7 +21,7 @@ l'infrastructure de l'établissement.
 
 ## Préparer le serveur
 
-- Linux avec Docker Engine, le plugin Docker Compose et Python 3.
+- Linux avec Docker Engine, le plugin Docker Compose **≥ 2.20** et Python **≥ 3.11**.
 - Git, accès aux registres d'images et aux dépôts de dépendances.
 - Pour démarrer un pilote SIS : prévoir environ 4 vCPU, 8 Gio de RAM et 40 Gio de
   disque **hors documents, sauvegardes et Open edX**. Ce sont des réserves initiales,
@@ -42,6 +42,7 @@ Depuis la racine du dépôt :
 ```sh
 cd sis_apps
 python3 scripts/sisctl.py configure \
+  --project-name sis-ecole \
   --mode secondaire \
   --domain ecole.example \
   --lms-url https://lms.ecole.example \
@@ -81,6 +82,45 @@ valeur interprétée différemment par les lecteurs de `.env`.
 Pour un test sur cette machine uniquement, ajoutez `--local`, utilisez un domaine
 comme `ecole.localhost`, et des URL locales adaptées. Ce mode active DEBUG et HTTP
 sur `127.0.0.1:8080` : **ne l'exposez pas à un réseau public**.
+
+### Précontrôles sans démarrage
+
+Depuis `sis_apps`, avant `init` :
+
+```sh
+python3 scripts/sisctl.py preflight --offline
+python3 scripts/sisctl.py preflight --installation --ports
+```
+
+Le premier contrôle ne contacte ni Docker ni un réseau : permissions privées
+du fichier, clés requises et format de la clé de chiffrement, JWKS public,
+mode, domaines/URL/HTTPS, ports et confinement de DEBUG à une IP de boucle locale.
+Les affectations `.env` dupliquées sont refusées. Il ne valide pas les signatures
+réelles du LMS. Pour un fichier déplacé, ajouter `--env-file CHEMIN` **avant**
+le nom de la sous-commande. Le second contrôle Docker, la version de Compose, sa configuration,
+l'existence d'un réseau LMS déclaré externe et la disponibilité des ports TCP.
+L'option `--ports` est destinée à une **installation neuve arrêtée** ; elle échoue
+normalement si sa propre passerelle utilise déjà les ports.
+Sans `--ports`, ce contrôle est aussi exécuté par `init`, `start` et `update`.
+Aucun de ces précontrôles ne réserve un port, ne délivre de certificat ou ne
+qualifie DNS, SMTP, OAuth et capacité du serveur. L'absence de backend SMTP
+de production produit un avertissement, pas une livraison d'email fictive.
+Les valeurs sont littérales : utiliser des apostrophes pour les valeurs contenant
+espaces, `$` ou antislash, pas une interpolation `${VARIABLE}` ni des échappements
+entre guillemets doubles. Les formes ambiguës sont refusées avec le numéro de
+ligne, sans afficher la valeur. Un `#` non précédé d'espace reste dans la valeur.
+
+Attribuer un `COMPOSE_PROJECT_NAME` distinct par installation **sur le même
+hôte Docker**, y compris les restaurations. `configure --project-name` le conserve
+dans `.env` ; pour les anciennes configurations sans cette clé, le nom reste
+`lms-sis`. Les scripts privilégient ce fichier, pas les variables homonymes
+exportées dans le shell : changer une image/un port exige de modifier le fichier.
+Les profils sont déterminés par `SIS_MODE`, pas par `COMPOSE_PROFILES`.
+Les commandes de maintenance partagent un verrou
+`.<COMPOSE_PROJECT_NAME>.operations.lock` à côté du fichier `.env` ; conserver
+le même répertoire privé, accessible en écriture au compte d'exploitation, pour
+toutes les automatisations. Ce verrou ne couvre ni les commandes Docker manuelles
+ni une autre machine/racine de configuration.
 
 ### Choisir la connexion
 
@@ -1442,6 +1482,36 @@ Redis et `.env` dans un dépôt Restic chiffré local. Elle redémarre les servi
 qui fonctionnaient avant l'opération, y compris si la sauvegarde échoue.
 Prévoir une fenêtre de maintenance.
 
+Les volumes Redis et fichiers doivent déjà exister : leur absence est bloquante,
+elle n'est plus remplacée par une sauvegarde vide. Chaque dump est relu par
+`pg_restore --list`. Le staging en clair est privé et supprimé après l'opération,
+à côté de `.env` par défaut, jamais dans le répertoire temporaire système.
+Prévoir assez d'espace, ou utiliser `--staging-dir /chemin/prive/staging`.
+Le staging et `.env` doivent rester **hors** du dépôt chiffré, pour ne pas y
+laisser des fichiers en clair susceptibles d'être répliqués avec les snapshots.
+Les services initialement arrêtés ne sont pas démarrés par dépendance à la reprise.
+Un arrêt brutal de l'hôte ne permet pas de garantir cette reprise : contrôler
+les services et supprimer prudemment le staging abandonné après diagnostic.
+
+Le manifeste chiffré conserve le projet source, l'horodatage, les identifiants
+d'images déployées et les empreintes des clés d'authentification/chiffrement.
+Il **ne contient pas les images elles-mêmes**, ni le code, ni le LMS.
+Conserver aussi le commit, les images dans un registre maîtrisé ou des archives
+privées et les éventuelles adaptations de déploiement.
+
+```sh
+python3 scripts/sis_backup.py \
+  --repository /sauvegardes/chiffrees/sis \
+  --password-file /chemin/protege/restic-password inspect --snapshot ID_SNAPSHOT
+```
+
+`inspect` n'affiche ni `.env` ni les clés. `check` relit les données chiffrées
+mais ne remplace pas un exercice de restauration. Si le dépôt dépend d'un
+montage, ajouter `--require-mount /sauvegardes` à **chaque** commande automatisée :
+une absence du montage est alors bloquante avant création du dépôt.
+Sans cette option, un chemin local valide reste accepté ; la copie hors machine
+est toujours une responsabilité distincte.
+
 `snapshots` liste les snapshots. `prune` applique explicitement la rétention
 7 jours / 4 semaines / 12 mois. Rien n'est envoyé à un service tiers par ces outils.
 Le dépôt doit ensuite être répliqué vers un stockage maîtrisé, indépendant de
@@ -1509,7 +1579,10 @@ python3 scripts/sis_backup.py \
 ```
 
 Modifiez les domaines/ports et `COMPOSE_PROJECT_NAME` dans ce fichier, mais
-conservez `FIELD_ENCRYPTION_KEY`. Ne démarrez pas les applications et n'exécutez
+conservez `FIELD_ENCRYPTION_KEY`, `DJANGO_SECRET_KEY` et `WEBHOOK_SECRET`.
+`recover-config` affiche l'identifiant complet résolu : réutilisez **cet ID**,
+pas un nouveau `latest`, pour la restauration.
+Ne démarrez pas les applications et n'exécutez
 pas `init` avant la restauration, car leurs bases doivent être vierges.
 
 ```sh
@@ -1518,8 +1591,25 @@ python3 scripts/sis_backup.py \
   --password-file /chemin/protege/restic-password \
   --env-file /chemin/protege/restauration.env \
   restore --snapshot ID_SNAPSHOT --confirm-empty-target
-python3 scripts/sisctl.py --env-file /chemin/protege/restauration.env start
+python3 scripts/sisctl.py --env-file /chemin/protege/restauration.env start --no-build
 ```
+
+Avant ce démarrage, récupérer les images de l'inventaire et renseigner
+`SIS_IMAGE`/`SIS_FRONTEND_IMAGE` avec leurs références immuables dans le fichier
+restauré. `--no-build` évite de reconstruire arbitrairement la révision courante.
+Isoler aussi les **sorties** LMS/SMTP/SMS/paiement et remplacer les destinations
+externes par celles de recette autorisées avant de démarrer une copie de test.
+Un nouveau nom de projet ne constitue pas un pare-feu : `start` lance aussi
+les workers et Beat, qui peuvent rejouer les files restaurées. Ne pas rattacher
+la copie au réseau LMS de production ni réémettre des opérations réelles.
+Le nouveau format de sauvegarde (2) refuse le projet source et la divergence
+des trois clés ; les snapshots historiques (format 1) restent lisibles mais
+ne permettent que le contrôle de leur clé de chiffrement. Dans les deux cas,
+les bases et volumes cibles doivent être vides.
+Une erreur après le début du transfert peut laisser une cible partielle :
+les applications restent arrêtées, ne contournez pas le refus « non vide ».
+Diagnostiquer et recommencer dans un autre projet vide, sans effacer la source.
+Ne jamais lancer une restauration vers les volumes d'un autre projet.
 
 Si les domaines changent, ajoutez les nouveaux domaines aux tenants avant le
 contrôle de santé ; `init` peut être utilisé **après** restauration avec les
@@ -1527,6 +1617,24 @@ mêmes identités et les nouveaux domaines. Vérifiez comptes, dossiers,
 documents privés et files de tâches avant toute bascule DNS.
 
 ## Diagnostic et qualification
+
+```sh
+python3 scripts/sisctl.py --env-file /chemin/protege/institution.env doctor
+```
+
+`doctor` est en lecture seule et retourne un code non nul si un service attendu
+manque, est arrêté ou échoue à sa sonde. Il couvre chaque variante sélectionnée,
+PostgreSQL, Redis, API, workers, Beat, frontend et passerelle, sans afficher
+l'environnement ni lire les journaux privés. La sonde Celery existante cible
+le worker de **son conteneur** ; un autre worker vivant ne masque pas sa panne.
+Un Beat dupliqué est refusé. Un processus Beat vivant ne prouve pas qu'une tâche
+périodique s'exécute : surveiller également l'âge de l'outbox et qualifier une
+tâche périodique contrôlée. La passerelle n'a pas de sonde de certificat :
+contrôler le HTTPS public et son renouvellement séparément.
+
+`SIS_WORKER_CONCURRENCY=1` permet de limiter chaque worker sur un pilote contraint
+(défaut conservé : 2). Cela ne remplace pas un dimensionnement et ne réduit pas
+les besoins de construction ou des autres services. Ne pas multiplier Beat.
 
 `/health/` vérifie que le processus répond. `/ready/` vérifie PostgreSQL et Redis.
 Ces chemins doivent être appelés avec le domaine d'un tenant initialisé :
@@ -1576,11 +1684,30 @@ dossier privé et supprimez-le après diagnostic.
    de conteneur. Un échec de connexion est bloquant ; les doublons de références
    de carte validées/remboursées doivent être rapprochés manuellement sur la
    copie isolée, sans effacer de paiements. Refaire le contrôle après correction.
-4. Installer la révision approuvée, conserver `.env` et ses clés, puis relancer
-   `init` pour chaque variante avec le même fichier établissement : les migrations
-   partagées et locataires sont appliquées, sans remplacer les mots de passe.
-   `init` refait le précontrôle après la mise en route de la base, avant les migrations.
-5. Lancer `start`, puis `check`, contrôler les parcours et reprendre le service.
+4. Installer la révision approuvée, conserver `.env` et ses clés, puis lancer :
+
+   ```sh
+   python3 scripts/sisctl.py --env-file /chemin/protege/institution.env update --confirm-backup
+   python3 scripts/sisctl.py --env-file /chemin/protege/institution.env check
+   ```
+
+   `--confirm-backup` est une **attestation de l'opérateur**, pas une vérification
+   automatique de son snapshot. La commande exige les bases et Redis existants
+   en fonctionnement. Elle construit séquentiellement le backend partagé puis
+   le frontend (ou utilise les images préparées avec `--no-build`), arrête les API,
+   workers et Beat, refait le précontrôle des paiements puis applique
+   `migrate_schemas --shared` et `--tenant` pour **tous les tenants des variantes
+   actives**, collecte les fichiers statiques et exécute `manage.py check`.
+   Elle ne redemande ni fichier institution ni mot de passe administrateur,
+   ne reprovisionne aucun compte et ne modifie pas les règles métier par défaut.
+   Une migration peut modifier ces règles : lire et qualifier les migrations
+   avec les autres chantiers avant cette étape.
+5. Si ces étapes réussissent, `update` redémarre la distribution sans reconstruire
+   et exécute `doctor`. Contrôler ensuite les parcours et reprendre le service.
+   Si une migration/prévalidation échoue, les écrivains restent arrêtés :
+   ne lancer ni `start` automatique ni ancien code sur la base partiellement migrée.
+   `init` reste destiné au provisionnement d'un établissement, pas à une mise à
+   jour exhaustive des établissements déjà présents.
 
 Ce précontrôle est ciblé sur `paiements.0004` : il ne prouve ni l'absence
 d'autres conflits de migration ni la compatibilité des données existantes avec

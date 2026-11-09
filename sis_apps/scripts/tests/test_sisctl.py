@@ -1,4 +1,6 @@
 import json
+import os
+import socket
 import subprocess
 import tempfile
 import unittest
@@ -90,7 +92,7 @@ class CardReferencePreflightTests(unittest.TestCase):
         self.assertFalse(any(call[0] == "run" for call in calls))
 
     def test_init_rejects_malformed_institution_before_compose_or_password_prompt(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
             institution = Path(directory) / "institution.json"
             for content in (
                 [],
@@ -181,7 +183,7 @@ class ConfigureSafetyTests(unittest.TestCase):
 
     def test_refuses_private_rsa_material_and_incomplete_public_keys_before_prompting(self):
         public = {"kty": "RSA", "n": "AQAB", "e": "AQAB"}
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
             for field in ("d", "p", "q", "dp", "dq", "qi", "oth"):
                 with self.subTest(field=field):
                     options = self.options(directory, [{**public, field: "private"}])
@@ -199,7 +201,7 @@ class ConfigureSafetyTests(unittest.TestCase):
 
     def test_accepts_public_rsa_jwks_without_private_fields(self):
         public = {"kty": "RSA", "kid": "sis-signing", "n": "AQAB", "e": "AQAB"}
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
             options = self.options(directory, [public])
             with patch.object(sisctl.getpass, "getpass", return_value="throwaway-test-only"):
                 sisctl.configure(options)
@@ -209,8 +211,11 @@ class ConfigureSafetyTests(unittest.TestCase):
 
     def test_refuses_incomplete_lms_or_insecure_studio_urls_before_prompting(self):
         public = {"kty": "RSA", "n": "AQAB", "e": "AQAB"}
-        with tempfile.TemporaryDirectory() as directory:
-            for url in ("https://", "https://lms.school.example/oauth2", "https://user@lms.school.example"):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+            for url in (
+                "https://", "https://lms.school.example/oauth2", "https://user@lms.school.example",
+                "https://lms school.example", "https://lms.\nschool.example",
+            ):
                 with self.subTest(lms=url):
                     options = self.options(directory, [public])
                     options.lms_url = url
@@ -229,7 +234,7 @@ class ConfigureSafetyTests(unittest.TestCase):
 
     def test_local_mode_accepts_explicit_http_origins(self):
         public = {"kty": "RSA", "n": "AQAB", "e": "AQAB"}
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
             options = self.options(directory, [public])
             options.local = True
             options.lms_url = "http://lms.localhost:59080/"
@@ -239,6 +244,219 @@ class ConfigureSafetyTests(unittest.TestCase):
             saved = sisctl.read_configuration(options.env_file)
             self.assertEqual(saved["EDX_LMS_URL"], "http://lms.localhost:59080")
             self.assertEqual(saved["EDX_CMS_URL"], "http://studio.localhost:59080")
+
+
+class OperationsTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory(dir=Path(__file__).parent)
+        self.addCleanup(self.directory.cleanup)
+        options = ConfigureSafetyTests().options(self.directory.name, [{"kty": "RSA", "n": "AQAB", "e": "AQAB"}])
+        options.local = True
+        with patch.object(sisctl.getpass, "getpass", return_value="throwaway-test-only"), patch("builtins.print"):
+            sisctl.configure(options)
+        self.configuration = sisctl.read_configuration(options.env_file)
+
+    def test_refuses_duplicate_assignments_and_invalid_names(self):
+        path = Path(self.directory.name) / "invalid.env"
+        for content in ("SIS_MODE=dual\nSIS_MODE=secondaire\n", "2INVALID=value\n"):
+            with self.subTest(content=content):
+                path.write_text(content)
+                with self.assertRaisesRegex(ValueError, "line"):
+                    sisctl.read_configuration(path)
+
+    def test_literal_values_match_compose_without_interpolation_or_hash_truncation(self):
+        path = Path(self.directory.name) / "literal.env"
+        path.write_text(
+            "UNQUOTED=before#after # comment\n"
+            "SINGLE='before$after\\literal#hash' # comment\n"
+            'DOUBLE="plain text" # comment\n'
+            "EMPTY= # comment\n"
+        )
+        values = sisctl.read_configuration(path)
+        self.assertEqual(values["UNQUOTED"], "before#after")
+        self.assertEqual(values["SINGLE"], "before$after\\literal#hash")
+        self.assertEqual(values["DOUBLE"], "plain text")
+        self.assertEqual(values["EMPTY"], "")
+        for value in ("before$AFTER", '"before$AFTER"', r'"before\nAFTER"', "'closed'garbage", "before'after'"):
+            with self.subTest(value=value):
+                path.write_text(f"SECRET={value}\n")
+                with self.assertRaisesRegex(ValueError, "line 1"):
+                    sisctl.read_configuration(path)
+
+    def test_compose_uses_file_project_and_keys_not_shell_overrides(self):
+        configuration = {**self.configuration, "COMPOSE_PROJECT_NAME": "isolated-recovery"}
+        with patch.dict(os.environ, {
+            "COMPOSE_PROJECT_NAME": "historic-production", "COMPOSE_PROFILES": "superieur",
+            "SIS_IMAGE": "wrong-image", "DB_PASSWORD_SECONDAIRE": "wrong-key", "SIS_ENV_FILE": "wrong.env",
+        }), patch.object(sisctl.subprocess, "run") as run:
+            sisctl.compose(configuration, "config", "--quiet", env={"PGPASSWORD": "explicit-restore-password"})
+        command = run.call_args.args[0]
+        environment = run.call_args.kwargs["env"]
+        self.assertEqual(command[command.index("--project-name") + 1], "isolated-recovery")
+        self.assertEqual(environment["DB_PASSWORD_SECONDAIRE"], configuration["DB_PASSWORD_SECONDAIRE"])
+        self.assertEqual(environment["SIS_ENV_FILE"], configuration["_ENV_FILE"])
+        self.assertEqual(environment["PGPASSWORD"], "explicit-restore-password")
+        self.assertEqual(environment["COMPOSE_PROFILES"], "")
+        self.assertEqual(environment["COMPOSE_PROJECT_NAME"], "isolated-recovery")
+        self.assertNotIn("SIS_IMAGE", environment)
+
+    def test_offline_checks_reject_unsafe_configuration_without_printing_secrets(self):
+        cases = [
+            ("FIELD_ENCRYPTION_KEY", "not-base64", "FIELD_ENCRYPTION_KEY"),
+            ("DJANGO_SECRET_KEY", "short-secret", "DJANGO_SECRET_KEY"),
+            ("DJANGO_DEBUG", "unknown", "DJANGO_DEBUG"),
+            ("SIS_BIND_ADDRESS", "0.0.0.0", "loopback"),
+            ("SIS_WORKER_CONCURRENCY", "0", "SIS_WORKER_CONCURRENCY"),
+            ("SIS_HTTP_PORT", "70000", "distinct ports"),
+            ("SIS_HTTPS_PORT", "08080", "distinct ports"),
+            ("SIS_FRONTEND_ADDRESS", "http://wrong.example", "match"),
+            ("DJANGO_ALLOWED_HOSTS", "*", "explicit API"),
+            ("COMPOSE_PROJECT_NAME", "Wrong/Project", "COMPOSE_PROJECT_NAME"),
+            ("EDX_OAUTH_CLIENT_SECRET", "$OTHER_KEY", "literal"),
+        ]
+        for key, value, message in cases:
+            with self.subTest(key=key), patch("builtins.print") as output, patch.object(
+                sisctl.subprocess, "run"
+            ) as run:
+                with self.assertRaisesRegex(ValueError, message):
+                    sisctl.validate_configuration({**self.configuration, key: value})
+                run.assert_not_called()
+                self.assertNotIn(self.configuration["DJANGO_SECRET_KEY"], str(output.call_args_list))
+
+    def test_environment_file_permissions_are_checked(self):
+        path = Path(self.configuration["_ENV_FILE"])
+        path.chmod(0o644)
+        with self.assertRaisesRegex(ValueError, "0600"):
+            sisctl.validate_configuration(self.configuration)
+
+    def test_existing_django_boolean_and_scoped_host_forms_remain_usable(self):
+        configuration = {**self.configuration, "DJANGO_DEBUG": "1", "DJANGO_ALLOWED_HOSTS": ".school.example"}
+        with patch("builtins.print"):
+            sisctl.validate_configuration(configuration)
+        with self.assertRaisesRegex(ValueError, "loopback"):
+            sisctl.validate_configuration({**configuration, "SIS_BIND_ADDRESS": "0.0.0.0"})
+
+    def test_production_requires_https_even_with_local_auth(self):
+        configuration = {**self.configuration, "DJANGO_DEBUG": "False", "SIS_AUTH_MODE": "local"}
+        with self.assertRaisesRegex(ValueError, "HTTPS"):
+            sisctl.validate_configuration(configuration)
+
+    def test_operation_lock_prevents_overlapping_maintenance_and_releases_after_failure(self):
+        with self.assertRaisesRegex(RuntimeError, "simulated"):
+            with sisctl.operation_lock(self.configuration):
+                with self.assertRaisesRegex(ValueError, "Another SIS maintenance"):
+                    with sisctl.operation_lock(self.configuration):
+                        self.fail("Overlapping maintenance acquired a lock")
+                raise RuntimeError("simulated failure")
+        with sisctl.operation_lock(self.configuration):
+            pass
+
+    def test_installation_preflight_uses_read_only_commands_and_detects_occupied_port(self):
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            self.configuration["SIS_HTTP_PORT"] = str(listener.getsockname()[1])
+            with patch.object(
+                sisctl.subprocess, "run", return_value=SimpleNamespace(stdout="2.30.0\n")
+            ) as run, patch.object(sisctl, "compose") as compose:
+                with self.assertRaisesRegex(ValueError, "without stopping another service"):
+                    sisctl.installation_preflight(self.configuration, check_ports=True)
+            self.assertEqual([call.args[0] for call in run.call_args_list], [
+                ["docker", "compose", "version", "--short"], ["docker", "info"],
+            ])
+            self.assertEqual(compose.call_args.args[1:], ("config", "--quiet"))
+
+    def test_old_compose_and_unreachable_daemon_are_blocking(self):
+        with patch.object(sisctl.subprocess, "run", return_value=SimpleNamespace(stdout="2.10.0")):
+            with self.assertRaisesRegex(ValueError, "Compose >= 2.20"):
+                sisctl.installation_preflight(self.configuration)
+        with patch.object(sisctl.subprocess, "run", side_effect=FileNotFoundError("docker")):
+            with self.assertRaisesRegex(ValueError, "No container was started"):
+                sisctl.installation_preflight(self.configuration)
+
+    def runtime_records(self):
+        return [
+            {"Service": service, "State": "running", "Health": "" if service.startswith("beat-") else "healthy"}
+            for service in ["redis", "frontend", "gateway"] + [
+                f"{role}-{variant}" for variant in ("secondaire", "superieur")
+                for role in ("postgres", "api", "worker", "beat")
+            ]
+        ]
+
+    def test_status_accepts_compose_array_and_line_delimited_json(self):
+        expected = self.runtime_records()
+        for text in (json.dumps(expected), "\n".join(json.dumps(record) for record in expected)):
+            with patch.object(sisctl, "compose", return_value=SimpleNamespace(stdout=text)):
+                self.assertEqual(sisctl.service_status(self.configuration), expected)
+
+    def test_doctor_checks_both_workers_and_duplicate_beat_without_executing_tasks(self):
+        configuration = {**self.configuration, "SIS_MODE": "dual"}
+        records = self.runtime_records()
+        with patch.object(sisctl, "installation_preflight"), patch.object(
+            sisctl, "service_status", return_value=records,
+        ), patch("builtins.print") as output:
+            sisctl.doctor(configuration)
+            next(record for record in records if record["Service"] == "worker-superieur")["Health"] = "unhealthy"
+            records.append({"Service": "beat-secondaire", "State": "running", "Health": ""})
+            with self.assertRaisesRegex(ValueError, "Runtime diagnosis failed"):
+                sisctl.doctor(configuration)
+        self.assertIn("FAIL worker-superieur", str(output.call_args_list))
+        self.assertIn("multiple schedulers", str(output.call_args_list))
+
+    def test_update_requires_backup_attestation_before_any_effect(self):
+        with patch.object(sisctl, "compose") as compose, patch.object(sisctl, "installation_preflight") as preflight:
+            with self.assertRaisesRegex(ValueError, "--confirm-backup"):
+                sisctl.update(self.configuration, SimpleNamespace(confirm_backup=False))
+            compose.assert_not_called()
+            preflight.assert_not_called()
+
+    def test_update_migrates_all_tenants_without_bootstrap_or_password_prompt(self):
+        configuration = {**self.configuration, "SIS_MODE": "dual"}
+        calls = []
+        with patch.object(sisctl, "installation_preflight"), patch.object(
+            sisctl, "service_status", return_value=self.runtime_records(),
+        ), patch.object(
+            sisctl, "compose", side_effect=lambda _configuration, *args: calls.append(args),
+        ), patch.object(
+            sisctl, "preflight_card_references", side_effect=lambda _configuration: calls.append(("preflight",)),
+        ), patch.object(sisctl, "doctor") as doctor, patch.object(sisctl.getpass, "getpass") as prompt:
+            sisctl.update(configuration, SimpleNamespace(confirm_backup=True))
+        self.assertEqual([call[0] for call in calls[:4]], ["build", "build", "stop", "preflight"])
+        self.assertEqual(calls[:2], [("build", "api-secondaire"), ("build", "frontend")])
+        for variant in ("secondaire", "superieur"):
+            migrations = [call for call in calls if f"api-{variant}" in call and "migrate_schemas" in call]
+            self.assertEqual([call[-2] for call in migrations], ["--shared", "--tenant"])
+        self.assertFalse(any("bootstrap_institution" in call for call in calls))
+        self.assertEqual(calls[-1], ("up", "-d", "--no-build", "--wait"))
+        prompt.assert_not_called()
+        doctor.assert_called_once_with(configuration)
+
+    def test_failed_migration_leaves_writers_stopped_and_never_restarts_old_code(self):
+        calls = []
+
+        def fake_compose(_configuration, *args):
+            calls.append(args)
+            if "migrate_schemas" in args:
+                raise subprocess.CalledProcessError(1, ["migration"])
+
+        with patch.object(sisctl, "installation_preflight"), patch.object(
+            sisctl, "service_status", return_value=self.runtime_records(),
+        ), patch.object(sisctl, "compose", side_effect=fake_compose), patch.object(
+            sisctl, "preflight_card_references",
+        ), patch.object(sisctl, "doctor") as doctor:
+            with self.assertRaisesRegex(ValueError, "remain stopped"):
+                sisctl.update(self.configuration, SimpleNamespace(confirm_backup=True))
+        self.assertTrue(any(call[0] == "stop" for call in calls))
+        self.assertFalse(any(call[0] == "up" for call in calls))
+        doctor.assert_not_called()
+
+    def test_update_can_use_prepared_release_images_without_rebuilding(self):
+        with patch.object(sisctl, "installation_preflight"), patch.object(
+            sisctl, "service_status", return_value=self.runtime_records(),
+        ), patch.object(sisctl, "compose") as compose, patch.object(
+            sisctl, "preflight_card_references",
+        ), patch.object(sisctl, "doctor"):
+            sisctl.update(self.configuration, SimpleNamespace(confirm_backup=True, no_build=True))
+        self.assertFalse(any(call.args[1] == "build" for call in compose.call_args_list))
 
 
 if __name__ == "__main__":

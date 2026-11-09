@@ -7,6 +7,21 @@
 > Les scripts shell ci-dessous restent des outils historiques partiels :
 > leur combinaison ne garantit pas un snapshot cohérent de l'application.
 
+Le parcours Compose dispose de `sisctl preflight --offline`, `preflight
+--installation` et `doctor` pour distinguer configuration, accès Docker et santé
+des services sans démarrage implicite. Utiliser `sisctl update --confirm-backup`
+pour migrer tous les schémas après qualification d'un snapshot, pas une série
+de reprovisionnements administrateur.
+
+Les nouveaux snapshots contiennent un inventaire d'images consultable par
+`sis_backup.py ... inspect --snapshot ID`. La restauration exige un projet
+distinct, les clés d'origine et des bases/volumes vides ; une cible partiellement
+restaurée n'est pas réutilisable automatiquement. Les images et le LMS restent
+à sauvegarder séparément. `recover-config` indique l'ID exact à réutiliser.
+`--require-mount CHEMIN` évite une sauvegarde locale accidentelle si un montage
+de sauvegarde manque. Voir le guide établissement pour les options complètes
+et le verrou commun de maintenance.
+
 Les deux variantes SIS utilisent `django-tenants` : chaque établissement vit
 dans son propre schéma Postgres, au sein d'une **même base de données** par
 variante (`sis_secondaire`, `sis_superieur` en production). Une sauvegarde
