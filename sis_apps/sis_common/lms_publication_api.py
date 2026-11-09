@@ -3,10 +3,13 @@
 import logging
 
 import requests
+from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
 from rest_framework.response import Response
+
+from .lms_diagnostics import unavailable_response
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +48,8 @@ def course_publication(request, mapping_id):
                 if values is None
                 else client.publish_course(mapping.course_id, **values)
             )
+        except ImproperlyConfigured:
+            return unavailable_response()
         except requests.RequestException as error:
             logger.exception("Studio publication not confirmed mapping_id=%s", mapping.pk)
             if error.response is not None and error.response.status_code == 409:

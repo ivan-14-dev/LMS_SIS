@@ -21,6 +21,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from sis_common.lms_accounts import create_account, update_account
 from sis_common.lms_courses import create_course, get_course, get_course_revision, publish_course, update_course
+from sis_common.lms_diagnostics import check_health
 from sis_common.lms_enrollments import course_enrollments, set_enrollment
 
 logger = logging.getLogger(__name__)
@@ -384,15 +385,8 @@ class EdxClient:
         return hmac.compare_digest(expected, signature.replace("sha256=", ""))
 
     def health_check(self) -> dict[str, Any]:
-        """Vérifie la connectivité LMS + CMS."""
-        results = {}
-        for name, base in [("lms", self.lms_url), ("cms", self.cms_url)]:
-            try:
-                r = requests.get(f"{base}/heartbeat", timeout=5)
-                results[name] = {"status": r.status_code, "ok": r.status_code == 200}
-            except Exception as e:
-                results[name] = {"status": None, "ok": False, "error": str(e)}
-        return results
+        """Vérifie connectivité, authentification et contrat de l'extension."""
+        return check_health(self)
 
 
 # Singleton

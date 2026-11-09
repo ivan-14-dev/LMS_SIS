@@ -99,6 +99,36 @@ beforeEach(() => {
   });
 });
 
+describe('LMS contract availability', () => {
+  it('distinguishes local SIS authentication from an unavailable LMS', async () => {
+    useIntegrationHealth.mockReturnValue({
+      data: {
+        configured: false,
+        connected: false,
+        missing_configuration: ['EDX_OAUTH_CLIENT_ID'],
+        oauth_status: 'unavailable',
+        webhook_status: 'unverified',
+      },
+      refetch: jest.fn(),
+    });
+    await renderPage();
+    expect(screen.getByText('LMS indisponible')).toBeInTheDocument();
+    expect(screen.getByText(/L’authentification locale du SIS ne donne pas accès/)).toBeInTheDocument();
+    expect(screen.getByText(/Paramètres manquants : EDX_OAUTH_CLIENT_ID/)).toBeInTheDocument();
+    expect(screen.queryByText('Contrat disponible')).not.toBeInTheDocument();
+  });
+
+  it('does not present a heartbeat or an unverified extension as ready', async () => {
+    useIntegrationHealth.mockReturnValue({
+      data: { configured: true, connected: false, oauth_status: 'unverified', webhook_status: 'unverified' },
+      refetch: jest.fn(),
+    });
+    await renderPage();
+    expect(screen.getByText(/Un heartbeat seul ne valide pas/)).toBeInTheDocument();
+    expect(screen.getByText(/Les notes LMS restent des propositions/)).toBeInTheDocument();
+  });
+});
+
 describe('first SIS to LMS association', () => {
   const candidate = {
     user_sis: 41,

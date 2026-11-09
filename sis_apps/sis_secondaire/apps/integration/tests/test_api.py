@@ -219,7 +219,7 @@ class IntegrationAPIEndpointsTestCase(TenantAPITestCase):
         response = self.client.get("/api/v1/integration/health/")
 
         assert response.status_code == 200
-        assert response.data["connected"] is True
+        assert response.data["connected"] is False
         assert response.data["webhook_status"] == "unverified"
 
     def test_list_user_mappings(self):

@@ -139,7 +139,7 @@ const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Chip
               icon={isConnected ? <CheckIcon /> : <ErrorIcon />}
-              label={isConnected ? 'Connecté' : 'Déconnecté'}
+              label={isConnected ? 'Contrat disponible' : 'LMS indisponible'}
               color={isConnected ? 'success' : 'error'}
             />
             <Button
@@ -155,6 +155,24 @@ const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
         </Box>
 
         <Divider sx={{ my: 2 }} />
+
+        {status?.configured === false && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Aucun raccordement LMS configuré. L’authentification locale du SIS ne donne pas accès à Open edX.
+            {status.missing_configuration?.length > 0
+              && ` Paramètres manquants : ${status.missing_configuration.join(', ')}.`}
+          </Alert>
+        )}
+        {status?.configured === true && !isConnected && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Le contrat sis-provisioning et ses permissions ne sont pas confirmés sur LMS et Studio.
+            Un heartbeat seul ne valide pas les identités, cours ou inscriptions.
+          </Alert>
+        )}
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Les webhooks, propositions de notes et fournisseurs pédagogiques nécessitent une qualification distincte.
+          Les notes LMS restent des propositions jusqu’à validation humaine dans le SIS.
+        </Alert>
 
         <Grid container spacing={3}>
           <Grid size={{
@@ -208,6 +226,8 @@ const ConnectionStatus = ({ status, isRefreshing, onRefresh }) => {
 ConnectionStatus.propTypes = {
   status: PropTypes.shape({
     connected: PropTypes.bool,
+    configured: PropTypes.bool,
+    missing_configuration: PropTypes.arrayOf(PropTypes.string),
     lms_url: PropTypes.string,
     version: PropTypes.string,
     oauth_status: PropTypes.string,

@@ -3,12 +3,12 @@
 import hashlib
 import logging
 
-from django.apps import apps
 from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from sis_common.lms_grade_review import stage_lms_grade
+from sis_common.lms_receipts import confirm_account, enrollment_receipt_allowed, update_enrollment_receipts
 
 logger = logging.getLogger(__name__)
 
@@ -51,41 +51,10 @@ class WebhookHandler:
         return course.get("course_key") or course.get("id")
 
     def handle_user_created(self, payload: dict):
-        payload = self._event_data(payload)
-        username = self._username(payload)
-        if not username:
-            return False
-        user_data = payload.get("user", {})
-        Utilisateur = apps.get_model("utilisateurs", "Utilisateur")
-        try:
-            utilisateur = Utilisateur.objects.get(username=username)
-        except Utilisateur.DoesNotExist:
-            logger.warning(f"No local SIS user found for LMS user {username}; mapping deferred")
-            return False
-        self.EdxUserMapping.objects.update_or_create(
-            user_sis=utilisateur,
-            defaults={
-                "username_edx": username,
-                "user_id_edx": user_data.get("id"),
-                "actif": True,
-                "date_sync": timezone.now(),
-            },
-        )
-        logger.info(f"LMS user synced: {username}")
-        return True
+        return confirm_account(self.EdxUserMapping, payload)
 
     def handle_user_updated(self, payload: dict):
-        payload = self._event_data(payload)
-        username = self._username(payload)
-        if not username:
-            return
-        try:
-            mapping = self.EdxUserMapping.objects.get(username_edx=username)
-            mapping.user_id_edx = payload["user"].get("id", mapping.user_id_edx)
-            mapping.date_sync = timezone.now()
-            mapping.save()
-        except self.EdxUserMapping.DoesNotExist:
-            self.handle_user_created(payload)
+        return confirm_account(self.EdxUserMapping, payload)
 
     def handle_enrollment_created(self, payload: dict):
         payload = self._event_data(payload)
@@ -97,6 +66,8 @@ class WebhookHandler:
         try:
             mapping = self.EdxUserMapping.objects.get(username_edx=username)
             course_mapping = self.EdxCourseMapping.objects.get(course_id=course_key)
+            if not enrollment_receipt_allowed(mapping, course_mapping, enrollment_data.get("is_active", True)):
+                return False
             self.EdxEnrollment.objects.update_or_create(
                 etudiant=mapping.user_sis.etudiant_profile,
                 course=course_mapping,
@@ -132,10 +103,7 @@ class WebhookHandler:
             except Exception as e:
                 logger.error(f"Failed to find enrollment: {e}")
                 return False
-        if not queryset.exists():
-            return False
-        queryset.update(is_active=is_active, last_sync=timezone.now())
-        return True
+        return update_enrollment_receipts(queryset, "etudiant", is_active)
 
     def handle_enrollment_deleted(self, payload: dict):
         payload = self._event_data(payload)
@@ -157,12 +125,10 @@ class WebhookHandler:
             except Exception as e:
                 logger.error(f"Failed to find enrollment: {e}")
                 return False
-        if not queryset.exists():
-            return False
-        queryset.update(is_active=False, date_desinscription=timezone.now())
-        return True
+        return update_enrollment_receipts(queryset, "etudiant", False)
 
     def handle_grade_updated(self, payload: dict):
+        payload = {**self._event_data(payload), "_event_id": payload.get("_event_id")}
         username = (payload.get("user") or {}).get("username")
         course_key = (payload.get("course") or {}).get("course_key")
         subsection_id = payload.get("subsection_id")
@@ -291,10 +257,11 @@ class WebhookHandler:
         return bool(username and course_key)
 
     def handle_course_published(self, payload: dict):
+        payload = self._event_data(payload)
         course_key = payload.get("course_key")
         if not course_key:
-            return
-        self.EdxCourseMapping.objects.filter(course_id=course_key).update(actif=True)
+            return False
+        return self.EdxCourseMapping.objects.filter(course_id=course_key).exists()
 
     def handle_course_deleted(self, payload: dict):
         course_key = payload.get("course_key")

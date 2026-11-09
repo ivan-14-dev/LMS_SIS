@@ -73,6 +73,26 @@ class LMSGradeFixture(GradeEntryFixture):
 
 
 class LMSGradeProtectionTests(LMSGradeFixture):
+    def test_enveloped_grade_is_only_staged_once_as_a_proposal(self):
+        event_id = uuid.uuid4().hex
+        payload = {
+            "_event_id": event_id,
+            "data": {
+                "user": {"username": self.mapping.username_edx},
+                "course": {"course_key": self.course.course_id},
+                "subsection_id": self.assessment.subsection_id,
+                "score": "12",
+                "max_score": "20",
+                "timestamp": timezone.now().isoformat(),
+            },
+        }
+        assert self.handler.handle_grade_updated(payload) is True
+        assert self.handler.handle_grade_updated(payload) is True
+        proposal = self.grade_logs.objects.get(event_id=event_id)
+        assert proposal.review_status == "pending"
+        assert proposal.imported_to_sis is False
+        assert not self.evaluation.notes.exists()
+
     def test_staff_correction_is_not_overwritten_by_new_lms_event(self):
         first = self.deliver()
         assert first.imported_to_sis is False

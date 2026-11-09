@@ -6,11 +6,12 @@ from django.db import transaction
 from django.utils import timezone
 
 from sis_common.lms_courses import course_sync_requested_at
+from sis_common.lms_delivery import begin_delivery, finish_delivery
 from sis_common.lms_identity import lms_course_number, lms_username
 from sis_common.lms_tenants import lms_schema_tenant_id
 
 from .edx_client import get_edx_client
-from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
+from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping
 
 logger = logging.getLogger(__name__)
 
@@ -19,16 +20,23 @@ class SyncService:
     """Orchestration des synchronisations bidirectionnelles."""
 
     def __init__(self, enqueue_failures: bool = True):
-        self.client = get_edx_client()
+        self._client = None
         # Le rejeu depuis l'outbox (voir tasks.publish_outbox_events) gère lui-même
         # les tentatives/l'état de l'événement d'origine ; il désactive ce
         # ré-enfilage automatique pour éviter de dupliquer des événements outbox
         # à chaque nouvel échec de rejeu.
         self.enqueue_failures = enqueue_failures
 
+    @property
+    def client(self):
+        if self._client is None:
+            self._client = get_edx_client()
+        return self._client
+
     # ====================== SIS → LMS ======================
 
     def sync_user_to_lms(self, user_sis, role: str = "student") -> EdxUserMapping:
+        event = begin_delivery(self, "user.sync", "user", user_sis.pk, {"role": role})
         try:
             with transaction.atomic():
                 user_sis = type(user_sis).objects.select_for_update().get(pk=user_sis.pk)
@@ -62,17 +70,24 @@ class SyncService:
                 mapping.date_sync = timezone.now()
                 mapping.actif = True
                 mapping.save()
+                finish_delivery(event)
                 return mapping
         except Exception as e:
-            # Enregistrée hors de la transaction ci-dessus afin que l'événement
-            # outbox ne soit pas annulé par le rollback déclenché par l'échec.
-            self._enqueue_outbox("user.sync", "user", str(user_sis.id), {"error": str(e), "role": role})
+            finish_delivery(event, e)
             raise
 
     def sync_course_to_cms(
         self, ecue, annee_universitaire, display_name: str, *, requested_at=None
     ) -> EdxCourseMapping:
         requested_at = course_sync_requested_at(requested_at)
+        event = begin_delivery(
+            self, "course.create", "ecue", ecue.pk,
+            {
+                "annee_universitaire_id": annee_universitaire.pk,
+                "display_name": display_name,
+                "requested_at": requested_at.isoformat(),
+            },
+        )
         try:
             with transaction.atomic():
                 ecue = type(ecue).objects.select_for_update().get(pk=ecue.pk)
@@ -91,6 +106,7 @@ class SyncService:
                         raise ValueError("Une association de cours révoquée ne peut pas être réactivée.")
                     if mapping.last_sync_requested_at and requested_at < mapping.last_sync_requested_at:
                         logger.info("Course sync superseded mapping_id=%s", mapping.pk)
+                        finish_delivery(event)
                         return mapping
                     result = self.client.update_course(mapping.course_id, {"display_name": display_name})
                 else:
@@ -105,19 +121,10 @@ class SyncService:
                         "last_sync_requested_at": requested_at,
                     },
                 )
+                finish_delivery(event)
                 return mapping
         except Exception as e:
-            self._enqueue_outbox(
-                "course.create",
-                "ecue",
-                str(ecue.id),
-                {
-                    "error": str(e),
-                    "annee_universitaire_id": annee_universitaire.id,
-                    "display_name": display_name,
-                    "requested_at": requested_at.isoformat(),
-                },
-            )
+            finish_delivery(event, e)
             raise
 
     def sync_enrollment_to_lms(self, etudiant, course_mapping, mode="audit", *, active=True, requested_at=None):
@@ -167,14 +174,3 @@ class SyncService:
             except Exception as e:
                 logger.error(f"Failed to import grades: {e}")
         return count
-
-    def _enqueue_outbox(self, event_type, aggregate_type, aggregate_id, payload):
-        if not self.enqueue_failures:
-            return
-        OutboxEvent.objects.create(
-            event_type=event_type,
-            aggregate_type=aggregate_type,
-            aggregate_id=aggregate_id,
-            payload=payload,
-            statut="pending",
-        )

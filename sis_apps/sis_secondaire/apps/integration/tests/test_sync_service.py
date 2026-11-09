@@ -104,7 +104,7 @@ class SyncServiceUserTestCase(TenantTestCase):
         outbox_event = OutboxEvent.objects.filter(event_type="user.sync", aggregate_id=str(self.user.id)).first()
 
         assert outbox_event is not None
-        assert outbox_event.payload["error"] == "API Error"
+        assert outbox_event.erreur == "API Error"
         assert outbox_event.payload["role"] == "teacher"
 
     @patch("apps.integration.sync_service.get_edx_client")

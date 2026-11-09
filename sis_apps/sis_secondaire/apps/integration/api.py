@@ -18,6 +18,7 @@ import hashlib
 import logging
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -32,6 +33,7 @@ from rest_framework.response import Response
 
 from sis_common.authorization import filter_queryset_by_scopes
 from sis_common.lms_access_api import synchronize_access
+from sis_common.lms_diagnostics import integration_health, unavailable_response
 from sis_common.lms_outbox import outbox_queryset, request_outbox_processing
 from sis_common.lms_publication_api import course_publication
 from sis_common.lms_tenants import IsCurrentLmsTenantAdmin, current_lms_tenant
@@ -312,6 +314,8 @@ def sync_user(request, user_id):
                 "user_id_edx": mapping.user_id_edx,
             }
         )
+    except ImproperlyConfigured:
+        return unavailable_response()
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
@@ -348,6 +352,8 @@ def sync_course(request):
                 "course_name": mapping.course_name,
             }
         )
+    except ImproperlyConfigured:
+        return unavailable_response()
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
@@ -406,6 +412,8 @@ def sync_course_live(request, mapping_id):
                 "configuration": result,
             }
         )
+    except ImproperlyConfigured:
+        return unavailable_response()
     except Exception as exc:
         logger.exception("Failed to configure course_live for %s", mapping.course_id)
         return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
@@ -447,6 +455,8 @@ def sync_grade(request):
             eleve, course_mapping, subsection_id, score, max_score
         )
         return Response({"status": "ok", "result": result})
+    except ImproperlyConfigured:
+        return unavailable_response()
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
@@ -469,6 +479,8 @@ def sync_certificate(request):
     try:
         result = service.sync_certificate_to_lms(eleve, course_mapping, cert_type)
         return Response({"status": "ok", "result": result})
+    except ImproperlyConfigured:
+        return unavailable_response()
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
@@ -476,20 +488,4 @@ def sync_certificate(request):
 @api_view(["GET"])
 @permission_classes([IsCurrentLmsTenantAdmin])
 def health(request):
-    client = get_edx_client()
-    checks = client.health_check()
-    connected = all(
-        check if isinstance(check, bool) else check.get("ok", False)
-        for check in checks.values()
-    )
-    return Response(
-        {
-            **checks,
-            "connected": connected,
-            "lms_url": settings.EDX_LMS_URL,
-            "cms_url": settings.EDX_CMS_URL,
-            "oauth_status": "configured",
-            "webhook_status": "unverified",
-            "last_check": timezone.now(),
-        }
-    )
+    return Response({**integration_health(settings, get_edx_client), "last_check": timezone.now()})

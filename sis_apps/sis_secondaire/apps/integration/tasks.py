@@ -15,6 +15,7 @@ from sis_common.lms_access_sync import (
     replay_access,
     save_claimed_outbox_event,
 )
+from sis_common.lms_delivery import recover_interrupted_provisioning, transient_delivery_failure
 from sis_common.lms_outbox import publish_tenant_outbox
 
 from .models import EdxCourseMapping, EdxEnrollment, EdxUserMapping, OutboxEvent
@@ -152,6 +153,7 @@ def _claim_pending_outbox_events(batch_size=100, excluded_ids=()):
 
 def _publish_outbox_events_for_current_schema():
     recover_interrupted_access()
+    recover_interrupted_provisioning()
     queue_revoked_access()
     processed = []
     service = None
@@ -162,22 +164,27 @@ def _publish_outbox_events_for_current_schema():
             break
         event = events[0]
         processed.append(event.pk)
-        if service is None:
-            service = SyncService(enqueue_failures=False)
         handler = OUTBOX_HANDLERS.get(event.event_type)
         try:
             if handler is None:
                 raise ValueError(f"Type d'événement outbox inconnu: {event.event_type}")
+            if service is None:
+                service = SyncService(enqueue_failures=False)
             handler(service, event)
         except Exception as e:
             event.nb_tentatives = min(event.nb_tentatives + 1, 32767)
             event.erreur = str(e)
-            permanent = event.event_type in ("access.set", "enrollment.create") and permanent_access_failure(e)
-            exhausted = event.event_type != "access.set" and event.nb_tentatives >= OUTBOX_MAX_ATTEMPTS
+            permanent = event.event_type in OUTBOX_HANDLERS and permanent_access_failure(e)
+            exhausted = (
+                event.event_type != "access.set"
+                and not transient_delivery_failure(e)
+                and event.nb_tentatives >= OUTBOX_MAX_ATTEMPTS
+            )
             event.statut = "dead" if permanent or exhausted else "pending"
             logger.warning(f"Outbox event {event.id} ({event.event_type}) failed: {e}")
         else:
             event.statut = "done"
+            event.erreur = ""
         save_claimed_outbox_event(event)
     return len(processed)
 

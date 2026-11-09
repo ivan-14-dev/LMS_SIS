@@ -8,12 +8,14 @@ from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from .lms_courses import course_sync_requested_at
 
 logger = logging.getLogger(__name__)
+
+REVOKED_LEARNER_STATUSES = ("suspendu", "abandon", "sortant", "transfere", "transfert", "diplome")
 
 
 def permanent_access_failure(error):
@@ -34,6 +36,19 @@ def learner_model():
     return apps.get_model("etudiants", "Etudiant"), "etudiant"
 
 
+def learner_registration_revoked(learner, course):
+    if learner.statut in REVOKED_LEARNER_STATUSES:
+        return True
+    if apps.is_installed("apps.classes"):
+        registrations = learner.inscriptions.filter(annee_scolaire_id=course.classe.annee_scolaire_id)
+        return registrations.exclude(statut="validee", classe_id=course.classe_id).exists()
+    registrations = learner.inscriptions_admin.filter(
+        annee_universitaire_id=course.ecue.ue.semestre.annee_universitaire_id,
+        formation_id=course.ecue.ue.maquette.formation_id,
+    )
+    return registrations.exclude(statut="validee").exists()
+
+
 def revocation_reason(user, course, mapping, kind):
     if not user.is_active or not mapping.actif or not course.actif:
         return "Un compte ou une association révoquée ne peut pas recevoir un accès LMS."
@@ -41,8 +56,11 @@ def revocation_reason(user, course, mapping, kind):
         return "Un profil enseignant est requis pour attribuer des droits Studio."
     if kind == "enrollment":
         model, _ = learner_model()
-        if not model.objects.filter(user=user).exists():
+        learner = model.objects.filter(user=user).first()
+        if learner is None:
             return "Le dossier apprenant doit exister avant toute inscription LMS."
+        if learner_registration_revoked(learner, course):
+            return "La scolarité suspendue, retirée ou non validée ne permet pas cet accès LMS."
     return None
 
 
@@ -53,7 +71,7 @@ def validate_grant(user, course, mapping, kind, active):
 
 def access_retry_ready():
     now = timezone.now()
-    ready = ~Q(event_type="access.set") | Q(derniere_tentative__isnull=True)
+    ready = Q(derniere_tentative__isnull=True)
     for attempts in range(6):
         ready |= Q(nb_tentatives=attempts, derniere_tentative__lte=now - timedelta(seconds=5 * 2**attempts))
     return ready | Q(nb_tentatives__gte=6, derniere_tentative__lte=now - timedelta(seconds=320))
@@ -219,13 +237,31 @@ def replay_access(service, event):
 def queue_revoked_access():
     from apps.integration.models import EdxAccessIntent, EdxEnrollment, EdxUserMapping
 
-    revoked_users = EdxUserMapping.objects.filter(Q(actif=False) | Q(user_sis__is_active=False)).values("user_sis_id")
     model, field = learner_model()
+    registration_model = apps.get_model(
+        "eleves", "Inscription"
+    ) if field == "eleve" else apps.get_model("etudiants", "InscriptionAdministrative")
+    blocked_learners = model.objects.filter(
+        Q(statut__in=REVOKED_LEARNER_STATUSES)
+        | Q(pk__in=registration_model.objects.exclude(statut="validee").values(f"{field}_id"))
+    ).values("user_id")
+    revoked_users = EdxUserMapping.objects.filter(
+        Q(actif=False) | Q(user_sis__is_active=False) | Q(user_sis_id__in=blocked_learners)
+    ).values("user_sis_id")
+    moved_intents = Q(pk__in=[])
+    moved_enrollments = Q(pk__in=[])
+    if field == "eleve":
+        moved = registration_model.objects.filter(
+            annee_scolaire_id=OuterRef("course__classe__annee_scolaire_id"),
+        ).exclude(classe_id=OuterRef("course__classe_id"))
+        moved_intents = Q(kind="enrollment") & Q(Exists(moved.filter(eleve__user_id=OuterRef("user_id"))))
+        moved_enrollments = Q(Exists(moved.filter(eleve_id=OuterRef("eleve_id"))))
     intents = (
         EdxAccessIntent.objects.filter(is_active=True)
         .filter(
             Q(user_id__in=revoked_users)
             | Q(course__actif=False)
+            | moved_intents
             | (Q(kind="teaching") & ~Q(user__role="enseignant"))
             | (Q(kind="enrollment") & ~Q(user_id__in=model.objects.values("user_id")))
         )
@@ -236,7 +272,7 @@ def queue_revoked_access():
     # Historical enrollments also need a withdrawal intent after a revocation.
     enrollments = (
         EdxEnrollment.objects.filter(is_active=True)
-        .filter(Q(**{f"{field}__user_id__in": revoked_users}) | Q(course__actif=False))
+        .filter(Q(**{f"{field}__user_id__in": revoked_users}) | Q(course__actif=False) | moved_enrollments)
         .select_related(f"{field}__user", "course")
     )
     for enrollment in enrollments.iterator():

@@ -4,6 +4,7 @@ import logging
 
 import requests
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ImproperlyConfigured
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers, status
 from rest_framework.exceptions import PermissionDenied
@@ -11,6 +12,7 @@ from rest_framework.response import Response
 
 from .authorization import has_business_permission
 from .lms_access_sync import dispatch_access, learner_model
+from .lms_diagnostics import unavailable_response
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +64,8 @@ def synchronize_access(request, *, kind):
         user = get_object_or_404(get_user_model(), pk=values[identity_field])
     try:
         intent = dispatch_access(SyncService(), user, course, kind=kind, active=values["active"])
+    except ImproperlyConfigured:
+        return unavailable_response()
     except EdxUserMapping.DoesNotExist:
         logger.warning("LMS access refused: missing account mapping user_id=%s course_id=%s", user.pk, course.pk)
         return Response(
