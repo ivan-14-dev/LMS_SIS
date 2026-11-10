@@ -10,6 +10,7 @@ import { fetchApi, postApi } from '../services/api';
 import { apiErrorMessage, fetchResourcePage, resourceUrl } from '../services/resources';
 import SurveyDetail from './SurveyDetail';
 import SurveyEditor from './SurveyEditor';
+import CollectionPagination from '../components/common/CollectionPagination';
 
 const queryOptions = {
   retry: false, gcTime: 0, staleTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: 'always',
@@ -113,7 +114,7 @@ const SurveysWorkspace = ({ variant }) => {
     <Stack spacing={2}>
       <Typography variant="h1">{managing ? 'Gestion des enquêtes institutionnelles' : 'Mes enquêtes institutionnelles'}</Typography>
       <Alert severity="info">{information}</Alert>
-      <Stack direction="row" spacing={1}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
         <Button disabled={busy} onClick={() => select(null, false)}>Mes enquêtes</Button>
         {capabilities.data.can_manage && (
           <Button disabled={busy} onClick={() => select(null, true)}>Gérer les enquêtes</Button>
@@ -151,14 +152,7 @@ const SurveysWorkspace = ({ variant }) => {
                 </Button>
               ))}
               {!list.data?.count && <Typography>Aucune enquête accessible.</Typography>}
-              <Stack direction="row" spacing={1}>
-                <Button disabled={busy || page === 1} onClick={() => setPage(current => current - 1)}>
-                  Page précédente
-                </Button>
-                <Button disabled={busy || !list.data?.next} onClick={() => setPage(current => current + 1)}>
-                  Page suivante
-                </Button>
-              </Stack>
+              <CollectionPagination data={list.data} page={page} setPage={setPage} label="Enquêtes" disabled={busy} />
             </>
           )}
         </>

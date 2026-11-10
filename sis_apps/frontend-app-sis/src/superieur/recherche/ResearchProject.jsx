@@ -81,7 +81,7 @@ const Milestones = ({ project }) => {
       )}
       <Collection resource={`${path}jalons`} title="Jalons et livrables" searchable={false}>
         {rows => rows.map(milestone => (
-          <article key={milestone.id} className="border p-3 mb-3">
+          <article key={milestone.id} className="sis-panel mb-3">
             <h3>{milestone.titre}</h3>
             <p>{milestone.description}</p>
             <p>Échéance : {milestone.echeance} — {statusLabel(milestone.statut)}</p>

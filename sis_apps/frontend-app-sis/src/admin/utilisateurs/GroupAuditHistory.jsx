@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { apiErrorMessage, fetchResourcePage, resourceUrl } from '../../services/resources';
+import CollectionPagination from '../../components/common/CollectionPagination';
 
 const snapshotText = (snapshot) => {
   if (snapshot === null) { return 'Groupe absent'; }
@@ -69,22 +70,22 @@ const GroupAuditHistory = ({ variant, groupId }) => {
             </Paper>
           );
         })}
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Button type="button" disabled={page === 1 || history.isFetching} onClick={() => setPage(current => current - 1)}>
-            Historique précédent
-          </Button>
-          <Typography variant="body2">Page {page} · {history.data.count} événements</Typography>
-          <Button type="button" disabled={!history.data.next || history.isFetching} onClick={() => setPage(current => current + 1)}>
-            Historique suivant
-          </Button>
-        </Stack>
+        <CollectionPagination
+          data={history.data}
+          page={page}
+          setPage={setPage}
+          disabled={history.isFetching}
+          label="Historique des habilitations"
+          previousLabel="Historique précédent"
+          nextLabel="Historique suivant"
+        />
       </>
     );
   };
 
   return (
     <Box component="section" aria-label="Historique des habilitations" sx={{ mt: 3 }}>
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ mb: 2 }}>
         <Typography component="h3" variant="subtitle1">Historique des habilitations</Typography>
         <Button type="button" disabled={history.isFetching} onClick={() => history.refetch()}>Actualiser l’historique</Button>
       </Stack>

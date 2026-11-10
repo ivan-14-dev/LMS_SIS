@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Alert, Button, Checkbox, FormControlLabel, MenuItem, Stack, TextField, Typography,
 } from '@mui/material';
+import CollectionPagination from '../components/common/CollectionPagination';
 import { apiErrorMessage, fetchResourcePage } from '../services/resources';
 
 const SurveyEditor = ({
@@ -48,7 +49,7 @@ const SurveyEditor = ({
       <TextField label="Description" value={description} onChange={event => setDescription(event.target.value)} disabled={busy} multiline inputProps={{ maxLength: 3000 }} />
       <Typography>Toutes les questions sont obligatoires. 20 questions maximum ; 200 destinataires maximum.</Typography>
       {questions.map((question, index) => (
-        <Stack key={question.id} spacing={1} component="fieldset" disabled={busy}>
+        <Stack key={question.id} spacing={1} component="fieldset" className="sis-fieldset" disabled={busy}>
           <Typography component="legend">Question {index + 1}</Typography>
           <TextField label={`Question ${index + 1}`} value={question.libelle} onChange={event => updateQuestion(index, { libelle: event.target.value })} required inputProps={{ maxLength: 300 }} />
           <TextField
@@ -124,18 +125,19 @@ const SurveyEditor = ({
               </Button>
             ))}
             {!candidates.data?.count && <Typography>Aucun compte trouvé.</Typography>}
-            <Stack direction="row" spacing={1}>
-              <Button disabled={busy || page === 1} onClick={() => setPage(current => current - 1)}>
-                Candidats précédents
-              </Button>
-              <Button disabled={busy || !candidates.data?.next} onClick={() => setPage(current => current + 1)}>
-                Candidats suivants
-              </Button>
-            </Stack>
+            <CollectionPagination
+              data={candidates.data}
+              page={page}
+              setPage={setPage}
+              disabled={busy}
+              label="Destinataires"
+              previousLabel="Candidats précédents"
+              nextLabel="Candidats suivants"
+            />
           </>
         )
       )}
-      <Stack direction="row" spacing={1}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
         <Button type="submit" variant="contained" disabled={busy || !recipients.length}>Enregistrer le brouillon</Button>
         <Button disabled={busy} onClick={onCancel}>Annuler</Button>
       </Stack>

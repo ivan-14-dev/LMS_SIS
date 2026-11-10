@@ -7,6 +7,9 @@ import { paginated, useResearch, useResearchQuery } from './ResearchContext';
 import {
   errorMessage, isConflict, statusLabel, versionOf,
 } from './researchUi';
+import Pagination from '../../components/common/CollectionPagination';
+
+export { Pagination };
 
 export const recordType = PropTypes.shape({
   id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]), version: PropTypes.number,
@@ -57,19 +60,6 @@ Field.propTypes = {
   help: PropTypes.string,
 };
 
-export const Pagination = ({ data, page, setPage }) => (
-  <nav aria-label="Pagination" className="d-flex align-items-center my-3">
-    <Button variant="outline-primary" disabled={!data.previous || page <= 1} onClick={() => setPage(page - 1)}>Page précédente</Button>
-    <span className="mx-3" aria-live="polite">Page {page} — {data.count} résultat(s)</span>
-    <Button variant="outline-primary" disabled={!data.next} onClick={() => setPage(page + 1)}>Page suivante</Button>
-  </nav>
-);
-Pagination.propTypes = {
-  data: PropTypes.shape({ count: PropTypes.number, next: PropTypes.string, previous: PropTypes.string }).isRequired,
-  page: PropTypes.number.isRequired,
-  setPage: PropTypes.func.isRequired,
-};
-
 export const Collection = ({
   resource, title, onSelect, filter = '', children, searchable = true,
 }) => {
@@ -82,30 +72,33 @@ export const Collection = ({
   let invalid;
   try { if (query.data) { data = paginated(query.data); } } catch (error) { invalid = error; }
   return (
-    <section aria-label={title} className="my-4">
+    <section aria-label={title} className="sis-panel sis-collection">
       <h2>{title}</h2>
       {searchable && (
-        <form className="d-flex align-items-end" onSubmit={event => { event.preventDefault(); setTerm(search); setPage(1); }}>
+        <form role="search" aria-label={`Recherche — ${title}`} className="sis-collection__search" onSubmit={event => { event.preventDefault(); setTerm(search); setPage(1); }}>
           <Field label={`Rechercher — ${title}`} value={search} onChange={setSearch} />
-          <Button type="submit" className="ml-2 mb-3">Rechercher</Button>
+          <Button type="submit">Rechercher</Button>
         </form>
       )}
       {(query.error || invalid) && <Failure error={query.error || invalid} retry={() => query.refetch()} />}
       {query.isFetching && <p role="status">Chargement de {title.toLowerCase()}…</p>}
       {!query.isFetching && !query.error && !invalid && data && (
         <>
-          {!data.results.length && <p role="status">Aucun résultat accessible.</p>}
-          {children ? children(data.results) : (
-            <ul className="list-unstyled">
-              {data.results.map(row => (
-                <li key={row.id} className="border-bottom py-2">
-                  <Button variant="link" onClick={() => onSelect(row.id)}>{row.titre || row.nom}</Button>
-                  <span>{row.archive ? 'Archivé' : statusLabel(row.statut)} {row.acronyme}</span>
-                </li>
-              ))}
-            </ul>
+          {!data.results.length ? <div className="sis-collection__empty" role="status"><p>Aucun résultat accessible.</p></div> : (
+            <div className="sis-collection__results">
+              {children ? children(data.results) : (
+                <ul className="list-unstyled">
+                  {data.results.map(row => (
+                    <li key={row.id} className="border-bottom py-2">
+                      <Button variant="link" onClick={() => onSelect(row.id)}>{row.titre || row.nom}</Button>
+                      <span>{row.archive ? 'Archivé' : statusLabel(row.statut)} {row.acronyme}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
-          <Pagination data={data} page={page} setPage={setPage} />
+          <Pagination data={data} page={page} setPage={setPage} label={title} />
         </>
       )}
     </section>
@@ -135,8 +128,9 @@ export const Selector = ({
   try { if (query.data) { data = paginated(query.data); } } catch (error) { invalid = error; }
   const selected = (multiple ? value : [value]).filter(Boolean);
   const rows = data?.results.filter(item => !eligible || eligible(item)) || [];
+  const searchResults = () => { setTerm(search); setPage(1); };
   return (
-    <fieldset className="border p-3 mb-3">
+    <fieldset className="sis-panel sis-fieldset sis-collection">
       <legend className="h5">{label}</legend>
       {!selected.length && <p>Aucune sélection.</p>}
       {selected.map(item => (
@@ -150,19 +144,29 @@ export const Selector = ({
         </p>
       ))}
       {searchable && (
-        <>
-          <Field label={`Rechercher — ${label}`} value={search} onChange={setSearch} />
-          <Button variant="outline-primary" onClick={() => { setTerm(search); setPage(1); }}>
-            Chercher {label.toLowerCase()}
+        <div role="search" aria-label={`Recherche — ${label}`} className="sis-collection__search">
+          <Field
+            label={`Rechercher — ${label}`}
+            value={search}
+            onChange={setSearch}
+            onKeyDown={event => {
+              if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                event.preventDefault(); searchResults();
+              }
+            }}
+          />
+          <Button type="button" variant="outline-primary" aria-label={`Chercher ${label.toLowerCase()}`} onClick={searchResults}>
+            Rechercher
           </Button>
-        </>
+        </div>
       )}
       {(query.error || invalid) && <Failure error={query.error || invalid} retry={() => query.refetch()} />}
       {query.isFetching && <p role="status">Chargement des choix autorisés…</p>}
       {!query.isFetching && !query.error && !invalid && data && (
         <>
-          {!rows.length && <p>Aucun choix admissible sur cette page.</p>}
-          <ul className="list-unstyled">
+          {!rows.length && <div className="sis-collection__empty"><p>Aucun choix admissible sur cette page.</p></div>}
+          {rows.length > 0 && (
+          <ul className="list-unstyled sis-collection__results">
             {rows.map(item => (
               <li key={item.id}>
                 <Button
@@ -174,7 +178,8 @@ export const Selector = ({
               </li>
             ))}
           </ul>
-          <Pagination data={data} page={page} setPage={setPage} />
+          )}
+          <Pagination data={data} page={page} setPage={setPage} label={label} />
         </>
       )}
     </fieldset>

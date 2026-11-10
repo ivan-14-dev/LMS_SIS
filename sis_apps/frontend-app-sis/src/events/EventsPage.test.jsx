@@ -64,9 +64,7 @@ const renderPage = (variant = 'secondaire', suffix = `?evenement=${id}`) => {
     ),
   };
 };
-const change = (label, value, container = screen) => fireEvent.change(
-  container.getByLabelText(label, { exact: false, selector: 'input, textarea, select' }), { target: { value } },
-);
+const change = (label, value, container = screen) => fireEvent.change(container.getByLabelText(label, { exact: false, selector: 'input, textarea, select' }), { target: { value } });
 const dialog = () => {
   if (!dialogElement?.isConnected) { dialogElement = screen.getByRole('dialog'); }
   return within(dialogElement);
@@ -108,7 +106,9 @@ const listCalls = () => http.get.mock.calls.filter(([url]) => new URL(url).pathn
 
 beforeEach(() => {
   dialogElement = null;
-  profile = { id: 3, etablissement: 9, is_staff: false, role: 'parent' };
+  profile = {
+    id: 3, etablissement: 9, is_staff: false, role: 'parent',
+  };
   globalCaps = {
     role: 'parent', permissions: ['core.consulter_evenement_institutionnel'], modules: { 'sis.events': true },
   };
@@ -139,14 +139,22 @@ beforeEach(() => {
   onPost = async (path, payload) => {
     if (path === base) {
       current = {
-        ...current, ...payload, id, can_manage: true, salle: room, version: 1,
+        ...current,
+        ...payload,
+        id,
+        can_manage: true,
+        salle: room,
+        version: 1,
         participants: [alice, bob, chloe].filter(person => payload.participants.includes(person.id)),
       };
       events = [id];
       caps = { ...caps, can_manage: true };
     } else if (path === `${base}${id}/modifier/`) {
       current = {
-        ...current, ...payload, salle: room, version: payload.version + 1,
+        ...current,
+        ...payload,
+        salle: room,
+        version: payload.version + 1,
         participants: [alice, bob, chloe].filter(person => payload.participants.includes(person.id)),
       };
     } else if (path === `${base}${id}/annuler/`) {
@@ -228,9 +236,14 @@ it.each(['secondaire', 'superieur'])('creates a conference or ceremony from an e
   expect(http.post).toHaveBeenCalledTimes(1);
   expect(http.post.mock.calls[0][0]).toBe(`https://${variant}.test${base}`);
   expect(http.post.mock.calls[0][1]).toEqual({
-    titre: 'Rencontre du campus', description: 'Accueil', type: variant === 'secondaire' ? 'conference' : 'ceremonie',
-    salle: 7, debut: '2027-03-28T01:30:00+01:00', fin: '2027-03-28T03:30:00+02:00',
-    effectif: 20, participants: [11],
+    titre: 'Rencontre du campus',
+    description: 'Accueil',
+    type: variant === 'secondaire' ? 'conference' : 'ceremonie',
+    salle: 7,
+    debut: '2027-03-28T01:30:00+01:00',
+    fin: '2027-03-28T03:30:00+02:00',
+    effectif: 20,
+    participants: [11],
   });
   expect(eventCalls().filter(([url]) => new URL(url).pathname === `${base}${id}/`).length).toBeGreaterThanOrEqual(1);
   expect(eventCalls().some(([url]) => new URL(url).searchParams.has('evenement_id'))).toBe(false);
@@ -250,9 +263,15 @@ it('rereads authoritative detail before editing and sends the complete invitatio
   expect(await screen.findByText('Opération confirmée par le serveur et état relu.')).toBeInTheDocument();
   expect(http.post.mock.calls[0][0].endsWith(`${base}${id}/modifier/`)).toBe(true);
   expect(http.post.mock.calls[0][1]).toEqual({
-    titre: current.titre, description: current.description, type: 'conference', salle: 7,
-    debut: '2027-03-28T01:30:00+01:00', fin: '2027-03-28T03:30:00+02:00',
-    effectif: 12, participants: [12], version: 4,
+    titre: current.titre,
+    description: current.description,
+    type: 'conference',
+    salle: 7,
+    debut: '2027-03-28T01:30:00+01:00',
+    fin: '2027-03-28T03:30:00+02:00',
+    effectif: 12,
+    participants: [12],
+    version: 4,
   });
   expect(current.version).toBe(5);
   expect(screen.queryByText(alice.nom)).not.toBeInTheDocument();
@@ -267,7 +286,9 @@ it('keeps a 409 draft unchanged, rereads separately, and requires explicit confi
   const originalPost = onPost;
   onPost = async (path, payload) => {
     if (http.post.mock.calls.length === 1) {
-      current = { ...current, titre: 'Titre serveur concurrent', participants: [chloe], version: 2 };
+      current = {
+        ...current, titre: 'Titre serveur concurrent', participants: [chloe], version: 2,
+      };
       throw failure(409, { detail: 'L’événement a changé.' });
     }
     return originalPost(path, payload);
@@ -390,12 +411,16 @@ it.each(['module', 'permissions', 'tenant', 'account', 'logout'])('discards loca
   if (changeKind === 'module') { globalCaps = { ...globalCaps, modules: { 'sis.events': false } }; }
   if (changeKind === 'permissions') {
     globalCaps = { ...globalCaps, permissions: [] };
-    caps = { ...caps, can_create: false, can_manage: false, can_consult: false };
+    caps = {
+      ...caps, can_create: false, can_manage: false, can_consult: false,
+    };
   }
   if (changeKind === 'tenant') { profile = { ...profile, etablissement: 10 }; }
   if (changeKind === 'account') { profile = { ...profile, id: 4 }; }
   if (['tenant', 'account'].includes(changeKind)) {
-    current = { ...current, titre: 'Autre contexte', description: 'Nouvelles données', participants: [bob] };
+    current = {
+      ...current, titre: 'Autre contexte', description: 'Nouvelles données', participants: [bob],
+    };
   }
   if (changeKind === 'logout') {
     onGet = parsed => {
@@ -538,7 +563,7 @@ it('paginates existing rooms while preserving the choice and event scope', async
   await dialog().findByRole('option', { name: /Salle deuxième page/ });
   change('Salle existante', '8', dialog());
   fireEvent.click(dialog().getByRole('button', { name: 'Salles précédentes' }));
-  await dialog().findByText('Salles : page 1 · 51 résultats');
+  await dialog().findByText('Page 1 — 51 résultat(s)');
   expect(dialog().getByRole('combobox', { name: /Salle existante/ })).toHaveValue('8');
   expect(eventCalls().filter(([url]) => url.includes('/salles/')).every(
     ([url]) => new URL(url).searchParams.get('evenement_id') === id,
@@ -569,7 +594,9 @@ it('waits for the command and authoritative refetch before success and blocks du
   grantManagement();
   const originalPost = onPost;
   let releasePost;
-  onPost = (path, payload) => new Promise(resolve => { releasePost = async () => resolve(await originalPost(path, payload)); });
+  onPost = (path, payload) => new Promise(resolve => {
+    releasePost = async () => resolve(await originalPost(path, payload));
+  });
   renderPage();
   await openEdit();
   submit();

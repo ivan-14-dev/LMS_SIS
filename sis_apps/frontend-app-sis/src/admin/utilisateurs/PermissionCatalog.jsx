@@ -47,13 +47,19 @@ const PermissionCatalog = ({
       <Typography role="status" variant="body2" sx={{ mb: 2 }}>
         {value.length} sélectionnée(s) · {matches.length} résultat(s) sur {permissions.length}
       </Typography>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 1 }}>
-        <TextField label="Rechercher une permission" value={query} onChange={changeFilter(setQuery)} fullWidth />
-        <TextField select label="Module" value={app} onChange={changeFilter(setApp)} sx={{ minWidth: 160 }}>
+      <Stack direction="row" spacing={2} useFlexGap sx={{ mb: 1, flexWrap: 'wrap' }}>
+        <TextField
+          label="Rechercher une permission"
+          value={query}
+          onChange={changeFilter(setQuery)}
+          fullWidth
+          sx={{ flex: '1 1 240px', minWidth: 0 }}
+        />
+        <TextField select label="Module" value={app} onChange={changeFilter(setApp)} sx={{ flex: '1 1 160px', minWidth: 0 }}>
           <MenuItem value="">Tous les modules</MenuItem>
           {apps.map(name => <MenuItem key={name} value={name}>{name}</MenuItem>)}
         </TextField>
-        <TextField select label="Action" value={action} onChange={changeFilter(setAction)} sx={{ minWidth: 160 }}>
+        <TextField select label="Action" value={action} onChange={changeFilter(setAction)} sx={{ flex: '1 1 160px', minWidth: 0 }}>
           <MenuItem value="">Toutes les actions</MenuItem>
           {Object.entries(actions).map(([code, name]) => <MenuItem key={code} value={code}>{name}</MenuItem>)}
         </TextField>
@@ -125,6 +131,7 @@ const PermissionCatalog = ({
         </Table>
         {!matches.length && <Typography sx={{ p: 2 }}>Aucune permission ne correspond aux filtres.</Typography>}
       </Box>
+      {matches.length > 0 && (
       <TablePagination
         component="div"
         count={matches.length}
@@ -136,6 +143,7 @@ const PermissionCatalog = ({
         labelRowsPerPage="Permissions par page"
         getItemAriaLabel={type => (type === 'next' ? 'Page suivante des permissions' : 'Page précédente des permissions')}
       />
+      )}
     </Paper>
   );
 };

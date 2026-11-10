@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { fetchApi } from '../services/api';
 import { apiErrorMessage } from '../services/resources';
+import CollectionPagination from '../components/common/CollectionPagination';
 import { criterionType, isDenied, queryOptions } from './projectUi';
 
 const ProjectCompetencyCandidates = ({
@@ -66,14 +67,15 @@ const ProjectCompetencyCandidates = ({
           />
         );
       })}
-      <Stack direction="row" spacing={1}>
-        <Button disabled={!ready || !candidates.data?.previous} onClick={() => changePage(-1)}>
-          Compétences précédentes
-        </Button>
-        <Button disabled={!ready || !candidates.data?.next} onClick={() => changePage(1)}>
-          Compétences suivantes
-        </Button>
-      </Stack>
+      <CollectionPagination
+        data={candidates.error ? null : candidates.data}
+        page={page}
+        setPage={next => changePage(next - page)}
+        disabled={!ready}
+        label="Compétences"
+        previousLabel="Compétences précédentes"
+        nextLabel="Compétences suivantes"
+      />
     </Stack>
   );
 };

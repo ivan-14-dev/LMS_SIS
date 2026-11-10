@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert, Box, Button, Card, CardContent, MenuItem, Stack, TextField, Typography,
 } from '@mui/material';
+import CollectionPagination from '../../components/common/CollectionPagination';
 import { PageHeader, WorkflowHistoryPanel, WorkflowNotificationsPanel } from '../../components/common';
 import { useCapabilities } from '../../components/auth/PermissionGuard';
 import { hasCapability } from '../../components/layout/navigation';
@@ -141,12 +142,15 @@ const PaiementsPage = ({ apiType = 'superieur' }) => {
               </Button>
             </Stack>
           ))}
-          <Button disabled={!invoices.data?.previous || busy} onClick={() => setInvoicePage(invoicePage - 1)}>
-            Factures précédentes
-          </Button>
-          <Button disabled={!invoices.data?.next || busy} onClick={() => setInvoicePage(invoicePage + 1)}>
-            Factures suivantes
-          </Button>
+          <CollectionPagination
+            data={invoices.error ? null : invoices.data}
+            page={invoicePage}
+            setPage={setInvoicePage}
+            disabled={busy || invoices.isFetching}
+            label="Factures"
+            previousLabel="Factures précédentes"
+            nextLabel="Factures suivantes"
+          />
         </CardContent>
       </Card>
       {payment.facture && (
@@ -263,7 +267,7 @@ const PaiementsPage = ({ apiType = 'superieur' }) => {
       )}
       <Card sx={{ my: 2 }}>
         <CardContent>
-          <Typography component="h2" variant="h5">Paiements — page {page}</Typography>
+          <Typography component="h2" variant="h5">Paiements</Typography>
           {payments.isLoading && <Typography role="status">Chargement…</Typography>}
           {!payments.isLoading && !payments.error && !paymentRows.length && (
           <Typography>Aucun paiement accessible.</Typography>
@@ -276,12 +280,15 @@ const PaiementsPage = ({ apiType = 'superieur' }) => {
               <Button disabled={busy} onClick={() => choose(row)}>Consulter {row.numero}</Button>
             </Stack>
           ))}
-          <Button disabled={!payments.data?.previous || busy} onClick={() => { setSelected(null); setPage(page - 1); }}>
-            Précédents
-          </Button>
-          <Button disabled={!payments.data?.next || busy} onClick={() => { setSelected(null); setPage(page + 1); }}>
-            Suivants
-          </Button>
+          <CollectionPagination
+            data={payments.error ? null : payments.data}
+            page={page}
+            setPage={value => { setSelected(null); setPage(value); }}
+            disabled={busy || payments.isFetching}
+            label="Paiements"
+            previousLabel="Précédents"
+            nextLabel="Suivants"
+          />
         </CardContent>
       </Card>
       {current && (

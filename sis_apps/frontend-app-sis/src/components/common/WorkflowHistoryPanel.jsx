@@ -27,7 +27,7 @@ const WorkflowHistoryPanel = ({
       return <p className="text-muted mb-0">{emptyMessage}</p>;
     }
     return events.map(event => (
-      <div key={event.id} className="border rounded p-3 mb-2">
+      <div key={event.id} className="sis-panel mb-2">
         <div className="d-flex flex-wrap align-items-center justify-content-between">
           <strong>{event.title}</strong>
           <Badge variant="light">{event.action}</Badge>

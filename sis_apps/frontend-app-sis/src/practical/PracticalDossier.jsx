@@ -64,7 +64,7 @@ const Report = ({
     {report.statut === 'annule' && <Alert variant="warning">Dossier annulé administrativement, sans réussite. Motif : {report.motif_annulation}</Alert>}
     {report.criteres_non_satisfaits.length > 0 && <ul>{report.criteres_non_satisfaits.map(item => <li key={`${item.type}-${item.code}`}>{item.detail}</li>)}</ul>}
     {report.competences.map(item => (
-      <article key={item.code} className="border rounded p-3 my-2" aria-label={`Compétence — ${item.label}`}>
+      <article key={item.code} className="sis-panel my-2" aria-label={`Compétence — ${item.label}`}>
         <h4>{item.label} — {labelStatus(item.statut)}</h4>
         {item.evaluation ? (
           <>
@@ -203,7 +203,7 @@ const PracticalDossier = ({ id, capabilities }) => {
             <Field label="Filtrer les heures par état" options={['brouillon', 'soumise', 'validee', 'rejetee', 'annulee'].map(value => [value, labelStatus(value)])} value={hourStatus} disabled={busy} onChange={value => { setHourStatus(value); setHoursPage(1); setDialog(null); }} />
             {!data.hours.results.length && <p>Aucune heure enregistrée dans cette sélection.</p>}
             {data.hours.results.map(item => (
-              <article key={item.id} className="border rounded p-3 my-3" aria-label={`${item.date} ${item.heure_debut}–${item.heure_fin}`}>
+              <article key={item.id} className="sis-panel my-3" aria-label={`${item.date} ${item.heure_debut}–${item.heure_fin}`}>
                 <h4>{item.date} — {item.heure_debut}–{item.heure_fin} — {labelStatus(item.statut)}</h4>
                 <p>
                   {duration(item.minutes)} ; pause : {item.pause_minutes} min.
@@ -254,7 +254,7 @@ const PracticalDossier = ({ id, capabilities }) => {
             <h3>Historique immuable des évaluations</h3>
             {!data.evaluations.results.length && <p>Aucune décision de compétence enregistrée.</p>}
             {data.evaluations.results.map(item => (
-              <article key={item.id} className="border rounded p-3 my-2">
+              <article key={item.id} className="sis-panel my-2">
                 <h4>
                   {dossier.programme.competences.find(criterion => criterion.code === item.code)?.label || item.code}
                   {' '}— révision {item.revision}

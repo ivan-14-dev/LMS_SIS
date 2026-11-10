@@ -204,7 +204,7 @@ const EleveDetailPage = () => {
                     />
                     <div className="mt-3">
                       {matieresIndividuelles.map((affectation) => (
-                        <div key={affectation.id} className="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
+                        <div key={affectation.id} className="sis-panel sis-panel-actions justify-content-between mb-2">
                           <div>
                             <strong>{affectation.matiere_nom}</strong>
                             <div className="text-muted small">{affectation.commentaire || 'Aucun commentaire'}</div>

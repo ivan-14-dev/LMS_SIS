@@ -172,13 +172,7 @@ const SISDataTable = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredData.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} align="center" sx={{ py: 6 }}>
-                      <Typography variant="body1" color="text.secondary">{emptyMessage}</Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
+                {filteredData.length > 0 && (
                   (serverPagination ? filteredData : filteredData
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage))
                     .map((row, rowIndex) => (
@@ -204,19 +198,26 @@ const SISDataTable = ({
               </TableBody>
             </Table>
           </TableContainer>
-
-          <TablePagination
-            component="div"
-            count={serverPagination ? serverPagination.count : filteredData.length}
-            page={serverPagination ? serverPagination.page : page}
-            onPageChange={serverPagination ? (_, value) => serverPagination.onPageChange(value) : handleChangePage}
-            rowsPerPage={serverPagination ? serverPagination.pageSize : rowsPerPage}
-            onRowsPerPageChange={serverPagination
-              ? event => serverPagination.onPageSizeChange(Number(event.target.value)) : handleChangeRowsPerPage}
-            rowsPerPageOptions={[5, 10, 25, 50]}
-            labelRowsPerPage="Lignes par page:"
-            labelDisplayedRows={({ from, to, count }) => `${from}–${to} sur ${count}`}
-          />
+          {filteredData.length === 0 && (
+            <Box className="sis-collection__empty" role="status" sx={{ m: 2 }}>
+              <Typography>{emptyMessage}</Typography>
+            </Box>
+          )}
+          {((serverPagination ? serverPagination.count : filteredData.length) > 0
+            || (serverPagination ? serverPagination.page : page) > 0) && (
+            <TablePagination
+              component="div"
+              count={serverPagination ? serverPagination.count : filteredData.length}
+              page={serverPagination ? serverPagination.page : page}
+              onPageChange={serverPagination ? (_, value) => serverPagination.onPageChange(value) : handleChangePage}
+              rowsPerPage={serverPagination ? serverPagination.pageSize : rowsPerPage}
+              onRowsPerPageChange={serverPagination
+                ? event => serverPagination.onPageSizeChange(Number(event.target.value)) : handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              labelRowsPerPage="Lignes par page:"
+              labelDisplayedRows={({ from, to, count }) => `${from}–${to} sur ${count}`}
+            />
+          )}
         </>
       )}
     </Card>

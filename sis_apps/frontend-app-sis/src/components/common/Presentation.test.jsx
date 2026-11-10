@@ -149,6 +149,22 @@ it('does not render a blank toolbar or heading for an embedded read-only table',
   expect(screen.getByRole('table', { name: 'Données' })).toBeVisible();
 });
 
+it('keeps an empty table message outside horizontally scrolling columns and hides empty pagination', () => {
+  render(<SISDataTable title="Formations" data={[]} columns={[{ Header: 'Nom du cursus', accessor: 'nom' }]} />);
+  expect(screen.getByRole('status')).toHaveTextContent('Aucune donnée disponible');
+  expect(screen.getByRole('region', { name: 'Tableau : Formations' })).not.toHaveTextContent('Aucune donnée disponible');
+  expect(screen.queryByText('Lignes par page:')).not.toBeInTheDocument();
+});
+
+it('restores table pagination after clearing a search with no matching rows', () => {
+  render(<SISDataTable title="Classes" data={[{ id: 1, nom: '6e A' }]} columns={[{ Header: 'Nom', accessor: 'nom' }]} />);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Rechercher' }), { target: { value: 'absent' } });
+  expect(screen.queryByText('Lignes par page:')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Rechercher' }), { target: { value: '' } });
+  expect(screen.getByRole('row', { name: '6e A' })).toBeVisible();
+  expect(screen.getByText('Lignes par page:')).toBeVisible();
+});
+
 it('opens one full-width dossier panel at a time and links keyboard-accessible tabs', () => {
   render(
     <RecordsTabs

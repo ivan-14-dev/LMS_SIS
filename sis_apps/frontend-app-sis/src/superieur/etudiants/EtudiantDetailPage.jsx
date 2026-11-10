@@ -358,15 +358,8 @@ const EtudiantDetailPage = () => {
                   {matieresIndividuelles.map((affectation) => (
                     <Box
                       key={affectation.id}
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        border: 1,
-                        borderColor: 'divider',
-                        borderRadius: 1,
-                        p: 1.5,
-                      }}
+                      className="sis-panel sis-panel-actions"
+                      sx={{ justifyContent: 'space-between' }}
                     >
                       <Box>
                         <Typography fontWeight={600}>{affectation.ecue_nom}</Typography>

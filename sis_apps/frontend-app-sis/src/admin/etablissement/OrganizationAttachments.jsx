@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import SISDataTable from '../../components/common/SISDataTable';
+import CollectionPagination from '../../components/common/CollectionPagination';
 import { fetchApi, postApi } from '../../services/api';
 import { apiErrorMessage, fetchResourcePage } from '../../services/resources';
 
@@ -161,23 +162,19 @@ const OrganizationAttachments = ({
                 </MenuItem>
               ))}
             </TextField>
-            {candidates.isPending ? <Typography role="status">Recherche en cours…</Typography> : (
-              <Typography>{candidates.data?.count || 0} objet(s) · page {candidatePage}</Typography>
+            {candidates.isPending && <Typography role="status">Recherche en cours…</Typography>}
+            {!candidates.isFetching && !candidates.error && candidates.data?.count === 0 && (
+              <Typography>Aucun objet trouvé.</Typography>
             )}
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                disabled={!candidates.data?.previous || candidates.isFetching || saving.isPending}
-                onClick={() => { setCandidatePage(value => value - 1); selectionChanged(); }}
-              >
-                Références précédentes
-              </Button>
-              <Button
-                disabled={!candidates.data?.next || candidates.isFetching || saving.isPending}
-                onClick={() => { setCandidatePage(value => value + 1); selectionChanged(); }}
-              >
-                Références suivantes
-              </Button>
-            </Box>
+            <CollectionPagination
+              data={candidates.error ? null : candidates.data}
+              page={candidatePage}
+              setPage={value => { setCandidatePage(value); selectionChanged(); }}
+              disabled={candidates.isFetching || saving.isPending}
+              label="Objets existants"
+              previousLabel="Références précédentes"
+              nextLabel="Références suivantes"
+            />
             <FormControlLabel
               label="Je confirme ce rattachement figé, sans modifier les droits ni les règles historisées."
               control={(
@@ -218,7 +215,7 @@ const OrganizationAttachments = ({
                 </Box>
               ))}
               {(detail.data.relation_pages || []).some(item => item.next || item.previous) && (
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                   <Button
                     disabled={!detail.data.relation_pages.some(item => item.previous)}
                     onClick={() => setRelationPage(value => value - 1)}

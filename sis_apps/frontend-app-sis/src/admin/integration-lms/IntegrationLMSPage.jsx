@@ -526,7 +526,7 @@ OutboxEventsTab.propTypes = {
 
 const PageNavigation = ({
   count, hasNext, hasPrevious, page, onPageChange,
-}) => (
+}) => (count > 0 || hasNext || hasPrevious || page > 1) && (
   <Box sx={{
     alignItems: 'center', display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2, flexWrap: 'wrap',
   }}
@@ -538,6 +538,7 @@ const PageNavigation = ({
       {' '}
       {page}
     </Typography>
+    {(hasNext || hasPrevious || page > 1) && (
     <Button
       size="small"
       disabled={!hasPrevious}
@@ -545,6 +546,8 @@ const PageNavigation = ({
     >
       Précédent
     </Button>
+    )}
+    {(hasNext || hasPrevious || page > 1) && (
     <Button
       size="small"
       disabled={!hasNext}
@@ -552,6 +555,7 @@ const PageNavigation = ({
     >
       Suivant
     </Button>
+    )}
   </Box>
 );
 

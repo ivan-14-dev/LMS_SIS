@@ -152,6 +152,28 @@ beforeEach(() => {
 });
 afterEach(() => { clients.splice(0).forEach(client => client.clear()); });
 
+it('keeps empty research collections readable without inactive pagination', async () => {
+  getOverride = path => (path === `${base}projets-recherche/` ? page([]) : undefined);
+  renderPage();
+  const collection = within(await screen.findByRole('region', { name: 'Projets' }));
+  expect(await collection.findByText('Aucun résultat accessible.')).toBeVisible();
+  expect(collection.getByRole('search', { name: 'Recherche — Projets' })).toBeVisible();
+  expect(collection.queryByRole('navigation')).not.toBeInTheDocument();
+});
+
+it('searches a research selector with Enter without submitting the enclosing project command', async () => {
+  renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Créer — Projets' }));
+  const root = form('Créer le projet');
+  const search = root.getByRole('textbox', { name: 'Rechercher — Responsable du projet' });
+  fireEvent.change(search, { target: { value: 'Chercheuse' } });
+  expect(fireEvent.keyDown(search, { key: 'Enter', cancelable: true })).toBe(false);
+  await waitFor(() => expect(http.get.mock.calls.some(([url]) => (
+    url.includes('selecteurs/?type=enseignants&page=1&page_size=20&q=Chercheuse')
+  ))).toBe(true));
+  expect(http.post).not.toHaveBeenCalled();
+});
+
 it('gates collections behind real capabilities and prevents staff/role fallback when the module is disabled', async () => {
   globalCaps.modules['sis.research'] = false;
   profile = { ...profile, role: 'administrateur', is_staff: true };

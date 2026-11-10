@@ -418,9 +418,7 @@ const ProjectCommandDialog = ({
                   <Box
                     key={member.membre}
                     component="fieldset"
-                    sx={{
-                      border: 1, borderColor: 'divider', borderRadius: 1, p: 2,
-                    }}
+                    className="sis-fieldset"
                   >
                     <legend>{member.nom}</legend>
                     <Stack spacing={2}>

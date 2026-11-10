@@ -261,7 +261,7 @@ const Journal = ({ project }) => {
         <>
           {!data.results.length && <p>Aucune opération enregistrée.</p>}
           {data.results.map(row => (
-            <article key={row.id} className="border p-3 mb-3">
+            <article key={row.id} className="sis-panel mb-3">
               <h4>{row.reference} — {operationTypes.find(([value]) => value === row.type)?.[1] || row.type}</h4>
               <p>{row.date_operation} — {row.montant} EUR — {row.libelle}</p>
               <p>Identifiant : {row.id}{row.engagement ? ` — engagement lié : ${row.engagement}` : ''}{row.contrepassation_de ? ` — opération originale : ${row.contrepassation_de}` : ''}</p>

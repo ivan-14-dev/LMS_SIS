@@ -6,6 +6,7 @@ import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle,
   Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material';
+import CollectionPagination from '../components/common/CollectionPagination';
 import { fetchApi, postApi } from '../services/api';
 import { apiErrorMessage, fetchResourcePage, resourceUrl } from '../services/resources';
 import StatusBadge from '../components/common/StatusBadge';
@@ -246,11 +247,15 @@ const ComplaintsPage = ({ variant }) => {
                   </TableBody>
                 </Table>
               </TableContainer>
-              <Stack direction="row" spacing={1} useFlexGap sx={{ mt: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                <Button disabled={!list.data.previous} onClick={() => setPage(value => value - 1)}>Précédent</Button>
-                <Typography>Page {page} · {list.data.count} dossiers</Typography>
-                <Button disabled={!list.data.next} onClick={() => setPage(value => value + 1)}>Suivant</Button>
-              </Stack>
+              <CollectionPagination
+                data={list.data}
+                page={page}
+                setPage={setPage}
+                disabled={list.isFetching}
+                label="Réclamations"
+                previousLabel="Précédent"
+                nextLabel="Suivant"
+              />
             </>
             )}
           </>

@@ -8,6 +8,7 @@ import {
   academicResultPath, academicSearchUrl, usePrivateResource, validSearchTerm,
 } from '../../services/academicSearch';
 import { apiErrorMessage } from '../../services/resources';
+import CollectionPagination from '../common/CollectionPagination';
 
 const AcademicSearch = ({ variant, resources, onNavigate }) => {
   const [resource, setResource] = useState(resources[0]?.value || '');
@@ -62,7 +63,6 @@ const AcademicSearch = ({ variant, resources, onNavigate }) => {
       {invalidResponse && <Alert severity="error">Réponse de recherche invalide reçue du serveur.</Alert>}
       {!invalidResponse && results && (
         <>
-          <Typography role="status">{request.data.count} résultat(s) — page {page}</Typography>
           {!results.length && <Typography>Aucun dossier autorisé ne correspond.</Typography>}
           <List aria-label="Résultats de la recherche">
             {results.map(result => {
@@ -74,12 +74,15 @@ const AcademicSearch = ({ variant, resources, onNavigate }) => {
               );
             })}
           </List>
-          <Stack direction="row" spacing={2}>
-            <Button disabled={page === 1} onClick={() => setPage(value => value - 1)}>Résultats précédents</Button>
-            <Button disabled={!request.data.next} onClick={() => setPage(value => value + 1)}>
-              Résultats suivants
-            </Button>
-          </Stack>
+          <CollectionPagination
+            data={request.data}
+            page={page}
+            setPage={setPage}
+            disabled={request.loading}
+            label="Recherche de dossiers"
+            previousLabel="Résultats précédents"
+            nextLabel="Résultats suivants"
+          />
         </>
       )}
     </Box>

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
-  Alert, Autocomplete, Button, Stack, TextField,
+  Alert, Autocomplete, Stack, TextField,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi } from '../services/api';
 import { apiErrorMessage } from '../services/resources';
+import CollectionPagination from '../components/common/CollectionPagination';
 import {
   courseLabel, courseType, isDenied, queryOptions,
 } from './projectUi';
@@ -61,14 +62,15 @@ const ProjectCourseCandidates = ({
           />
         )}
       />
-      <Stack direction="row" spacing={1}>
-        <Button disabled={!ready || !candidates.data?.previous} onClick={() => setPage(current => current - 1)}>
-          Cours précédents
-        </Button>
-        <Button disabled={!ready || !candidates.data?.next} onClick={() => setPage(current => current + 1)}>
-          Cours suivants
-        </Button>
-      </Stack>
+      <CollectionPagination
+        data={valid && !candidates.error ? candidates.data : null}
+        page={page}
+        setPage={setPage}
+        disabled={!ready}
+        label="Cours"
+        previousLabel="Cours précédents"
+        nextLabel="Cours suivants"
+      />
       {candidates.error && <Alert severity="error">Recherche de cours indisponible. {apiErrorMessage(candidates.error)}</Alert>}
     </Stack>
   );

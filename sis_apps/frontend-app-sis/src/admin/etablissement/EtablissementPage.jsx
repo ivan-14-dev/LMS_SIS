@@ -481,7 +481,7 @@ const EtablissementPage = () => {
               <Col xl={6} className="mb-3">
                 <Card>
                   <Card.Header
-                    className="d-flex justify-content-between align-items-center"
+                    className="sis-panel-actions justify-content-between"
                     title={<h2 className="sis-card-title">Dimensions dynamiques</h2>}
                     actions={(
                       <Button
@@ -576,7 +576,7 @@ const EtablissementPage = () => {
               <Col xl={6} className="mb-3">
                 <Card>
                   <Card.Header
-                    className="d-flex justify-content-between align-items-center"
+                    className="sis-panel-actions justify-content-between"
                     title={<h2 className="sis-card-title">Groupes de permissions</h2>}
                     actions={(
                       <Button
@@ -655,7 +655,7 @@ const EtablissementPage = () => {
                       return (
                         <Card key={windowType.code} className="mb-3">
                           <Card.Body>
-                            <div className="d-flex justify-content-between align-items-center mb-3">
+                            <div className="sis-panel-actions justify-content-between mb-3">
                               <strong>{windowType.label}</strong>
                               <Form.Check
                                 type="switch"
@@ -867,7 +867,7 @@ const EtablissementPage = () => {
               <Col xl={6} className="mb-3">
                 <Card>
                   <Card.Header
-                    className="d-flex justify-content-between align-items-center"
+                    className="sis-panel-actions justify-content-between"
                     title={<h2 className="sis-card-title">Politiques de validation</h2>}
                     actions={(
                       <Button
@@ -964,7 +964,7 @@ const EtablissementPage = () => {
               <Col xl={6} className="mb-3">
                 <Card>
                   <Card.Header
-                    className="d-flex justify-content-between align-items-center"
+                    className="sis-panel-actions justify-content-between"
                     title={<h2 className="sis-card-title">Workflows financiers</h2>}
                     actions={(
                       <Button
@@ -1072,7 +1072,7 @@ const EtablissementPage = () => {
               <Col xl={6} className="mb-3">
                 <Card>
                   <Card.Header
-                    className="d-flex justify-content-between align-items-center"
+                    className="sis-panel-actions justify-content-between"
                     title={<h2 className="sis-card-title">Rapports dynamiques</h2>}
                     actions={(
                       <Button
@@ -1190,7 +1190,7 @@ const EtablissementPage = () => {
 
                 <Card className="mt-3">
                   <Card.Header
-                    className="d-flex justify-content-between align-items-center"
+                    className="sis-panel-actions justify-content-between"
                     title={<h2 className="sis-card-title">Modèles d’import Excel</h2>}
                     actions={(
                       <Button
@@ -1278,7 +1278,7 @@ const EtablissementPage = () => {
 
                 <Card className="mt-3">
                   <Card.Header
-                    className="d-flex justify-content-between align-items-center"
+                    className="sis-panel-actions justify-content-between"
                     title={<h2 className="sis-card-title">Workflow résultats d’examen</h2>}
                     actions={(
                       <Button

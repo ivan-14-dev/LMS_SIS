@@ -51,7 +51,7 @@ const openAttachment = async () => {
   mount(<OrganizationAttachments base={base} unit="2" targets={targets} onUnitChange={jest.fn()} />);
   await screen.findByText('Objet conservé');
   fireEvent.click(screen.getByRole('button', { name: 'Rattacher un objet existant' }));
-  await screen.findByText('1 objet(s) · page 1');
+  await screen.findByText('1 résultat(s)');
   select('Objet existant à rattacher', 'Personne existante');
 };
 beforeEach(() => {
@@ -144,11 +144,11 @@ it('paginates references on the server, clears reviewed selections and reports l
   mount(<OrganizationAttachments base={base} unit="2" targets={targets} onUnitChange={jest.fn()} />);
   await screen.findByText('Objet conservé');
   fireEvent.click(screen.getByRole('button', { name: 'Rattacher un objet existant' }));
-  await screen.findByText('26 objet(s) · page 1');
+  await screen.findByText('Page 1 — 26 résultat(s)');
   select('Objet existant à rattacher', candidate.label);
   fireEvent.click(screen.getByRole('checkbox', { name: /Je confirme/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Références suivantes' }));
-  await screen.findByText('26 objet(s) · page 2');
+  await screen.findByText('Page 2 — 26 résultat(s)');
   expect(fetchResourcePage).toHaveBeenCalledWith(`${base}unites/references/`, {
     kind: 'user', page: 2, page_size: 25, search: '',
   }, expect.anything());

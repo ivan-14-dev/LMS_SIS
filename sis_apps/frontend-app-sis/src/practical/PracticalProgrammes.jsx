@@ -28,7 +28,7 @@ const Requirements = ({ values, change }) => (
       Toutes les compétences publiées devront être acquises.
     </p>
     {values.competences.map((item, index) => (
-      <fieldset key={item.key} className="border p-3 mb-2">
+      <fieldset key={item.key} className="sis-panel sis-fieldset mb-2">
         <legend className="h5">Compétence {index + 1}</legend>
         <Field
           label={`Code de compétence ${index + 1}`}
