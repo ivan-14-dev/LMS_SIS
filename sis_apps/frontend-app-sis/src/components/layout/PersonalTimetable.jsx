@@ -21,7 +21,7 @@ const columns = [
 
 const PersonalTimetable = () => {
   const { variant, capabilities, searchContext } = useOutletContext();
-  const allowed = canEnterPortal(capabilities, 'learner');
+  const allowed = canEnterPortal(capabilities, 'learner') && !capabilities?.disabled_features?.includes('timetable');
   const timetable = useQuery({
     queryKey: ['personal-timetable', variant, searchContext],
     queryFn: () => fetchApi(resourceUrl(variant, 'portail/apprenant/emploi_du_temps')),

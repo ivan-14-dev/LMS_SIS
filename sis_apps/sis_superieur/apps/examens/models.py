@@ -8,6 +8,7 @@ from apps.utilisateurs.models import Utilisateur
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from sis_common.access_policy import assigned_role_filter
 from sis_common.event_occupancy import EventOccupancyGuard
 from sis_common.exam_files import (
     PrivateExamStorage,
@@ -62,7 +63,7 @@ class EpreuveExamen(EventOccupancyGuard, models.Model):
         Utilisateur,
         blank=True,
         related_name="surveillances",
-        limit_choices_to={"role__in": ["enseignant", "personnel_administratif"]},
+        limit_choices_to=assigned_role_filter("enseignant", "personnel_administratif"),
     )
     anonymat = models.BooleanField(default=True)
     nombre_corrections = models.PositiveSmallIntegerField(

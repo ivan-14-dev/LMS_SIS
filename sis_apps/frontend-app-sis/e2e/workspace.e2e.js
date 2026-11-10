@@ -181,6 +181,7 @@ for (const variant of variants) {
     await expect(palette.getByRole('button', { name: `Retirer ${target} des favoris`, exact: true })).toHaveAttribute('aria-pressed', 'true');
     await page.keyboard.press('Escape');
     await page.getByRole('tab', { name: 'Organisation et règles', exact: true }).click();
+    await page.getByRole('button', { name: 'Règles héritées', exact: true }).click();
     await expect(page.getByText('Configuration actuellement effective.')).toBeVisible();
     await expect(page.locator('.MuiAlert-standard.MuiAlert-colorInfo').first())
       .toHaveCSS('background-color', 'rgb(25, 56, 76)');

@@ -62,6 +62,41 @@ PROFILES = {
     },
 }
 
+TYPE_PROFILES = {
+    "primaire": ("primary",),
+    "college": ("secondary",),
+    "lycee": ("secondary",),
+    "lycee_technique": ("secondary",),
+    "lycee_professionnel": ("secondary",),
+    "universite_publique": ("higher_education",),
+    "universite_privee": ("higher_education",),
+    "grande_ecole": ("higher_education",),
+    "institut": ("higher_education",),
+    "ecole_doctorale": ("higher_education",),
+    "formation_professionnelle": ("vocational",),
+    "mixte": ("secondary", "higher_education"),
+}
+
+
+def prepare_institution_offerings(configuration, institution_type):
+    """Add missing templates without rewriting any existing offer or attachment."""
+    result = deepcopy(configuration)
+    offerings = result.setdefault("learning_offerings", [])
+    validate_learning_offerings(offerings)
+    existing_profiles = {offer["profile"] for offer in offerings}
+    existing_codes = {offer["code"] for offer in offerings}
+    for profile in TYPE_PROFILES.get(institution_type, ()):
+        if profile in existing_profiles:
+            continue
+        code = profile
+        suffix = 1
+        while code in existing_codes:
+            suffix += 1
+            code = f"{profile}-{suffix}"
+        offerings.append({"code": code, "profile": profile, "version": 1, **deepcopy(PROFILES[profile])})
+        existing_codes.add(code)
+    return result
+
 
 def institutional_profile_schema():
     return {

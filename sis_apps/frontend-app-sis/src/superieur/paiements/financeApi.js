@@ -2,12 +2,21 @@ import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
 import { getSuperieurApiUrl, getSecondaireApiUrl, normalizePageResponse } from '../../services/api';
 import { localHttpClient, usesLocalSession } from '../../services/localSession';
 import { isMockMode } from '../../services/mockApi';
+import { getActiveRole, roleOptions } from '../../services/roleContext';
 
 export const financeRequest = async (path, method = 'get', data = undefined, variant = 'superieur') => {
   if (isMockMode()) { throw new Error('Finance indisponible en mode simulé : utilisez une API réelle.'); }
   const base = variant === 'secondaire' ? getSecondaireApiUrl() : getSuperieurApiUrl();
   const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
-  const response = await client[method](`${base}/paiements/${path}`, data);
+  const url = `${base}/paiements/${path}`;
+  let response;
+  if (!getActiveRole(url)) {
+    response = await client[method](url, data);
+  } else if (['get', 'delete'].includes(method)) {
+    response = await client[method](url, roleOptions(url, data));
+  } else {
+    response = await client[method](url, data, roleOptions(url));
+  }
   return response.data;
 };
 

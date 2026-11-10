@@ -4,14 +4,15 @@ import { getConfig } from '@edx/frontend-platform';
 import {
   Link, NavLink, Navigate, Outlet, useLocation, useNavigate,
 } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert, Avatar, Button, Drawer, IconButton, Menu as AccountMenu, MenuItem, Tooltip, useMediaQuery,
 } from '@mui/material';
 import {
   Close, Menu, NotificationsNone, ExpandMore,
 } from '@mui/icons-material';
-import { fetchApi } from '../../services/api';
+import { fetchApi, getSecondaireApiUrl, getSuperieurApiUrl } from '../../services/api';
+import { getActiveRole, setActiveRole } from '../../services/roleContext';
 import { apiErrorMessage, getEnabledVariants, resourceUrl } from '../../services/resources';
 import { useCapabilities } from '../auth/PermissionGuard';
 import Sidebar, { WorkspaceBrand } from './Sidebar';
@@ -32,11 +33,16 @@ const Workspace = ({ type, variant }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [accountAnchor, setAccountAnchor] = useState(null);
+  const [switchingRole, setSwitchingRole] = useState(false);
+  const queryClient = useQueryClient();
+  const baseUrl = variant === 'secondaire' ? getSecondaireApiUrl() : getSuperieurApiUrl();
+  const activeRole = getActiveRole(baseUrl);
   const sso = getConfig().SIS_AUTH_MODE === 'lms';
   const capabilities = useCapabilities(variant);
   const profileUrl = resourceUrl(variant, 'utilisateurs/comptes');
   const profile = useQuery({
-    queryKey: ['profile', profileUrl], queryFn: () => fetchApi(`${profileUrl}me/`),
+    queryKey: activeRole ? ['profile', profileUrl, activeRole] : ['profile', profileUrl],
+    queryFn: () => fetchApi(`${profileUrl}me/`),
   });
   const allowedCapabilities = capabilities.isError ? undefined : capabilities.data;
   const searchContext = !capabilities.isFetching && !capabilities.isError
@@ -73,6 +79,14 @@ const Workspace = ({ type, variant }) => {
     }
   };
   const closeMenu = () => setMenuOpen(false);
+  const changeRole = async (role) => {
+    setSwitchingRole(true);
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    setActiveRole(baseUrl, role === capabilities.data?.primary_role ? null : role);
+    navigate(`/${variant}`, { replace: true });
+    setSwitchingRole(false);
+  };
   const desktopMenuLabel = collapsed ? 'Déployer le menu' : 'Réduire le menu';
   const account = (
     <>
@@ -125,6 +139,21 @@ const Workspace = ({ type, variant }) => {
             <WorkspaceBrand branding={profile.data?.branding} />
           </Link>
           <div className="sis-topbar__tools">
+            {capabilities.data?.roles?.length > 1 && (
+              <label className="sis-context-select" htmlFor="sis-active-role">
+                <span>Mon rôle actif</span>
+                <select
+                  id="sis-active-role"
+                  value={capabilities.data.role}
+                  disabled={switchingRole}
+                  onChange={event => changeRole(event.target.value)}
+                >
+                  {capabilities.data.roles.map(role => (
+                    <option key={role.code} value={role.code}>{role.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <WorkspaceTools
               sections={allSections}
               preferences={preferences}
@@ -204,11 +233,13 @@ const Workspace = ({ type, variant }) => {
                 action={<Button onClick={() => { capabilities.refetch(); profile.refetch(); }}>Réessayer</Button>}
               >
                 Impossible de charger votre espace. {apiErrorMessage(capabilities.error || profile.error)}
+                {activeRole && <Button onClick={() => changeRole(null)}>Revenir au rôle principal</Button>}
               </Alert>
               )}
               {preferences.error && <Alert severity="warning" sx={{ mb: 2 }}>{preferences.error}</Alert>}
+              {!switchingRole && (
               <Outlet
-                key={variant}
+                key={`${variant}:${activeRole || 'primary'}`}
                 context={{
                   variant,
                   sections: allSections,
@@ -221,6 +252,7 @@ const Workspace = ({ type, variant }) => {
                   error: capabilities.error,
                 }}
               />
+              )}
             </main>
             <footer className="sis-footer">
               <strong>LMS SIS</strong>

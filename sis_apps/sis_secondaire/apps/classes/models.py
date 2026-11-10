@@ -7,6 +7,7 @@ from apps.utilisateurs.models import Utilisateur
 from django.contrib.postgres.functions import RandomUUID
 from django.db import models
 
+from sis_common.access_policy import assigned_role_filter
 from sis_common.event_occupancy import EventOccupancyGuard
 
 
@@ -42,7 +43,7 @@ class Classe(EventOccupancyGuard, models.Model):
         null=True,
         blank=True,
         related_name="classes_principales",
-        limit_choices_to={"role": "enseignant"},
+        limit_choices_to=assigned_role_filter("enseignant"),
     )
     color = models.CharField(max_length=7, default="#3B82F6", help_text="Code couleur")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -148,13 +149,13 @@ class ProgrammeMatiere(models.Model):
         null=True,
         blank=True,
         related_name="programmes_principaux",
-        limit_choices_to={"role": "enseignant"},
+        limit_choices_to=assigned_role_filter("enseignant"),
     )
     enseignants = models.ManyToManyField(
         Utilisateur,
         blank=True,
         related_name="programmes_enseignes",
-        limit_choices_to={"role": "enseignant"},
+        limit_choices_to=assigned_role_filter("enseignant"),
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

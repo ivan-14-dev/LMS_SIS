@@ -121,6 +121,26 @@ class InstitutionalProfilesAPITests(TenantAPITestCase):
         self.tenant.configuration_academique.pop("learning_offerings")
         self.tenant.save(update_fields=["configuration_academique"])
 
+    def test_institution_type_combines_offers_without_replacing_existing_rules(self):
+        response = self.client.get(CURRENT)
+        assert {"college", "universite_publique", "mixte"} <= {
+            option["value"] for option in response.data["type_options"]
+        }
+        custom = offering("secondary")
+        custom["assessment"]["maximum"] = 100
+        response = self.client.patch(
+            CURRENT,
+            {"type": "mixte", "configuration_academique": {"learning_offerings": [custom]}},
+            format="json",
+        )
+        assert response.status_code == 200, response.data
+        offers = response.data["configuration_academique"]["learning_offerings"]
+        assert {offer["profile"] for offer in offers} == {"secondary", "higher_education"}
+        assert offers[0] == custom
+        response = self.client.patch(CURRENT, {"type": "college"}, format="json")
+        assert response.status_code == 200
+        assert response.data["configuration_academique"]["learning_offerings"] == offers
+
     def test_roundtrip_mixed_offerings_is_tenant_bound_and_preserves_existing_settings(self):
         foreign = type(self.tenant)(schema_name="profiles_foreign")
         self.setup_tenant(foreign)

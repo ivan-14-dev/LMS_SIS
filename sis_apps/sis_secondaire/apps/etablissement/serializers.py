@@ -15,6 +15,7 @@ from sis_common.establishments import (
     default_establishment_features,
     default_live_configuration,
 )
+from sis_common.institutional_profiles import prepare_institution_offerings
 from sis_common.serializers import TenantBoundSerializerMixin
 
 from .models import AnneeScolaire, Etablissement, Niveau, Periode
@@ -117,6 +118,11 @@ class EtablissementSerializer(serializers.ModelSerializer):
         custom_type = attrs.get("type_personnalise", getattr(self.instance, "type_personnalise", ""))
         if institution_type == "autre" and not custom_type.strip():
             raise serializers.ValidationError({"type_personnalise": "Précisez le type de cet établissement."})
+        if "type" in attrs and institution_type != getattr(self.instance, "type", None):
+            configuration = attrs.get(
+                "configuration_academique", getattr(self.instance, "configuration_academique", {})
+            )
+            attrs["configuration_academique"] = prepare_institution_offerings(configuration, institution_type)
         return attrs
 
     def validate_fonctionnalites(self, value):

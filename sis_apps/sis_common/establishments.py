@@ -4,6 +4,22 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 
+INSTITUTION_TYPE_CHOICES = (
+    ("primaire", "École primaire"),
+    ("college", "Collège"),
+    ("lycee", "Lycée"),
+    ("lycee_technique", "Lycée technique"),
+    ("lycee_professionnel", "Lycée professionnel"),
+    ("universite_publique", "Université publique"),
+    ("universite_privee", "Université privée"),
+    ("grande_ecole", "Grande école"),
+    ("institut", "Institut supérieur"),
+    ("ecole_doctorale", "École doctorale"),
+    ("formation_professionnelle", "Centre de formation professionnelle"),
+    ("mixte", "Établissement mixte : secondaire et supérieur"),
+    ("autre", "Autre établissement"),
+)
+
 FEATURE_LABELS = {
     "cours_en_ligne": "Cours en ligne",
     "partage_cours": "Partage et réutilisation de cours",
@@ -42,58 +58,36 @@ def validate_establishment_features(value):
 
     unknown = set(value) - set(FEATURE_LABELS)
     if unknown:
-        raise ValidationError(
-            f"Fonctionnalités inconnues : {', '.join(sorted(unknown))}."
-        )
+        raise ValidationError(f"Fonctionnalités inconnues : {', '.join(sorted(unknown))}.")
 
     invalid = [key for key, enabled in value.items() if not isinstance(enabled, bool)]
     if invalid:
-        raise ValidationError(
-            f"Ces fonctionnalités doivent être booléennes : {', '.join(sorted(invalid))}."
-        )
+        raise ValidationError(f"Ces fonctionnalités doivent être booléennes : {', '.join(sorted(invalid))}.")
 
 
 def validate_live_configuration(value):
     if not isinstance(value, dict):
-        raise ValidationError(
-            "La configuration de classe virtuelle doit être un objet."
-        )
+        raise ValidationError("La configuration de classe virtuelle doit être un objet.")
 
     unknown = set(value) - {"provider", "public_url"}
     if unknown:
-        raise ValidationError(
-            f"Champs de visioconférence inconnus : {', '.join(sorted(unknown))}."
-        )
+        raise ValidationError(f"Champs de visioconférence inconnus : {', '.join(sorted(unknown))}.")
 
     provider = value.get("provider", "none")
     if provider not in LIVE_PROVIDER_LABELS:
-        raise ValidationError(
-            {"provider": "Ce fournisseur de classe virtuelle n'est pas pris en charge."}
-        )
+        raise ValidationError({"provider": "Ce fournisseur de classe virtuelle n'est pas pris en charge."})
 
     public_url = value.get("public_url", "")
     if not isinstance(public_url, str):
-        raise ValidationError(
-            {"public_url": "L'URL publique doit être une chaîne de caractères."}
-        )
+        raise ValidationError({"public_url": "L'URL publique doit être une chaîne de caractères."})
     if not public_url:
         return
 
     URLValidator(schemes=["https"])(public_url)
     parsed_url = urlsplit(public_url)
-    if (
-        parsed_url.username
-        or parsed_url.password
-        or parsed_url.query
-        or parsed_url.fragment
-    ):
+    if parsed_url.username or parsed_url.password or parsed_url.query or parsed_url.fragment:
         raise ValidationError(
-            {
-                "public_url": (
-                    "L'URL publique ne doit contenir ni identifiant, "
-                    "ni paramètres, ni fragment."
-                )
-            }
+            {"public_url": ("L'URL publique ne doit contenir ni identifiant, " "ni paramètres, ni fragment.")}
         )
 
 

@@ -13,6 +13,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from sis_common.access_policy import feature_is_denied
 from sis_common.authorization import permission_snapshot, request_has_business_access
 from sis_common.learner_timetable import personal_timetable
 from sis_common.lms_tenants import current_lms_tenant
@@ -134,6 +135,8 @@ class IsApprenantFamille(IsAuthenticated):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
+        if feature_is_denied(request.user, "learner_portal"):
+            return False
         tenant = _portal_tenant(request)
         return (
             tenant is not None
@@ -148,6 +151,8 @@ class IsStaffAdmin(IsAuthenticated):
 
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
+            return False
+        if feature_is_denied(request.user, "staff_portal"):
             return False
         if _portal_tenant(request) is None:
             return False

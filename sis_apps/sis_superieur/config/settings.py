@@ -276,8 +276,8 @@ if get_bool_environment("TRUST_PROXY"):
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "sis_common.authentication.EdxJWTAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.TokenAuthentication",
+        "sis_common.authentication.RoleSessionAuthentication",
+        "sis_common.authentication.RoleTokenAuthentication",
         "sis_common.local_authentication.TenantJWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
@@ -323,7 +323,7 @@ SPECTACULAR_SETTINGS = {
 # CORS
 CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = (*default_headers, "use-jwt-cookie")
+CORS_ALLOW_HEADERS = (*default_headers, "use-jwt-cookie", "x-sis-role")
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # Audit

@@ -60,6 +60,56 @@ interfaces Open edX, conserver les mentions et attributions applicables :
 la [politique de marque](https://openedx.org/trademark-licensing-details/)
 recommande le badge « Powered by Open edX » en pied de page avec son lien.
 
+## Type d'établissement et accès individuels
+
+Dans **Administration → Établissement → Identité**, le catalogue commun permet
+de choisir collège/lycée, université/grande école, formation professionnelle
+ou établissement mixte. Un changement de type ajoute les modèles d'offres
+manquants ; le type mixte prépare secondaire et supérieur. Les offres déjà
+personnalisées, leurs rattachements, les inscriptions et les résultats restent
+inchangés. Dans **Profils et offres**, adapter ces modèles puis les rattacher
+aux classes/formations ; dans **Organisation et règles**, ouvrir
+**Règles héritées** pour publier un défaut. Les modules déjà installés se
+gèrent dans **Modules**.
+
+Ce réglage ne transforme pas une classe en formation universitaire et
+n'installe pas les modules spécifiques de l'autre moteur. Le mode `dual`
+conserve deux bases, des comptes locaux séparés et deux contextes métier :
+le regroupement de tous les modules dans un moteur unique nécessite encore
+une migration dédiée. Le libellé « mixte » n'est pas une fusion de données.
+
+Dans **Administration → Utilisateurs → Rôles et accès individuels**, choisir
+un compte pour ajouter des permissions directes, refuser explicitement des
+permissions héritées ou retirer un service personnel. Les refus priment sur
+les octrois directs, groupes et rôles, y compris côté API. Retirer la lecture
+des dossiers/résultats bloque aussi leur portail agrégé pour éviter un accès
+par un autre écran. Retirer un service ne supprime pas ses dossiers.
+
+Un super-utilisateur peut attribuer plusieurs rôles métier. Le titulaire
+choisit **Mon rôle actif** dans l'en-tête ; seul un rôle effectivement attribué
+est accepté par le serveur. Le changement vide le cache de l'espace précédent
+et ne modifie pas le rôle principal. Les permissions explicites restent
+attachées au compte. Le rôle ne crée ni dossier apprenant, ni profil enseignant,
+ni relation parent-enfant. Les affectations et périmètres demeurent requis.
+Un enseignant également apprenant ne peut pas gérer une évaluation à laquelle
+il est inscrit, ni saisir, modifier ou supprimer sa propre note.
+
+La gestion de ce formulaire exige les permissions globales
+`utilisateurs.view_utilisateur`, `utilisateurs.change_utilisateur` et
+`auth.change_group` ; l'interface exige aussi `auth.view_group` pour le
+catalogue. Un gestionnaire ne peut déléguer une permission qu'il ne possède
+pas sans restriction. L'attribution de rôles et le rétablissement des services
+hérités requièrent un super-utilisateur. Les propres droits du gestionnaire
+et les comptes super-utilisateurs sont protégés. Les modifications sont
+journalisées et une édition concurrente est refusée par un conflit HTTP 409.
+
+Les retraits LMS/Studio mettent en file les révocations des accès attribués
+par le SIS ; la confirmation distante dépend des workers et du fournisseur.
+Les raccourcis SIS sont retirés immédiatement. Les droits attribués directement
+dans Open edX restent à gérer dans Open edX. Réactiver le service ne réaccorde
+pas automatiquement les affectations retirées. Un parent sans rôle enseignant
+actif et affectation confirmée ne reçoit aucun accès Studio.
+
 ## Préparer le serveur
 
 - Linux avec Docker Engine, le plugin Docker Compose **≥ 2.20** et Python **≥ 3.11**.

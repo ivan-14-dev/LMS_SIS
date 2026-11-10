@@ -2,7 +2,7 @@
 
 from django.db import connection, transaction
 from django.db.models.deletion import ProtectedError
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from sis_common.event_occupancy import EventOccupancyGuard, occupancy_lock
 
@@ -51,6 +51,19 @@ def ensure_academic_open(instance=None, data=None, paths=()):
 class AcademicLifecycleMixin:
     academic_period_paths = ()
 
+    def check_grading_conflict(self, instance=None, data=None):
+        if self.request.method in ("GET", "HEAD", "OPTIONS") or self.request.user.is_superuser:
+            return
+        model = type(instance) if instance is not None else self.get_queryset().model
+        if model._meta.label_lower == "notes.evaluation" and instance is not None:
+            if self.eligible_lms_learners(instance).filter(user_id=self.request.user.pk).exists():
+                raise PermissionDenied("Vous ne pouvez pas gérer une évaluation à laquelle vous êtes inscrit.")
+        if model._meta.label_lower == "notes.note":
+            for name in ("eleve", "etudiant"):
+                learner = (data or {}).get(name, getattr(instance, name, None))
+                if learner is not None and learner.user_id == self.request.user.pk:
+                    raise PermissionDenied("Vous ne pouvez pas saisir, modifier ou supprimer votre propre note.")
+
     def lock_event_occupancy(self):
         # These APIs are tenant-bound, including shared academic parents.
         # Lock before the object/parent rows, not only inside model.save().
@@ -64,6 +77,7 @@ class AcademicLifecycleMixin:
         instance = super().get_object()
         if writing:
             instance = type(instance).objects.select_for_update().get(pk=instance.pk)
+        self.check_grading_conflict(instance)
         return instance
 
     @transaction.atomic
@@ -88,6 +102,7 @@ class AcademicLifecycleMixin:
             ) from error
 
     def save_academic(self, serializer, **kwargs):
+        self.check_grading_conflict(serializer.instance, serializer.validated_data)
         if connection.in_atomic_block:
             self.lock_event_occupancy()
         if "" in self.academic_period_paths:

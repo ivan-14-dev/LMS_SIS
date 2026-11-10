@@ -7,8 +7,9 @@ from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.test import override_settings
 from django.utils import timezone
+from rest_framework.authtoken.models import Token
 
-from sis_common.lms_access_sync import learner_model
+from sis_common.lms_access_sync import learner_model, queue_revoked_access
 
 
 class PersonalLearningTests(EnrollmentFixtureMixin, TenantAPITestCase):
@@ -80,6 +81,37 @@ class PersonalLearningTests(EnrollmentFixtureMixin, TenantAPITestCase):
         intent.is_active = False
         intent.save(update_fields=["is_active"])
         self.assertFalse(self.access()["can_open_studio"])
+
+    def test_additional_teacher_role_keeps_confirmed_rights_and_switches_portals(self):
+        original_role = self.user.role
+        self.teacher()
+        self.user.role = original_role
+        self.user.attributs_acces = {"access_policy": {"additional_roles": ["enseignant"]}}
+        self.user.save()
+        intent = self.intent("teaching")
+        self.intent()
+        queue_revoked_access()
+        intent.refresh_from_db()
+        self.assertTrue(intent.is_active)
+        self.client.force_authenticate(None)
+        token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        response = self.client.get("/api/v1/integration/my-learning/", HTTP_X_SIS_ROLE="enseignant")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertTrue(response.data["can_open_studio"])
+        self.assertFalse(self.access()["can_open_studio"])
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, original_role)
+
+    def test_studio_denial_withdraws_only_sis_owned_teaching_rights(self):
+        self.teacher()
+        intent = self.intent("teaching")
+        self.user.attributs_acces = {"access_policy": {"disabled_features": ["studio"]}}
+        self.user.save()
+        self.assertFalse(self.access()["can_open_studio"])
+        queue_revoked_access()
+        intent.refresh_from_db()
+        self.assertFalse(intent.is_active)
 
     def test_parents_and_sis_administrators_cannot_use_learning_endpoint(self):
         self.teacher()

@@ -8,6 +8,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from sis_common.academic_configuration import evaluate_rule_criteria
+from sis_common.access_policy import assigned_role_filter
 from sis_common.learning_offerings import OfferingGradeModel, OfferingSnapshotModel
 
 
@@ -48,7 +49,7 @@ class Evaluation(OfferingSnapshotModel):
         Utilisateur,
         on_delete=models.PROTECT,
         related_name="evaluations_creees",
-        limit_choices_to={"role__in": ["enseignant", "chercheur"]},
+        limit_choices_to=assigned_role_filter("enseignant", "chercheur"),
     )
     anonyme = models.BooleanField(default=False, help_text="Notation anonyme")
     created_at = models.DateTimeField(auto_now_add=True)

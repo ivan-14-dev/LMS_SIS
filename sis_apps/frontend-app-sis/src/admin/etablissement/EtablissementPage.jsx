@@ -299,6 +299,12 @@ const EtablissementPage = () => {
                           <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
                       </Form.Control>
+                      <Form.Text>
+                        Le changement de type prépare les offres pédagogiques manquantes.
+                        Le type mixte combine les profils secondaire et supérieur.
+                        Les dossiers, offres existantes et résultats sont conservés.
+                        Les modules installés restent configurables dans l’onglet Modules.
+                      </Form.Text>
                     </Form.Group>
                   </Col>
                 </Row>

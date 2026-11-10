@@ -73,6 +73,38 @@ class LMSGradeFixture(GradeEntryFixture):
 
 
 class LMSGradeProtectionTests(LMSGradeFixture):
+    def test_teacher_learner_cannot_approve_own_grade_or_write_own_evaluation(self):
+        learner = self.learners[0]
+        learner.user = self.teacher
+        learner.save(update_fields=["user"])
+        self.mapping.user_sis = self.teacher
+        self.mapping.save(update_fields=["user_sis"])
+        self.teacher.attributs_acces = {
+            "access_policy": {"additional_roles": ["eleve" if self.secondary else "etudiant"]}
+        }
+        self.teacher.save(update_fields=["attributs_acces"])
+        proposal = self.deliver()
+        self.client.force_authenticate(self.teacher)
+        assert self.review(proposal).status_code == 403
+        assert self.save_grades([self.row(learner, "18")]).status_code == 403
+        assert self.client.patch(self.url, {"titre": "Own assessment"}, format="json").status_code == 403
+        assert not self.evaluation.notes.exists()
+        learner_field = "eleve" if self.secondary else "etudiant"
+        assert (
+            self.client.post(
+                "/api/v1/notes/notes/",
+                {"evaluation": self.evaluation.pk, learner_field: learner.pk, "valeur": "18", "statut": "presente"},
+                format="json",
+            ).status_code
+            == 403
+        )
+        self.client.force_authenticate(self.admin)
+        assert self.save_grades([self.row(learner, "12")]).status_code == 200
+        note_url = f"/api/v1/notes/notes/{self.evaluation.notes.get().pk}/"
+        self.client.force_authenticate(self.teacher)
+        assert self.client.patch(note_url, {"valeur": "20"}, format="json").status_code == 403
+        assert self.client.delete(note_url).status_code == 403
+
     def test_enveloped_grade_is_only_staged_once_as_a_proposal(self):
         event_id = uuid.uuid4().hex
         payload = {

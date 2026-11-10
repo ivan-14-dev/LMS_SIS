@@ -20,6 +20,7 @@ import {
 import SchoolLearnerPortal from '../../secondaire/portails/PortailApprenantFamille';
 import UniversityLearnerPortal from '../../superieur/portails/PortailApprenantFamille';
 import SearchRecordDetail from '../common/SearchRecordDetail';
+import { clearRoleContexts, getActiveRole } from '../../services/roleContext';
 
 jest.mock('@edx/frontend-platform', () => ({ getConfig: jest.fn() }));
 // Load the real icons on demand rather than the entire icon catalogue in this suite.
@@ -224,6 +225,7 @@ const renderWorkspace = (path = '/secondaire', client = workspaceClient()) => re
 
 beforeEach(() => {
   jest.clearAllMocks();
+  clearRoleContexts();
   window.localStorage.clear();
   roles = { secondaire: { role: 'super_admin', permissions: ['*'] }, superieur: { role: 'super_admin', permissions: ['*'] } };
   failure = '';
@@ -261,6 +263,63 @@ beforeEach(() => {
     if (url.includes('page_size=1')) { return { count: 0, results: [] }; }
     throw new Error(`Requête inattendue : ${url}`);
   });
+});
+
+it('switches an explicitly assigned role and clears data cached in the previous workspace', async () => {
+  const memberships = [
+    { code: 'eleve', label: 'Élève' }, { code: 'enseignant', label: 'Enseignant' },
+  ];
+  const original = fetchApi.getMockImplementation();
+  fetchApi.mockImplementation(async url => {
+    if (url.endsWith('/capabilities/')) {
+      return {
+        ...portalRole(getActiveRole(url) || 'eleve'),
+        primary_role: 'eleve',
+        roles: memberships,
+      };
+    }
+    return original(url);
+  });
+  const client = workspaceClient();
+  client.setQueryData(['previous-private-record'], { confidential: 'old-workspace' });
+  renderWorkspace('/secondaire', client);
+  const selector = await screen.findByRole('combobox', { name: 'Mon rôle actif' });
+  fireEvent.change(selector, { target: { value: 'enseignant' } });
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Mon rôle actif' })).toHaveValue('enseignant'));
+  expect(client.getQueryData(['previous-private-record'])).toBeUndefined();
+  expect(getActiveRole('https://secondaire.example.test/api/v1')).toBe('enseignant');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Mon rôle actif' }), { target: { value: 'eleve' } });
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Mon rôle actif' })).toHaveValue('eleve'));
+  expect(getActiveRole('https://secondaire.example.test/api/v1')).toBeNull();
+});
+
+it('hides individually denied learner accesses while keeping the account and other modules', () => {
+  const capabilities = {
+    ...portalRole('eleve', ['bibliotheque.view_livre']),
+    denied_permissions: ['bibliotheque.view_livre'],
+    disabled_features: ['lms', 'timetable'],
+    disabled_paths: ['cours-lms', 'mon-emploi-du-temps'],
+  };
+  const paths = getNavigation('secondaire', 'secondaire', capabilities).flatMap(section => section.items.map(item => item.path));
+  expect(paths).toContain('/secondaire/portail-apprenant');
+  expect(paths).toContain('/secondaire/compte');
+  for (const path of ['bibliotheque', 'cours-lms', 'mon-emploi-du-temps']) {
+    expect(paths).not.toContain(`/secondaire/${path}`);
+  }
+});
+
+it('does not request a withdrawn personal timetable even with a direct route', async () => {
+  roles.secondaire = {
+    ...portalRole('eleve'),
+    disabled_features: ['timetable'],
+    disabled_paths: ['mon-emploi-du-temps'],
+  };
+  renderWorkspace('/secondaire/mon-emploi-du-temps');
+  expect(await screen.findByText('Cet emploi du temps est réservé à votre profil apprenant.')).toBeVisible();
+  await waitFor(() => expect(fetchApi).toHaveBeenCalledWith(
+    'https://secondaire.example.test/api/v1/utilisateurs/comptes/capabilities/',
+  ));
+  expect(fetchApi.mock.calls.some(([url]) => url.endsWith('/emploi_du_temps/'))).toBe(false);
 });
 
 it('replaces invented dashboard numbers with real zero counts and explicit errors', async () => {

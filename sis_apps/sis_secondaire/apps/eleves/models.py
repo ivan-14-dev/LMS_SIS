@@ -5,6 +5,7 @@ from apps.etablissement.models import AnneeScolaire, Etablissement
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.access_policy import assigned_role_filter
 from sis_common.encryption import EncryptedTextField
 from sis_common.learning_offerings import OfferingSnapshotModel
 
@@ -186,13 +187,13 @@ class AffectationMatiereIndividuelle(models.Model):
         null=True,
         blank=True,
         related_name="affectations_individuelles_principales",
-        limit_choices_to={"role": "enseignant"},
+        limit_choices_to=assigned_role_filter("enseignant"),
     )
     enseignants = models.ManyToManyField(
         Utilisateur,
         blank=True,
         related_name="affectations_individuelles_secondaire",
-        limit_choices_to={"role": "enseignant"},
+        limit_choices_to=assigned_role_filter("enseignant"),
     )
     commentaire = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

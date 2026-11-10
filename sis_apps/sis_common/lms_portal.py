@@ -8,6 +8,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from .access_policy import feature_is_denied
 from .lms_access_sync import revocation_reason
 from .lms_tenants import current_lms_tenant
 
@@ -19,6 +20,8 @@ def learning_access(request):
     from apps.portail.api import portal_capabilities
 
     tenant = current_lms_tenant(request)
+    if feature_is_denied(request.user, "lms"):
+        raise PermissionDenied("L'accès aux cours LMS a été retiré pour votre compte.")
     portals = portal_capabilities(request)["portals"]
     teaching = request.user.role == "enseignant" and portals["staff"]
     if not (portals["learner"] or teaching):

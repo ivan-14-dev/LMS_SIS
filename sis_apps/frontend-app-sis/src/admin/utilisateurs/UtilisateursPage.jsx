@@ -7,6 +7,7 @@ import ResourceManager from '../../components/common/ResourceManager';
 import { getEnabledVariants } from '../../services/resources';
 import InstitutionalGroupsEditor from './InstitutionalGroupsEditor';
 import GuardianLinksEditor from './GuardianLinksEditor';
+import AccountAccessEditor from './AccountAccessEditor';
 
 const UtilisateursPage = () => {
   const [params] = useSearchParams();
@@ -18,11 +19,15 @@ const UtilisateursPage = () => {
     || capabilities?.permissions?.includes(permission);
   const canViewAccounts = can('utilisateurs.view_utilisateur');
   const canViewGroups = can('auth.view_group');
+  const canManageAccess = canViewAccounts && canViewGroups
+    && can('utilisateurs.change_utilisateur') && can('auth.change_group');
   const canViewParents = variant === 'secondaire' && (can('eleves.view_tuteur') || can('eleves.view_elevetuteur'));
   let defaultTab = 'comptes';
   if (!canViewAccounts && canViewGroups) { defaultTab = 'groupes'; }
   if (!canViewAccounts && !canViewGroups && canViewParents) { defaultTab = 'parents'; }
-  const allowedTabs = { comptes: canViewAccounts, groupes: canViewGroups, parents: canViewParents };
+  const allowedTabs = {
+    comptes: canViewAccounts, groupes: canViewGroups, parents: canViewParents, acces: canManageAccess,
+  };
   const activeTab = allowedTabs[tab] ? tab : defaultTab;
   const roles = variant === 'secondaire'
     ? ['direction', 'responsable_pedagogique', 'enseignant', 'personnel_administratif', 'comptable',
@@ -38,7 +43,9 @@ const UtilisateursPage = () => {
     return <Alert severity="warning">Vous n’avez pas les autorisations de consultation de cette page.</Alert>;
   }
   let content;
-  if (activeTab === 'groupes') {
+  if (activeTab === 'acces') {
+    content = <AccountAccessEditor key={variant} variant={variant} />;
+  } else if (activeTab === 'groupes') {
     content = <InstitutionalGroupsEditor variant={variant} capabilities={capabilities} />;
   } else if (activeTab === 'parents' && variant === 'secondaire') {
     content = <GuardianLinksEditor capabilities={capabilities} />;
@@ -91,6 +98,7 @@ const UtilisateursPage = () => {
       <Tabs value={activeTab} onChange={(_event, value) => setTab(value)} aria-label="Administration des utilisateurs" sx={{ mb: 3 }}>
         <Tab value="comptes" label="Comptes" disabled={!canViewAccounts} />
         <Tab value="groupes" label="Groupes et permissions" disabled={!canViewGroups} />
+        {canManageAccess && <Tab value="acces" label="Rôles et accès individuels" />}
         {canViewParents && (
           <Tab value="parents" label="Parents et enfants" />
         )}

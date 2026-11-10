@@ -4,13 +4,13 @@ from apps.etablissement.models import Universite
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.access_policy import assigned_role_filter
+
 
 class Faculte(models.Model):
     """Faculté d'une université."""
 
-    universite = models.ForeignKey(
-        Universite, on_delete=models.CASCADE, related_name="facultes"
-    )
+    universite = models.ForeignKey(Universite, on_delete=models.CASCADE, related_name="facultes")
     nom = models.CharField(max_length=200)
     code = models.CharField(max_length=20)
     doyen = models.ForeignKey(
@@ -19,7 +19,7 @@ class Faculte(models.Model):
         null=True,
         blank=True,
         related_name="facultes_dirigees",
-        limit_choices_to={"role__in": ["doyen", "vice_president"]},
+        limit_choices_to=assigned_role_filter("doyen", "vice_president"),
     )
     date_creation = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
@@ -39,9 +39,7 @@ class Faculte(models.Model):
 class Departement(models.Model):
     """Département d'une faculté."""
 
-    faculte = models.ForeignKey(
-        Faculte, on_delete=models.CASCADE, related_name="departements"
-    )
+    faculte = models.ForeignKey(Faculte, on_delete=models.CASCADE, related_name="departements")
     nom = models.CharField(max_length=200)
     code = models.CharField(max_length=20)
     directeur = models.ForeignKey(
@@ -50,7 +48,7 @@ class Departement(models.Model):
         null=True,
         blank=True,
         related_name="departements_diriges",
-        limit_choices_to={"role__in": ["directeur_dept", "doyen"]},
+        limit_choices_to=assigned_role_filter("directeur_dept", "doyen"),
     )
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -68,9 +66,7 @@ class Departement(models.Model):
 class EcoleDoctorale(models.Model):
     """École doctorale."""
 
-    universite = models.ForeignKey(
-        Universite, on_delete=models.CASCADE, related_name="ecoles_doctorales"
-    )
+    universite = models.ForeignKey(Universite, on_delete=models.CASCADE, related_name="ecoles_doctorales")
     nom = models.CharField(max_length=200)
     code = models.CharField(max_length=20)
     directeur = models.ForeignKey(

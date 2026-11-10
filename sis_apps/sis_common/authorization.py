@@ -1,5 +1,7 @@
 """Dynamic RBAC and lightweight ABAC helpers shared by both SIS variants."""
 
+from sis_common.access_policy import permission_is_denied, public_policy
+
 
 def is_current_tenant_user(request):
     """Authorization writes require an account owned by the active database tenant."""
@@ -106,6 +108,7 @@ def permission_snapshot(user, configuration=None):
         "groups": groups,
         "attributes": getattr(user, "attributs_acces", {}) or {},
         "role": getattr(user, "role", ""),
+        **public_policy(user),
     }
 
 
@@ -115,6 +118,8 @@ def has_business_permission(user, permission, context=None):
         return False
     if user.is_superuser:
         return True
+    if permission_is_denied(user, permission):
+        return False
     if not user.has_perm(permission):
         return False
 
@@ -145,6 +150,8 @@ def has_business_permission_or_role(
         return False
     if user.is_superuser:
         return True
+    if permission_is_denied(user, permission):
+        return False
     if user.has_perm(permission):
         return has_business_permission(user, permission, context=context)
     if user_in_configured_groups(user, configuration, tenant_group_codes):
@@ -178,6 +185,8 @@ def request_has_role_or_business_access(
     context=None,
     tenant_group_codes=(),
 ):
+    if permission_is_denied(request.user, permission):
+        return False
     return request_has_business_access(
         request,
         permission,
@@ -191,6 +200,8 @@ def filter_queryset_by_scopes(queryset, user, permission, scope_fields):
     """Apply configured ABAC lists to a queryset; unknown scopes deny access."""
     if user.is_superuser:
         return queryset
+    if permission_is_denied(user, permission):
+        return queryset.none()
     constraints = (getattr(user, "attributs_acces", {}) or {}).get("permission_scopes", {}).get(permission, {})
     for attribute, allowed_values in constraints.items():
         lookup = scope_fields.get(attribute)

@@ -9,18 +9,20 @@ import {
   getSuperieurApiUrl,
 } from '../../services/api';
 import { canEnterPortal, hasCapability } from '../layout/navigation';
+import { getActiveRole } from '../../services/roleContext';
 
-export const useCapabilities = (type, options = {}) => useQuery({
-  queryKey: ['capabilities', type],
-  queryFn: () => {
-    const baseUrl = type === 'secondaire' ? getSecondaireApiUrl() : getSuperieurApiUrl();
-    return fetchApi(`${baseUrl}/utilisateurs/comptes/capabilities/`);
-  },
-  staleTime: 0,
-  refetchOnMount: 'always',
-  refetchOnWindowFocus: true,
-  ...options,
-});
+export const useCapabilities = (type, options = {}) => {
+  const baseUrl = type === 'secondaire' ? getSecondaireApiUrl() : getSuperieurApiUrl();
+  const role = getActiveRole(baseUrl);
+  return useQuery({
+    queryKey: role ? ['capabilities', type, role] : ['capabilities', type],
+    queryFn: () => fetchApi(`${baseUrl}/utilisateurs/comptes/capabilities/`),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    ...options,
+  });
+};
 
 const getNestedValue = (object, path) => path.split('.').reduce(
   (current, segment) => (current && current[segment] !== undefined ? current[segment] : undefined),

@@ -4,6 +4,7 @@ from apps.classes.models import Classe, Matiere
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.access_policy import assigned_role_filter
 from sis_common.encryption import EncryptedCharField
 
 
@@ -16,21 +17,13 @@ class Personnel(models.Model):
         ("vacataire", "Vacataire"),
         ("stagiaire", "Stagiaire"),
     ]
-    user = models.OneToOneField(
-        Utilisateur, on_delete=models.CASCADE, related_name="personnel_profile"
-    )
+    user = models.OneToOneField(Utilisateur, on_delete=models.CASCADE, related_name="personnel_profile")
     matricule = models.CharField(max_length=50, unique=True)
-    statut = models.CharField(
-        max_length=20, choices=STATUT_CHOICES, default="titulaire"
-    )
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default="titulaire")
     date_embauche = models.DateField()
-    corps = models.CharField(
-        max_length=100, blank=True, help_text="Ex: Agrégé, Certifié"
-    )
+    corps = models.CharField(max_length=100, blank=True, help_text="Ex: Agrégé, Certifié")
     diplomes = models.JSONField(default=list, blank=True)
-    heures_contractuelles = models.DecimalField(
-        max_digits=5, decimal_places=2, default=0
-    )
+    heures_contractuelles = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     indice = models.PositiveIntegerField(null=True, blank=True)
     rib = EncryptedCharField(max_length=50, blank=True)
     iban = EncryptedCharField(max_length=50, blank=True)
@@ -52,11 +45,9 @@ class MatiereEnseignee(models.Model):
         Personnel,
         on_delete=models.CASCADE,
         related_name="matieres_enseignees",
-        limit_choices_to={"user__role": "enseignant"},
+        limit_choices_to=assigned_role_filter("enseignant", prefix="user__"),
     )
-    matiere = models.ForeignKey(
-        Matiere, on_delete=models.CASCADE, related_name="enseignants_qualifies"
-    )
+    matiere = models.ForeignKey(Matiere, on_delete=models.CASCADE, related_name="enseignants_qualifies")
     niveau_competence = models.PositiveSmallIntegerField(default=3, help_text="1 à 5")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -77,9 +68,7 @@ class AffectationEnseignant(models.Model):
         on_delete=models.CASCADE,
         related_name="affectations",
     )
-    matiere = models.ForeignKey(
-        Matiere, on_delete=models.CASCADE, related_name="affectations"
-    )
+    matiere = models.ForeignKey(Matiere, on_delete=models.CASCADE, related_name="affectations")
     classes = models.ManyToManyField(Classe, related_name="affectations_enseignant")
     heures_semaine = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     annee_scolaire = models.ForeignKey(

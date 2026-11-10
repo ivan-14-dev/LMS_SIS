@@ -12,6 +12,7 @@ from rest_framework.response import Response
 
 from sis_common import mfa as mfa_service
 from sis_common.academic_lifecycle import AcademicLifecycleMixin
+from sis_common.access_policy_api import AccountAccessPolicyMixin
 from sis_common.authorization import (
     can_delegate_permissions,
     has_business_permission,
@@ -94,7 +95,7 @@ class CanManageAuthorization(IsAuthenticated):
         return has_business_permission(request.user, permission)
 
 
-class UtilisateursViewSet(AcademicLifecycleMixin, viewsets.ModelViewSet):
+class UtilisateursViewSet(AccountAccessPolicyMixin, AcademicLifecycleMixin, viewsets.ModelViewSet):
     """ViewSet CRUD pour utilisateurs."""
 
     permission_classes = [IsDirectionOrReadOnly]

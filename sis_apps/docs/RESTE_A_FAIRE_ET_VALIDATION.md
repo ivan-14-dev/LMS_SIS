@@ -9,6 +9,88 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
+## Types d'établissement, multi-rôles et accès individuels — 10 novembre 2026
+
+Le catalogue des types est commun aux deux variantes. Le changement de type
+prépare les offres pédagogiques manquantes ; « mixte » prépare les profils
+secondaire et supérieur, sans remplacer les barèmes, offres personnalisées
+ou rattachements existants. Les inscriptions et notes ne sont pas migrées.
+
+**La fusion fonctionnelle totale secondaire/supérieur reste à réaliser.**
+Le type ne change pas le moteur installé. Les deux bases, leurs identités
+locales et les modules propres à chaque moteur restent distincts : aucun
+rapprochement de comptes par nom ou email n'est effectué. Il reste à raccorder
+les modules à une navigation institutionnelle unique avec une stratégie
+explicite de correspondance des identités et dossiers, avant de supprimer
+le sélecteur technique de contexte. Une simple sélection « mixte » ne doit
+pas être présentée comme cette fusion.
+
+La nouvelle administration **Utilisateurs → Rôles et accès individuels**
+permet les octrois directs et les refus prioritaires, y compris pour un
+apprenant. Les rôles supplémentaires se sélectionnent ensuite dans
+**Mon rôle actif**. Le serveur vérifie chaque contexte demandé, conserve le
+rôle principal et refuse immédiatement un rôle retiré. Le navigateur vide
+son cache au changement d'espace. Les restrictions sont contrôlées dans
+l'API, les backends de permissions Django synchrones/asynchrones et Guardian,
+pas seulement dans les menus.
+
+Un refus de consultation de dossier/résultats bloque également le portail
+agrégé correspondant. Les retraits LMS/Studio mettent en retrait les intentions
+gérées par le SIS, sans modifier des droits natifs accordés indépendamment.
+Les autorisations d'affectation, les périmètres et les profils métier restent
+requis. Un enseignant également apprenant ne peut gérer une évaluation où
+il est inscrit, ni saisir, modifier, supprimer ou approuver sa propre note.
+Le portail familial supérieur n'est pas créé par la seule attribution de
+« parent ».
+
+Les modifications sont versionnées, transactionnelles et auditées. Les
+super-utilisateurs et le propre compte du gestionnaire sont protégés.
+Un gestionnaire ne peut déléguer des permissions hors de son périmètre.
+L'attribution de rôles métier et la restauration des fonctionnalités héritées
+restent réservées aux super-utilisateurs.
+Voir [les consignes d'administration](INSTALLATION_ETABLISSEMENT.md#type-détablissement-et-accès-individuels).
+
+La qualification locale comprend 118 tests backend par variante, puis 40
+tests complémentaires par variante pour les refus et les conflits de notation ;
+263 tests frontend, puis un cas ciblé d'accès direct à l'emploi du temps
+retiré. Qualité Python/JavaScript et deux builds de production réussis.
+Les quatre sauvegardes préalables de la démo et de la recette ont été
+restaurées dans PostgreSQL isolé. Sept migrations adaptent les choix
+d'affectation aux rôles supplémentaires, sans transformer les dossiers.
+
+**Déployé sur la démo et la recette SSO**, avec l'image SIS
+`sha256:f4074c67a1e9acad25d2102d237ebea94b956556baec28fe5d9300de1493b318`.
+Les migrations de tous les schémas sont appliquées et aucun changement de
+modèle non migré ne subsiste. Les API, workers, Beat de démonstration et
+frontends ont été remplacés séquentiellement, sans réinitialiser les bases,
+volumes ni services Open edX.
+
+La recette navigateur sur des comptes synthétiques dédiés vérifie, dans les
+deux variantes : édition des droits dans le formulaire, priorité du refus sur
+l'octroi, emploi du temps refusé par appel direct, bascule de rôle sans
+modification du principal, révocation immédiate d'un rôle et conflit
+concurrent HTTP 409. Le choix « mixte » prépare les offres attendues ; la
+configuration institutionnelle originale a ensuite été restaurée et comparée.
+La sous-vue **Règles héritées** affiche bien la configuration effective.
+Les comptes dédiés ont été supprimés après la recette.
+
+Les quatre parcours SSO apprenant/enseignant vers LMS et Studio restent
+fonctionnels et les deux notes approuvées 1/1, leurs événements signés et
+décisions sont inchangés. La démo reste en authentification locale ; aucun
+email externe ni paiement réel n'a été déclenché. Ses douze pages et son
+bulletin historique 16,50/20, y compris le PDF, sont préservés.
+Les preuves et sauvegardes
+opérateur sont privées ; aucun identifiant de connexion n'est publié.
+
+La CI baseline `42758365374` du commit `c697155` n'était pas verte :
+échecs backend de séparation de rôles/facturation, événements LMS, routage
+Celery et infirmerie secondaire ; échec frontend `EventsPage` et recettes
+d'installation sur la configuration effective. Cette livraison corrige
+le parcours institutionnel qui omettait d'ouvrir la sous-vue **Règles héritées**
+avant son assertion ; elle ne prétend pas résoudre les autres échecs baseline.
+SMTP institutionnel, Stripe, domaines/TLS de production et réception
+officielle gardent leurs réserves précédentes.
+
 ## Point d'entrée SIS — livraison du 10 novembre 2026
 
 L'accueil SIS expose maintenant les accès principaux adaptés au profil :

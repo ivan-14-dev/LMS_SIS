@@ -9,6 +9,7 @@ from sis_common.academic_configuration import (
     validate_academic_configuration,
 )
 from sis_common.establishments import (
+    INSTITUTION_TYPE_CHOICES,
     default_establishment_features,
     default_live_configuration,
     validate_establishment_features,
@@ -21,14 +22,7 @@ from sis_common.event_occupancy import EventOccupancyGuard
 class Universite(TenantMixin):
     """Université / Grande école / Institut — base du multi-tenant."""
 
-    TYPE_CHOICES = [
-        ("universite_publique", "Université publique"),
-        ("universite_privee", "Université privée"),
-        ("grande_ecole", "Grande école"),
-        ("institut", "Institut supérieur"),
-        ("ecole_doctorale", "École doctorale"),
-        ("autre", "Autre établissement"),
-    ]
+    TYPE_CHOICES = INSTITUTION_TYPE_CHOICES
     nom = models.CharField(max_length=200)
     type = models.CharField(max_length=100)
     type_personnalise = models.CharField(

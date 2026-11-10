@@ -8,9 +8,24 @@ from django.conf import settings
 from rest_framework.authentication import (
     BaseAuthentication,
     SessionAuthentication,
+    TokenAuthentication,
     get_authorization_header,
 )
 from rest_framework.exceptions import AuthenticationFailed
+
+from sis_common.access_policy import contextual_user
+
+
+class RoleSessionAuthentication(SessionAuthentication):
+    def authenticate(self, request):
+        result = super().authenticate(request)
+        return (contextual_user(result[0], request), result[1]) if result else None
+
+
+class RoleTokenAuthentication(TokenAuthentication):
+    def authenticate(self, request):
+        result = super().authenticate(request)
+        return (contextual_user(result[0], request), result[1]) if result else None
 
 
 class EdxJWTAuthentication(BaseAuthentication):
@@ -70,7 +85,7 @@ class EdxJWTAuthentication(BaseAuthentication):
         user = self._get_user(payload)
         if uses_cookie:
             SessionAuthentication().enforce_csrf(request)
-        return user, payload
+        return contextual_user(user, request), payload
 
     def authenticate_header(self, request):
         return self.keyword

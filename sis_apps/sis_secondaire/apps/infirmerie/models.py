@@ -4,15 +4,14 @@ from apps.eleves.models import Eleve
 from apps.utilisateurs.models import Utilisateur
 from django.db import models
 
+from sis_common.access_policy import assigned_role_filter
 from sis_common.encryption import EncryptedCharField, EncryptedJSONField, EncryptedTextField
 
 
 class DossierMedical(models.Model):
     """Dossier médical d'un élève (accès restreint)."""
 
-    eleve = models.OneToOneField(
-        Eleve, on_delete=models.CASCADE, related_name="dossier_medical"
-    )
+    eleve = models.OneToOneField(Eleve, on_delete=models.CASCADE, related_name="dossier_medical")
     groupe_sanguin = EncryptedCharField(max_length=5, blank=True)
     allergies = EncryptedJSONField(default=list, blank=True)
     maladies_chroniques = EncryptedJSONField(default=list, blank=True)
@@ -43,9 +42,7 @@ class VisiteInfirmerie(models.Model):
         ("parents", "Parents appelés"),
         ("hospitalisation", "Hospitalisation"),
     ]
-    eleve = models.ForeignKey(
-        Eleve, on_delete=models.CASCADE, related_name="visites_infirmerie"
-    )
+    eleve = models.ForeignKey(Eleve, on_delete=models.CASCADE, related_name="visites_infirmerie")
     date = models.DateTimeField()
     heure_arrivee = models.TimeField()
     heure_sortie = models.TimeField(null=True, blank=True)
@@ -53,14 +50,12 @@ class VisiteInfirmerie(models.Model):
     symptomes = EncryptedTextField(blank=True)
     soins = EncryptedTextField(blank=True)
     traitement_administre = EncryptedTextField(blank=True)
-    orientation = models.CharField(
-        max_length=30, choices=ORIENTATION_CHOICES, default="retour_cours"
-    )
+    orientation = models.CharField(max_length=30, choices=ORIENTATION_CHOICES, default="retour_cours")
     infirmier = models.ForeignKey(
         Utilisateur,
         on_delete=models.PROTECT,
         related_name="visites_infirmerie",
-        limit_choices_to={"role": "infirmier"},
+        limit_choices_to=assigned_role_filter("infirmier"),
     )
     parents_prevenus = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

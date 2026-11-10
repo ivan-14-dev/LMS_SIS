@@ -16,6 +16,8 @@ from guardian.ctypes import get_content_type
 from guardian.exceptions import WrongAppError
 from guardian.utils import get_group_obj_perms_model
 
+from sis_common.access_policy import permission_is_denied
+
 
 def active_groups():
     return Group.objects.exclude(permission_lifecycle__actif=False)
@@ -34,6 +36,34 @@ def group_object_permissions(group):
 
 
 class ActiveGroupModelBackend(ModelBackend):
+    def _get_permissions(self, user_obj, obj, from_name):
+        return {
+            permission
+            for permission in super()._get_permissions(user_obj, obj, from_name)
+            if not permission_is_denied(user_obj, permission)
+        }
+
+    def get_all_permissions(self, user_obj, obj=None):
+        return {
+            permission
+            for permission in super().get_all_permissions(user_obj, obj)
+            if not permission_is_denied(user_obj, permission)
+        }
+
+    async def _aget_permissions(self, user_obj, obj, from_name):
+        return {
+            permission
+            for permission in await super()._aget_permissions(user_obj, obj, from_name)
+            if not permission_is_denied(user_obj, permission)
+        }
+
+    async def aget_all_permissions(self, user_obj, obj=None):
+        return {
+            permission
+            for permission in await super().aget_all_permissions(user_obj, obj)
+            if not permission_is_denied(user_obj, permission)
+        }
+
     def _get_group_permissions(self, user_obj):
         return Permission.objects.filter(group__in=user_obj.groups.filter(pk__in=active_groups()))
 
@@ -59,7 +89,22 @@ class ActiveGroupModelBackend(ModelBackend):
             condition |= Q(is_superuser=True)
         if is_active is not None:
             condition &= Q(is_active=is_active)
-        return users.filter(condition)
+        code = f"{app_label}.{codename}" if isinstance(perm, str) else f"{perm.content_type.app_label}.{perm.codename}"
+        not_denied = (
+            Q(is_superuser=True)
+            | Q(attributs_acces__access_policy__denied_permissions__isnull=True)
+            | ~Q(attributs_acces__access_policy__denied_permissions__contains=[code])
+        )
+        feature = {"bibliotheque": "library", "paiements": "payments", "emplois_du_temps": "timetable"}.get(
+            code.split(".", 1)[0]
+        )
+        if feature:
+            not_denied &= (
+                Q(is_superuser=True)
+                | Q(attributs_acces__access_policy__disabled_features__isnull=True)
+                | ~Q(attributs_acces__access_policy__disabled_features__contains=[feature])
+            )
+        return users.filter(condition & not_denied)
 
 
 class _ActiveGroupPermissionChecker(ObjectPermissionChecker):
@@ -84,10 +129,16 @@ class ActiveGroupObjectPermissionBackend(ObjectPermissionBackend, BaseBackend):
         # get_perms()/prefetch_perms() in Guardian bypass get_group_filters when
         # AUTO_PREFETCH is enabled. Query the two filtered sources explicitly.
         if source == "user":
-            return set(checker.get_user_perms(obj))
-        if source == "group":
-            return set(checker.get_group_perms(obj))
-        return set(checker.get_user_perms(obj)) | set(checker.get_group_perms(obj))
+            permissions = set(checker.get_user_perms(obj))
+        elif source == "group":
+            permissions = set(checker.get_group_perms(obj))
+        else:
+            permissions = set(checker.get_user_perms(obj)) | set(checker.get_group_perms(obj))
+        return {
+            permission
+            for permission in permissions
+            if not permission_is_denied(user_obj, f"{get_content_type(obj).app_label}.{permission}")
+        }
 
     def get_user_permissions(self, user_obj, obj=None):
         return self._permissions(user_obj, obj, "user")

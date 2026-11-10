@@ -12,6 +12,8 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.serializers import TokenBlacklistSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from sis_common.access_policy import contextual_user
+
 TENANT_CLAIM = "sis_tenant_id"
 
 
@@ -36,6 +38,10 @@ def validate_token_tenant(token):
 
 
 class TenantJWTAuthentication(JWTAuthentication):
+    def authenticate(self, request):
+        result = super().authenticate(request)
+        return (contextual_user(result[0], request), result[1]) if result else None
+
     def get_user(self, validated_token):
         validate_token_tenant(validated_token)
         return super().get_user(validated_token)

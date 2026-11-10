@@ -50,9 +50,13 @@ def learner_registration_revoked(learner, course):
 
 
 def revocation_reason(user, course, mapping, kind):
+    from sis_common.access_policy import assigned_roles, feature_is_denied
+
     if not user.is_active or not mapping.actif or not course.actif:
         return "Un compte ou une association révoquée ne peut pas recevoir un accès LMS."
-    if kind == "teaching" and user.role != "enseignant":
+    if feature_is_denied(user, "lms") or (kind == "teaching" and feature_is_denied(user, "studio")):
+        return "Cet accès LMS a été retiré individuellement pour ce compte."
+    if kind == "teaching" and "enseignant" not in assigned_roles(user):
         return "Un profil enseignant est requis pour attribuer des droits Studio."
     if kind == "enrollment":
         model, _ = learner_model()
@@ -236,6 +240,7 @@ def replay_access(service, event):
 
 def queue_revoked_access():
     from apps.integration.models import EdxAccessIntent, EdxEnrollment, EdxUserMapping
+    from django.contrib.auth import get_user_model
 
     model, field = learner_model()
     registration_model = (
@@ -248,8 +253,18 @@ def queue_revoked_access():
         | Q(pk__in=registration_model.objects.exclude(statut="validee").values(f"{field}_id"))
     ).values("user_id")
     revoked_users = EdxUserMapping.objects.filter(
-        Q(actif=False) | Q(user_sis__is_active=False) | Q(user_sis_id__in=blocked_learners)
+        Q(actif=False)
+        | Q(user_sis__is_active=False)
+        | Q(user_sis_id__in=blocked_learners)
+        | Q(user_sis__attributs_acces__access_policy__disabled_features__contains=["lms"])
     ).values("user_sis_id")
+    teachers = (
+        get_user_model()
+        .objects.filter(
+            Q(role="enseignant") | Q(attributs_acces__access_policy__additional_roles__contains=["enseignant"])
+        )
+        .values("pk")
+    )
     moved_intents = Q(pk__in=[])
     moved_enrollments = Q(pk__in=[])
     if field == "eleve":
@@ -264,7 +279,13 @@ def queue_revoked_access():
             Q(user_id__in=revoked_users)
             | Q(course__actif=False)
             | moved_intents
-            | (Q(kind="teaching") & ~Q(user__role="enseignant"))
+            | (
+                Q(kind="teaching")
+                & (
+                    ~Q(user_id__in=teachers)
+                    | Q(user__attributs_acces__access_policy__disabled_features__contains=["studio"])
+                )
+            )
             | (Q(kind="enrollment") & ~Q(user_id__in=model.objects.values("user_id")))
         )
         .select_related("user", "course")

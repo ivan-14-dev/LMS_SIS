@@ -8,6 +8,7 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from sis_common.access_policy import assigned_role_filter
 from sis_common.authorization import has_business_permission_or_role
 
 from .models import AffectationEnseignant, MatiereEnseignee, Personnel
@@ -79,7 +80,7 @@ class PersonnelViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def enseignants(self, request):
         """Liste uniquement les enseignants."""
-        qs = self.get_queryset().filter(user__role="enseignant")
+        qs = self.get_queryset().filter(assigned_role_filter("enseignant", prefix="user__"))
         page = self.paginate_queryset(qs)
         if page is not None:
             serializer = PersonnelListSerializer(page, many=True)

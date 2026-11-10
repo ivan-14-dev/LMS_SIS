@@ -30,7 +30,8 @@ const libraryModule = {
 };
 
 export const hasCapability = (capabilities, permission) => Boolean(
-  permission && (capabilities?.permissions?.includes('*') || capabilities?.permissions?.includes(permission)),
+  permission && !capabilities?.denied_permissions?.includes(permission)
+  && (capabilities?.permissions?.includes('*') || capabilities?.permissions?.includes(permission)),
 );
 
 export const hasActiveAffiliation = (capabilities, kind) => {
@@ -47,12 +48,14 @@ const roleMatchesPortal = (role, kind) => {
 };
 
 export const canEnterPortal = (capabilities, kind) => roleMatchesPortal(capabilities?.role, kind)
+  && !capabilities?.disabled_features?.includes(kind === 'staff' ? 'staff_portal' : 'learner_portal')
   && hasActiveAffiliation(capabilities, kind)
   && capabilities?.portals?.[kind] !== false
   && (capabilities?.portals?.[kind] === true || hasCapability(capabilities, `portail.view_${kind}`));
 
-export const canUseLearning = capabilities => canEnterPortal(capabilities, 'learner')
-  || (capabilities?.role === 'enseignant' && canEnterPortal(capabilities, 'staff'));
+export const canUseLearning = capabilities => !capabilities?.disabled_features?.includes('lms')
+  && (canEnterPortal(capabilities, 'learner')
+    || (capabilities?.role === 'enseignant' && canEnterPortal(capabilities, 'staff')));
 
 export const workspaceKind = (capabilities) => {
   if (canEnterPortal(capabilities, 'learner') || canEnterPortal(capabilities, 'parent')) { return 'learner'; }
@@ -61,6 +64,7 @@ export const workspaceKind = (capabilities) => {
 };
 
 export const canAccessModule = (item, capabilities) => Boolean(capabilities
+  && !capabilities.disabled_paths?.some(path => item.path.split('?')[0].endsWith(`/${path}`))
   && (!item.module || (['sis.projects', 'sis.surveys', 'sis.events', 'sis.research', 'sis.practical_training'].includes(item.module)
     ? capabilities.modules?.[item.module] === true
     : capabilities.modules?.[item.module] !== false)) && (

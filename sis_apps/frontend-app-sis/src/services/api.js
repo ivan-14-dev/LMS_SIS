@@ -2,6 +2,7 @@ import { getConfig } from '@edx/frontend-platform';
 import { getAuthenticatedHttpClient } from '@edx/frontend-platform/auth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { localHttpClient, usesLocalSession } from './localSession';
+import { getActiveRole, roleOptions } from './roleContext';
 import {
   mockFetch, mockPost, mockPut, mockDelete, isMockMode,
 } from './mockApi';
@@ -61,7 +62,7 @@ export const fetchApi = async (url, options = {}) => {
   }
 
   const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
-  const response = await client.get(url, options);
+  const response = await client.get(url, roleOptions(url, options));
   return response.data;
 };
 
@@ -74,7 +75,7 @@ export const postApi = async (url, data, options = {}) => {
   }
 
   const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
-  const response = await client.post(url, data, options);
+  const response = await client.post(url, data, roleOptions(url, options));
   return response.data;
 };
 
@@ -87,7 +88,7 @@ export const putApi = async (url, data, options = {}) => {
   }
 
   const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
-  const response = await client.put(url, data, options);
+  const response = await client.put(url, data, roleOptions(url, options));
   return response.data;
 };
 
@@ -100,7 +101,7 @@ export const patchApi = async (url, data, options = {}) => {
   }
 
   const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
-  const response = await client.patch(url, data, options);
+  const response = await client.patch(url, data, roleOptions(url, options));
   return response.data;
 };
 
@@ -113,7 +114,7 @@ export const deleteApi = async (url, options = {}) => {
   }
 
   const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
-  const response = await client.delete(url, options);
+  const response = await client.delete(url, roleOptions(url, options));
   return response.data;
 };
 
@@ -757,7 +758,8 @@ export const requestIntegrationOutboxProcessing = async (integrationUrl) => {
     throw new Error('Le traitement réel est indisponible en mode démonstration.');
   }
   const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
-  const response = await client.post(`${integrationUrl}/outbox/process/`, {});
+  const options = getActiveRole(integrationUrl) ? [roleOptions(integrationUrl)] : [];
+  const response = await client.post(`${integrationUrl}/outbox/process/`, {}, ...options);
   if (response.status !== 202 || response.data?.status !== 'queued'
     || typeof response.data?.task_id !== 'string' || !response.data.task_id) {
     throw new Error('Le serveur n’a pas confirmé la mise en file du traitement.');
@@ -779,7 +781,8 @@ export const requestIntegrationUserSynchronization = async (
     throw new Error('L’identité SIS–LMS à synchroniser est invalide.');
   }
   const client = usesLocalSession() ? localHttpClient : getAuthenticatedHttpClient();
-  const response = await client.post(`${integrationUrl}/sync/user/${userSis}/`, {});
+  const options = getActiveRole(integrationUrl) ? [roleOptions(integrationUrl)] : [];
+  const response = await client.post(`${integrationUrl}/sync/user/${userSis}/`, {}, ...options);
   if (response?.status !== 200 || response.data?.status !== 'ok'
     || response.data?.username_edx !== expectedUsername
     || !Number.isSafeInteger(response.data?.user_id_edx) || response.data.user_id_edx <= 0
