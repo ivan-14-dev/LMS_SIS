@@ -25,12 +25,18 @@ class BootstrapInstitutionCommand(BaseCommand):
     help = "Create an institution, its domain and administrator without resetting existing accounts."
 
     def add_arguments(self, parser):
-        parser.add_argument("--config", required=True, type=Path)
+        configuration = parser.add_mutually_exclusive_group(required=True)
+        configuration.add_argument("--config", type=Path)
+        configuration.add_argument(
+            "--config-stdin", action="store_true", help="Read one JSON line before the password."
+        )
         parser.add_argument("--password-stdin", action="store_true")
 
     def handle(self, *args, **options):
         try:
-            configuration = json.loads(options["config"].read_text(encoding="utf-8"))
+            configuration = json.loads(
+                sys.stdin.readline() if options["config_stdin"] else options["config"].read_text(encoding="utf-8")
+            )
         except (OSError, json.JSONDecodeError) as exc:
             raise CommandError(f"Cannot read institution configuration: {exc}") from exc
         if not isinstance(configuration, dict):

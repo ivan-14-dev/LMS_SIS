@@ -1,14 +1,17 @@
 import json
 from importlib.metadata import version
+from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 from django.core.exceptions import ImproperlyConfigured
+from django.core.management import CommandError
 from packaging.requirements import Requirement
 
 from scripts.sisctl import configure, read_configuration
+from sis_common.bootstrap import BootstrapInstitutionCommand
 from sis_common.config import (
     get_database_configuration,
     get_lms_configuration,
@@ -92,6 +95,15 @@ def test_local_authentication_preserves_explicit_lms_integration(monkeypatch):
         configuration = get_lms_configuration("secondaire")
     assert all(configuration[key] == value for key, value in values.items())
     assert configuration["EDX_JWT_PUBLIC_SIGNING_JWK_SET"] == ""
+
+
+def test_bootstrap_reads_private_configuration_from_stdin_without_consuming_the_password():
+    command = BootstrapInstitutionCommand()
+    options = vars(command.create_parser("manage.py", "bootstrap_institution").parse_args(["--config-stdin"]))
+    source = StringIO('{"schema_name":"public"}\npassword-for-the-next-step\n')
+    with patch("sys.stdin", source), pytest.raises(CommandError, match="non-public"):
+        command.handle(**options)
+    assert source.readline() == "password-for-the-next-step\n"
 
 
 def test_locked_runtime_satisfies_both_dependency_manifests():

@@ -191,7 +191,11 @@ class InitSchemaPreflightTests(unittest.TestCase):
                     bootstrap = compose.call_args_list[3]
                     self.assertIn(f"api-{variant}", bootstrap.args)
                     self.assertIn("bootstrap_institution", bootstrap.args)
-                    self.assertEqual(bootstrap.kwargs["input"], b"test-only\n")
+                    document, password = bootstrap.kwargs["input"].decode().splitlines()
+                    self.assertEqual(json.loads(document)["schema_name"], schema)
+                    self.assertEqual(password, "test-only")
+                    self.assertIn("--config-stdin", bootstrap.args)
+                    self.assertNotIn("-v", bootstrap.args)
 
     def test_prebuilt_initialization_preserves_preflight_and_bootstrap_without_building(self):
         options = self.options("school", "secondaire")

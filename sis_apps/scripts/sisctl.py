@@ -593,16 +593,13 @@ def initialize(configuration, options):
         "--rm",
         "--no-deps",
         "-T",
-        "-v",
-        f"{path}:/run/institution.json:ro",
         f"api-{options.variant}",
         "python",
         "manage.py",
         "bootstrap_institution",
-        "--config",
-        "/run/institution.json",
+        "--config-stdin",
         "--password-stdin",
-        input=(password + "\n").encode(),
+        input=(json.dumps(institution) + "\n" + password + "\n").encode(),
     )
     compose(
         configuration,

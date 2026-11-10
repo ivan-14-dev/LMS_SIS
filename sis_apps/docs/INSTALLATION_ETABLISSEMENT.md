@@ -707,6 +707,10 @@ Copiez `deploy/institution.example.json` vers un fichier privé, puis modifiez :
   pour l'association explicite avec Open edX.
 
 Le fichier ne doit contenir aucun mot de passe.
+Conservez-le en `0600`. L'installateur transmet sa configuration et le mot de
+passe au processus non privilégié par l'entrée standard ; il ne rend pas le
+fichier lisible par les autres utilisateurs et ne monte pas son chemin privé
+dans le conteneur.
 
 ```sh
 python3 scripts/sisctl.py init \
