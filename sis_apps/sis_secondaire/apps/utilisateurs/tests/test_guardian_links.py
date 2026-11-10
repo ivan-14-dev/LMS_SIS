@@ -1,18 +1,37 @@
 """Parent affiliation lifecycle through the same HTTP surface used by the console."""
 
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 from apps.core.models import WorkflowEvent
 from apps.eleves.models import EleveTuteur, Tuteur
 from apps.etablissement.models import Etablissement
+from apps.utilisateurs.guardian_links import GuardianLinkSerializer, GuardianSerializer
 from apps.utilisateurs.models import Utilisateur
 from django.contrib.auth.models import Permission
+from django.test import RequestFactory, SimpleTestCase
 from django_tenants.utils import schema_context
 
 from sis_common.tests.test_document_access import DocumentFixture
 
 BASE = "/api/v1/utilisateurs/"
+
+
+class FamilySchemaTests(SimpleTestCase):
+    def test_schema_introspection_requires_no_tenant_and_exposes_no_relation_choices(self):
+        context = {
+            "request": RequestFactory().get("/api/schema/"),
+            "view": SimpleNamespace(swagger_fake_view=True),
+        }
+        for serializer, names in (
+            (GuardianSerializer, ("user",)),
+            (GuardianLinkSerializer, ("eleve", "tuteur")),
+        ):
+            with self.subTest(serializer=serializer):
+                fields = serializer(context=context).fields
+                for name in names:
+                    self.assertTrue(fields[name].queryset.query.is_empty())
 
 
 class GuardianLinkTests(DocumentFixture):

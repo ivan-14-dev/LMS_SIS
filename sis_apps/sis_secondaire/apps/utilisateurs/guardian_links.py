@@ -60,6 +60,9 @@ class GuardianSerializer(TenantBoundSerializerMixin, serializers.ModelSerializer
 
     def get_fields(self):
         fields = super().get_fields()
+        if getattr(self.context.get("view"), "swagger_fake_view", False):
+            fields["user"].queryset = Utilisateur.objects.none()
+            return fields
         fields["user"].queryset = Utilisateur.objects.filter(
             etablissement=self.context["request"].tenant,
             role="parent",
@@ -93,6 +96,10 @@ class GuardianLinkSerializer(serializers.ModelSerializer):
 
     def get_fields(self):
         fields = super().get_fields()
+        if getattr(self.context.get("view"), "swagger_fake_view", False):
+            fields["eleve"].queryset = Eleve.objects.none()
+            fields["tuteur"].queryset = Tuteur.objects.none()
+            return fields
         tenant = self.context["request"].tenant
         fields["eleve"].queryset = Eleve.objects.filter(etablissement=tenant, user__etablissement=tenant)
         fields["tuteur"].queryset = Tuteur.objects.filter(
