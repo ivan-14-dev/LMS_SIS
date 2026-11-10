@@ -1,7 +1,7 @@
 import unittest
 
 from jinja2 import Environment
-from tutor_sis_sso.plugin import SETTINGS_PATCH, trusted_origins
+from tutor_sis_sso.plugin import SETTINGS_PATCH, grade_targets, trusted_origins
 
 
 class TrustedOriginsTests(unittest.TestCase):
@@ -36,6 +36,7 @@ class TrustedOriginsTests(unittest.TestCase):
     def test_rendered_patch_preserves_native_origins_and_cookie_boundary(self):
         environment = Environment()
         environment.filters["sis_trusted_origins"] = trusted_origins
+        environment.filters["sis_grade_targets"] = grade_targets
         patch = environment.from_string(SETTINGS_PATCH).render(
             SIS_SSO_ORIGINS=["https://sis.lms.example.test"], ENABLE_HTTPS=True
         )
@@ -55,4 +56,74 @@ class TrustedOriginsTests(unittest.TestCase):
             self.assertEqual(
                 settings[name],
                 ["https://apps.lms.example.test", "https://sis.lms.example.test"],
+            )
+
+
+class GradeCallbackSettingsTests(unittest.TestCase):
+    def test_empty_targets_preserve_native_grade_configuration(self):
+        environment = Environment()
+        environment.filters.update(sis_trusted_origins=trusted_origins, sis_grade_targets=grade_targets)
+        settings = {
+            "LOGIN_REDIRECT_WHITELIST": [],
+            "CORS_ORIGIN_WHITELIST": [],
+            "CSRF_TRUSTED_ORIGINS": [],
+            "SIS_GRADE_WEBHOOK_TARGETS": [{"url": "https://native.example.test/"}],
+            "FEATURES": {"ENABLE_COURSE_ASSESSMENT_GRADE_CHANGE_SIGNAL": True},
+            "INSTALLED_APPS": ["existing.app"],
+        }
+        rendered = environment.from_string(SETTINGS_PATCH).render(
+            SIS_SSO_ORIGINS=[], ENABLE_HTTPS=True, SIS_GRADE_WEBHOOK_TARGETS=[]
+        )
+        exec(compile(rendered, "<sis-grade-settings>", "exec"), settings)
+        self.assertEqual(settings["SIS_GRADE_WEBHOOK_TARGETS"], [{"url": "https://native.example.test/"}])
+        self.assertEqual(settings["FEATURES"], {"ENABLE_COURSE_ASSESSMENT_GRADE_CHANGE_SIGNAL": True})
+        self.assertEqual(settings["INSTALLED_APPS"], ["existing.app"])
+
+    def test_invalid_targets_are_rejected_without_exposing_the_secret(self):
+        secret = "private-test-value"
+        for target in (
+            {"url": "http://sis.example.test/webhook/", "secret": secret},
+            {"url": "https://name:password@sis.example.test/", "secret": secret},
+            {"url": "https://*.example.test/", "secret": secret},
+            {"url": "https://sis.example.test/#fragment", "secret": secret},
+            {"url": "https://sis.example.test:invalid/", "secret": secret},
+            {"url": f"https://sis.example.test:{secret}/", "secret": secret},
+            {"url": "https://sis.example.test/", "secret": ""},
+            {"url": "https://sis.example.test/", "secret": secret, "course_ids": "course-v1:Org+Course+Run"},
+            {"url": "https://sis.example.test/", "secret": secret, "course_id": "misspelled-field"},
+            None,
+        ):
+            with self.subTest(target_type=type(target).__name__), self.assertRaises(ValueError) as error:
+                grade_targets([target])
+            self.assertNotIn(secret, str(error.exception))
+
+    def test_rendered_targets_enable_the_native_receiver_without_duplicate_app(self):
+        environment = Environment()
+        environment.filters.update(sis_trusted_origins=trusted_origins, sis_grade_targets=grade_targets)
+        app = "openedx.core.djangoapps.sis_grade_webhooks.apps.SisGradeWebhooksConfig"
+        target = {
+            "url": "https://sis.example.test:8443/api/v1/integration/webhook/lms/",
+            "secret": "private-test-value",
+            "course_ids": ["course-v1:Org+Course+Run"],
+        }
+        rendered = environment.from_string(SETTINGS_PATCH).render(
+            SIS_SSO_ORIGINS=[], ENABLE_HTTPS=False, SIS_GRADE_WEBHOOK_TARGETS=[target]
+        )
+        for installed in ([], [app]):
+            settings = {
+                "LOGIN_REDIRECT_WHITELIST": [],
+                "CORS_ORIGIN_WHITELIST": [],
+                "CSRF_TRUSTED_ORIGINS": [],
+                "INSTALLED_APPS": installed,
+                "FEATURES": {"existing_feature": True},
+            }
+            exec(compile(rendered, "<sis-grade-settings>", "exec"), settings)
+            self.assertEqual(settings["INSTALLED_APPS"], [app])
+            self.assertEqual(settings["SIS_GRADE_WEBHOOK_TARGETS"], [target])
+            self.assertEqual(
+                settings["FEATURES"],
+                {
+                    "existing_feature": True,
+                    "ENABLE_COURSE_ASSESSMENT_GRADE_CHANGE_SIGNAL": True,
+                },
             )

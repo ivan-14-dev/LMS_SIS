@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tutor-sis-sso"
-version = "0.1.0"
-description = "Explicit trusted SIS origins for the Open edX browser session"
+version = "0.2.0"
+description = "Explicit SIS browser origins and signed grade callbacks for Open edX"
 requires-python = ">=3.10"
 dependencies = ["tutor>=22.0.4,<23"]
 

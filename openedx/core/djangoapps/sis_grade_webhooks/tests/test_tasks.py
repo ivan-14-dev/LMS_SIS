@@ -4,7 +4,7 @@ import hmac
 import json
 from unittest.mock import Mock, patch
 
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, override_settings
 
 from openedx.core.djangoapps.sis_grade_webhooks.tasks import (
     EVENT_TYPE,
@@ -21,7 +21,7 @@ from openedx.core.djangoapps.sis_grade_webhooks.tasks import (
         }
     ]
 )
-class PublishAssessmentGradeTest(TestCase):
+class PublishAssessmentGradeTest(SimpleTestCase):
     """Tests for ``publish_assessment_grade``."""
 
     @patch("openedx.core.djangoapps.sis_grade_webhooks.tasks.requests.post")

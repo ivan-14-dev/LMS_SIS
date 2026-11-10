@@ -405,7 +405,7 @@ qualifiée, puis sélectionnez-la dans **la bonne racine Tutor** :
 
 ```sh
 docker build -t ecole-openedx:sis-provisioning-0.1.0 \
-  deploy/openedx
+  -f deploy/openedx/Dockerfile ..
 tutor config save --set DOCKER_IMAGE_OPENEDX=ecole-openedx:sis-provisioning-0.1.0
 tutor local run --rm lms ./manage.py lms migrate sis_provisioning --noinput
 tutor local start --detach lms lms-worker cms cms-worker
@@ -418,7 +418,12 @@ distante, publier l'image sur le registre privé autorisé de l'établissement o
 la transférer avec les outils Docker approuvés ; un tag local n'existe pas
 automatiquement sur une autre machine.
 
-Le contexte `deploy/openedx` contient aussi le correctif de déconnexion
+Le contexte de construction est désormais la **racine du dépôt** (`..`
+depuis `sis_apps`). Il fournit aussi le module natif `sis_grade_webhooks` et
+la transmission du barème réel par `SubsectionGradeFactory`. Copier uniquement
+le paquet de provisioning ne livre pas ces deux composants.
+
+Le dossier `deploy/openedx` contient aussi le correctif de déconnexion
 `jquery.allLoaded` pour cette version : chaque iframe attend un seul événement
 `load`, sans appeler une méthode jQuery sur un élément DOM. La construction
 applique le patch sans approximation puis régénère les assets LMS et Studio.
@@ -597,6 +602,10 @@ Le plugin local `deploy/tutor/tutor-sis-sso` ajoute les origines SIS expliciteme
 autorisées aux listes de redirection, CORS et CSRF du LMS. Il conserve les origines
 natives et **ne modifie pas le domaine des cookies**. Il ne crée aucun compte,
 mapping, inscription ou privilège. Sa liste `SIS_SSO_ORIGINS` est vide par défaut.
+Depuis la version 0.2.0, il permet également de déclarer les callbacks de notes
+signées ; `SIS_GRADE_WEBHOOK_TARGETS` est vide par défaut et se configure
+séparément dans le fichier privé, jamais dans une commande contenant le secret.
+Voir le [contrat des notes et les prérequis](DEPLOIEMENT_INTEGRATIONS.md#notes-détaillées-open-edx).
 
 Depuis `sis_apps`, avec le venv Tutor et `TUTOR_ROOT` du LMS sélectionnés :
 
@@ -612,7 +621,7 @@ chemin, paramètres, identifiants ni joker. HTTPS est obligatoire lorsque Tutor
 active HTTPS. Le frontend doit pouvoir recevoir les cookies JWT natifs du LMS :
 si `SESSION_COOKIE_DOMAIN=lms.ecole.example`, utilisez par exemple
 `sis.lms.ecole.example`, pas un domaine frère arbitraire. Les API SIS doivent
-également recevoir les cookies requis ou le jeton Bearer du client. Ne pas
+également recevoir les cookies requis ou le JWT via `Authorization: JWT ...`. Ne pas
 élargir le domaine des cookies à des sites qui ne sont pas sous votre contrôle.
 Une autorisation CORS seule ne rend pas les cookies partageables.
 
@@ -672,6 +681,15 @@ parcours complet réussit sans exception JavaScript tolérée : redirection vers
 le catalogue, cookies JWT effacés et nouvelle connexion obligatoire.
 Les SIS utilisateur conservent leur
 authentification locale : le pilote ne les bascule pas en SSO.
+
+**Complément du 10 novembre :** la nouvelle recette distincte qualifie aussi
+les quatre connexions apprenant/enseignant des deux variantes, les JWT RS512
+natifs et le refus d'un mapping de l'autre variante. Deux problèmes réellement
+notés produisent des callbacks HTTPS signés, des propositions idempotentes puis
+des notes approuvées par l'interface avec CSRF. Les comptes sont synthétiques,
+le navigateur reste en HTTP local et la CA des callbacks est propre à la
+recette. Ces preuves ne lèvent pas les réserves institutionnelles ou de
+fédération MFA ; voir le [bilan courant](RESTE_A_FAIRE_ET_VALIDATION.md).
 
 ### Configurer les emails et l'identité visuelle
 

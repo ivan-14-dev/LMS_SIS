@@ -46,16 +46,29 @@ SIS, avec les noms LMS/Studio comme alias de la passerelle. Les bases et brokers
 restent sur leurs réseaux propres. Vérifier la résolution DNS depuis les API
 et workers, pas seulement depuis l'hôte.
 
+Pour les callbacks, raccorder aussi le worker LMS et la passerelle SIS à ce
+réseau de transport, en conservant le réseau natif du worker pour son broker.
+Ne pas y exposer Redis ou les bases. La chaîne TLS doit être vérifiable depuis
+le worker ; une CA privée approuvée peut compléter son bundle via
+`REQUESTS_CA_BUNDLE`. Ne pas remplacer cette confiance par `verify=False`.
+
 Avant publication, le cours doit contenir au moins une unité Studio. Un refus
 pour cours vide peut conserver l'UUID d'opération et sa révision, sans version
 publiée. Après ajout de contenu, relire la révision et soumettre une **nouvelle
 confirmation avec un nouvel UUID**. Ne pas supprimer l'ancienne intention,
 réutiliser son UUID avec une autre révision ou retirer la garde sur les unités.
 
-Le [bilan du 10 novembre](RESTE_A_FAIRE_ET_VALIDATION.md#reprise-réelle-open-edx-et-démonstration-raccordée--10-novembre-2026)
-décrit la mise à jour réellement déployée et distingue les parcours acquis,
-le SSO non activé et les notes/webhooks non configurés. Il remplace les constats
-de disponibilité antérieurs, sans valoir réception institutionnelle.
+La création garde `catalog_visibility=none`. La publication ne décide pas à la
+place de l'auteur des dates et de la visibilité : vérifier ces paramètres dans
+Studio avant l'accès apprenant. Sur la version qualifiée, le MFE refuse aussi
+les métadonnées d'un cours invisible à son apprenant inscrit. Le choix explicite
+`about` rend ces métadonnées accessibles sans référencer le cours au catalogue ;
+la politique de visibilité et d'inscription appartient à l'établissement.
+
+Le [bilan SSO et notes du 10 novembre](RESTE_A_FAIRE_ET_VALIDATION.md#sso-et-notes-signées--qualification-du-10-novembre-2026)
+décrit le parcours réel navigateur, activité notée, callbacks TLS signés,
+reprise et approbation dans les deux variantes. Cette recette locale ne vaut
+ni DNS/TLS de production ni réception institutionnelle.
 
 ## Reprise après coupure et reçus tardifs
 
@@ -153,29 +166,48 @@ pas un moyen de terminer cette initialisation.
 
 ## Notes détaillées Open edX
 
-Activer le signal dans la configuration LMS :
-
-```yaml
-FEATURES:
-  ENABLE_COURSE_ASSESSMENT_GRADE_CHANGE_SIGNAL: true
-```
-
-Déclarer les destinations dans les tokens LMS. Le secret doit correspondre au
-secret webhook du tenant SIS :
+Construire l'image avec le
+[Dockerfile livré](INSTALLATION_ETABLISSEMENT.md#provisionner-les-comptes-sis-dans-open-edx)
+et le contexte racine du dépôt. Installer le plugin Tutor
+`deploy/tutor/tutor-sis-sso` **0.2.0 ou ultérieur**, puis activer `sis_sso`.
+Dans le `config.yml` privé de la racine Tutor autorisée, déclarer les cibles :
 
 ```yaml
 SIS_GRADE_WEBHOOK_TARGETS:
   - url: https://sis.example.org/api/v1/integration/webhook/lms/
-    secret: valeur-fournie-par-le-gestionnaire-de-secrets
+    secret: VALEUR_A_REMPLACER_DANS_LA_CONFIGURATION_PRIVEE
     course_ids:
       - course-v1:Organisation+Cours+Session
 ```
 
-`course_ids` est facultatif. Sans ce champ, la destination reçoit tous les
-cours. Hors mode debug, les URL non HTTPS sont ignorées. Redémarrer LMS et les
-workers Celery après modification, puis contrôler les retries et la file
-d'échec. Le mapping cours, utilisateur et sous-section vers évaluation doit
-exister dans le tenant avant l'import.
+Le secret doit correspondre à **`WEBHOOK_SECRET` du service API SIS récepteur**,
+pas à un champ métier de l'établissement. Ne pas transmettre ce secret dans
+un argument de commande, le dépôt, un ticket ou une capture. Limiter les droits
+du fichier de configuration et inclure la configuration et la wheel du plugin
+dans la sauvegarde chiffrée.
+
+Sauvegarder et examiner le rendu avant `tutor config save`, préserver les
+overrides opérateur puis recréer LMS et ses workers avec la nouvelle image.
+Une liste non vide active `ENABLE_COURSE_ASSESSMENT_GRADE_CHANGE_SIGNAL`,
+définit les cibles et installe le receiver Django s'il manque. Une liste vide
+n'écrase pas une configuration native préexistante. Vérifier la tâche
+`openedx.core.djangoapps.sis_grade_webhooks.tasks.publish_assessment_grade`
+dans le worker ; un heartbeat ou une tâche sans cible n'est pas une livraison.
+
+Les URL du plugin doivent être HTTPS, sans credentials ni fragment.
+`course_ids` est facultatif mais **vivement recommandé** : absent ou vide,
+la cible reçoit tous les cours. Préparer mappings utilisateur/cours/sous-section,
+évaluation et barème, inscription active et dossier/habilitations de l'enseignant.
+Une réception crée une proposition, jamais automatiquement une note officielle.
+La décision exige notamment `notes.view_evaluation`, `notes.view_note`,
+`notes.change_note` et le périmètre pédagogique approprié.
+
+Surveiller erreurs et reprises Celery : le producteur natif a cinq reprises,
+contrairement à l'outbox durable de provisioning décrite plus haut. Après leur
+épuisement, ne pas annoncer un succès ni inventer un événement : conserver
+l'incident et demander explicitement un recalcul natif du résultat déjà
+enregistré après correction. Vérifier ensuite la proposition et sa décision.
+Un recalcul émet un nouvel événement ; il ne remplace pas une note SIS existante.
 
 ## Copies écrites
 

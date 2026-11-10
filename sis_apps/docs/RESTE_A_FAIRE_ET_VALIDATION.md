@@ -9,7 +9,94 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
+## SSO et notes signées — qualification du 10 novembre 2026
+
+**SSO et chaîne de notes qualifiés sur les deux variantes de la recette locale.
+SMTP institutionnel, Stripe et réception habilitée restent bloqués.** Cette
+campagne complète la précédente ; elle ne qualifie pas un domaine institutionnel
+ni un SSO HTTPS de production. La démonstration conserve sa connexion locale.
+
+L'image Open edX précédente contenait le provisioning, mais pas le module
+`sis_grade_webhooks` ni la transmission du barème dans le signal natif.
+Le Dockerfile livré intègre maintenant ces deux sources depuis la racine du
+dépôt. Le plugin Tutor `tutor-sis-sso` 0.2.0 configure explicitement les
+destinations HTTPS, active le signal et charge son receiver sans doublonner
+l'application Django. Une liste vide ne remplace pas une configuration native.
+
+La configuration Tutor a été sauvegardée puis rendue dans une racine privée.
+La comparaison confirme que seuls l'origine SIS ajoutée et le bloc de
+callbacks changent : origines natives et domaine des cookies préservés.
+Les cibles sont limitées aux deux cours synthétiques, pas aux autres cours.
+LMS, Studio et leurs workers ont été mis à jour séquentiellement.
+L'image finale est construite avec le **Dockerfile livré**, pas seulement un
+overlay de recette :
+`sha256:2b0e6ad2751c393a6267297c67cc3352985e24a610ee34d53c35cfae01b057e3`.
+Les quatre services sont épinglés sur ce digest dans l'override opérateur.
+Les six tests du plugin et les huit tests ciblés de notes/capacités dans
+cette image passent. La wheel Tutor 0.2.0 est conservée dans
+`plugins-artifacts` pour préparer la restauration.
+
+| Parcours réellement exécuté | Résultat observé |
+|---|---|
+| SSO navigateur | Depuis le SIS, formulaire natif Open edX/MFE, retour au SIS ; quatre comptes apprenant/enseignant, deux variantes ; JWT réel RS512, issuer exact et mapping local correct. L'autre variante refuse ce mapping HTTP 401. |
+| Activité notée | Une réponse réelle par apprenant au problème synthétique, score natif 1/1, calcul de sous-section et signal natifs, Celery LMS puis POST HTTPS signé et Celery SIS. |
+| TLS | Le worker refuse le certificat avec sa seule confiance publique et l'accepte avec la CA locale explicitement montée. Aucun `verify=False`, aucune désactivation du contrôle TLS. |
+| Réponse perdue | Le relais de recette transmet réellement le callback, reçoit HTTP 200 du SIS puis coupe la réponse. Le worker natif réessaie avec le même événement et le même corps ; une seule proposition est conservée. |
+| Intégrité et rejeu | Signature incorrecte et corps altéré : HTTP 401. Rejeu du paquet natif exact : HTTP 200, sans nouvelle proposition ni modification de la note approuvée. |
+| Validation pédagogique | Avant décision : une proposition en attente et aucune note officielle. Approbation par l'interface enseignant, cookies JWT réels et CSRF : une note 1/1 par variante, avec auteur et décision. |
+| Refus métier | L'apprenant ne peut consulter les propositions de l'enseignant ; une seconde approbation avec authentification et CSRF valides est refusée HTTP 409. |
+
+Ce sont des approbations **automatisées avec comptes synthétiques**, pas les
+signatures de représentants habilités. Les droits `notes.view_evaluation`,
+`notes.view_note`, `notes.change_note` et les dossiers personnels enseignants
+ont été attribués explicitement aux seules fixtures. Un rôle nominal ou un
+droit enseignant Open edX ne confère pas automatiquement ces habilitations SIS.
+Les mots de passe natifs des fixtures ont été préparés explicitement :
+ce n'est pas une preuve d'invitation ou de récupération par email Open edX.
+
+Les refus et incidents de recette restent conservés. Les cours provisionnés
+étaient volontairement invisibles (`catalog_visibility=none`) : leurs dates
+et leur visibilité `about`, sans inscription au catalogue, ont été préparées
+explicitement puis leurs nouvelles révisions publiées. Un ordre incorrect des
+directives de la passerelle **de recette** a ensuite renvoyé 404 au premier
+callback secondaire jusqu'à épuisement des reprises. Après correction, le
+calcul natif de la réponse déjà enregistrée a été redemandé explicitement :
+nouvel événement réel, **pas** nouvelle réponse ni faux callback. Ce cas ne
+prouve pas une récupération automatique au-delà des cinq reprises natives.
+
+Le navigateur SSO reste en HTTP local sous
+`http://reception.lms.sis.localhost:32630`. Seuls les callbacks utilisent ici
+HTTPS avec une CA de recette ; le certificat serveur est limité à quatorze
+jours. Aucun domaine ou certificat d'établissement n'est ainsi approuvé.
+Le relais de faute a été arrêté et supprimé ; les callbacks passent désormais
+directement de la passerelle TLS aux API SIS. Les services de recette restent
+distincts de la démonstration ; aucune fixture n'a été injectée dans celle-ci.
+Après déploiement de l'image finale et redémarrage, la lecture native confirme
+les deux résultats 1/1 et les inscriptions. Le worker final a relivré les deux
+paquets natifs capturés ; chaque SIS conserve une proposition et une seule
+note approuvée. La démo conserve ses connexions locales, douze pages, les
+deux contrats LMS/Studio et le bulletin historique 16,50/20 avec son PDF,
+sans écriture métier pendant cette vérification.
+La restauration indépendante de cette nouvelle configuration et les scénarios
+de panne prolongée du broker restent à qualifier.
+
+| Dépendance restante | Réserve bloquante |
+|---|---|
+| Infrastructure institutionnelle | Domaines/DNS, certificats et confiance TLS, taille et supervision, règles et habilitations approuvés ; rejouer les parcours sur la cible autorisée. |
+| SMTP institutionnel | Aucun relais, accès, expéditeur et destinataire externe autorisés fournis. La démo reste en mémoire ; la capture SMTP locale antérieure ne prouve pas la délivrabilité externe. |
+| Stripe | Les deux secrets restent absents des API déployées ; compte, callback et mandat de recette manquent. Aucun paiement/remboursement exécuté et aucune réduction de l'exigence `livemode=true`. |
+| Réception | PV et pièces techniques disponibles, mais aucun responsable ni signature habilitée fournis. Aucune autorisation d'ouverture inventée. |
+
+Preuves privées : `.sis-sso-grades-20261110/` conserve rendus/configurations,
+rapports SSO, captures natives, événements signés, reprises, états avant/après
+approbation et refus. Les secrets, sessions et clés privées ne sont pas publiés.
+La matrice des 94 exigences et les réserves F30/F31/F32 ne sont pas requalifiées
+globalement par ces parcours ciblés.
+
 ## Reprise réelle Open edX et démonstration raccordée — 10 novembre 2026
+
+**Historique de la campagne précédente ; pour le SSO, les notes et les images
+courantes, lire le complément ci-dessus.**
 
 **LMS et Studio mis à jour, redémarrés et raccordés à la démonstration.
 SMTP externe, Stripe et réception institutionnelle restent non clôturés.**

@@ -34,8 +34,14 @@ aussi la réception d'emails dans une **boîte de capture locale protégée** av
 récupération de compte ; pas de preuve de délivrabilité institutionnelle.
 Ces pièces sont détaillées dans le bilan courant. Les représentants habilités
 doivent encore exécuter leur réception métier et signer leur propre décision :
-les réserves SSO/notes, SMTP externe, Stripe et infrastructure ne sont pas
-levées par ces essais techniques.
+les réserves SMTP externe, Stripe et infrastructure ne sont pas levées par ces
+essais techniques. Le complément SSO/notes du 10 novembre ajoute quatre
+connexions natives, deux activités réellement notées, les callbacks HTTPS
+signés avec reprise/idempotence et l'approbation par interface avec CSRF.
+Ce sont des comptes et décisions de recette automatisée, pas la validation
+pédagogique ou la signature institutionnelle des représentants habilités.
+Le SSO navigateur reste en HTTP local ; la CA des callbacks ne vaut pas
+approbation du DNS/TLS de l'établissement.
 
 ### Conditions de décision
 
