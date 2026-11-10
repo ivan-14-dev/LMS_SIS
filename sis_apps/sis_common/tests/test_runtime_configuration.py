@@ -11,6 +11,7 @@ from packaging.requirements import Requirement
 from scripts.sisctl import configure, read_configuration
 from sis_common.config import (
     get_database_configuration,
+    get_lms_configuration,
     get_sis_mode,
     get_variant_environment,
     load_environment,
@@ -58,6 +59,39 @@ def test_missing_production_database_password_is_rejected(monkeypatch):
     monkeypatch.setattr("sis_common.config.is_test_environment", lambda: False)
     with pytest.raises(ImproperlyConfigured, match="DB_PASSWORD_SECONDAIRE"):
         get_database_configuration("secondaire")
+
+
+def test_standalone_local_authentication_needs_no_lms_configuration(monkeypatch):
+    with patch.dict("os.environ", {"SIS_AUTH_MODE": "local"}, clear=True):
+        monkeypatch.setattr("sis_common.config.is_test_environment", lambda: False)
+        for variant in ("secondaire", "superieur"):
+            configuration = get_lms_configuration(variant)
+            assert configuration.pop("SIS_AUTH_MODE") == "local"
+            assert all(value == "" for value in configuration.values())
+
+
+def test_lms_authentication_still_requires_real_credentials(monkeypatch):
+    with patch.dict("os.environ", {"SIS_AUTH_MODE": "lms"}, clear=True):
+        monkeypatch.setattr("sis_common.config.is_test_environment", lambda: False)
+        with pytest.raises(ImproperlyConfigured, match="EDX_OAUTH_CLIENT_ID"):
+            get_lms_configuration("secondaire")
+    with patch.dict("os.environ", {"SIS_AUTH_MODE": "unknown"}, clear=True):
+        with pytest.raises(ImproperlyConfigured, match="SIS_AUTH_MODE"):
+            get_lms_configuration("superieur")
+
+
+def test_local_authentication_preserves_explicit_lms_integration(monkeypatch):
+    values = {
+        "SIS_AUTH_MODE": "local",
+        "EDX_LMS_URL": "https://lms.example",
+        "EDX_CMS_URL": "https://studio.example",
+        "EDX_OAUTH_CLIENT_ID": "service",
+        "EDX_OAUTH_CLIENT_SECRET": "configured-secret",
+    }
+    with patch.dict("os.environ", values, clear=True):
+        configuration = get_lms_configuration("secondaire")
+    assert all(configuration[key] == value for key, value in values.items())
+    assert configuration["EDX_JWT_PUBLIC_SIGNING_JWK_SET"] == ""
 
 
 def test_locked_runtime_satisfies_both_dependency_manifests():

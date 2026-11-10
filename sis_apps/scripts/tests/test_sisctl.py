@@ -193,6 +193,19 @@ class InitSchemaPreflightTests(unittest.TestCase):
                     self.assertIn("bootstrap_institution", bootstrap.args)
                     self.assertEqual(bootstrap.kwargs["input"], b"test-only\n")
 
+    def test_prebuilt_initialization_preserves_preflight_and_bootstrap_without_building(self):
+        options = self.options("school", "secondaire")
+        options.no_build = True
+        with (
+            patch.object(sisctl, "compose") as compose,
+            patch.object(sisctl, "preflight_card_references") as preflight,
+            patch.object(sisctl.getpass, "getpass", return_value="test-only"),
+        ):
+            sisctl.initialize({"SIS_MODE": "secondaire"}, options)
+        preflight.assert_called_once_with({"SIS_MODE": "secondaire"})
+        self.assertFalse(any(call.args[1] == "build" for call in compose.call_args_list))
+        self.assertIn("bootstrap_institution", compose.call_args_list[2].args)
+
 
 class ConfigureSafetyTests(unittest.TestCase):
     def options(self, directory, keys):
@@ -239,6 +252,50 @@ class ConfigureSafetyTests(unittest.TestCase):
             saved = sisctl.read_configuration(options.env_file)
             self.assertEqual(json.loads(saved["EDX_JWT_PUBLIC_SIGNING_JWK_SET"]), {"keys": [public]})
             self.assertEqual(options.env_file.stat().st_mode & 0o777, 0o600)
+
+    def test_standalone_configuration_and_offline_preflight_need_no_lms_or_secret_prompt(self):
+        for local in (True, False):
+            with self.subTest(local=local), tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+                options = self.options(directory, [])
+                options.auth_mode = "local"
+                options.local = local
+                options.lms_url = options.cms_url = options.jwks = None
+                with patch.object(sisctl.getpass, "getpass", side_effect=AssertionError("Must not prompt")):
+                    sisctl.configure(options)
+                configuration = sisctl.read_configuration(options.env_file)
+                self.assertFalse(any(key.startswith("EDX_") for key in configuration))
+                self.assertEqual(configuration["CORS_ALLOWED_ORIGINS"], configuration["FRONTEND_URL"])
+                with patch.object(sisctl.subprocess, "run", side_effect=AssertionError("Must remain offline")):
+                    sisctl.validate_configuration(configuration)
+                with self.assertRaisesRegex(ValueError, "EDX_LMS_URL"):
+                    sisctl.validate_configuration({**configuration, "SIS_AUTH_MODE": "lms"})
+                with self.assertRaisesRegex(ValueError, "EDX_CMS_URL"):
+                    sisctl.validate_configuration({**configuration, "EDX_LMS_URL": "https://lms.example"})
+
+    def test_local_auth_can_configure_provisioning_without_enabling_jwt(self):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+            options = self.options(directory, [])
+            options.auth_mode = "local"
+            options.jwks = None
+            with patch.object(sisctl.getpass, "getpass", return_value="throwaway-test-only"):
+                sisctl.configure(options)
+            configuration = sisctl.read_configuration(options.env_file)
+            sisctl.validate_configuration(configuration)
+            self.assertEqual(configuration["EDX_OAUTH_CLIENT_ID"], "sis-test")
+            self.assertFalse(any(key.startswith("EDX_JWT_") for key in configuration))
+
+    def test_lms_auth_and_partial_integrations_fail_before_prompting(self):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+            options = self.options(directory, [])
+            options.jwks = None
+            with patch.object(sisctl.getpass, "getpass", side_effect=AssertionError("Must not prompt")):
+                with self.assertRaisesRegex(ValueError, "--jwks"):
+                    sisctl.configure(options)
+                options.auth_mode = "local"
+                options.cms_url = None
+                with self.assertRaisesRegex(ValueError, "--cms-url"):
+                    sisctl.configure(options)
+            self.assertFalse(options.env_file.exists())
 
     def test_refuses_incomplete_lms_or_insecure_studio_urls_before_prompting(self):
         public = {"kty": "RSA", "n": "AQAB", "e": "AQAB"}

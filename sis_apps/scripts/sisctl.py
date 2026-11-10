@@ -148,18 +148,24 @@ def validate_configuration(configuration):
     path = Path(configuration["_ENV_FILE"])
     if not path.is_file() or stat.S_IMODE(path.stat().st_mode) & 0o077:
         raise ValueError("The deployment environment file must be a regular private file (0600 or stricter).")
+    auth_mode = configuration.get("SIS_AUTH_MODE", "lms")
+    if auth_mode not in ("lms", "local"):
+        raise ValueError("SIS_AUTH_MODE must be lms or local.")
+    lms_keys = ("EDX_LMS_URL", "EDX_CMS_URL", "EDX_OAUTH_CLIENT_ID", "EDX_OAUTH_CLIENT_SECRET")
+    jwt_keys = ("EDX_JWT_ISSUER", "EDX_JWT_AUDIENCE", "EDX_JWT_PUBLIC_SIGNING_JWK_SET")
+    lms_enabled = auth_mode == "lms" or any(configuration.get(key) for key in lms_keys)
+    jwt_enabled = auth_mode == "lms" or any(configuration.get(key) for key in jwt_keys)
     required = [
         "DJANGO_SECRET_KEY",
         "FIELD_ENCRYPTION_KEY",
         "WEBHOOK_SECRET",
         "DB_PASSWORD_SECONDAIRE",
         "DB_PASSWORD_SUPERIEUR",
-        "EDX_OAUTH_CLIENT_ID",
-        "EDX_OAUTH_CLIENT_SECRET",
-        "EDX_JWT_ISSUER",
-        "EDX_JWT_AUDIENCE",
-        "EDX_JWT_PUBLIC_SIGNING_JWK_SET",
     ]
+    if lms_enabled:
+        required.extend(lms_keys)
+    if jwt_enabled:
+        required.extend(jwt_keys)
     for key in required:
         if not configuration.get(key) or configuration[key].startswith("$"):
             raise ValueError(f"{key} is required and must be a literal value, not a variable reference.")
@@ -174,9 +180,8 @@ def validate_configuration(configuration):
         raise ValueError(
             "FIELD_ENCRYPTION_KEY must be a URL-safe base64-encoded 32-byte key; do not regenerate it."
         ) from exc
-    validate_jwks(configuration["EDX_JWT_PUBLIC_SIGNING_JWK_SET"])
-    if configuration.get("SIS_AUTH_MODE", "lms") not in ("lms", "local"):
-        raise ValueError("SIS_AUTH_MODE must be lms or local.")
+    if jwt_enabled:
+        validate_jwks(configuration["EDX_JWT_PUBLIC_SIGNING_JWK_SET"])
     debug = configuration.get("DJANGO_DEBUG", "False").lower()
     if debug not in ("true", "false", "1", "0", "yes", "no"):
         raise ValueError("DJANGO_DEBUG must be True/False, 1/0 or yes/no.")
@@ -190,7 +195,7 @@ def validate_configuration(configuration):
     ports = [configuration.get("SIS_HTTP_PORT", "8080"), configuration.get("SIS_HTTPS_PORT", "8443")]
     if any(not port.isdigit() or not 1 <= int(port) <= 65535 for port in ports) or int(ports[0]) == int(ports[1]):
         raise ValueError("SIS_HTTP_PORT and SIS_HTTPS_PORT must be distinct ports between 1 and 65535.")
-    for key in ("EDX_LMS_URL", "EDX_CMS_URL", "FRONTEND_URL"):
+    for key in (("EDX_LMS_URL", "EDX_CMS_URL") if lms_enabled else ()) + ("FRONTEND_URL",):
         deployment_url(configuration.get(key, ""), key, local)
     for variant in ("SECONDAIRE", "SUPERIEUR", "ADMIN"):
         key = f"SIS_{variant}_API_URL"
@@ -483,14 +488,40 @@ def configure(options):
         raise ValueError("Use --local for a localhost-only installation.")
     scheme = "http" if options.local else "https"
     port = ":8080" if options.local else ""
-    lms = deployment_url(options.lms_url, "LMS", options.local)
-    cms = deployment_url(options.cms_url, "Studio", options.local)
-    jwks = validate_jwks(options.jwks.read_text(encoding="utf-8"))
-    oauth_secret = getpass.getpass("LMS OAuth client secret: ")
-    if not oauth_secret:
-        raise ValueError("The LMS OAuth client secret is required.")
-    if oauth_secret.startswith("$"):
-        raise ValueError("The OAuth secret must not begin with '$', which Django interprets as a variable reference.")
+    lms_configuration = {}
+    if options.auth_mode == "lms" or any((options.lms_url, options.cms_url, options.jwks, options.issuer)):
+        if not options.lms_url or not options.cms_url:
+            raise ValueError("--lms-url and --cms-url are required when configuring an LMS.")
+        lms = deployment_url(options.lms_url, "LMS", options.local)
+        cms = deployment_url(options.cms_url, "Studio", options.local)
+        if options.auth_mode == "lms" and not options.jwks:
+            raise ValueError("--jwks is required for LMS authentication.")
+        if options.issuer and not options.jwks:
+            raise ValueError("--issuer requires --jwks.")
+        if options.jwks:
+            jwks = validate_jwks(options.jwks.read_text(encoding="utf-8"))
+            lms_configuration.update(
+                {
+                    "EDX_JWT_ISSUER": options.issuer or f"{lms}/oauth2",
+                    "EDX_JWT_AUDIENCE": options.audience,
+                    "EDX_JWT_PUBLIC_SIGNING_JWK_SET": json.dumps(jwks, separators=(",", ":")),
+                }
+            )
+        oauth_secret = getpass.getpass("LMS OAuth client secret: ")
+        if not oauth_secret:
+            raise ValueError("The LMS OAuth client secret is required.")
+        if oauth_secret.startswith("$"):
+            raise ValueError(
+                "The OAuth secret must not begin with '$', which Django interprets as a variable reference."
+            )
+        lms_configuration.update(
+            {
+                "EDX_LMS_URL": lms,
+                "EDX_CMS_URL": cms,
+                "EDX_OAUTH_CLIENT_ID": options.oauth_client_id,
+                "EDX_OAUTH_CLIENT_SECRET": oauth_secret,
+            }
+        )
     selected = "superieur" if options.mode == "superieur" else "secondaire"
     configuration = {
         "COMPOSE_PROJECT_NAME": project_name({"COMPOSE_PROJECT_NAME": getattr(options, "project_name", "lms-sis")}),
@@ -506,18 +537,14 @@ def configure(options):
         "DB_PASSWORD_SUPERIEUR": secrets.token_urlsafe(32),
         "FIELD_ENCRYPTION_KEY": base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
         "WEBHOOK_SECRET": secrets.token_urlsafe(32),
-        "EDX_LMS_URL": lms,
-        "EDX_CMS_URL": cms,
-        "EDX_OAUTH_CLIENT_ID": options.oauth_client_id,
-        "EDX_OAUTH_CLIENT_SECRET": oauth_secret,
-        "EDX_JWT_ISSUER": options.issuer or f"{lms}/oauth2",
-        "EDX_JWT_AUDIENCE": options.audience,
-        "EDX_JWT_PUBLIC_SIGNING_JWK_SET": json.dumps(jwks, separators=(",", ":")),
+        **lms_configuration,
         "FRONTEND_URL": f"{scheme}://sis.{domain}{port}",
         "SIS_SECONDAIRE_API_URL": f"{scheme}://secondaire.{domain}{port}/api/v1",
         "SIS_SUPERIEUR_API_URL": f"{scheme}://superieur.{domain}{port}/api/v1",
         "SIS_ADMIN_API_URL": f"{scheme}://{selected}.{domain}{port}/api/v1",
-        "CORS_ALLOWED_ORIGINS": f"{scheme}://sis.{domain}{port},{lms}",
+        "CORS_ALLOWED_ORIGINS": ",".join(
+            origin for origin in (f"{scheme}://sis.{domain}{port}", lms_configuration.get("EDX_LMS_URL")) if origin
+        ),
         "SIS_FRONTEND_ADDRESS": f"{scheme}://sis.{domain}",
         "SIS_SECONDAIRE_ADDRESS": f"{scheme}://secondaire.{domain}",
         "SIS_SUPERIEUR_ADDRESS": f"{scheme}://superieur.{domain}",
@@ -555,7 +582,8 @@ def initialize(configuration, options):
             "use 1-63 letters, digits or underscores, starting with a letter."
         )
     compose(configuration, "config", "--quiet")
-    compose(configuration, "build", f"api-{options.variant}")
+    if not getattr(options, "no_build", False):
+        compose(configuration, "build", f"api-{options.variant}")
     compose(configuration, "up", "-d", "--wait", f"postgres-{options.variant}", "redis")
     preflight_card_references({**configuration, "SIS_MODE": options.variant})
     password = getpass.getpass("Initial SIS administrator password (existing passwords are preserved): ")
@@ -601,9 +629,9 @@ def main():
     setup.add_argument("--mode", choices=["secondaire", "superieur", "dual"], default="secondaire")
     setup.add_argument("--project-name", default="lms-sis", help="Unique Compose project on this Docker host.")
     setup.add_argument("--domain", required=True)
-    setup.add_argument("--lms-url", required=True)
-    setup.add_argument("--cms-url", required=True)
-    setup.add_argument("--jwks", required=True, type=Path)
+    setup.add_argument("--lms-url", help="Required for LMS integration; omit for standalone local authentication.")
+    setup.add_argument("--cms-url", help="Required with --lms-url.")
+    setup.add_argument("--jwks", type=Path, help="Public signing JWKS file; required for LMS authentication.")
     setup.add_argument("--oauth-client-id", default="sis-integration")
     setup.add_argument("--audience", default="openedx")
     setup.add_argument("--issuer")
@@ -612,6 +640,7 @@ def main():
     initial = commands.add_parser("init", help="Provision a variant using an institution JSON document.")
     initial.add_argument("--variant", required=True, choices=["secondaire", "superieur"])
     initial.add_argument("--institution", required=True, type=Path)
+    initial.add_argument("--no-build", action="store_true", help="Initialize using an already available release image.")
     start = commands.add_parser("start")
     start.add_argument("--no-build", action="store_true", help="Use already available, explicitly selected images.")
     for name in ("stop", "status", "check"):

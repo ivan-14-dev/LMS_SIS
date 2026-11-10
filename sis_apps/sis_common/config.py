@@ -59,6 +59,30 @@ def get_required_secret(name: str, *, test_value: str) -> str:
     raise ImproperlyConfigured(f"La variable d'environnement {name} doit être définie.")
 
 
+def get_lms_configuration(variant):
+    """Local authentication can run without configuring an external LMS."""
+    mode = os.environ.get("SIS_AUTH_MODE", "lms")
+    if mode not in ("lms", "local"):
+        raise ImproperlyConfigured("SIS_AUTH_MODE doit être lms ou local.")
+    configuration = {
+        "SIS_AUTH_MODE": mode,
+        "EDX_LMS_URL": os.environ.get("EDX_LMS_URL", "http://localhost:8000" if mode == "lms" else ""),
+        "EDX_CMS_URL": os.environ.get("EDX_CMS_URL", "http://localhost:8001" if mode == "lms" else ""),
+    }
+    for name, test_value in {
+        "EDX_OAUTH_CLIENT_ID": f"sis-{variant}-test-client",
+        "EDX_OAUTH_CLIENT_SECRET": "test-oauth-secret",
+        "EDX_JWT_AUDIENCE": "sis-test-audience",
+        "EDX_JWT_PUBLIC_SIGNING_JWK_SET": '{"keys":[]}',
+    }.items():
+        configuration[name] = (
+            get_required_secret(name, test_value=test_value) if mode == "lms" else os.environ.get(name, "")
+        )
+    lms = configuration["EDX_LMS_URL"].rstrip("/")
+    configuration["EDX_JWT_ISSUER"] = os.environ.get("EDX_JWT_ISSUER", f"{lms}/oauth2" if lms else "")
+    return configuration
+
+
 def get_bool_environment(name: str, default: bool = False) -> bool:
     """Read a boolean environment variable."""
     return os.environ.get(name, str(default)).lower() in ("true", "1", "yes")

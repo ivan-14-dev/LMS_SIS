@@ -4,7 +4,8 @@
 
 Cette distribution Compose installe les SIS, leur interface, PostgreSQL, Redis,
 les workers, le planificateur et le proxy HTTPS. Elle **n'installe pas Open edX** :
-le LMS et Studio doivent déjà fonctionner et être administrés séparément.
+le LMS et Studio sont facultatifs en authentification locale ; lorsqu'ils sont
+retenus, ils doivent fonctionner et être administrés séparément.
 La compatibilité d'une version Tutor avec ce fork doit être qualifiée avant
 d'en faire une distribution complète LMS + SIS.
 Le déploiement séparé décrit ci-dessous utilise Tutor 22.0.4 ; il ne remplace
@@ -34,8 +35,44 @@ l'infrastructure de l'établissement.
 - Ports TCP 80 et 443 disponibles. PostgreSQL et Redis ne sont pas publiés.
   Si un proxy/Tutor utilise déjà ces ports, prévoir une machine distincte ou
   intégrer explicitement le routage dans le proxy existant.
-- Un client OAuth confidentiel SIS dans Open edX, son secret, l'audience, l'issuer
+- Pour le mode LMS uniquement : un client OAuth confidentiel SIS dans Open edX, son secret, l'audience, l'issuer
   exact et le **JWKS public** RSA/RS512. Ne copiez jamais la clé privée du LMS.
+
+### Installation autonome, sans Open edX
+
+Depuis la racine du dépôt :
+
+```sh
+cd sis_apps
+python3 scripts/sisctl.py configure \
+  --project-name sis-ecole \
+  --mode secondaire \
+  --auth-mode local \
+  --domain ecole.example
+python3 scripts/sisctl.py preflight --offline
+python3 scripts/sisctl.py preflight --installation --ports
+```
+
+Aucun paramètre `EDX_*`, fichier JWKS ou secret OAuth n'est nécessaire ni
+généré. Poursuivez avec la création de l'établissement (`init`) puis `start`
+ci-dessous. `--mode dual` nécessite une initialisation par variante.
+`--auth-mode local` choisit les comptes SIS : il **n'active pas DEBUG** et
+conserve HTTPS en production. Pour un pilote uniquement sur la machine,
+ajoutez `--local --domain ecole.localhost` ; HTTP reste lié à la boucle locale.
+
+L'interface utilise son origine pour initialiser son socle technique lorsque
+les URL LMS sont absentes ; cela ne configure aucun LMS côté serveur. Le
+diagnostic d'intégration doit rester « non configuré », sans appel distant.
+Les comptes, la scolarité et les paiements manuels ne requièrent pas Open edX.
+Les fonctions externes restent indisponibles jusqu'à leur raccordement.
+
+Une authentification locale peut aussi utiliser le provisioning LMS : fournir
+`--lms-url` et `--cms-url` ensemble avec le client OAuth. Le JWKS n'est alors
+nécessaire que si l'authentification JWT Open edX est retenue. Un paramétrage
+partiel est refusé par le précontrôle ; les clés JWT présentes sont toujours
+contrôlées, y compris en mode local.
+
+### Installation avec authentification Open edX
 
 Depuis la racine du dépôt :
 
@@ -679,6 +716,12 @@ python3 scripts/sisctl.py start
 python3 scripts/sisctl.py status
 python3 scripts/sisctl.py check
 ```
+
+Pour une livraison dont les images ont déjà été construites et vérifiées,
+renseignez `SIS_IMAGE` et `SIS_FRONTEND_IMAGE` avec leurs références immuables,
+puis utilisez `init --no-build` et `start --no-build`. L'initialisation conserve
+les précontrôles, migrations, création du tenant et collecte des fichiers ;
+elle n'essaie pas de reconstruire une image préqualifiée.
 
 L'initialisation applique les migrations versionnées, crée le schéma et le
 domaine, crée l'administrateur et collecte les fichiers statiques. Elle peut être

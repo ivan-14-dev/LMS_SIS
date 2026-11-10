@@ -14,6 +14,7 @@ from sis_common.config import (  # noqa: E402
     get_allowed_hosts,
     get_bool_environment,
     get_database_configuration,
+    get_lms_configuration,
     get_required_secret,
     get_sis_mode,
     get_variant_environment,
@@ -380,13 +381,15 @@ LOGGING = {
 }
 
 # ====================== Open edX Integration ======================
-EDX_LMS_URL = os.environ.get("EDX_LMS_URL", "http://localhost:8000")
-EDX_CMS_URL = os.environ.get("EDX_CMS_URL", "http://localhost:8001")
-EDX_OAUTH_CLIENT_ID = get_required_secret("EDX_OAUTH_CLIENT_ID", test_value="sis-superieur-test-client")
-EDX_OAUTH_CLIENT_SECRET = get_required_secret("EDX_OAUTH_CLIENT_SECRET", test_value="test-oauth-secret")
-EDX_JWT_ISSUER = os.environ.get("EDX_JWT_ISSUER", f"{EDX_LMS_URL.rstrip('/')}/oauth2")
-EDX_JWT_AUDIENCE = get_required_secret("EDX_JWT_AUDIENCE", test_value="sis-test-audience")
-EDX_JWT_PUBLIC_SIGNING_JWK_SET = get_required_secret("EDX_JWT_PUBLIC_SIGNING_JWK_SET", test_value='{"keys":[]}')
+_lms_configuration = get_lms_configuration(SIS_VARIANT)
+SIS_AUTH_MODE = _lms_configuration["SIS_AUTH_MODE"]
+EDX_LMS_URL = _lms_configuration["EDX_LMS_URL"]
+EDX_CMS_URL = _lms_configuration["EDX_CMS_URL"]
+EDX_OAUTH_CLIENT_ID = _lms_configuration["EDX_OAUTH_CLIENT_ID"]
+EDX_OAUTH_CLIENT_SECRET = _lms_configuration["EDX_OAUTH_CLIENT_SECRET"]
+EDX_JWT_ISSUER = _lms_configuration["EDX_JWT_ISSUER"]
+EDX_JWT_AUDIENCE = _lms_configuration["EDX_JWT_AUDIENCE"]
+EDX_JWT_PUBLIC_SIGNING_JWK_SET = _lms_configuration["EDX_JWT_PUBLIC_SIGNING_JWK_SET"]
 EDX_JWT_ALGORITHM = "RS512"
 EDX_JWT_LEEWAY = 5
 EDX_JWT_COOKIE_HEADER_PAYLOAD = os.environ.get("EDX_JWT_COOKIE_HEADER_PAYLOAD", "edx-jwt-cookie-header-payload")
@@ -399,7 +402,7 @@ WEBHOOK_SECRET = get_required_secret("WEBHOOK_SECRET", test_value="test-webhook-
 FIELD_ENCRYPTION_KEY = get_required_secret(
     "FIELD_ENCRYPTION_KEY", test_value="MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
 )
-SIS_WEBHOOK_LMS_URL = f"{EDX_LMS_URL}/api/webhooks/v1/webhooks/"
+SIS_WEBHOOK_LMS_URL = f"{EDX_LMS_URL}/api/webhooks/v1/webhooks/" if EDX_LMS_URL else ""
 
 # ====================== Récupération de compte / emails ======================
 # URL du frontend utilisée pour construire les liens de réinitialisation de
