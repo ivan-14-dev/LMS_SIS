@@ -9,6 +9,86 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
+## Finalisation de l'installation autonome — 10 novembre 2026
+
+**Installation autonome livrée et démonstration actualisée ; raccordements
+externes et réception institutionnelle non clôturés.** Cette section remplace
+la réserve du 9 novembre concernant les paramètres LMS obligatoires. Les
+preuves historiques restent conservées ci-dessous.
+
+### Installation réellement exécutée
+
+Le parcours livré `sisctl configure --auth-mode local`, `preflight`,
+`init --no-build`, `start --no-build`, `check` et `doctor` a été exécuté dans le
+projet distinct `sis-standalone-final-20261110`, avec deux bases neuves et des
+données synthétiques. **Aucune variable `EDX_*`, aucun JWKS ni secret OAuth**
+dans la configuration ou dans les conteneurs API. L'authentification LMS
+conserve ses exigences ; un raccordement partiel reste refusé.
+
+Les connexions par le formulaire réel, la consultation de l'établissement,
+de la scolarité et des paiements réussissent dans les deux variantes. Le
+diagnostic LMS répond explicitement `configured=false`, `available=false`,
+`connected=false` avec les quatre paramètres manquants. Les deux API ont
+ensuite été **recréées**, sans rejouer le bootstrap ; les comptes et les
+dossiers d'établissement restent accessibles avec de nouvelles sessions.
+La pile de qualification est arrêtée, ses données et preuves conservées.
+
+Deux blocages supplémentaires rencontrés pendant l'installation ont été
+corrigés, sans abaisser les protections :
+
+- le fichier institution en `0600` n'était pas lisible par l'utilisateur non
+  privilégié du conteneur ; configuration et mot de passe passent maintenant
+  par l'entrée standard, sans changement de droits du fichier ni exécution root ;
+- `check --deploy` échouait lors de l'introspection des liaisons familiales,
+  hors requête tenant ; seuls les champs de **génération de schéma** utilisent
+  des relations vides. Les requêtes réelles conservent leurs contrôles de tenant.
+
+Contrôles : 46 tests opérateur/sauvegarde, 26 tests configuration/JWT **par
+variante**, 14 tests familles/diagnostics LMS ; qualité Python réussie.
+`check --deploy` et `doctor` passent sur les deux API installées. Les
+avertissements OpenAPI et ceux attendus du pilote HTTP/DEBUG subsistent :
+ce n'est pas une qualification HTTPS de production. Le build frontend réussit
+avec trois avertissements de taille. Ces campagnes recouvrantes ne sont pas
+additionnées en un nombre d'exigences validées.
+
+### Démonstration mise à jour sans perte de données
+
+Après sauvegarde des bases/fichiers `20261110T014824Z` et copie privée des
+configurations, les deux API de `sis-demo40-20261109` utilisent l'image
+`sha256:408e52c67888062fd0a5d14e7ca506cde171982a7502ec907a9036b30e15742d`
+(code `cb6fd86`, après `33af626` et `266ca7d`). Les paramètres LMS fictifs
+pointant vers le frontend ont été retirés. Les secrets d'authentification,
+de chiffrement et de base, les comptes et les volumes existants sont conservés.
+Aucune migration métier nouvelle ni réinitialisation n'était nécessaire.
+
+Les connexions administrateur, douze pages, la gestion familiale et le compte
+élève historique ont été revérifiés dans Chromium. Son affectation, sa note
+source et le bulletin `BUL-1` à **16,50/20**, avec son PDF, sont conservés.
+Le frontend applicatif est inchangé ; les URL restent :
+`http://validation.localhost:32600/secondaire` et
+`http://validation.localhost:32600/superieur`.
+
+Preuves privées : `.sis-final-integrations-20261110/` contient les journaux
+d'installation, rapports navigateur avant/après recréation, inventaire de
+déploiement et anciennes configurations. La relecture de démonstration est
+dans `.sis-finish-eight-20261109/demo-acceptance-1794275388778/`.
+La sauvegarde préalable a été relue ; **elle n'est pas présentée comme une
+nouvelle restauration indépendante**.
+
+### Réserves externes confirmées, pas remplacées par une simulation
+
+| Chantier | Constat réel | Nécessaire pour clôturer |
+|---|---|---|
+| Open edX | Obtention d'un jeton OAuth du LMS local réussie. Les endpoints `capabilities/` LMS et Studio répondent 404 avec l'ancienne extension déployée. Studio a ensuite été arrêté à la demande de l'utilisateur pour libérer la RAM ; il reste arrêté. | Mettre à jour l'extension et reprendre une fenêtre autorisée LMS/Studio ; qualifier contrats, droits, parcours, outbox/reprise, JWT et webhooks avec le code courant. Un jeton OAuth seul ne prouve pas ces parcours. |
+| SMTP | Relais Exim local joignable : EHLO 250, sans AUTH ni STARTTLS annoncés. Aucun message envoyé ; la démo conserve son backend mémoire. | Fournir le relais institutionnel autorisé, ses accès, l'expéditeur et une boîte de recette ; vérifier réception, récupération de compte, TLS, DNS d'expéditeur et reprise. |
+| Paiements | Aucune `SIS_STRIPE_SECRET_KEY` ni `SIS_STRIPE_WEBHOOK_SECRET` configurée dans les API inspectées. Aucun débit, remboursement ou appel financier réel déclenché. | Compte prestataire, secrets hors dépôt, callback autorisé et mandat de recette. Le rapprochement actuel exige `livemode=true` : un objet de test Stripe n'est pas accepté comme paiement réel. |
+| Réception | Le [modèle de procès-verbal et les critères de levée](RECETTE_FONCTIONNELLE.md#procès-verbal-de-réception-institutionnelle) sont livrés, **non signés**. | Responsables habilités, périmètre, règles locales, infrastructure, formation/support et décision d'ouverture explicites. |
+
+Les sept services de démonstration restent actifs ; Studio et la nouvelle
+pile de qualification restent arrêtés. Aucun service d'un autre projet n'a
+été arrêté. La matrice des 94 exigences reste inchangée et F30/F31/F32 ne sont
+pas déclarés terminés.
+
 ## Intégration des huit chantiers — qualification locale du 9 novembre 2026
 
 Les huit contributions ont été assemblées et corrigées sur la base de code
@@ -85,8 +165,9 @@ Accès inchangés : `http://validation.localhost:32600/secondaire` et
 `http://validation.localhost:32600/superieur`. Les secrets existants restent
 dans les fichiers privés ; aucun identifiant sensible n'est publié ici.
 Les services auxiliaires de qualification sont arrêtés. Les limites Open edX,
-SMTP, fiscalité, installation autonome et réception institutionnelle ci-dessus
-restent applicables : démonstration actualisée ne signifie pas production prête.
+SMTP, fiscalité et réception institutionnelle ci-dessus restent applicables ;
+la réserve d'installation autonome a été levée le 10 novembre comme décrit
+plus haut. Démonstration actualisée ne signifie pas production prête.
 
 ## Synthèse antérieure à cette intégration — 9 novembre 2026
 

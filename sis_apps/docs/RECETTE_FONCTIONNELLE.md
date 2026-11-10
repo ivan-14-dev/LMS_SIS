@@ -4,6 +4,48 @@
 [plan directeur et son protocole de preuve](PLAN_DIRECTEUR_LMS_SIS.md#boucle-de-réalisation-et-critères-de-preuve),
 sans créer un nouveau backlog ni modifier les lots F01–F32.
 
+## Procès-verbal de réception institutionnelle
+
+Modèle complété côté procédure le **10 novembre 2026**. **Non signé, aucune
+autorisation d'ouverture.** Le responsable de l'établissement conserve la
+version renseignée dans son dossier privé ; ne pas publier les identités,
+signatures, accès ou données d'apprenants dans ce dépôt.
+
+| Champ obligatoire | À consigner par l'établissement |
+|---|---|
+| Périmètre | Établissement, variantes, sites, effectifs, modules ouverts et exclus, intégrations retenues. |
+| Livraison | Commit complet, digests backend/frontend/LMS, migrations, configuration approuvée et environnement cible. |
+| Règles métier | Pays, calendrier, barèmes, validation des résultats, devises/fiscalité, conservation et habilitations. |
+| Responsables | Réception, scolarité, pédagogie, comptabilité, protection des données, exploitation et support. |
+| Infrastructure | Hébergement/domaines/TLS, capacité retenue, supervision, sauvegarde hors site, RPO/RTO approuvés. |
+| Preuves | Pour chaque parcours : rôle, date, attendu/observé, refus, preuve expurgée et anomalie éventuelle. |
+| Réserves | Impact, responsable, échéance, mesure compensatoire et critère précis de levée. |
+| Décision | Refus, réception avec réserves ou réception du périmètre décrit ; date et signatures des responsables habilités. |
+
+La [qualification technique](RESTE_A_FAIRE_ET_VALIDATION.md) et les parcours
+ci-dessous constituent les pièces du dossier, **pas sa signature**. Les données
+synthétiques de démonstration ne définissent ni pays, ni devise, ni politique
+pédagogique pour le futur établissement.
+
+### Conditions de décision
+
+Une réserve est bloquante pour l'ouverture de la fonction concernée tant que
+sa preuve attendue manque :
+
+| Fonction annoncée | Preuve de levée attendue |
+|---|---|
+| SIS autonome | Installation neuve sans `EDX_*`, migrations, connexion nominative, persistance et diagnostic LMS non configuré. |
+| Open edX | Contrats authentifiés LMS **et** Studio, cours/identité/inscription, retrait et reprise, SSO si retenu, notes proposées puis validation humaine. |
+| Email | Message reçu dans une boîte de recette autorisée, récupération de compte aboutie, reprise après panne, TLS et identité d'expéditeur approuvés. Une réponse SMTP `250` à EHLO n'est pas une livraison. |
+| Paiement externe | Compte prestataire autorisé, signature du callback, rapprochement serveur, montant/devise/tenant/facture exacts, rejeu, double contrôle et remboursement. Aucun débit sans mandat explicite. |
+| Exploitation | Restauration indépendante et reprise applicative, alertes reçues, retour arrière, RPO/RTO mesurés et support joignable. |
+| Réception métier | Parcours exécutés par les représentants des rôles retenus, règles locales approuvées, décision signée. |
+
+Le SIS autonome peut être réceptionné dans un périmètre explicitement limité :
+ne pas annoncer Open edX, email délivré ou paiement externe comme disponibles
+si ces fonctions sont exclues. Une exclusion est une décision de périmètre,
+pas une clôture artificielle de l'exigence universelle correspondante.
+
 ## Checklist de livraison intermédiaire F30 F31
 
 Ajout du **9 novembre 2026** ; les bilans suivants, dont la première matrice
