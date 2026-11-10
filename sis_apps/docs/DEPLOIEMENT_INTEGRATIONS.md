@@ -36,6 +36,27 @@ de SSO, de visioconférence ou d'un autre standard pédagogique. Le champ
 `webhook_status` reste `unverified` ; chaque fournisseur non configuré reste
 indisponible. La page d'intégration affiche cette distinction.
 
+### Réseau de transport et prérequis de publication
+
+Sur un hôte multi-projets, ne pas raccorder les API SIS directement au réseau
+interne complet de Tutor. Des alias génériques comme `redis` ou `api-secondaire`
+peuvent alors désigner un service d'un autre projet. Prévoir un réseau de
+transport séparé, partagé uniquement par la passerelle Open edX et les clients
+SIS, avec les noms LMS/Studio comme alias de la passerelle. Les bases et brokers
+restent sur leurs réseaux propres. Vérifier la résolution DNS depuis les API
+et workers, pas seulement depuis l'hôte.
+
+Avant publication, le cours doit contenir au moins une unité Studio. Un refus
+pour cours vide peut conserver l'UUID d'opération et sa révision, sans version
+publiée. Après ajout de contenu, relire la révision et soumettre une **nouvelle
+confirmation avec un nouvel UUID**. Ne pas supprimer l'ancienne intention,
+réutiliser son UUID avec une autre révision ou retirer la garde sur les unités.
+
+Le [bilan du 10 novembre](RESTE_A_FAIRE_ET_VALIDATION.md#reprise-réelle-open-edx-et-démonstration-raccordée--10-novembre-2026)
+décrit la mise à jour réellement déployée et distingue les parcours acquis,
+le SSO non activé et les notes/webhooks non configurés. Il remplace les constats
+de disponibilité antérieurs, sans valoir réception institutionnelle.
+
 ## Reprise après coupure et reçus tardifs
 
 Les demandes utilisateur et cours sont maintenant enregistrées dans

@@ -27,6 +27,16 @@ ci-dessous constituent les pièces du dossier, **pas sa signature**. Les donnée
 synthétiques de démonstration ne définissent ni pays, ni devise, ni politique
 pédagogique pour le futur établissement.
 
+Le dossier technique du 10 novembre comporte désormais les parcours réels
+Open edX/Studio dans les deux variantes, la reprise après réponse perdue, les
+lectures natives après redémarrage et la démonstration raccordée. Il comporte
+aussi la réception d'emails dans une **boîte de capture locale protégée** avec
+récupération de compte ; pas de preuve de délivrabilité institutionnelle.
+Ces pièces sont détaillées dans le bilan courant. Les représentants habilités
+doivent encore exécuter leur réception métier et signer leur propre décision :
+les réserves SSO/notes, SMTP externe, Stripe et infrastructure ne sont pas
+levées par ces essais techniques.
+
 ### Conditions de décision
 
 Une réserve est bloquante pour l'ouverture de la fonction concernée tant que

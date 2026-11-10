@@ -9,7 +9,134 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
+## Reprise réelle Open edX et démonstration raccordée — 10 novembre 2026
+
+**LMS et Studio mis à jour, redémarrés et raccordés à la démonstration.
+SMTP externe, Stripe et réception institutionnelle restent non clôturés.**
+Ce bilan remplace les constats antérieurs « Studio arrêté » et
+« capabilities 404 », conservés plus bas comme historique.
+
+### Déploiement Open edX et parcours réellement exécutés
+
+Après sauvegarde chiffrée de la racine Tutor, services arrêtés pendant le
+snapshot, l'extension courante `sis_provisioning` a été installée dans une
+image dérivée du runtime Open edX déjà présent :
+`sha256:bd84b34986a94a0969272876cc0790d8d5819ebf5e33c18038f41672aae0bd2e`.
+LMS, Studio et leurs deux workers utilisent cette image ; les serveurs et
+workers restent à une concurrence de 1. Les pins sont conservés dans
+l'override **opérateur** Tutor ; aucune régénération `tutor config save`
+n'est prétendue. Toute régénération ultérieure doit préserver cet override.
+
+Le snapshot Restic
+`f50c38b6ef053692a58b9b6463b5ca693ef09d50ef4d3167a2cb8096f3b72994`
+a été relu intégralement, **sans nouvelle restauration indépendante**.
+Les deux tests de capacités passent dans le runtime Open edX. Les contrats
+authentifiés LMS et Studio répondent HTTP 200, `sis-provisioning/v1`,
+avec les cinq capacités requises, sans ajout de permissions pour les faire passer.
+
+Dans une pile SIS de recette séparée, avec des données synthétiques, les
+deux variantes ont exécuté les vrais clients HTTP et `SyncService` :
+comptes apprenant/enseignant, cours, révision, publication, inscription,
+attribution enseignant, rejeu d'identité/cours, puis retrait des deux accès.
+Les unités de cours ont été préparées explicitement via le stockage natif
+Studio : **ce n'est ni une création par interface pédagogique ni une
+validation humaine de publication**. Le premier cours secondaire vide a
+correctement été refusé ; son intention est conservée. Après création
+d'une unité et nouvelle revue de révision, une nouvelle opération UUID a été
+confirmée, sans modifier la protection contre les cours vides.
+
+Un proxy de faute local a ensuite transmis une véritable création de compte
+au LMS puis coupé la connexion **après son HTTP 201**, avant réception par
+le SIS. Dans chaque variante, l'identité distante existait, la transaction
+de mapping locale était annulée et l'outbox durable restait en attente.
+Le publisher réel a respecté le backoff puis retrouvé **le même compte**,
+sans doublon. Aucun faux serveur fournisseur ni horodatage artificiel.
+
+Une lecture indépendante des tables natives Open edX et du stockage Studio,
+avant puis après redémarrage séquentiel LMS/Studio, confirme les mêmes versions
+publiées, une unité par cours, inscriptions retirées, rôles enseignants
+retirés, unicité des comptes repris et absence de privilèges globaux.
+La perte de réponse lors de la création de **cours ou d'accès**, la mort d'un
+worker avec récupération d'une réservation après dix minutes, le SSO et les
+notes signées ne sont pas qualifiés par cette campagne.
+
+### Démonstration réellement raccordée, sans réinitialisation
+
+Les deux API de `sis-demo40-20261109` conservent l'image SIS
+`sha256:408e52c67888062fd0a5d14e7ca506cde171982a7502ec907a9036b30e15742d`,
+les bases, volumes, comptes et secrets existants. Une nouvelle sauvegarde
+bases/fichiers, relue, et une copie privée des configurations précèdent la
+bascule. Aucun bootstrap ni jeu synthétique de qualification injecté.
+L'authentification SIS reste **locale**, indépendante d'un SSO Open edX.
+
+Les quatre paramètres OAuth/LMS/Studio réels remplacent l'absence de
+raccordement. Le frontend a été reconstruit pour les origines correctes :
+`http://lms.sis.localhost:59080` et
+`http://studio.lms.sis.localhost:59080`.
+Le réseau de transport SIS ne contient que la passerelle LMS et les clients
+SIS, pas les bases ni le Redis Open edX : il évite les collisions d'alias
+Docker entre plusieurs projets. Le Redis propre à chaque pile est vérifié.
+
+Les workers et planificateurs SIS des deux variantes sont maintenant actifs,
+bornés en mémoire et à une concurrence de 1. Aucun ancien événement en
+attente ni message de broker n'était présent avant leur activation.
+Les tâches périodiques de publication d'outbox ont réellement été reçues et
+exécutées par les deux workers ; un conteneur démarré seul n'aurait pas suffi.
+
+Les connexions navigateur, douze pages, les familles et le bulletin historique
+`BUL-1` à **16,50/20**, avec son PDF, restent accessibles. Les diagnostics des
+deux API confirment `configured=true`, `available=true`. Les URL SIS ne changent
+pas : `http://validation.localhost:32600/secondaire` et
+`http://validation.localhost:32600/superieur`.
+Les auxiliaires de recette, dont la boîte SMTP locale, sont arrêtés ; les
+données et preuves sont conservées. Aucun service d'un autre projet n'a été arrêté.
+
+### SMTP réel local, pas de délivrabilité institutionnelle
+
+Une boîte SMTP de capture sans redirection ni port publié a été utilisée
+uniquement sur le réseau de recette, avec UI/API protégées par mot de passe.
+Dans les deux variantes : notification reçue, contenu/destinataire rapprochés,
+envoi déjà confirmé non dupliqué, lien de récupération reçu par SMTP,
+confirmation HTTP, refus de réutilisation et connexion avec le nouveau mot
+de passe et la protection CSRF réelle.
+
+Les échecs du harnais restent conservés : un alias Docker ambigu a été remplacé
+par le nom unique du service ; une première récupération secondaire aboutie
+a été suivie d'un nouveau cycle explicite pour vérifier la connexion avec le
+cookie/jeton CSRF manquant dans le premier harnais. Les protections produit
+n'ont pas été désactivées. Tous les destinataires sont synthétiques en
+`example.invalid` ; aucun email vers un tiers.
+
+Cette capture démontre le transport applicatif local, **pas** TLS/AUTH du
+relais institutionnel, SPF/DKIM/DMARC, réception externe ou reprise après
+panne de ce fournisseur. La démonstration conserve son backend email mémoire
+jusqu'à fourniture d'un relais et d'un destinataire autorisés.
+
+### Réserves et éléments à fournir
+
+| Chantier | État actuel | Élément nécessaire |
+|---|---|---|
+| Open edX complet | Provisioning/publication/retrait et reprise de compte qualifiés localement. SSO non activé ; signal de notes désactivé, aucune cible webhook. | Domaine/callback HTTPS et confiance TLS approuvés ; qualification SSO si retenu, parcours pédagogique et propositions de notes avec validation humaine. Ne pas désactiver TLS pour passer la recette. |
+| SMTP institutionnel | Transport de capture local qualifié ; aucun relais externe autorisé. | Fichier privé ou gestionnaire de secrets pour `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL` ; expéditeur et boîte de recette autorisés, DNS/TLS approuvés. |
+| Stripe | `SIS_STRIPE_SECRET_KEY` et `SIS_STRIPE_WEBHOOK_SECRET` toujours absents des deux API déployées. Aucun appel financier réel. | Accès au compte prestataire, secrets hors dépôt, callback autorisé et mandat précisant cible/montant. `livemode=true` reste exigé : ne pas faire passer un objet de test pour un paiement réel. |
+| Institution | Pièces techniques actualisées ; PV toujours non signé. | Périmètre, règles locales, responsables, infrastructure, support, RPO/RTO et signatures habilitées. |
+
+Ne transmettre aucun secret dans une issue, le dépôt ou une conversation :
+indiquer à l'opérateur autorisé un **chemin de fichier privé** ou une référence
+de gestionnaire de secrets. Aucune signature, permission, recette financière
+ou décision d'ouverture n'est créée à la place de l'établissement.
+
+Preuves privées : `.sis-live-integrations-20261110/` contient les contrats,
+parcours, pertes de réponse, lectures natives avant/après redémarrage,
+recettes SMTP, sauvegardes/configurations antérieures et rapports de déploiement.
+La relecture navigateur des données existantes est dans
+`.sis-finish-eight-20261109/demo-acceptance-1794278231787/`.
+Ces preuves ne modifient pas la matrice des 94 exigences et ne clôturent pas
+F30/F31/F32.
+
 ## Finalisation de l'installation autonome — 10 novembre 2026
+
+**Historique du début de journée, avant la reprise décrite ci-dessus.**
 
 **Installation autonome livrée et démonstration actualisée ; raccordements
 externes et réception institutionnelle non clôturés.** Cette section remplace
