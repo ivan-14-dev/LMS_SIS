@@ -16,7 +16,8 @@ export const Failure = ({ error, retry }) => (
 Failure.propTypes = { error: PropTypes.shape({ message: PropTypes.string }), retry: PropTypes.func };
 
 export const Field = ({
-  label, value, onChange, type = 'text', options, help, required = false, ...rest
+  label, value, onChange, type = 'text', options, help, required = false,
+  emptyOption = 'Tous / sélectionner…', ...rest
 }) => {
   const id = useId();
   return (
@@ -24,7 +25,7 @@ export const Field = ({
       <Form.Label>{label}{required ? ' *' : ''}</Form.Label>
       {options ? (
         <Form.Control as="select" value={value ?? ''} onChange={event => onChange(event.target.value)} required={required} {...rest}>
-          <option value="">Tous / sélectionner…</option>
+          <option value="">{emptyOption}</option>
           {options.map(([key, text]) => <option key={key} value={key}>{text}</option>)}
         </Form.Control>
       ) : (
@@ -50,17 +51,24 @@ Field.propTypes = {
   required: PropTypes.bool,
   options: PropTypes.arrayOf(PropTypes.arrayOf(PropTypes.string)),
   help: PropTypes.string,
+  emptyOption: PropTypes.string,
 };
 
 export const Pagination = ({
   data, page, setPage, label, disabled = false,
-}) => (
-  <nav aria-label={`Pagination — ${label}`} className="d-flex align-items-center my-3">
-    <Button variant="outline-primary" disabled={disabled || !data.previous || page <= 1} onClick={() => setPage(page - 1)}>Page précédente</Button>
-    <span className="mx-3" aria-live="polite">Page {page} — {data.count} résultat(s)</span>
-    <Button variant="outline-primary" disabled={disabled || !data.next} onClick={() => setPage(page + 1)}>Page suivante</Button>
-  </nav>
-);
+}) => {
+  const multiple = Boolean(data.previous || data.next || page > 1);
+  if (!data.count && !multiple) { return null; }
+  return (
+    <nav aria-label={`Pagination — ${label}`} className="sis-practical-pagination">
+      {multiple && <Button type="button" variant="outline-primary" disabled={disabled || !data.previous || page <= 1} onClick={() => setPage(page - 1)}>Page précédente</Button>}
+      <span className="sis-practical-pagination__summary" aria-live="polite">
+        {multiple ? `Page ${page} — ` : ''}{data.count} résultat(s)
+      </span>
+      {multiple && <Button type="button" variant="outline-primary" disabled={disabled || !data.next} onClick={() => setPage(page + 1)}>Page suivante</Button>}
+    </nav>
+  );
+};
 Pagination.propTypes = {
   data: PropTypes.shape({ count: PropTypes.number, previous: PropTypes.string, next: PropTypes.string }).isRequired,
   page: PropTypes.number.isRequired,
@@ -70,28 +78,50 @@ Pagination.propTypes = {
 };
 
 export const Collection = ({
-  path, schema, title, children, searchable = true, empty = 'Aucun résultat accessible.',
+  path, schema, title, children, filters, searchable = true, empty = 'Aucun résultat accessible.',
 }) => {
   const { busy } = usePractical();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
   const query = usePracticalQuery(`${path}${path.includes('?') ? '&' : '?'}page=${page}&page_size=20${searchable ? `&q=${encodeURIComponent(term)}` : ''}`, `Page<${schema}>`);
+  const searchResults = () => {
+    if (!busy) { setTerm(search.trim()); setPage(1); }
+  };
   return (
-    <section aria-label={title} className="my-3 border rounded p-3">
+    <section aria-label={title} className="sis-panel sis-practical-collection">
       <h3>{title}</h3>
-      {searchable && (
-        <div className="d-flex align-items-end">
-          <Field label={`Rechercher — ${title}`} value={search} onChange={setSearch} maxLength={200} disabled={busy} />
-          <Button className="mb-3 ml-2" disabled={busy} onClick={() => { setTerm(search.trim()); setPage(1); }}>Chercher {title.toLowerCase()}</Button>
+      {(searchable || filters) && (
+        <div className="sis-practical-collection__toolbar">
+          {searchable && (
+            <div role="search" aria-label={`Recherche — ${title}`} className="sis-practical-collection__search">
+              <Field
+                label={`Rechercher — ${title}`}
+                value={search}
+                onChange={setSearch}
+                maxLength={200}
+                disabled={busy}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                    event.preventDefault(); searchResults();
+                  }
+                }}
+              />
+              <Button type="button" aria-label={`Chercher ${title.toLowerCase()}`} disabled={busy} onClick={searchResults}>Rechercher</Button>
+            </div>
+          )}
+          {filters && <div className="sis-practical-collection__filters">{filters}</div>}
         </div>
       )}
       {query.error && <Failure error={query.error} retry={() => query.refetch()} />}
       {query.isFetching && <p role="status">Relecture de {title.toLowerCase()}…</p>}
       {!query.isFetching && !query.error && query.data && (
         <>
-          {!query.data.results.length && <p role="status">{empty}</p>}
-          {children(query.data.results)}
+          {!query.data.results.length ? (
+            <div className="sis-practical-collection__empty" role="status">
+              <p>{empty}</p>
+            </div>
+          ) : <div className="sis-practical-collection__results">{children(query.data.results)}</div>}
           <Pagination data={query.data} page={page} setPage={setPage} label={title} disabled={busy} />
         </>
       )}
@@ -105,6 +135,7 @@ Collection.propTypes = {
   children: PropTypes.func.isRequired,
   searchable: PropTypes.bool,
   empty: PropTypes.string,
+  filters: PropTypes.node,
 };
 
 export const CommandForm = ({

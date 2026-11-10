@@ -72,8 +72,8 @@ const Workspace = () => {
         Le suivi historique des conventions reste dans son espace séparé.
       </Alert>
       <p>Horloge institutionnelle : {data.fuseau_horaire} — {data.date_locale} {data.heure_locale}.</p>
-      <div className="mb-3">
-        <Button className="mr-2" variant="outline-primary" disabled={busy} onClick={() => select(null, null)}>Programmes et dossiers autorisés</Button>
+      <div className="sis-practical-actions">
+        <Button variant="outline-primary" disabled={busy} onClick={() => select(null, null)}>Programmes et dossiers autorisés</Button>
         <RefreshButton />
       </div>
       {notice && !fetching && !readError && <Alert variant="success">{notice}</Alert>}
@@ -116,23 +116,30 @@ const Workspace = () => {
             </Collection>
           )}
           {data.actions.can_list_dossiers && (
-            <>
-              <Field label="État des dossiers" options={['ouvert', 'clos', 'annule'].map(value => [value, labelStatus(value)])} value={status} disabled={busy} onChange={setStatus} />
-              <Collection
-                key={status}
-                path={`dossiers/${status ? `?statut=${status}` : ''}`}
-                schema="Dossier"
-                title="Dossiers autorisés"
-                empty="Aucun dossier visible. L’ouverture exige un programme publié, une convention existante complète et une inscription éligible. Un gestionnaire habilité sélectionne ces prérequis ; cette page ne crée pas de convention."
-              >
-                {rows => rows.map(item => (
-                  <p key={item.id}>
-                    <Button variant="link" disabled={busy || caps.isFetching} onClick={() => select('dossier', item.id)}>Ouvrir le dossier de {item.apprenant.utilisateur.nom} — {item.programme.titre}</Button>
-                    {' '}— {item.entreprise.nom} — {labelStatus(item.statut)}
-                  </p>
-                ))}
-              </Collection>
-            </>
+          <Collection
+            key={status}
+            path={`dossiers/${status ? `?statut=${status}` : ''}`}
+            schema="Dossier"
+            title="Dossiers autorisés"
+            empty="Aucun dossier visible. L’ouverture exige un programme publié, une convention existante complète et une inscription éligible. Un gestionnaire habilité sélectionne ces prérequis ; cette page ne crée pas de convention."
+            filters={(
+              <Field
+                label="État des dossiers"
+                options={['ouvert', 'clos', 'annule'].map(value => [value, labelStatus(value)])}
+                emptyOption="Tous les états"
+                value={status}
+                disabled={busy}
+                onChange={setStatus}
+              />
+                )}
+          >
+            {rows => rows.map(item => (
+              <p key={item.id}>
+                <Button variant="link" disabled={busy || caps.isFetching} onClick={() => select('dossier', item.id)}>Ouvrir le dossier de {item.apprenant.utilisateur.nom} — {item.programme.titre}</Button>
+                {' '}— {item.entreprise.nom} — {labelStatus(item.statut)}
+              </p>
+            ))}
+          </Collection>
           )}
         </>
       )}

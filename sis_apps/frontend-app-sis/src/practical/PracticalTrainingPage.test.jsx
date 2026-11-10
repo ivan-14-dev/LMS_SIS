@@ -133,6 +133,46 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+it.each(['secondaire', 'superieur'])('groups empty %s programme and dossier controls without a zero-result pagination', async variant => {
+  getOverride = path => ([`${base}programmes/`, `${base}dossiers/`].includes(path) ? page([]) : undefined);
+  renderPage(variant);
+  expect(await screen.findByText(/Aucun programme dans votre périmètre/)).toBeVisible();
+  expect(await screen.findByText(/Aucun dossier visible/)).toBeVisible();
+  const dossiers = within(screen.getByRole('region', { name: 'Dossiers autorisés' }));
+  expect(dossiers.getByRole('combobox', { name: 'État des dossiers' })).toBeVisible();
+  expect(dossiers.getByRole('option', { name: 'Tous les états' }).selected).toBe(true);
+  expect(dossiers.getByRole('search', { name: 'Recherche — Dossiers autorisés' })).toBeVisible();
+  expect(screen.queryByRole('navigation', { name: /Pagination/ })).not.toBeInTheDocument();
+  expect(http.post).not.toHaveBeenCalled();
+});
+
+it('keeps state filtering and keyboard search working inside the dossier panel', async () => {
+  renderPage();
+  await screen.findByRole('button', { name: /Ouvrir le dossier de Camille/ });
+  let dossiers = within(screen.getByRole('region', { name: 'Dossiers autorisés' }));
+  change('État des dossiers', 'clos', dossiers);
+  await waitFor(() => expect(http.get.mock.calls.some(([url]) => url.includes('dossiers/?statut=clos&page=1'))).toBe(true));
+  dossiers = within(screen.getByRole('region', { name: 'Dossiers autorisés' }));
+  const search = dossiers.getByRole('textbox', { name: 'Rechercher — Dossiers autorisés' });
+  fireEvent.change(search, { target: { value: '  Camille  ' } });
+  fireEvent.keyDown(search, { key: 'Enter' });
+  await waitFor(() => expect(http.get.mock.calls.some(([url]) => (
+    url.includes('dossiers/?statut=clos&page=1&page_size=20&q=Camille')
+  ))).toBe(true));
+  expect(http.post).not.toHaveBeenCalled();
+});
+
+it('does not submit the enclosing programme form when searching curriculum choices with Enter', async () => {
+  renderPage();
+  fireEvent.click(await screen.findByRole('button', { name: 'Nouveau programme pratique' }));
+  const editor = form('Créer le programme');
+  const search = editor.getByRole('textbox', { name: 'Rechercher — Cursus autorisés' });
+  fireEvent.change(search, { target: { value: 'Formation' } });
+  expect(fireEvent.keyDown(search, { key: 'Enter', cancelable: true })).toBe(false);
+  await waitFor(() => expect(http.get.mock.calls.some(([url]) => url.includes('curriculums/?page=1&page_size=20&q=Formation'))).toBe(true));
+  expect(http.post).not.toHaveBeenCalled();
+});
+
 it.each(['secondaire', 'superieur'])('gates the %s module default OFF without role/staff fallback', async variant => {
   globalCaps = {
     permissions: ['*'], role: 'administrateur', is_staff: true, modules: {},
