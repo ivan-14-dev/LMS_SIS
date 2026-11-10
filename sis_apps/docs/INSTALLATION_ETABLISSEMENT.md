@@ -73,10 +73,10 @@ aux classes/formations ; dans **Organisation et règles**, ouvrir
 gèrent dans **Modules**.
 
 Ce réglage ne transforme pas une classe en formation universitaire et
-n'installe pas les modules spécifiques de l'autre moteur. Le mode `dual`
-conserve deux bases, des comptes locaux séparés et deux contextes métier :
-le regroupement de tous les modules dans un moteur unique nécessite encore
-une migration dédiée. Le libellé « mixte » n'est pas une fusion de données.
+n'installe pas un moteur absent. En mode `dual`, les fonctions des deux moteurs
+peuvent être réunies dans un **espace institutionnel commun** selon la procédure
+ci-dessous. Les bases restent séparées : le libellé « mixte » n'est pas une
+fusion de données.
 
 Dans **Administration → Utilisateurs → Rôles et accès individuels**, choisir
 un compte pour ajouter des permissions directes, refuser explicitement des
@@ -109,6 +109,58 @@ Les raccourcis SIS sont retirés immédiatement. Les droits attribués directeme
 dans Open edX restent à gérer dans Open edX. Réactiver le service ne réaccorde
 pas automatiquement les affectations retirées. Un parent sans rôle enseignant
 actif et affectation confirmée ne reçoit aucun accès Studio.
+
+### Réunir réellement les fonctions des deux moteurs
+
+L'unification est une fédération des fonctions existantes, pas une migration
+des dossiers. Une seule navigation donne accès aux classes, élèves et services
+du secondaire ainsi qu'aux formations, étudiants, jurys et autres modules
+du supérieur. Chaque écran continue d'utiliser son API réelle et ses droits.
+Les services homonymes portent leur périmètre, par exemple
+« Paiements · Secondaire » et « Paiements · Supérieur » : les comptabilités,
+calendriers et résultats ne sont pas additionnés ni confondus.
+
+1. Installer les deux moteurs avec `SIS_MODE=dual`. Se connecter comme
+   super-utilisateur dans chacun des deux espaces. Dans l'espace qui sera le
+   siège, ouvrir **Administration → Établissement → Espace commun**, puis
+   **Vérifier le second espace**. Vérifier les noms affichés, confirmer qu'il
+   s'agit du même établissement, puis **Réunir les fonctions de ces deux espaces**.
+   Une confirmation est enregistrée dans chaque API avec sa propre session.
+2. Chaque utilisateur ouvre **Mon compte → Espace institutionnel commun**.
+   Il utilise **Connecter mon compte dans l'autre espace**, puis vérifie les
+   deux identités affichées et clique **Réunir mes accès autorisés** après
+   confirmation. Les deux comptes doivent chacun confirmer l'association.
+   Le même nom ou email n'est jamais une preuve d'identité suffisante.
+3. Le siège choisit le type dans **Administration → Établissement → Identité**.
+   « Mixte » affiche les deux catalogues de fonctions ; un type scolaire ou
+   universitaire sélectionne le catalogue correspondant. L'administration
+   du siège reste accessible. Le sélecteur technique de contexte disparaît
+   lorsque le rattachement institutionnel et les deux consentements sont valides.
+
+Le lien **Établissement** du menu commun ouvre les paramètres du siège.
+Pour les réglages spécialisés de l'autre moteur, utiliser **Espace commun →
+Paramètres métier de l'autre espace**, après vérification de cet espace.
+
+Cette configuration fonctionne avec l'authentification locale, sans Open edX.
+Elle conserve deux sessions locales ; elle ne copie pas les mots de passe et
+ne transforme pas ces sessions en SSO. En mode Open edX, les associations
+d'identité LMS de chaque service restent nécessaires. Le raccordement
+n'attribue ni rôle, ni permission, ni accès Studio.
+
+Les refus individuels et modules désactivés sont évalués **par leur service
+d'origine**, jamais à partir des permissions de l'autre compte. Les
+consentements sont stockés séparément des attributs ABAC administratifs.
+**Dissocier mes accès** retire la navigation commune sans supprimer de dossier
+ni révoquer une autorisation métier indépendante. **Détacher cet espace
+institutionnel** invalide le raccordement. Une nouvelle déclaration
+institutionnelle invalide les anciens consentements, même après un
+détachement/rattachement aux mêmes identifiants.
+
+En cas d'erreur réseau, de session absente ou de conflit 409, une déclaration
+unilatérale ne suffit pas à activer le menu commun. Recharger les deux espaces,
+vérifier les identités puis recommencer. Une indisponibilité du second service
+laisse les fonctions locales utilisables et affiche une explication.
+Les établissements de démonstration distincts ne sont pas rattachés par défaut.
 
 ## Préparer le serveur
 

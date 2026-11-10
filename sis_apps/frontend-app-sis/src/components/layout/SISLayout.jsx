@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { getConfig } from '@edx/frontend-platform';
 import {
-  Link, NavLink, Navigate, Outlet, useLocation, useNavigate,
+  Link, Navigate, Outlet, useLocation, useNavigate,
 } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -18,11 +18,12 @@ import { useCapabilities } from '../auth/PermissionGuard';
 import Sidebar, { WorkspaceBrand } from './Sidebar';
 import LocalSessionGate from '../auth/LocalSessionGate';
 import {
-  canUseLearning, getNavigation, getWorkspaceGroups, matchesNavigation, workspaceKind,
+  canUseLearning, getWorkspaceGroups, matchesNavigation, workspaceKind,
 } from './navigation';
 import AppearanceProvider from '../../theme/AppearanceProvider';
 import WorkspaceTools, { navigationKey } from './WorkspaceTools';
 import useWorkspacePreferences from './useWorkspacePreferences';
+import { institutionNavigation, otherVariant } from '../../services/institutionWorkspace';
 
 const labels = { secondaire: 'Secondaire', superieur: 'Supérieur' };
 
@@ -39,6 +40,10 @@ const Workspace = ({ type, variant }) => {
   const activeRole = getActiveRole(baseUrl);
   const sso = getConfig().SIS_AUTH_MODE === 'lms';
   const capabilities = useCapabilities(variant);
+  const peer = useCapabilities(otherVariant(variant), {
+    enabled: Boolean(capabilities.data?.workspace?.peer) && getEnabledVariants().includes(otherVariant(variant)),
+    retry: false,
+  });
   const profileUrl = resourceUrl(variant, 'utilisateurs/comptes');
   const profile = useQuery({
     queryKey: activeRole ? ['profile', profileUrl, activeRole] : ['profile', profileUrl],
@@ -50,9 +55,19 @@ const Workspace = ({ type, variant }) => {
     ? JSON.stringify([
       profileUrl, profile.data.id, profile.data.etablissement, profile.data.is_staff, allowedCapabilities,
     ]) : null;
-  const allSections = getNavigation(variant, variant, allowedCapabilities, location.search);
-  const preferences = useWorkspacePreferences(profile.data?.id
-    ? `${profileUrl}:${profile.data.etablissement}:${profile.data.id}` : null);
+  const peerCapabilities = peer.isError ? undefined : peer.data;
+  const institution = institutionNavigation(variant, allowedCapabilities, peerCapabilities, location.search);
+  const allSections = institution.sections;
+  const preferenceIdentity = institution.unified
+    ? `institution:${institution.home.id}:${[capabilities.data.workspace, peer.data.workspace]
+      .map(workspace => `${workspace.id}:${workspace.user}`).sort().join(':')}`
+    : profile.data?.id && `${profileUrl}:${profile.data.etablissement}:${profile.data.id}`;
+  const preferences = useWorkspacePreferences(preferenceIdentity || null);
+  useEffect(() => {
+    if (institution.unified && institution.home.variant !== variant && location.pathname === `/${variant}`) {
+      navigate(`/${institution.home.variant}`, { replace: true });
+    }
+  }, [institution.unified, institution.home?.variant, variant, location.pathname, navigate]);
   const favorites = allSections.flatMap(section => section.items)
     .filter(item => preferences.favorites.includes(navigationKey(item)));
   const kind = workspaceKind(capabilities.data);
@@ -62,12 +77,12 @@ const Workspace = ({ type, variant }) => {
     { title: 'Menu', items: groups.filter(group => !group.admin) },
     { title: 'Établissement', items: groups.filter(group => group.admin) },
   ].filter(section => section.items.length);
-  const activeGroup = groups.find(group => matchesNavigation(group, location.pathname));
+  const activeGroup = groups.find(group => matchesNavigation(group, location.pathname, variant));
   let workspaceLabel = 'Administration établissement';
   if (kind === 'teacher') { workspaceLabel = 'Enseignant / formateur'; }
   if (kind === 'learner') { workspaceLabel = capabilities.data.role === 'parent' ? 'Parent / tuteur' : 'Apprenant'; }
   const current = allSections.flatMap(section => section.items)
-    .find(item => matchesNavigation(item, location.pathname));
+    .find(item => matchesNavigation(item, location.pathname, variant));
   useEffect(() => { setMenuOpen(false); }, [location.pathname, location.search]);
   const changeVariant = (event) => {
     if (type === 'admin') {
@@ -163,12 +178,15 @@ const Workspace = ({ type, variant }) => {
               searchContext={searchContext}
               lmsAdmin={profile.data?.is_staff === true}
             />
+            {!institution.unified && (
             <label className="sis-context-select" htmlFor="sis-context">
               <span>Contexte SIS</span>
               <select id="sis-context" value={variant} onChange={changeVariant}>
                 {getEnabledVariants().map(value => <option key={value} value={value}>{labels[value]}</option>)}
               </select>
             </label>
+            )}
+            {institution.unified && <strong>{institution.home.name}</strong>}
             <Tooltip title="Notifications">
               <IconButton component={Link} to={`/${variant}/workflows`} aria-label="Notifications">
                 <NotificationsNone />
@@ -212,6 +230,12 @@ const Workspace = ({ type, variant }) => {
           )}
           <div className="sis-layout__body">
             <main id="sis-main" tabIndex={-1} className="sis-content">
+              {capabilities.data?.workspace?.peer && !institution.unified && !peer.isFetching && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Le menu commun nécessite deux connexions et des associations réciproques valides.
+                  <Button component={Link} to={`/${variant}/compte`}>Configurer mes accès communs</Button>
+                </Alert>
+              )}
               {current && !current.end && current.path.split('?')[0] === location.pathname && (
               <nav aria-label="Fil d’Ariane" className="sis-breadcrumbs">
                 <Link to={`/${variant}`}>Accueil</Link>
@@ -222,7 +246,12 @@ const Workspace = ({ type, variant }) => {
               {activeGroup && !activeGroup.home && activeGroup.items.length > 1 && (
               <nav aria-label={`Navigation de section : ${activeGroup.label}`} className="sis-section-nav">
                 {activeGroup.items.map(item => (
-                  <NavLink key={item.path} to={item.path}>{item.label}</NavLink>
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    aria-current={matchesNavigation(item, location.pathname, variant) ? 'page' : undefined}
+                  >{item.label}
+                  </Link>
                 ))}
               </nav>
               )}

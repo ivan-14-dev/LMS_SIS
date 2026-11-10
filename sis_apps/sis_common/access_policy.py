@@ -191,6 +191,7 @@ def enforce_request_policy(user, request):
         "mfa_enroll",
         "mfa_activate",
         "mfa_disable",
+        "workspace_link",
     ):
         return
     model = getattr(getattr(view, "queryset", None), "model", None)

@@ -11,6 +11,7 @@ import {
 } from '@openedx/paragon';
 import { Save } from '@openedx/paragon/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOutletContext } from 'react-router-dom';
 import { PageHeader } from '../../components/common';
 import {
   fetchApi,
@@ -29,6 +30,7 @@ import { apiErrorMessage } from '../../services/resources';
 import InstitutionalProfilesEditor from './InstitutionalProfilesEditor';
 import ModulesEditor from './ModulesEditor';
 import HierarchyEditor from './HierarchyEditor';
+import InstitutionWorkspaceEditor from './InstitutionWorkspaceEditor';
 
 const EMPTY_FORM = {
   fonctionnalites: {},
@@ -37,6 +39,7 @@ const EMPTY_FORM = {
 };
 
 const EtablissementPage = () => {
+  const { variant } = useOutletContext() || {};
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [academicConfiguration, setAcademicConfiguration] = useState(
@@ -78,6 +81,7 @@ const EtablissementPage = () => {
       setFormData(data);
       queryClient.setQueryData(['etablissement-current', endpoint], data);
       queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['capabilities'] });
     },
   });
 
@@ -173,7 +177,7 @@ const EtablissementPage = () => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (activeTab === 'hierarchy') { return; }
+    if (['hierarchy', 'workspace'].includes(activeTab)) { return; }
     let parsedAcademicConfiguration;
     try {
       parsedAcademicConfiguration = normalizeAcademicConfiguration(JSON.parse(academicJson));
@@ -253,6 +257,9 @@ const EtablissementPage = () => {
 
       <Form onSubmit={handleSubmit}>
         <Tabs activeKey={activeTab} onSelect={setActiveTab}>
+          <Tab eventKey="workspace" title="Espace commun">
+            {activeTab === 'workspace' && <InstitutionWorkspaceEditor variant={variant} administration />}
+          </Tab>
           <Tab eventKey="hierarchy" title="Organisation et règles">
             {activeTab === 'hierarchy' && <HierarchyEditor endpoint={endpoint} variant="admin" />}
           </Tab>
@@ -1480,7 +1487,7 @@ const EtablissementPage = () => {
           </Tab>
         </Tabs>
 
-        {activeTab !== 'hierarchy' && (
+        {!['hierarchy', 'workspace'].includes(activeTab) && (
         <Button
           className="mt-3"
           type="submit"

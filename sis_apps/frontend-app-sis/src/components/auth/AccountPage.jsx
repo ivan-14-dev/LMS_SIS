@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { deleteApi, fetchApi, postApi } from '../../services/api';
 import { apiErrorMessage, resourceUrl } from '../../services/resources';
 import { usesLocalSession } from '../../services/localSession';
+import InstitutionWorkspaceEditor from '../../admin/etablissement/InstitutionWorkspaceEditor';
 
 const AccountPage = ({ variant }) => {
   const [code, setCode] = useState('');
@@ -60,6 +61,7 @@ const AccountPage = ({ variant }) => {
       {(profile.error || action.error || revoke.error || logout.error) && <Alert severity="error">{apiErrorMessage(profile.error || action.error || revoke.error || logout.error)}</Alert>}
       {notice && <Alert severity="success">{notice}</Alert>}
       <Typography sx={{ my: 2 }}>{profile.data?.full_name || profile.data?.username}</Typography>
+      <InstitutionWorkspaceEditor variant={variant} />
       <Stack spacing={2}>
         <Typography>MFA local : {profile.data?.mfa_active ? 'activé' : 'désactivé'}</Typography>
         {!profile.data?.mfa_active && (

@@ -22,6 +22,7 @@ from sis_common.authorization import (
 from sis_common.branding import branding_snapshot
 from sis_common.group_assignment import can_change_group_assignments, change_group_assignments
 from sis_common.group_audit import GroupAuditMixin, change_group_assignment
+from sis_common.institution_workspace import WorkspaceAccountMixin, workspace_snapshot
 from sis_common.module_registry import module_snapshot
 from sis_common.session_security import (
     list_active_sessions,
@@ -62,6 +63,7 @@ class IsDirectionOrReadOnly(IsAuthenticated):
             "mfa_enroll",
             "mfa_activate",
             "mfa_disable",
+            "workspace_link",
         ):
             return True
         if request.method in ("GET", "HEAD", "OPTIONS"):
@@ -95,7 +97,9 @@ class CanManageAuthorization(IsAuthenticated):
         return has_business_permission(request.user, permission)
 
 
-class UtilisateursViewSet(AccountAccessPolicyMixin, AcademicLifecycleMixin, viewsets.ModelViewSet):
+class UtilisateursViewSet(
+    WorkspaceAccountMixin, AccountAccessPolicyMixin, AcademicLifecycleMixin, viewsets.ModelViewSet
+):
     """ViewSet CRUD pour utilisateurs."""
 
     permission_classes = [IsDirectionOrReadOnly]
@@ -144,6 +148,8 @@ class UtilisateursViewSet(AccountAccessPolicyMixin, AcademicLifecycleMixin, view
 
         snapshot = permission_snapshot(request.user, getattr(request.tenant, "configuration_academique", {}))
         snapshot["modules"] = module_snapshot(request.tenant)["enabled"]
+        if is_current_tenant_user(request):
+            snapshot["workspace"] = workspace_snapshot(request.tenant, request.user)
         snapshot.update(portal_capabilities(request))
         return Response(snapshot)
 

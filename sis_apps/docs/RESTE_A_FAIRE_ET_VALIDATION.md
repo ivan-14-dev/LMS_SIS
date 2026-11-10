@@ -9,6 +9,74 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
+## Espace institutionnel commun — unification fonctionnelle du 10 novembre 2026
+
+Les fonctionnalités des deux SIS sont maintenant réunies par **fédération** :
+un menu commun ouvre les vraies pages et API secondaire/supérieur, conserve
+les modules homonymes avec leur périmètre et masque le sélecteur technique de
+contexte une fois le raccordement confirmé. Les classes et formations restent
+leurs vrais objets métier, pas des écrans simulés ni des liens vers un second
+portail sans navigation commune. Les préférences du poste utilisent une
+identité commune aux deux comptes associés.
+
+Le siège est choisi explicitement lors du raccordement. Son type
+d'établissement pilote le catalogue affiché : scolaire, supérieur ou mixte.
+L'entrée **Établissement** de la navigation commune conduit au siège, même
+s'il utilise l'autre moteur. Les paramètres métier complémentaires restent
+accessibles depuis **Espace commun**. Les dossiers, finances, calendriers et
+résultats restent séparés : aucune consolidation comptable ni migration
+automatique d'identités ou de dossiers n'est revendiquée.
+
+Le raccordement exige deux déclarations institutionnelles réciproques,
+confirmées par les super-utilisateurs des deux services, puis le consentement
+de chaque compte associé avec sa propre session. Les UUID institutionnels
+persistants remplacent toute supposition par nom, email ou identifiant
+numérique local. Une version devenue obsolète est refusée HTTP 409. Une
+déclaration unilatérale, une session absente, une identité différente ou un
+consentement retiré ne suffit pas à activer le menu commun.
+
+Le raccordement ne confère **aucune permission**. Les rôles, refus individuels,
+modules désactivés et droits LMS/Studio restent contrôlés par leur service
+d'origine. Le consentement utilisateur est stocké dans un champ distinct des
+attributs ABAC administratifs. Un changement du rattachement institutionnel
+invalide les anciens consentements, y compris si les mêmes espaces sont
+rattachés à nouveau. L'authentification locale conserve ses deux sessions ;
+la fédération ne prétend pas les transformer en SSO.
+
+Le [guide d'installation](INSTALLATION_ETABLISSEMENT.md#réunir-réellement-les-fonctions-des-deux-moteurs)
+décrit le parcours **Administration → Établissement → Espace commun**, puis
+**Mon compte → Espace institutionnel commun**. Le mode `dual` est nécessaire
+pour réunir les deux catalogues ; aucun LMS n'est requis en authentification
+locale. Les établissements de démonstration distincts ne sont pas rattachés
+implicitement par cette mise à jour.
+
+Quatre migrations ajoutent les identifiants institutionnels, révisions et
+consentements ; chaque établissement préexistant reçoit son propre UUID.
+Les quatre sauvegardes préalables ont été restaurées dans un PostgreSQL
+isolé. Les contrôles locaux couvrent 43 tests backend par variante, puis 16
+par variante après séparation du stockage des consentements ; 141 tests
+frontend, six cas complémentaires de navigation/pages, dix cas ciblés
+du siège et de l'éditeur, puis six contrôles de navigation et de favoris
+contextuels. Qualité Python/JavaScript et builds de production réussis.
+Les réserves de CI baseline et d'homologation institutionnelle ci-dessous
+ne sont pas levées par cette unification fonctionnelle.
+
+La démo locale et la recette SSO utilisent l'image
+`sha256:5908b72ec4181405af07d39a57affd4be0ff5f529fbd1837ce9b8bc787647fd6`
+et les frontends de production correspondants. Les migrations sont appliquées
+aux quatre bases sans dérive ORM ; les services mis à jour sont sains.
+La recette navigateur a confirmé les deux déclarations et consentements,
+la navigation réelle **Formations supérieur → Classes secondaire**, le
+filtrage du catalogue par le type du siège et le retrait du consentement.
+Les liens administratifs homonymes conservent leur propre fil d'Ariane,
+sélection et favori : ouvrir ou favoriser les utilisateurs du supérieur
+ne sélectionne pas ceux du secondaire.
+Les rattachements temporaires ont ensuite été retirés et la configuration
+académique initiale restaurée, en conservant les UUID institutionnels.
+Les douze pages de démonstration, le bulletin/PDF à 16,50/20, les quatre
+parcours natifs SIS → LMS/Studio et les deux notes signées approuvées à 1/1
+ont été préservés.
+
 ## Types d'établissement, multi-rôles et accès individuels — 10 novembre 2026
 
 Le catalogue des types est commun aux deux variantes. Le changement de type
@@ -16,14 +84,11 @@ prépare les offres pédagogiques manquantes ; « mixte » prépare les profils
 secondaire et supérieur, sans remplacer les barèmes, offres personnalisées
 ou rattachements existants. Les inscriptions et notes ne sont pas migrées.
 
-**La fusion fonctionnelle totale secondaire/supérieur reste à réaliser.**
-Le type ne change pas le moteur installé. Les deux bases, leurs identités
-locales et les modules propres à chaque moteur restent distincts : aucun
-rapprochement de comptes par nom ou email n'est effectué. Il reste à raccorder
-les modules à une navigation institutionnelle unique avec une stratégie
-explicite de correspondance des identités et dossiers, avant de supprimer
-le sélecteur technique de contexte. Une simple sélection « mixte » ne doit
-pas être présentée comme cette fusion.
+À cette étape, le choix « mixte » préparait seulement les offres.
+La livraison **Espace institutionnel commun**, décrite ci-dessus, raccorde
+désormais les modules à une navigation unique après les confirmations
+institutionnelles et individuelles. Les deux bases restent distinctes par
+conception ; aucun rapprochement de comptes par nom ou email n'est effectué.
 
 La nouvelle administration **Utilisateurs → Rôles et accès individuels**
 permet les octrois directs et les refus prioritaires, y compris pour un

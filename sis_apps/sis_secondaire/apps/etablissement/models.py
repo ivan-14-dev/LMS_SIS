@@ -17,9 +17,10 @@ from sis_common.establishments import (
     validate_timezone,
 )
 from sis_common.event_occupancy import EventOccupancyGuard
+from sis_common.workspace_models import WorkspaceInstitutionFields
 
 
-class Etablissement(TenantMixin):
+class Etablissement(WorkspaceInstitutionFields, TenantMixin):
     """Établissement scolaire (collège/lycée) — base du multi-tenant."""
 
     TYPE_CHOICES = INSTITUTION_TYPE_CHOICES

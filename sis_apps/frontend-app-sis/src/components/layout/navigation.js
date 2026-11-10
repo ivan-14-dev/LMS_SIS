@@ -410,9 +410,10 @@ export const filterNavigation = (sections, query) => {
   })).filter(section => section.items.length);
 };
 
-export const matchesNavigation = (item, pathname) => {
-  if (item.items) { return item.items.some(child => matchesNavigation(child, pathname)); }
+export const matchesNavigation = (item, pathname, variant) => {
+  if (item.items) { return item.items.some(child => matchesNavigation(child, pathname, variant)); }
   const path = item.path.split('?')[0];
+  if (path.startsWith('/admin/') && item.source && variant && item.source !== variant) { return false; }
   return pathname === path || (!item.end && pathname.startsWith(`${path}/`));
 };
 
@@ -462,7 +463,7 @@ export const getWorkspaceGroups = (sections, kind) => {
   ];
   const groups = definitions.map((group) => {
     const items = group.paths
-      ? group.paths.map(path => available.find(item => item.path.split('?')[0].split('/').pop() === path)).filter(Boolean)
+      ? group.paths.flatMap(path => available.filter(item => item.path.split('?')[0].split('/').pop() === path))
       : available.filter(item => (group.home ? item.end : item.path.startsWith('/admin/')));
     return {
       ...group, items, path: items[0]?.path, end: group.home,

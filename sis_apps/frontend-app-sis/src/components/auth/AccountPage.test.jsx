@@ -9,6 +9,7 @@ import AccountPage from './AccountPage';
 jest.mock('../../services/api', () => ({
   fetchApi: jest.fn(),
   postApi: jest.fn(),
+  putApi: jest.fn(),
   deleteApi: jest.fn(),
 }));
 jest.mock('../../services/localSession', () => ({
@@ -17,6 +18,7 @@ jest.mock('../../services/localSession', () => ({
 jest.mock('../../services/resources', () => ({
   resourceUrl: (variant, resource) => `/api/${variant}/${resource}/`,
   apiErrorMessage: error => error.message,
+  getEnabledVariants: () => ['secondaire', 'superieur'],
 }));
 
 beforeEach(() => {

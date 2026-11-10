@@ -204,6 +204,7 @@ const renderWorkspace = (path = '/secondaire', client = workspaceClient()) => re
             <Route path="cours-lms" element={<LearningAccess />} />
             <Route path="mon-emploi-du-temps" element={<PersonalTimetable />} />
             <Route path="classes" element={<h1>Gestion des classes</h1>} />
+            <Route path="formations" element={<h1>Gestion des formations</h1>} />
             <Route path="eleves" element={<h1>Dossiers élèves</h1>} />
             <Route path="factures/:id" element={<SearchRecordDetail resource="factures" />} />
             <Route path="cours/:id" element={<SearchRecordDetail resource="cours" />} />
@@ -217,6 +218,7 @@ const renderWorkspace = (path = '/secondaire', client = workspaceClient()) => re
         ))}
         <Route path="/admin" element={<SISLayout type="admin" />}>
           <Route path="etablissement" element={<h1>Paramètres institutionnels</h1>} />
+          <Route path="utilisateurs" element={<h1>Gestion des comptes</h1>} />
         </Route>
       </Routes>
     </MemoryRouter>
@@ -263,6 +265,66 @@ beforeEach(() => {
     if (url.includes('page_size=1')) { return { count: 0, results: [] }; }
     throw new Error(`Requête inattendue : ${url}`);
   });
+});
+
+it('keeps one institutional navigation across both real routes and removes it when consent is revoked', async () => {
+  roles.secondaire.workspace = {
+    id: 'a',
+    peer: 'b',
+    home: 'a',
+    variant: 'secondaire',
+    name: 'Établissement commun',
+    variants: ['secondaire', 'superieur'],
+    version: 'v1',
+    user: 1,
+    account_link: { peer: 'b', user: 1, version: 'v1' },
+  };
+  roles.superieur.workspace = {
+    id: 'b',
+    peer: 'a',
+    home: 'a',
+    variant: 'superieur',
+    variants: ['superieur'],
+    version: 'v2',
+    user: 1,
+    account_link: { peer: 'a', user: 1, version: 'v2' },
+  };
+  const client = workspaceClient();
+  renderWorkspace('/secondaire', client);
+  await screen.findByText('Établissement commun');
+  expect(screen.queryByRole('combobox', { name: 'Contexte SIS' })).not.toBeInTheDocument();
+  fireEvent.click(within(screen.getByRole('navigation', { name: 'Navigation principale' }))
+    .getByRole('link', { name: 'Scolarité' }));
+  const section = within(await screen.findByRole('navigation', { name: 'Navigation de section : Scolarité' }));
+  expect(section.getByRole('link', { name: 'Classes', exact: true })).toBeVisible();
+  fireEvent.click(section.getByRole('link', { name: 'Formations', exact: true }));
+  await screen.findByRole('heading', { name: 'Gestion des formations' });
+  expect(screen.queryByRole('combobox', { name: 'Contexte SIS' })).not.toBeInTheDocument();
+  fireEvent.click(within(screen.getByRole('navigation', { name: 'Navigation principale' }))
+    .getByRole('link', { name: 'Administration' }));
+  await screen.findByRole('heading', { name: 'Paramètres institutionnels' });
+  let administration = within(screen.getByRole('navigation', { name: 'Navigation de section : Administration' }));
+  fireEvent.click(administration.getByRole('link', { name: 'Utilisateurs · Supérieur', exact: true }));
+  await screen.findByRole('heading', { name: 'Gestion des comptes' });
+  administration = within(screen.getByRole('navigation', { name: 'Navigation de section : Administration' }));
+  expect(administration.getByRole('link', { name: 'Utilisateurs · Supérieur', exact: true }))
+    .toHaveAttribute('aria-current', 'page');
+  expect(administration.getByRole('link', { name: 'Utilisateurs · Secondaire', exact: true }))
+    .not.toHaveAttribute('aria-current');
+  expect(within(screen.getByRole('navigation', { name: 'Fil d’Ariane' }))
+    .getByText('Utilisateurs · Supérieur')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Ouvrir la palette de navigation' }));
+  const palette = within(await screen.findByRole('dialog', { name: 'Aller à un module' }));
+  fireEvent.change(palette.getByLabelText('Rechercher dans les modules autorisés'), { target: { value: 'utilisateurs' } });
+  fireEvent.click(palette.getByRole('button', { name: 'Ajouter Utilisateurs · Supérieur aux favoris' }));
+  expect(palette.getByRole('button', { name: 'Retirer Utilisateurs · Supérieur des favoris' }))
+    .toHaveAttribute('aria-pressed', 'true');
+  expect(palette.getByRole('button', { name: 'Ajouter Utilisateurs · Secondaire aux favoris' }))
+    .toHaveAttribute('aria-pressed', 'false');
+  fireEvent.click(palette.getByRole('button', { name: 'Fermer la palette' }));
+  roles.superieur = { ...roles.superieur, workspace: { ...roles.superieur.workspace, account_link: null } };
+  await act(async () => { await client.invalidateQueries({ queryKey: ['capabilities'] }); });
+  expect(await screen.findByRole('combobox', { name: 'Contexte SIS' })).toBeVisible();
 });
 
 it('switches an explicitly assigned role and clears data cached in the previous workspace', async () => {

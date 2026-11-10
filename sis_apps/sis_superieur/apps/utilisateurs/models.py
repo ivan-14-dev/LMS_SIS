@@ -62,6 +62,7 @@ class Utilisateur(AbstractUser):
     doit_changer_mdp = models.BooleanField(default=False)
     derniere_connexion = models.DateTimeField(null=True, blank=True)
     preferences_notification = models.JSONField(default=dict, blank=True)
+    workspace_link = models.JSONField(null=True, blank=True, editable=False)
     attributs_acces = models.JSONField(
         default=dict,
         blank=True,

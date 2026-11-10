@@ -13,7 +13,10 @@ import { designTokens } from '../../theme/tokens';
 import AcademicSearch from './AcademicSearch';
 import { academicSearchResources } from '../../services/academicSearch';
 
-export const navigationKey = item => item.path.split('?')[0];
+export const navigationKey = (item) => {
+  const path = item.path.split('?')[0];
+  return item.source && path.startsWith('/admin/') ? `${path}?sis=${item.source}` : path;
+};
 
 const WorkspaceTools = ({
   sections, preferences, brand, variant, capabilities, searchContext, lmsAdmin,
