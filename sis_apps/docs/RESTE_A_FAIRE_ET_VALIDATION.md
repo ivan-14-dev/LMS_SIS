@@ -9,6 +9,49 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
+## Catalogue des permissions et lecture des droits — 10 novembre 2026
+
+Les éditeurs de groupes et d'accès individuels partagent un catalogue
+recherchable par nom ou code, filtrable par module et action, avec pagination
+et sélection multiple. Les sélections globales ou par module portent sur tous
+les résultats filtrés et conservent les choix masqués. Les changements ne sont
+appliqués qu'après enregistrement ; les refus prioritaires et protections des
+comptes sensibles restent contrôlés côté serveur.
+
+Le filtre par rôle inclut les rôles supplémentaires. La vue des droits
+enregistrés montre les groupes actifs ou désactivés, permissions directes,
+retraits et périmètres, sans inventer une correspondance fixe entre rôle
+métier et groupe. Elle distingue les permissions globales des accès contextuels
+liés aux affectations ou aux objets. Un compte désactivé, même super-utilisateur,
+n'y est pas présenté comme disposant de permissions utilisables.
+
+Les validations ciblées comprennent **39 tests frontend** et **21 tests backend
+par variante**, ainsi que les contrôles de qualité et les builds de production.
+Trois contrôles frontend complémentaires valident la coexistence du catalogue
+et de l'historique d'audit, dont une régression corrigée de duplication visuelle
+du catalogue lors d'une sélection en lot par un super-utilisateur.
+Un test historique distinct, `GroupLifecycleMigrationTests`, reste en échec :
+il rétrograde le schéma utilisateur à la migration `0005` puis utilise le
+modèle courant, qui exige `workspace_link` introduit en `0007`. Cet échec
+préexistant n'est pas assimilé à une réussite ni corrigé par ce chantier.
+Les autres réserves CI et externes de ce document restent applicables.
+
+La démo et la recette SSO sont mises à jour avec l'image
+`sha256:ff00cca27fff4fbf8c6e68a92f69eb31008f4461e15ccf0bc3b4af22901a601b`
+et leurs frontends de production. Les quatre sauvegardes préalables ont été
+restaurées dans un PostgreSQL isolé ; aucune migration supplémentaire ni
+dérive ORM n'a été détectée. La recette réelle des deux variantes a confirmé
+la sélection en lot, la conservation des choix masqués, le filtre par rôle
+supplémentaire et l'affichage d'un refus prioritaire malgré un groupe accordant
+la permission. Les comptes et groupes temporaires ont été supprimés.
+
+Le compte d'administration demandé dispose de tous les droits SIS dans les
+deux variantes des deux environnements ; ses connexions locales et SSO ont été
+vérifiées. Ses identifiants sont conservés uniquement dans un fichier opérateur
+privé, hors dépôt. Son identité Open edX ne reçoit pas de privilèges natifs
+globaux ni de droits Studio implicites. Aucun email externe ni paiement réel
+n'a été déclenché.
+
 ## Espace institutionnel commun — unification fonctionnelle du 10 novembre 2026
 
 Les fonctionnalités des deux SIS sont maintenant réunies par **fédération** :

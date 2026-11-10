@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  fireEvent, render, screen, waitFor,
+  fireEvent, render, screen, waitFor, within,
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fetchApi, putApi } from '../../services/api';
@@ -14,7 +14,9 @@ jest.mock('../../services/resources', () => ({
   apiErrorMessage: error => error?.response?.data?.detail || error.message,
 }));
 
-const user = { id: 2, username: 'alice', full_name: 'Alice' };
+const user = {
+  id: 2, username: 'alice', full_name: 'Alice', roles: [{ code: 'enseignant', label: 'Enseignant' }],
+};
 const permission = {
   id: 11, app_label: 'notes', codename: 'view_note', name: 'Voir les notes',
 };
@@ -34,6 +36,9 @@ beforeEach(() => {
     editable: true,
     can_edit_roles: true,
     can_restore_features: true,
+    effective_permissions: [],
+    permission_groups: [],
+    permission_scopes: {},
   };
   fetchAllResourcePages.mockImplementation(async url => (url.includes('/permissions/') ? [permission] : [user]));
   fetchApi.mockImplementation(async () => policy);
@@ -60,8 +65,10 @@ const open = async () => {
 it('sends multiple roles, individual grants and priority denials with a concurrency version', async () => {
   await open();
   await choose('Rôles supplémentaires', 'Enseignant');
-  await choose('Permissions ajoutées directement', 'Voir les notes (notes.view_note)');
-  await choose('Permissions explicitement retirées', 'Voir les notes (notes.view_note)');
+  fireEvent.click(within(screen.getByRole('region', { name: 'Permissions ajoutées directement' }))
+    .getByRole('checkbox', { name: 'Voir les notes (notes.view_note)' }));
+  fireEvent.click(within(screen.getByRole('region', { name: 'Permissions explicitement retirées' }))
+    .getByRole('checkbox', { name: 'Voir les notes (notes.view_note)' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Retirer : Emplois du temps' }));
   fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les accès individuels' }));
   await waitFor(() => expect(putApi).toHaveBeenCalledWith(
@@ -95,4 +102,22 @@ it('does not edit protected accounts or roles the actor cannot assign', async ()
   expect(screen.getByRole('checkbox', { name: 'Retirer : Emplois du temps' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Enregistrer les accès individuels' })).toBeDisabled();
   expect(putApi).not.toHaveBeenCalled();
+});
+
+it('filters by an additional role and explains inherited, denied and scoped account permissions', async () => {
+  policy.roles.push({ code: 'enseignant', label: 'Enseignant' });
+  policy.permission_groups = [{
+    id: 7, name: 'Lecteurs', active: true, permissions: ['notes.view_note'],
+  }];
+  policy.denied_permissions = ['notes.view_note'];
+  policy.permission_scopes = { 'notes.view_note': { classes: [3] } };
+  await open();
+  await choose('Filtrer les comptes par rôle', 'Enseignant');
+  expect(screen.queryByRole('button', { name: 'Enregistrer les accès individuels' })).not.toBeInTheDocument();
+  await choose('Compte à configurer', 'Alice (alice)');
+  fireEvent.click(await screen.findByRole('button', { name: 'Voir les droits enregistrés de ces rôles' }));
+  const summary = within(screen.getByRole('region', { name: 'Droits enregistrés du compte' }));
+  expect(summary.getByText(/Non accordée — Groupe Lecteurs ; Retrait individuel prioritaire ; Périmètre/)).toBeVisible();
+  expect(summary.getByRole('checkbox', { name: 'Voir les notes (notes.view_note)' })).not.toBeChecked();
+  expect(summary.getByRole('checkbox', { name: 'Voir les notes (notes.view_note)' })).toBeDisabled();
 });

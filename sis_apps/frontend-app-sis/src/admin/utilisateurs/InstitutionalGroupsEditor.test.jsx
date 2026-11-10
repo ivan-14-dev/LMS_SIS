@@ -136,6 +136,20 @@ it('adds and removes a user through the group assignment endpoints without PATCH
   expect(patchApi).not.toHaveBeenCalled();
 });
 
+it('keeps one catalogue and its filter while selecting permissions alongside the audit history', async () => {
+  renderEditor([...allowed, 'core.view_workflowevent']);
+  fireEvent.click(await screen.findByRole('button', { name: 'Équipe examens' }));
+  fireEvent.change(screen.getByLabelText('Rechercher une permission'), { target: { value: 'notes.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Sélectionner les résultats (2)' }));
+  expect(screen.getAllByRole('region', { name: 'Permissions du groupe', exact: true })).toHaveLength(1);
+  expect(screen.getByLabelText('Rechercher une permission')).toHaveValue('notes.');
+  expect(screen.getByRole('checkbox', { name: /Module notes/ })).toBeChecked();
+  fireEvent.change(screen.getByLabelText('Rechercher une permission'), { target: { value: 'view_note' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Retirer les résultats de la sélection' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Enregistrer le groupe' }));
+  await waitFor(() => expect(patchApi).toHaveBeenLastCalledWith(`${groupsUrl}7/`, { permissions: [12] }));
+});
+
 it('deactivates and reactivates a group without editing its permissions or memberships', async () => {
   users[0].groups = [3, 7];
   renderEditor();

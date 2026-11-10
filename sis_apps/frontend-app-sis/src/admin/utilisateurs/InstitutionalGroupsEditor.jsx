@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { patchApi, postApi } from '../../services/api';
 import { apiErrorMessage, fetchAllResourcePages, resourceUrl } from '../../services/resources';
 import GroupAuditHistory from './GroupAuditHistory';
+import PermissionCatalog from './PermissionCatalog';
 
 const can = (capabilities, permission) => Boolean(
   capabilities?.permissions?.includes('*')
@@ -136,9 +137,6 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
   const lifecycleAvailable = selectedId === 'new' || typeof group?.actif === 'boolean';
   const editable = (selectedId === 'new' ? canAdd : canChange) && permissionsAvailable;
   const busy = save.isPending || assign.isPending || assignMany.isPending;
-  const permissionsByApp = permissions.data.reduce((result, permission) => ({
-    ...result, [permission.app_label]: [...(result[permission.app_label] || []), permission],
-  }), {});
 
   return (
     <Paper component="section" variant="outlined" aria-label="Groupes d’autorisations" sx={{ p: { xs: 2, sm: 3 } }}>
@@ -221,30 +219,14 @@ const InstitutionalGroupsEditor = ({ variant, capabilities }) => {
               Les autres groupes actifs et les permissions directes restent applicables.
             </Alert>
           )}
-          {Object.entries(permissionsByApp).map(([app, items]) => (
-            <Box key={app} sx={{ mb: 2 }}>
-              <Typography component="h4" variant="subtitle2">{app}</Typography>
-              <Stack direction="row" useFlexGap sx={{ flexWrap: 'wrap', gap: 1 }}>
-                {items.map(permission => (
-                  <FormControlLabel
-                    key={permission.id}
-                    label={`${permission.name} (${permission.codename})`}
-                    control={(
-                      <Checkbox
-                        checked={permissionIds.some(id => String(id) === String(permission.id))}
-                        disabled={!editable || busy}
-                        onChange={(event) => {
-                          setPermissionIds(current => (event.target.checked
-                            ? [...current, permission.id]
-                            : current.filter(id => String(id) !== String(permission.id))));
-                        }}
-                      />
-                    )}
-                  />
-                ))}
-              </Stack>
-            </Box>
-          ))}
+          <PermissionCatalog
+            key={`permissions:${selectedId}`}
+            label="Permissions du groupe"
+            permissions={permissions.data}
+            value={permissionIds}
+            onChange={setPermissionIds}
+            disabled={!editable || busy}
+          />
           {selectionError && <Alert severity="error" sx={{ mb: 2 }}>{selectionError}</Alert>}
           {!permissionsAvailable && (
             <Alert severity="error" sx={{ mb: 2 }}>

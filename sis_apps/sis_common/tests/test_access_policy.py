@@ -61,6 +61,45 @@ class AccountAccessTests(TenantAPITestCase):
         self.authenticate(user)
         assert self.client.get("/api/v1/utilisateurs/groupes/").status_code == 200
 
+    def test_permission_sources_keep_inactive_groups_and_denials_visible_without_granting_them(self):
+        group = Group.objects.create(name="Recorded readers")
+        group.permissions.add(self.permission)
+        self.user.groups.add(group)
+        apps.get_model("utilisateurs", "GroupLifecycle").objects.create(group=group, actif=False)
+        self.user.attributs_acces = {
+            "permission_scopes": {"auth.view_group": {"classes": [3]}},
+            "access_policy": {
+                "denied_permissions": ["auth.view_group"],
+                "additional_roles": ["parent"],
+            },
+        }
+        self.user.save()
+        response = self.client.get(self.url)
+        assert response.status_code == 200
+        assert response.data["permission_groups"] == [
+            {
+                "id": group.pk,
+                "name": group.name,
+                "active": False,
+                "permissions": ["auth.view_group"],
+            }
+        ]
+        assert response.data["permission_scopes"] == {"auth.view_group": {"classes": [3]}}
+        assert "auth.view_group" not in response.data["effective_permissions"]
+        response = self.client.get("/api/v1/utilisateurs/comptes/")
+        users = response.data["results"] if isinstance(response.data, dict) else response.data
+        target = next(user for user in users if user["id"] == self.user.pk)
+        assert {role["code"] for role in target["roles"]} == {self.user.role, "parent"}
+
+    def test_disabled_superuser_has_no_usable_permissions_in_the_read_only_summary(self):
+        target = Utilisateur.objects.create_superuser(
+            "inactive-access-admin", etablissement=self.tenant, is_active=False
+        )
+        response = self.client.get(f"/api/v1/utilisateurs/comptes/{target.pk}/access-policy/")
+        assert response.status_code == 200
+        assert response.data["is_active"] is False
+        assert response.data["effective_permissions"] == []
+
     def test_roles_are_explicit_request_local_and_never_saved_as_primary(self):
         primary = self.user.role
         response = self.client.put(self.url, self.payload(additional_roles=["parent"]), format="json")

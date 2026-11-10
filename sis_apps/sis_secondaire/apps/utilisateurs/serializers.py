@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from rest_framework import serializers
 
+from sis_common.access_policy import public_policy
 from sis_common.authorization import can_delegate_permissions, validate_account_authorization_changes
 from sis_common.group_backends import group_is_active, group_object_permissions
 from sis_common.serializers import TenantBoundSerializerMixin
@@ -80,6 +81,10 @@ class UtilisateurListSerializer(serializers.ModelSerializer):
 
     full_name = serializers.CharField(source="get_full_name", read_only=True)
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    roles = serializers.SerializerMethodField()
+
+    def get_roles(self, instance):
+        return public_policy(instance)["roles"]
 
     class Meta:
         model = Utilisateur
@@ -90,6 +95,7 @@ class UtilisateurListSerializer(serializers.ModelSerializer):
             "full_name",
             "role",
             "role_display",
+            "roles",
             "groups",
             "is_active",
         ]

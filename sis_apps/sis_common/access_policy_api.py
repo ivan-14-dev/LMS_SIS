@@ -47,13 +47,31 @@ def policy_response(user, actor):
     snapshot = _snapshot(user)
     policy = snapshot["policy"]
     protected = user.is_superuser or user.pk == actor.pk
+    groups = [
+        {
+            "id": group.pk,
+            "name": group.name,
+            "active": getattr(getattr(group, "permission_lifecycle", None), "actif", True),
+            "permissions": sorted(
+                f"{permission.content_type.app_label}.{permission.codename}" for permission in group.permissions.all()
+            ),
+        }
+        for group in user.groups.select_related("permission_lifecycle")
+        .prefetch_related("permissions__content_type")
+        .order_by("name")
+    ]
     return {
         **public_policy(user),
         "version": _version(snapshot),
         "additional_roles": policy.get("additional_roles", []),
         "disabled_features": policy.get("disabled_features", []),
         "user_permissions": snapshot["user_permissions"],
-        "effective_permissions": ["*"] if user.is_superuser else sorted(user.get_all_permissions()),
+        "effective_permissions": (
+            (["*"] if user.is_superuser else sorted(user.get_all_permissions())) if user.is_active else []
+        ),
+        "is_active": user.is_active,
+        "permission_groups": groups,
+        "permission_scopes": (user.attributs_acces or {}).get("permission_scopes", {}),
         "editable": not protected,
         "can_edit_roles": actor.is_superuser and not protected,
         "can_restore_features": actor.is_superuser and not protected,

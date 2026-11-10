@@ -85,6 +85,25 @@ les octrois directs, groupes et rôles, y compris côté API. Retirer la lecture
 des dossiers/résultats bloque aussi leur portail agrégé pour éviter un accès
 par un autre écran. Retirer un service ne supprime pas ses dossiers.
 
+Le catalogue des groupes, des ajouts directs et des retraits individuels
+dispose d'une recherche par nom/code, de filtres **Module** et **Action**,
+d'une vue **Uniquement la sélection** et d'une pagination. **Sélectionner
+les résultats** ou **Retirer les résultats de la sélection** traite tous
+les résultats filtrés, y compris les autres pages, sans modifier les
+sélections masquées par le filtre. La case d'un module permet sa sélection
+en lot ; son état intermédiaire indique une sélection partielle.
+Ces actions restent un brouillon jusqu'à **Enregistrer**.
+
+**Filtrer les comptes par rôle** inclut les rôles principaux et supplémentaires.
+Après avoir choisi un compte, ouvrir **Voir les droits enregistrés de ces rôles** :
+les groupes actifs ou désactivés, ajouts directs, refus prioritaires et
+périmètres sont affichés, avec les permissions globales réellement accordées.
+Cette vue en lecture seule reflète les données enregistrées, pas le brouillon.
+Un rôle métier n'est pas un groupe fixe de permissions : deux enseignants
+peuvent avoir des droits différents. Les accès contextuels liés aux dossiers,
+affectations, objets et règles métier ne sont pas assimilés à des droits
+globaux ; le serveur continue de les vérifier.
+
 Un super-utilisateur peut attribuer plusieurs rôles métier. Le titulaire
 choisit **Mon rôle actif** dans l'en-tête ; seul un rôle effectivement attribué
 est accepté par le serveur. Le changement vide le cache de l'espace précédent
