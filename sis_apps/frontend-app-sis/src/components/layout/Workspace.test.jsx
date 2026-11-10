@@ -12,6 +12,8 @@ import Sidebar from './Sidebar';
 import WorkspaceTools from './WorkspaceTools';
 import WorkspaceHome from './WorkspaceHome';
 import WorkspaceCalendar from './WorkspaceCalendar';
+import LearningAccess from './LearningAccess';
+import PersonalTimetable from './PersonalTimetable';
 import {
   canEnterPortal, getNavigation, getWorkspaceGroups, workspaceKind,
 } from './navigation';
@@ -35,6 +37,7 @@ jest.mock('../../services/api', () => ({
 
 let roles;
 let failure;
+let learning;
 
 const portalRole = (role, permissions = []) => {
   let kind = 'learner';
@@ -197,6 +200,8 @@ const renderWorkspace = (path = '/secondaire', client = workspaceClient()) => re
         {['secondaire', 'superieur'].map(variant => (
           <Route key={variant} path={`/${variant}`} element={<SISLayout type={variant} />}>
             <Route index element={<WorkspaceHome />} />
+            <Route path="cours-lms" element={<LearningAccess />} />
+            <Route path="mon-emploi-du-temps" element={<PersonalTimetable />} />
             <Route path="classes" element={<h1>Gestion des classes</h1>} />
             <Route path="eleves" element={<h1>Dossiers élèves</h1>} />
             <Route path="factures/:id" element={<SearchRecordDetail resource="factures" />} />
@@ -222,9 +227,13 @@ beforeEach(() => {
   window.localStorage.clear();
   roles = { secondaire: { role: 'super_admin', permissions: ['*'] }, superieur: { role: 'super_admin', permissions: ['*'] } };
   failure = '';
+  learning = { state: 'unmapped', courses: [], can_open_studio: false };
   useMediaQuery.mockReturnValue(false);
   getConfig.mockReturnValue({
     SIS_MODE: 'dual',
+    SIS_AUTH_MODE: 'local',
+    LMS_BASE_URL: 'https://lms.example.test',
+    STUDIO_BASE_URL: 'https://studio.example.test',
     SIS_SECONDAIRE_API_URL: 'https://secondaire.example.test/api/v1',
     SIS_SUPERIEUR_API_URL: 'https://superieur.example.test/api/v1',
   });
@@ -234,6 +243,7 @@ beforeEach(() => {
     if (failure && url.includes(failure)) { throw new Error('Service indisponible'); }
     const variant = url.includes('secondaire.') ? 'secondaire' : 'superieur';
     if (url.endsWith('/capabilities/')) { return roles[variant]; }
+    if (url.endsWith('/my-learning/')) { return learning; }
     if (url.endsWith('/me/')) {
       return {
         id: 1,
@@ -269,6 +279,78 @@ it('replaces invented dashboard numbers with real zero counts and explicit error
   await waitFor(() => expect(screen.queryByText('Compteur indisponible.')).not.toBeInTheDocument());
 });
 
+it.each(['secondaire', 'superieur'])('opens %s learner courses while preserving the SIS and local login', async (variant) => {
+  roles[variant] = portalRole(variant === 'secondaire' ? 'eleve' : 'etudiant');
+  learning = {
+    state: 'ready',
+    courses: [{ course_id: 'course-v1:SIS+math+2026', name: 'Mathématiques', can_edit: false }],
+    can_open_studio: false,
+  };
+  renderWorkspace(`/${variant}`);
+  const link = await screen.findByRole('link', { name: 'Mes cours' });
+  expect(link).toHaveAttribute('href', 'https://lms.example.test/dashboard');
+  expect(link).toHaveAttribute('target', '_blank');
+  expect(screen.getByText(/distinct du compte local/)).toBeVisible();
+  expect(screen.queryByRole('link', { name: 'Créer/modifier un cours' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('link', { name: 'Cours associés à cet établissement' }));
+  expect(await screen.findByRole('heading', { name: 'Mathématiques' })).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Suivre ce cours' }))
+    .toHaveAttribute('href', 'https://lms.example.test/courses/course-v1%3ASIS%2Bmath%2B2026/course/');
+  expect(screen.queryByRole('link', { name: 'Modifier dans Studio' })).not.toBeInTheDocument();
+});
+
+it('removes Studio immediately while rechecking an updated teaching decision', async () => {
+  roles.secondaire = portalRole('enseignant');
+  learning = { state: 'ready', courses: [], can_open_studio: true };
+  const client = workspaceClient();
+  renderWorkspace('/secondaire', client);
+  expect(await screen.findByRole('link', { name: 'Créer/modifier un cours' }))
+    .toHaveAttribute('href', 'https://studio.example.test/home/');
+  learning = { state: 'ready', courses: [], can_open_studio: false };
+  await act(async () => { await client.invalidateQueries({ queryKey: ['my-learning'] }); });
+  await waitFor(() => expect(screen.queryByRole('link', { name: 'Créer/modifier un cours' })).not.toBeInTheDocument());
+});
+
+it.each(['parent', 'super_admin'])('does not request or grant course access to %s even with wildcard permissions', async (role) => {
+  roles.secondaire = role === 'parent' ? portalRole(role, ['*']) : { role, permissions: ['*'] };
+  learning = { state: 'ready', courses: [], can_open_studio: true };
+  renderWorkspace();
+  await screen.findByRole('heading', { name: role === 'parent' ? 'Mon espace famille' : 'Votre espace de travail' });
+  expect(screen.queryByRole('link', { name: 'Créer/modifier un cours' })).not.toBeInTheDocument();
+  expect(fetchApi.mock.calls.some(([url]) => url.endsWith('/my-learning/'))).toBe(false);
+});
+
+it('keeps standalone services usable without inventing a course association', async () => {
+  roles.secondaire = portalRole('eleve');
+  learning = { state: 'not_configured', courses: [], can_open_studio: false };
+  renderWorkspace();
+  expect(await screen.findByText(/Les cours en ligne ne sont pas raccordés/)).toBeVisible();
+  expect(screen.queryByRole('link', { name: 'Mes cours' })).not.toBeInTheDocument();
+  expect(within(screen.getByRole('navigation', { name: 'Accès principaux' })).getByRole('link', { name: 'Mon dossier' })).toBeVisible();
+});
+
+it('rejects unsafe public course URLs rather than rendering an executable link', async () => {
+  roles.secondaire = portalRole('eleve');
+  learning = { state: 'ready', courses: [], can_open_studio: false };
+  // eslint-disable-next-line no-script-url -- Deliberately unsafe configuration fixture.
+  getConfig.mockReturnValue({ ...getConfig(), LMS_BASE_URL: 'javascript:alert(1)' });
+  renderWorkspace('/secondaire/cours-lms');
+  expect(await screen.findByText(/adresses publiques du LMS ou de Studio sont invalides/)).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Mes cours' })).toHaveAttribute('href', '/secondaire/cours-lms');
+});
+
+it('loads the personal timetable from the scoped learner endpoint and surfaces failures', async () => {
+  roles.secondaire = portalRole('eleve');
+  failure = '/emploi_du_temps/';
+  renderWorkspace('/secondaire/mon-emploi-du-temps');
+  expect(await screen.findByText(/Impossible de charger votre emploi du temps/)).toBeVisible();
+  failure = '';
+  fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+  expect(await screen.findByRole('heading', { name: 'Mon emploi du temps' })).toBeVisible();
+  expect(fetchApi.mock.calls.some(([url]) => url.endsWith('/portail/apprenant/emploi_du_temps/'))).toBe(true);
+  expect(fetchApi.mock.calls.some(([url]) => url.includes('/edt/'))).toBe(false);
+});
+
 it.each([
   ['secondaire', 'eleve', 'Mon espace élève'],
   ['secondaire', 'parent', 'Mon espace famille'],
@@ -279,7 +361,7 @@ it.each([
   renderWorkspace(`/${variant}`);
   expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
   const navigation = within(screen.getByRole('navigation', { name: 'Navigation principale' }));
-  expect(navigation.getAllByRole('link').length).toBeLessThanOrEqual(5);
+  expect(navigation.getAllByRole('link').length).toBeLessThanOrEqual(6);
   expect(navigation.queryByRole('link', { name: 'Utilisateurs' })).not.toBeInTheDocument();
   expect(navigation.queryByRole('link', { name: 'Notes' })).not.toBeInTheDocument();
   expect(navigation.getByRole('link', { name: role === 'parent' ? 'Mes enfants' : 'Mon dossier' })).toBeInTheDocument();
@@ -512,6 +594,7 @@ it('opens the keyboard palette, stores a favorite, and opens its authorized targ
 }, 15000);
 
 it('keeps native LMS courses and logout available inside the shared ERP account menu', async () => {
+  roles.secondaire = portalRole('eleve');
   const config = getConfig();
   getConfig.mockReturnValue({
     ...config,
@@ -520,9 +603,9 @@ it('keeps native LMS courses and logout available inside the shared ERP account 
     LOGOUT_URL: 'https://lms.example.test/logout',
   });
   renderWorkspace();
-  await screen.findByRole('heading', { name: 'Votre espace de travail' });
+  await screen.findByRole('heading', { name: 'Mon espace élève' });
   fireEvent.click(screen.getByRole('button', { name: 'Menu du compte' }));
-  expect(await screen.findByRole('menuitem', { name: 'Mes cours LMS' })).toHaveAttribute('href', 'https://lms.example.test/dashboard');
+  expect(await screen.findByRole('menuitem', { name: 'Mes cours LMS' })).toHaveAttribute('href', '/secondaire/cours-lms');
   expect(screen.getByRole('menuitem', { name: 'Se déconnecter' })).toHaveAttribute('href', 'https://lms.example.test/logout');
 });
 

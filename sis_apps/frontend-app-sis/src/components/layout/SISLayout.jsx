@@ -17,7 +17,7 @@ import { useCapabilities } from '../auth/PermissionGuard';
 import Sidebar, { WorkspaceBrand } from './Sidebar';
 import LocalSessionGate from '../auth/LocalSessionGate';
 import {
-  getNavigation, getWorkspaceGroups, matchesNavigation, workspaceKind,
+  canUseLearning, getNavigation, getWorkspaceGroups, matchesNavigation, workspaceKind,
 } from './navigation';
 import AppearanceProvider from '../../theme/AppearanceProvider';
 import WorkspaceTools, { navigationKey } from './WorkspaceTools';
@@ -159,7 +159,9 @@ const Workspace = ({ type, variant }) => {
                 </Button>
                 <AccountMenu id="sis-account-menu" anchorEl={accountAnchor} open={Boolean(accountAnchor)} onClose={() => setAccountAnchor(null)}>
                   <MenuItem component={Link} to={`/${variant}/compte`} onClick={() => setAccountAnchor(null)}>Mon compte SIS</MenuItem>
-                  <MenuItem component="a" href={`${getConfig().LMS_BASE_URL}/dashboard`}>Mes cours LMS</MenuItem>
+                  {canUseLearning(allowedCapabilities) && (
+                    <MenuItem component={Link} to={`/${variant}/cours-lms`} onClick={() => setAccountAnchor(null)}>Mes cours LMS</MenuItem>
+                  )}
                   <MenuItem component="a" href={`${getConfig().LMS_BASE_URL}/account/settings`}>Mon compte LMS</MenuItem>
                   <MenuItem component="a" href={getConfig().LOGOUT_URL}>Se déconnecter</MenuItem>
                 </AccountMenu>

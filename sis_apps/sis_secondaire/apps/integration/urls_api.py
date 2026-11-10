@@ -2,6 +2,7 @@
 
 from django.urls import path
 
+from sis_common.lms_portal import learning_access
 from sis_common.lms_user_candidates import user_candidates
 
 from . import api
@@ -9,6 +10,7 @@ from . import api
 app_name = "integration_api"
 
 urlpatterns = [
+    path("my-learning/", learning_access, name="my-learning"),
     # Webhooks entrants
     path("webhook/lms/", api.webhook_lms, name="webhook-lms"),
     path("webhook/cms/", api.webhook_cms, name="webhook-cms"),

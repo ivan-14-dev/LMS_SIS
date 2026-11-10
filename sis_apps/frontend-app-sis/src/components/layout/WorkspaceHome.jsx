@@ -10,9 +10,10 @@ import {
 } from '@mui/icons-material';
 import { fetchApi } from '../../services/api';
 import { fetchResourcePage, resourceUrl } from '../../services/resources';
-import { workspaceKind } from './navigation';
+import { canEnterPortal, workspaceKind } from './navigation';
 import WorkspaceCalendar from './WorkspaceCalendar';
 import WorkflowNotificationsPanel from '../common/WorkflowNotificationsPanel';
+import LearningAccess from './LearningAccess';
 
 const moduleShape = PropTypes.shape({
   label: PropTypes.string.isRequired,
@@ -131,6 +132,17 @@ const WorkspaceHome = () => {
           {new Intl.DateTimeFormat('fr', { dateStyle: 'full' }).format(today)}
         </time>
       </header>
+      <LearningAccess compact />
+      <nav aria-label="Accès principaux" className="sis-favorites">
+        {items.filter(item => (
+          kind === 'learner'
+            ? /\/(portail-apprenant|mon-emploi-du-temps|documents)$/.test(item.path)
+            : /\/(portail-staff|eleves|etudiants|inscriptions|classes|enseignants|evaluations|notes|paiements)$/.test(item.path)
+        )).map(item => <Link key={item.path} to={item.path}>{item.label}</Link>)}
+        {canEnterPortal(capabilities, 'learner') && (
+          <Link to={`/${variant}/portail-apprenant`}>Mes résultats</Link>
+        )}
+      </nav>
       {favorites.length > 0 && (
         <nav className="sis-favorites" aria-label="Favoris">
           <strong>Favoris</strong>

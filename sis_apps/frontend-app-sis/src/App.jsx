@@ -10,6 +10,8 @@ import { getEnabledVariants } from './services/resources';
 
 // Layout
 import SISLayout from './components/layout/SISLayout';
+import LearningAccess from './components/layout/LearningAccess';
+import PersonalTimetable from './components/layout/PersonalTimetable';
 import PermissionGuard from './components/auth/PermissionGuard';
 import AccountPage from './components/auth/AccountPage';
 import PasswordRecoveryPage from './components/auth/PasswordRecoveryPage';
@@ -97,6 +99,8 @@ const App = () => (
 
           {/* ============ SIS SUPÉRIEUR ============ */}
           <Route path="/superieur" element={<SISLayout type="superieur" />}>
+            <Route path="cours-lms" element={<LearningAccess />} />
+            <Route path="mon-emploi-du-temps" element={<PersonalTimetable />} />
             <Route path="stages-pratiques" element={<PracticalTrainingPage variant="superieur" />} />
             <Route path="evenements" element={<EventsPage variant="superieur" />} />
             <Route path="portail-enquetes" element={<SurveysPage variant="superieur" />} />
@@ -173,6 +177,8 @@ const App = () => (
 
           {/* ============ SIS SECONDAIRE ============ */}
           <Route path="/secondaire" element={<SISLayout type="secondaire" />}>
+            <Route path="cours-lms" element={<LearningAccess />} />
+            <Route path="mon-emploi-du-temps" element={<PersonalTimetable />} />
             <Route path="stages-pratiques" element={<PracticalTrainingPage variant="secondaire" />} />
             <Route path="evenements" element={<EventsPage variant="secondaire" />} />
             <Route path="portail-enquetes" element={<SurveysPage variant="secondaire" />} />

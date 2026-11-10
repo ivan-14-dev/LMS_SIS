@@ -16,6 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.authorization import permission_snapshot, request_has_business_access
+from sis_common.learner_timetable import personal_timetable
 from sis_common.lms_tenants import current_lms_tenant
 
 
@@ -266,6 +267,10 @@ class PortailApprenantViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"], permission_classes=[IsElevePortal])
     def bulletins(self, request):
         return _delegate(PortailEleveViewSet, request, "bulletins")
+
+    @action(detail=False, methods=["get"], permission_classes=[IsElevePortal])
+    def emploi_du_temps(self, request):
+        return Response(personal_timetable(request))
 
     @action(detail=False, methods=["get"], permission_classes=[IsParentPortal])
     def dossier_enfant(self, request):

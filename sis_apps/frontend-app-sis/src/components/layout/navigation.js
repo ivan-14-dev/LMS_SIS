@@ -51,6 +51,9 @@ export const canEnterPortal = (capabilities, kind) => roleMatchesPortal(capabili
   && capabilities?.portals?.[kind] !== false
   && (capabilities?.portals?.[kind] === true || hasCapability(capabilities, `portail.view_${kind}`));
 
+export const canUseLearning = capabilities => canEnterPortal(capabilities, 'learner')
+  || (capabilities?.role === 'enseignant' && canEnterPortal(capabilities, 'staff'));
+
 export const workspaceKind = (capabilities) => {
   if (canEnterPortal(capabilities, 'learner') || canEnterPortal(capabilities, 'parent')) { return 'learner'; }
   if (canEnterPortal(capabilities, 'staff') && teachers.includes(capabilities?.role)) { return 'teacher'; }
@@ -335,6 +338,16 @@ export const getNavigation = (type, variant, capabilities, search = '') => {
       path: `/${variant}/portail-staff`, label: 'Mon activité pédagogique', icon: Group, public: true,
     });
   }
+  if (canUseLearning(capabilities)) {
+    personalItems.push({
+      path: `/${variant}/cours-lms`, label: 'Mes cours', icon: Book, public: true,
+    });
+  }
+  if (canEnterPortal(capabilities, 'learner')) {
+    personalItems.push({
+      path: `/${variant}/mon-emploi-du-temps`, label: 'Mon emploi du temps', icon: CalendarMonth, public: true,
+    });
+  }
   const sections = [{
     title: 'Mon espace',
     items: [
@@ -412,6 +425,9 @@ export const getWorkspaceGroups = (sections, kind) => {
       id: 'documents', label: 'Mes documents', icon: Description, paths: ['documents'],
     },
     {
+      id: 'apprentissages', label: 'Mes apprentissages', icon: Book, paths: ['cours-lms', 'mon-emploi-du-temps'],
+    },
+    {
       id: 'demarches', label: 'Mes démarches', icon: Assignment, paths: ['evenements', 'portail-enquetes', 'projets', 'missions', 'reclamations'],
     },
     {
@@ -425,7 +441,7 @@ export const getWorkspaceGroups = (sections, kind) => {
       id: 'scolarite', label: 'Scolarité', icon: People, paths: ['eleves', 'etudiants', 'classes', 'formations', 'inscriptions', 'enseignants'],
     },
     {
-      id: 'pedagogie', label: 'Pédagogie', icon: Book, paths: ['portail-staff', 'portail-enquetes', 'projets', 'evaluations', 'notes', 'examens', 'jurys', 'conseil-classe', 'emploi-du-temps', 'memoires', 'recherche'],
+      id: 'pedagogie', label: 'Pédagogie', icon: Book, paths: ['portail-staff', 'cours-lms', 'portail-enquetes', 'projets', 'evaluations', 'notes', 'examens', 'jurys', 'conseil-classe', 'emploi-du-temps', 'memoires', 'recherche'],
     },
     {
       id: 'vie', label: 'Vie de l’établissement', icon: Groups, paths: ['evenements', 'presences', 'discipline', 'cantine', 'transport', 'internat', 'infirmerie', 'clubs', 'bourses', 'stages', 'mobilite', 'bibliotheque', 'paiements'],

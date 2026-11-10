@@ -9,6 +9,49 @@ La [matrice de recette](functional-acceptance-matrix.json) reste la référence
 des 94 exigences initiales ; ce cahier complémentaire **ajoute** des critères,
 sans transformer les preuves antérieures en validation globale.
 
+## Point d'entrée SIS — livraison du 10 novembre 2026
+
+L'accueil SIS expose maintenant les accès principaux adaptés au profil :
+dossier, résultats et emploi du temps personnel pour l'apprenant ; activité,
+classes et évaluations autorisées pour l'enseignant ; gestion et finances
+selon les permissions ; enfants autorisés pour le parent du secondaire.
+Le logo institutionnel et les vues métier existantes sont conservés.
+
+Les apprenants et enseignants affiliés disposent de « Mes cours » et d'une
+liste de leurs cours associés. « Créer/modifier un cours » n'apparaît que
+si une décision d'accès enseignant active a été confirmée par Open edX.
+Un rôle SIS, même administrateur, n'accorde aucun privilège Studio global.
+L'API personnelle refuse les parents et administrateurs ; l'API native Studio
+refuse également la consultation du cours par l'apprenant après connexion.
+Les raccourcis ouvrent un nouvel onglet et conservent le SIS accessible.
+La création et la publication de cours gardent leurs propres autorisations.
+
+**Déployé sur la démo et la recette SSO**, avec l'image SIS
+`sha256:dd5c00c94f1fdd5a393a1821cd6e95c525b4a3ad579ee75189a40eb771013671`.
+Les quatre parcours réels apprenant/enseignant des deux variantes passent
+depuis l'accueil SIS vers le tableau de bord LMS et le cours ; les enseignants
+ouvrent aussi Studio et le cours dans le MFE d'édition, sans nouvelle saisie
+de mot de passe. Studio établit sa propre session par son flux natif :
+une redirection HTML n'est pas assimilée à une décision d'autorisation.
+Aucun cours, résultat ou droit n'a été modifié pendant ces parcours.
+
+La démo conserve sa connexion locale, ses douze pages vérifiées et le bulletin
+historique 16,50/20 avec son PDF. Aucun compte n'a été associé ou fusionné
+automatiquement. Un compte non associé reçoit une explication, pas un faux
+accès. L'authentification commune reste celle de la recette locale sous
+`reception.lms.sis.localhost:32630`, pas une bascule générale de la démo
+`validation.localhost:32600`, ni un SSO institutionnel HTTPS homologué.
+
+Contrôles locaux : huit tests backend par variante, 129 tests frontend,
+qualité des fichiers modifiés et deux builds de production. Sur l'hôte partagé,
+la validation frontend a utilisé un budget de 15 secondes par test à
+l'invocation, sans modifier les assertions ni le délai configuré du dépôt.
+Cela ne rend pas verte la CI précédente : le run `42751868535` du commit
+`2427fe9` reste en échec sur la recette d'installation supérieure
+(texte « Configuration actuellement effective. » absent).
+SMTP institutionnel, Stripe, domaines/TLS de production et réception habilitée
+conservent leurs réserves antérieures.
+
 ## SSO et notes signées — qualification du 10 novembre 2026
 
 **SSO et chaîne de notes qualifiés sur les deux variantes de la recette locale.

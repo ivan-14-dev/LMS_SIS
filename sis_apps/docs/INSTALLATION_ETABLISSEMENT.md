@@ -20,6 +20,46 @@ SMTP/SMS, SSO réel, règles pédagogiques, sauvegarde hors machine, capacité,
 protection des données et recette par les utilisateurs restent à valider sur
 l'infrastructure de l'établissement.
 
+### Le SIS comme point d'entrée
+
+Communiquez l'adresse du SIS aux utilisateurs. L'accueil et les menus sont
+adaptés aux affiliations et permissions effectives, pas au seul nom du rôle :
+
+| Profil | Accès depuis l'accueil |
+|---|---|
+| Apprenant | Dossier, résultats, documents, emploi du temps personnel et « Mes cours » vers le LMS si le compte est associé. |
+| Enseignant | Activité pédagogique, classes et évaluations autorisées ; « Créer/modifier un cours » uniquement après confirmation d'un accès enseignant à un cours. |
+| Administration | Dossiers, inscriptions, classes/affectations, évaluations et finances selon les permissions déjà attribuées. Aucun droit Studio global implicite. |
+| Parent du secondaire | Dossiers des seuls enfants autorisés, documents et suivi familial ; aucun raccourci Studio ni accès à l'API personnelle LMS. |
+
+`/<variante>/cours-lms` présente les cours de l'établissement dont la dernière
+décision d'accès SIS a été confirmée par Open edX. Les accès retirés, demandes
+encore en attente, cours désactivés et identités non confirmées sont exclus.
+Ce n'est pas une interrogation en temps réel des droits natifs : les contrôles
+Open edX restent souverains à l'ouverture du cours. Les liens ouvrent un nouvel
+onglet pour garder le SIS accessible. Créer un nouveau cours ou publier reste
+soumis aux droits natifs ; le bouton ne les attribue pas.
+
+Les URL navigateur `LMS_BASE_URL` et `STUDIO_BASE_URL` doivent désigner les
+origines publiques du LMS et de Studio lors de la construction du frontend,
+pas leurs seuls noms de conteneurs. En mode `local`, la connexion Open edX
+reste distincte et l'interface l'indique. En mode `lms`, le raccordement SSO
+décrit ci-dessous réutilise la connexion native. Aucun compte n'est associé
+automatiquement par similarité de nom ou d'email.
+
+`/<variante>/mon-emploi-du-temps` est une consultation personnelle, sans droits
+de modification du planning. Au secondaire, elle suit la classe actuelle ;
+au supérieur, les inscriptions validées, choix pédagogiques et affectations
+individuelles, avec leurs groupes TD/TP. Les créneaux sans groupe sont communs.
+Les dates, semaines et fréquences restent affichées : ce n'est pas une promesse
+que chaque créneau se déroule aujourd'hui. Le suivi parental reste dans les
+dossiers d'enfants autorisés, pas dans cet endpoint apprenant.
+
+Le logo institutionnel peut rester l'identité principale du SIS. Pour les
+interfaces Open edX, conserver les mentions et attributions applicables :
+la [politique de marque](https://openedx.org/trademark-licensing-details/)
+recommande le badge « Powered by Open edX » en pied de page avec son lien.
+
 ## Préparer le serveur
 
 - Linux avec Docker Engine, le plugin Docker Compose **≥ 2.20** et Python **≥ 3.11**.

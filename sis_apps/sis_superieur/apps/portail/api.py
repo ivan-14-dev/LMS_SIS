@@ -1,11 +1,11 @@
 """Consolidated learner/family and staff/admin portal APIs for SIS Supérieur."""
 
+from apps.enseignants.models import AffectationEnseignement
+from apps.notes.models import Evaluation
 from apps.portail_doyen.api import PortailDoyenViewSet
 from apps.portail_enseignant.api import PortailEnseignantViewSet
 from apps.portail_etudiant.api import PortailEtudiantViewSet
 from apps.portail_scolarite.api import PortailScolariteViewSet
-from apps.enseignants.models import AffectationEnseignement
-from apps.notes.models import Evaluation
 from django.db.models import Count, F, Q
 from rest_framework import viewsets
 from rest_framework.decorators import action
@@ -14,6 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from sis_common.authorization import permission_snapshot, request_has_business_access
+from sis_common.learner_timetable import personal_timetable
 from sis_common.lms_tenants import current_lms_tenant
 
 
@@ -67,38 +68,38 @@ class _TenantTeacherPortal(PortailEnseignantViewSet):
             formation = ue.maquette.formation
             if formation.departement:
                 departements.add(formation.departement.nom)
-            cours.append({
-                "affectation_id": assignment.id,
-                "ecue_id": ecue.id if ecue else None,
-                "ecue_nom": ecue.nom if ecue else None,
-                "ue": ue.nom,
-                "formation": formation.nom,
-                "type": assignment.type_enseignement,
-                "heures": float(assignment.heures) if assignment.heures is not None else None,
-            })
-        return Response({
-            "enseignant": {
-                "nom": enseignant.user.get_full_name(),
-                "corps": enseignant.corps,
-                "laboratoire": enseignant.laboratoire.nom if enseignant.laboratoire else None,
-                "departements": sorted(departements),
-            },
-            "cours_semestre": cours,
-            "statistiques": {
-                "nb_cours": len(cours),
-                "heures_total": sum(item["heures"] or 0 for item in cours),
-            },
-        })
+            cours.append(
+                {
+                    "affectation_id": assignment.id,
+                    "ecue_id": ecue.id if ecue else None,
+                    "ecue_nom": ecue.nom if ecue else None,
+                    "ue": ue.nom,
+                    "formation": formation.nom,
+                    "type": assignment.type_enseignement,
+                    "heures": float(assignment.heures) if assignment.heures is not None else None,
+                }
+            )
+        return Response(
+            {
+                "enseignant": {
+                    "nom": enseignant.user.get_full_name(),
+                    "corps": enseignant.corps,
+                    "laboratoire": enseignant.laboratoire.nom if enseignant.laboratoire else None,
+                    "departements": sorted(departements),
+                },
+                "cours_semestre": cours,
+                "statistiques": {
+                    "nb_cours": len(cours),
+                    "heures_total": sum(item["heures"] or 0 for item in cours),
+                },
+            }
+        )
 
     def notes_a_saisir(self, request):
         assignments = self._affectations_queryset(request.user.enseignant_profile)
         allowed = Q()
         for assignment in assignments:
-            ecue_ids = (
-                [assignment.ecue_id]
-                if assignment.ecue_id
-                else assignment.ue.ecues.values_list("id", flat=True)
-            )
+            ecue_ids = [assignment.ecue_id] if assignment.ecue_id else assignment.ue.ecues.values_list("id", flat=True)
             allowed |= Q(
                 ecue_id__in=ecue_ids,
                 semestre__annee_universitaire_id=assignment.annee_universitaire_id,
@@ -110,19 +111,21 @@ class _TenantTeacherPortal(PortailEnseignantViewSet):
             .annotate(notes_saisies=Count("notes"))
             .order_by("-date")[:25]
         )
-        return Response([
-            {
-                "evaluation_id": evaluation.id,
-                "ecue_id": evaluation.ecue.id,
-                "ecue_nom": evaluation.ecue.nom,
-                "semestre": str(evaluation.semestre),
-                "titre": evaluation.titre,
-                "modalite": evaluation.modalite,
-                "date": evaluation.date.isoformat(),
-                "notes_saisies": evaluation.notes_saisies,
-            }
-            for evaluation in evaluations
-        ])
+        return Response(
+            [
+                {
+                    "evaluation_id": evaluation.id,
+                    "ecue_id": evaluation.ecue.id,
+                    "ecue_nom": evaluation.ecue.nom,
+                    "semestre": str(evaluation.semestre),
+                    "titre": evaluation.titre,
+                    "modalite": evaluation.modalite,
+                    "date": evaluation.date.isoformat(),
+                    "notes_saisies": evaluation.notes_saisies,
+                }
+                for evaluation in evaluations
+            ]
+        )
 
 
 class IsApprenantFamille(IsAuthenticated):
@@ -159,7 +162,8 @@ class IsStaffAdmin(IsAuthenticated):
 
 def _has_registrar_access(request):
     return request_has_business_access(
-        request, "etudiants.view_etudiant",
+        request,
+        "etudiants.view_etudiant",
         ("scolarite", "directeur_etudes", "chef_departement", "doyen"),
         tenant_group_codes=(
             "academic_admin_superieur",
@@ -172,7 +176,8 @@ def _has_registrar_access(request):
 
 def _has_leadership_access(request):
     return request_has_business_access(
-        request, "formations.view_formation",
+        request,
+        "formations.view_formation",
         ("doyen", "vice_doyen", "president", "vice_president"),
         tenant_group_codes=(
             "academic_admin_superieur",
@@ -244,6 +249,10 @@ class PortailApprenantViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def releves(self, request):
         return _delegate(PortailEtudiantViewSet, request, "releves")
+
+    @action(detail=False, methods=["get"])
+    def emploi_du_temps(self, request):
+        return Response(personal_timetable(request))
 
 
 class PortailStaffViewSet(viewsets.ViewSet):
